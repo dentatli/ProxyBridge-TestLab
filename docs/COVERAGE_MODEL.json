@@ -1,0 +1,164 @@
+{
+  "schema_version": 1,
+  "coverage_model": "meaningful equivalence classes plus exhaustive critical interactions",
+  "groups": [
+    {
+      "id": "base-policy",
+      "dimensions": [
+        "TCP/UDP",
+        "IPv4/IPv6",
+        "DIRECT/BLOCK/PROXY",
+        "connected/unconnected UDP"
+      ]
+    },
+    {
+      "id": "tcp-lifecycle",
+      "dimensions": [
+        "graceful close",
+        "abortive close",
+        "half-close",
+        "server close",
+        "RST",
+        "refused",
+        "silent timeout",
+        "long-lived",
+        "parallel",
+        "sequential reuse"
+      ]
+    },
+    {
+      "id": "udp-semantics",
+      "dimensions": [
+        "single/multiple destinations",
+        "single/multiple sockets",
+        "connected/unconnected",
+        "delayed",
+        "out-of-order",
+        "duplicate",
+        "drop",
+        "receive-only",
+        "reconnect"
+      ]
+    },
+    {
+      "id": "identity-collisions",
+      "dimensions": [
+        "TCP vs UDP",
+        "IPv4 vs IPv6",
+        "same port different local IP",
+        "same port different process",
+        "same port different destination",
+        "same port different proxy config",
+        "generation reuse"
+      ]
+    },
+    {
+      "id": "rule-engine",
+      "dimensions": [
+        "basename/full path",
+        "IP/domain",
+        "port/range",
+        "protocol BOTH/TCP/UDP",
+        "priority/overlap",
+        "enabled/disabled",
+        "hot update",
+        "persistence",
+        "wildcards"
+      ]
+    },
+    {
+      "id": "network-topology",
+      "dimensions": [
+        "loopback",
+        "LAN",
+        "external",
+        "multihomed",
+        "NAT",
+        "interface loss/recovery",
+        "DNS change",
+        "proxy backend change"
+      ]
+    },
+    {
+      "id": "failure-injection",
+      "dimensions": [
+        "proxy unavailable",
+        "auth failure",
+        "DNS failure",
+        "connect refused",
+        "timeout",
+        "packet loss",
+        "reorder",
+        "duplicate",
+        "backend restart",
+        "driver restart",
+        "process exit"
+      ]
+    },
+    {
+      "id": "payloads",
+      "dimensions": [
+        "0",
+        "1",
+        "64",
+        "512",
+        "1200",
+        "1400",
+        "1472",
+        "2000",
+        "8192",
+        "32768",
+        "65507 UDP optional",
+        "streaming TCP"
+      ]
+    },
+    {
+      "id": "security",
+      "dimensions": [
+        "no direct leak",
+        "no wrong destination",
+        "no cross-process delivery",
+        "no stale action",
+        "no wrong proxy config",
+        "fail-open/fail-closed behavior"
+      ]
+    },
+    {
+      "id": "application-canaries",
+      "dimensions": [
+        "HTTP",
+        "HTTPS",
+        "HTTP/3/QUIC",
+        "DNS",
+        "STUN",
+        "WebRTC/DTLS/RTP",
+        "Discord voice",
+        "screen sharing",
+        "browser download"
+      ]
+    },
+    {
+      "id": "performance",
+      "dimensions": [
+        "latency p50/p95/p99",
+        "throughput",
+        "loss",
+        "CPU",
+        "memory",
+        "handles",
+        "threads",
+        "new-flow rate",
+        "datagrams/sec"
+      ]
+    }
+  ],
+  "out_of_scope_unless_claimed": [
+    "ICMP proxying",
+    "IGMP",
+    "GRE",
+    "ESP/AH",
+    "SCTP",
+    "raw sockets",
+    "non-IP link-layer traffic"
+  ]
+}

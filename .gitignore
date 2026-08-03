@@ -1,0 +1,27 @@
+﻿# Local configuration and secrets
+.env
+.env.*
+!.env.example
+*.local.json
+
+# Runtime evidence
+artifacts/
+evidence/
+logs/
+captures/
+dumps/
+results/
+
+# Network and crash captures
+*.etl
+*.pcap
+*.pcapng
+*.dmp
+
+# Build output
+bin/
+obj/
+
+# Editors
+.vscode/
+.idea/

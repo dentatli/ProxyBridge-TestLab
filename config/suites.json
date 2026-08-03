@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "suite_id": "ipv4-correctness-first-pass",
+  "description": "First automated correctness pass. Product failures are recorded; infrastructure failures stop the run.",
+  "selection": {
+    "include_tags": [
+      "ipv4",
+      "synthetic",
+      "correctness"
+    ],
+    "exclude_tags": [
+      "ipv6",
+      "performance",
+      "real-app",
+      "destructive",
+      "manual-only"
+    ],
+    "include_scenario_ids": [],
+    "exclude_scenario_ids": []
+  },
+  "execution": {
+    "continue_on_product_failure": true,
+    "continue_on_expected_failure": true,
+    "continue_on_ambiguous_hold": true,
+    "stop_on_harness_failure": true,
+    "stop_on_infrastructure_failure": true,
+    "stop_on_state_contamination": true,
+    "max_consecutive_product_failures": 5,
+    "default_repeats": 1,
+    "critical_repeats_after_first_pass": 10,
+    "parallel_scenarios": 1,
+    "dry_run": false
+  },
+  "known_defects": {
+    "policy": "classify",
+    "items": [
+      {
+        "id": "full-path-watchlist-mismatch",
+        "matching_tags": [
+          "full-path-rule"
+        ],
+        "expected_status": "EXPECTED_FAIL"
+      },
+      {
+        "id": "udp-proxy-reverse-source",
+        "matching_tags": [
+          "udp",
+          "proxy",
+          "response-source"
+        ],
+        "expected_status": "EXPECTED_FAIL"
+      },
+      {
+        "id": "watched-udp-direct-drop",
+        "matching_tags": [
+          "udp",
+          "direct",
+          "watched-process"
+        ],
+        "expected_status": "EXPECTED_FAIL"
+      }
+    ]
+  }
+}

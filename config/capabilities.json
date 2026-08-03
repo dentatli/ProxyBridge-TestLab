@@ -1,0 +1,75 @@
+{
+  "schema_version": 1,
+  "profile_id": "wfp-beta-vm-current",
+  "description": "Capabilities and environmental limitations. May be edited without changing scenario definitions.",
+  "capabilities": {
+    "ipv4": {
+      "enabled": true,
+      "reason": ""
+    },
+    "ipv6": {
+      "enabled": false,
+      "reason": "No native public IPv6 route on host or VM"
+    },
+    "tcp": {
+      "enabled": true,
+      "reason": ""
+    },
+    "udp": {
+      "enabled": true,
+      "reason": ""
+    },
+    "connected_udp": {
+      "enabled": true,
+      "reason": ""
+    },
+    "unconnected_udp": {
+      "enabled": true,
+      "reason": ""
+    },
+    "socks5": {
+      "enabled": true,
+      "reason": ""
+    },
+    "http_proxy": {
+      "enabled": false,
+      "reason": "Not configured for this run"
+    },
+    "domain_rules": {
+      "enabled": true,
+      "reason": ""
+    },
+    "process_full_path_rules": {
+      "enabled": true,
+      "reason": "Run as known-defect regression only"
+    },
+    "process_basename_rules": {
+      "enabled": true,
+      "reason": ""
+    },
+    "driver_restart": {
+      "enabled": true,
+      "reason": ""
+    },
+    "vm_reboot": {
+      "enabled": true,
+      "reason": ""
+    },
+    "snapshot_restore": {
+      "enabled": false,
+      "reason": "Manual recovery only"
+    },
+    "packet_capture": {
+      "enabled": false,
+      "reason": "Optional; enable when capture tooling is prepared"
+    },
+    "performance": {
+      "enabled": false,
+      "reason": "Correctness GO required first"
+    },
+    "real_apps": {
+      "enabled": false,
+      "reason": "Synthetic correctness phase first"
+    }
+  }
+}

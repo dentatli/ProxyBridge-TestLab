@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "scenario_id": "issue206-proxy-to-direct-ipv4-abortive",
+  "title": "Issue #206: TCP PROXY to TCP DIRECT with exact local-port reuse",
+  "enabled": true,
+  "tags": [
+    "ipv4",
+    "tcp",
+    "synthetic",
+    "correctness",
+    "issue206",
+    "stateful"
+  ],
+  "requires": [
+    "ipv4",
+    "tcp",
+    "socks5",
+    "process_basename_rules"
+  ],
+  "reset_policy": "rules_only",
+  "rule_set": [
+    {
+      "rule_key": "first",
+      "application": "${PB_RULE_APPLICATION_BASENAME}",
+      "host": "${PB_VPS_IPV4}",
+      "ports": [
+        "${PB_ENDPOINT_B_PORT}"
+      ],
+      "domains": [
+        "*"
+      ],
+      "protocol": "TCP",
+      "action": "PROXY",
+      "proxy_config_id": "${PB_SOCKS_PROXY_CONFIG_ID}",
+      "enabled": true
+    },
+    {
+      "rule_key": "second",
+      "application": "${PB_RULE_APPLICATION_BASENAME}",
+      "host": "${PB_VPS_IPV4}",
+      "ports": [
+        "${PB_ENDPOINT_A_PORT}"
+      ],
+      "domains": [
+        "*"
+      ],
+      "protocol": "TCP",
+      "action": "DIRECT",
+      "proxy_config_id": 0,
+      "enabled": true
+    }
+  ],
+  "client": {
+    "mode": "issue206",
+    "family": 4,
+    "local_ip": "${PB_VM_IPV4}",
+    "local_port": 0,
+    "first_remote_ip": "${PB_VPS_IPV4}",
+    "first_remote_port": "${PB_ENDPOINT_B_PORT}",
+    "second_remote_ip": "${PB_VPS_IPV4}",
+    "second_remote_port": "${PB_ENDPOINT_A_PORT}",
+    "close_mode": "abortive",
+    "first_expected_action": "PROXY",
+    "second_expected_action": "DIRECT",
+    "first_expect": "echo",
+    "second_expect": "echo",
+    "first_tcp_peer_policy": "record-only",
+    "second_tcp_peer_policy": "exact",
+    "timeout_ms": 5000
+  },
+  "assertions": [
+    "exit_code == 0",
+    "flow_count == 2",
+    "flow[0].actual_local_ip == flow[1].actual_local_ip",
+    "flow[0].actual_local_port == flow[1].actual_local_port",
+    "flow[0].payload_sha256 == flow[0].response_sha256",
+    "flow[1].payload_sha256 == flow[1].response_sha256",
+    "proxybridge.flow[0].action == 'PROXY'",
+    "proxybridge.flow[1].action == 'DIRECT'",
+    "vps.flow[0].matches == 2",
+    "vps.flow[1].matches == 2"
+  ]
+}
