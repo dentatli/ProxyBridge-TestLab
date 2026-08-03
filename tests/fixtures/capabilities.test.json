@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "capabilities": {
+    "ipv4": { "enabled": true, "reason": "" },
+    "ipv6": { "enabled": false, "reason": "fixture host 192.0.2.20 has no IPv6" },
+    "tcp": { "enabled": true, "reason": "" },
+    "socks5": { "enabled": true, "reason": "" }
+  }
+}

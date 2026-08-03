@@ -2,6 +2,7 @@
 .env
 .env.*
 !.env.example
+!tests/fixtures/.env.test
 *.local.json
 
 # Runtime evidence

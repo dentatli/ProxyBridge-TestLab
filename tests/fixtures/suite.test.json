@@ -1,0 +1,10 @@
+{
+  "schema_version": 1,
+  "suite_id": "foundation-test",
+  "selection": {
+    "include_tags": ["ipv4", "foundation"],
+    "exclude_tags": ["excluded"],
+    "include_scenario_ids": [],
+    "exclude_scenario_ids": []
+  }
+}

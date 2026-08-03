@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "scenario_id": "foundation-profile-test",
+  "enabled": true,
+  "tags": ["ipv4", "tcp", "foundation"],
+  "requires": ["ipv4", "tcp", "socks5"],
+  "rule_set": [
+    {
+      "rule_key": "proxy",
+      "application": "${PB_RULE_APPLICATION_BASENAME}",
+      "host": "${PB_VPS_IPV4}",
+      "ports": ["${PB_ENDPOINT_B_PORT}"],
+      "domains": ["*"],
+      "protocol": "TCP",
+      "action": "PROXY",
+      "proxy_config_id": "${PB_SOCKS_PROXY_CONFIG_ID}",
+      "enabled": true
+    },
+    {
+      "rule_key": "direct",
+      "application": "${PB_RULE_APPLICATION_BASENAME}",
+      "host": "${PB_VPS_IPV4}",
+      "ports": ["${PB_ENDPOINT_A_PORT}"],
+      "domains": ["*"],
+      "protocol": "TCP",
+      "action": "DIRECT",
+      "proxy_config_id": 0,
+      "enabled": false
+    }
+  ]
+}
