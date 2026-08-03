@@ -1,0 +1,46 @@
+{
+  "Version": "1.0",
+  "Name": "Generated Test Scenario",
+  "LocalhostViaProxy": false,
+  "IsTrafficLoggingEnabled": true,
+  "AutoClearConnectionLogs": true,
+  "Language": "en",
+  "CloseToTray": true,
+  "ProxyConfigs": [
+    {
+      "Id": 1,
+      "Name": "Example SOCKS5",
+      "Type": "SOCKS5",
+      "Host": "${PB_SOCKS_HOST}",
+      "Port": "${PB_SOCKS_PORT}",
+      "Username": "",
+      "Password": "",
+      "SendDomainToProxy": true
+    }
+  ],
+  "ProxyRules": [
+    {
+      "Name": "${SCENARIO_ID} first rule",
+      "ProcessName": "${PB_RULE_APPLICATION_BASENAME}",
+      "TargetHosts": "${PB_VPS_IPV4}",
+      "TargetPorts": "${PB_ENDPOINT_B_PORT}",
+      "TargetDomains": "*",
+      "Protocol": "TCP",
+      "Action": "PROXY",
+      "IsEnabled": true,
+      "ProxyConfigId": 1
+    },
+    {
+      "Name": "${SCENARIO_ID} second rule",
+      "ProcessName": "${PB_RULE_APPLICATION_BASENAME}",
+      "TargetHosts": "${PB_VPS_IPV4}",
+      "TargetPorts": "${PB_ENDPOINT_A_PORT}",
+      "TargetDomains": "*",
+      "Protocol": "TCP",
+      "Action": "DIRECT",
+      "IsEnabled": true,
+      "ProxyConfigId": 0
+    }
+  ],
+  "LogFilters": []
+}

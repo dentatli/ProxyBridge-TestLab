@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/proxybridge/profile.schema.json",
+  "title": "ProxyBridge profile",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "Version",
+    "Name",
+    "LocalhostViaProxy",
+    "IsTrafficLoggingEnabled",
+    "AutoClearConnectionLogs",
+    "Language",
+    "CloseToTray",
+    "ProxyConfigs",
+    "ProxyRules",
+    "LogFilters"
+  ],
+  "properties": {
+    "Version": {
+      "type": "string"
+    },
+    "Name": {
+      "type": "string",
+      "minLength": 1
+    },
+    "LocalhostViaProxy": {
+      "type": "boolean"
+    },
+    "IsTrafficLoggingEnabled": {
+      "type": "boolean"
+    },
+    "AutoClearConnectionLogs": {
+      "type": "boolean"
+    },
+    "Language": {
+      "type": "string"
+    },
+    "CloseToTray": {
+      "type": "boolean"
+    },
+    "ProxyConfigs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "Id",
+          "Name",
+          "Type",
+          "Host",
+          "Port",
+          "Username",
+          "Password",
+          "SendDomainToProxy"
+        ],
+        "properties": {
+          "Id": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "Name": {
+            "type": "string"
+          },
+          "Type": {
+            "type": "string",
+            "enum": [
+              "SOCKS5",
+              "HTTP"
+            ]
+          },
+          "Host": {
+            "type": "string",
+            "minLength": 1
+          },
+          "Port": {
+            "type": "string",
+            "pattern": "^[0-9]{1,5}$"
+          },
+          "Username": {
+            "type": "string"
+          },
+          "Password": {
+            "type": "string"
+          },
+          "SendDomainToProxy": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "ProxyRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "Name",
+          "ProcessName",
+          "TargetHosts",
+          "TargetPorts",
+          "TargetDomains",
+          "Protocol",
+          "Action",
+          "IsEnabled",
+          "ProxyConfigId"
+        ],
+        "properties": {
+          "Name": {
+            "type": "string"
+          },
+          "ProcessName": {
+            "type": "string",
+            "minLength": 1
+          },
+          "TargetHosts": {
+            "type": "string"
+          },
+          "TargetPorts": {
+            "type": "string"
+          },
+          "TargetDomains": {
+            "type": "string"
+          },
+          "Protocol": {
+            "type": "string",
+            "enum": [
+              "TCP",
+              "UDP",
+              "BOTH"
+            ]
+          },
+          "Action": {
+            "type": "string",
+            "enum": [
+              "DIRECT",
+              "BLOCK",
+              "PROXY"
+            ]
+          },
+          "IsEnabled": {
+            "type": "boolean"
+          },
+          "ProxyConfigId": {
+            "type": "integer",
+            "minimum": 0
+          }
+        }
+      }
+    },
+    "LogFilters": {
+      "type": "array"
+    }
+  }
+}

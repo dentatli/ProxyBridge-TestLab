@@ -25,3 +25,7 @@ obj/
 # Editors
 .vscode/
 .idea/
+
+# Generated ProxyBridge profiles may contain hosts and credentials
+*.pbprofile
+generated-profiles/
