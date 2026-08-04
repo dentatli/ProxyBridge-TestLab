@@ -6,6 +6,11 @@ $root=Split-Path -Parent $PSScriptRoot
 foreach($module in @('Env','Config','DirectBaseline')){Import-Module (Join-Path $root "modules/$module.psm1") -Force}
 $environment=Get-EffectiveRuntimeEnvironment -Environment (Import-DotEnv (Join-Path $PSScriptRoot 'fixtures/.env.test')) -RuntimeConfig (Import-RuntimeConfig (Join-Path $root 'config/runtime.json'))
 $plan=New-DirectBaselinePlan -Environment $environment -TimeoutMs 100
+$payloadBytes = [Convert]::FromBase64String([string]$plan.payload_base64)
+
+Assert-True `
+    ($payloadBytes.Length -gt 0 -and $payloadBytes[$payloadBytes.Length - 1] -eq 10) `
+    'direct baseline payload must end with LF for endpoint MESSAGE_RECEIVED framing'
 Assert-Equal 'powershell-dotnet-tcp-control' $plan.executor 'baseline must use internal .NET control flow'
 Assert-True ([string]$plan.watched_application -ne 'powershell.exe') 'baseline control must not use watched client executable'
 

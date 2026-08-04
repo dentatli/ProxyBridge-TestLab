@@ -23,7 +23,7 @@ function New-DirectBaselinePlan {
     if (-not [System.Net.IPAddress]::TryParse([string]$Environment['PB_VPS_IPV4'], [ref]$address) -or $address.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) { throw 'DIRECT_BASELINE_DESTINATION_IPV4_INVALID' }
     $port = 0
     if (-not [int]::TryParse([string]$Environment['PB_ENDPOINT_A_PORT'], [ref]$port) -or $port -lt 1 -or $port -gt 65535) { throw 'DIRECT_BASELINE_PORT_INVALID' }
-    $payload = [System.Text.Encoding]::UTF8.GetBytes(('proxybridge-direct-baseline-' + [guid]::NewGuid().ToString('N')))
+    $payload = [System.Text.Encoding]::UTF8.GetBytes(('proxybridge-direct-baseline-' + [guid]::NewGuid().ToString('N') + "`n"))
     return [pscustomobject][ordered]@{
         executor='powershell-dotnet-tcp-control'; watched_application=[System.IO.Path]::GetFileName([string]$Environment['PB_CLIENT_EXE'])
         remote_ip=[string]$Environment['PB_VPS_IPV4']; remote_port=$port; timeout_ms=$TimeoutMs
