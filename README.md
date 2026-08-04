@@ -3,165 +3,154 @@
 Independent deterministic test and evidence-collection framework for
 [ProxyBridge](https://github.com/InterceptSuite/ProxyBridge).
 
-ProxyBridge-TestLab is intended to validate Windows WFP routing behavior,
-TCP and UDP correctness, connection lifecycle handling, rule evaluation,
-SOCKS5 proxying, failure recovery, and regression scenarios.
+ProxyBridge-TestLab validates Windows WFP routing behavior, TCP and UDP policy
+enforcement, connection lifecycle handling, rule evaluation, SOCKS5 proxying,
+known regressions, and externally verifiable route evidence.
 
 This repository does not contain or modify ProxyBridge product code.
 
-## Project status
+## Current status
 
-The repository contains a safe orchestration boundary for dry-run and mock
-synthetic-correctness matrices. Windows PowerShell 5.1 is the minimum supported
-version; PowerShell 7 is recommended.
+The framework has completed real IPv4 execution against ProxyBridge
+4.1.0-Beta WFP in an isolated Windows VM.
 
-Implemented:
-
-- private `.env` parsing and capability/suite/scenario separation;
-- capability-based test selection;
-- strict `.pbprofile` generation and validation;
-- a 135-ID declaration catalog with an explicitly smaller executable subset;
-- exhaustive declared critical matrix plus deterministic pairwise declarations;
-- known-defect, unsupported and skipped classifications;
-- exact base/issue206/issue209 client command builders;
-- real-harness JSONL normalization with raw and canonical records;
-- shared gated process, CLI lifecycle, environment-preparation, health, client, VPS and assertion boundaries;
-- exact-path/hash-verified GUI/CLI cleanup and GUI-only driver bootstrap when the configured service is Stopped;
-- one-per-run direct-egress baseline discovery before the CLI starts;
-- gated per-payload dynamic SSH evidence plans with explicit-path import-existing audit mode;
-- fixture-backed mock evidence that is independent of expected rule actions;
-- redacted UTF-8-without-BOM reports and checksums;
-- dependency-free Windows PowerShell tests.
-
-Requires a later explicitly authorized real-runtime run:
-
-- validation against the installed product/client binary contracts;
-- real product and client process execution;
-- execution of the implemented VPS collector against a real host;
-- driver/service, destructive lifecycle and performance execution.
-
-## Safe commands
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Run-All.ps1
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-DryRun.ps1 -FixtureMode
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-MockMatrix.ps1 -FixtureMode
-```
-
-Real runtime is never an implicit fallback. `scripts/Invoke-RealSmoke.ps1` is a
-separate manual command requiring `-ConfirmRealRuntime`; do not run it until the
-local `.env`, hashes, binaries and isolated test environment are verified. It
-prepares only the configured, hash-verified ProxyBridge GUI/CLI paths by default;
-`-SkipEnvironmentPreparation` is an explicit opt-out.
-
-## Goals
-
-The test lab is designed to provide:
-
-- deterministic TCP and UDP tests;
-- isolated ProxyBridge profiles per scenario;
-- automatic rule generation;
-- IPv4 and optional IPv6 coverage;
-- DIRECT, BLOCK and PROXY validation;
-- stateful connection tests;
-- issue-specific regression tests;
-- exact payload SHA-256 verification;
-- client, VPS and optional corroborating/contradictory ProxyBridge evidence correlation;
-- capability-based skips instead of false failures;
-- machine-readable result and coverage reports.
-
-Testing every possible Internet packet sequence is not feasible. The project
-instead targets exhaustive coverage of critical combinations, meaningful
-equivalence classes, stateful scenarios, and pairwise coverage for secondary
-dimensions.
-
-## Repository layout
+Latest full diagnostic sweep:
 
 ```text
-modules/      PowerShell runner modules
-tests/        Dependency-free unit, schema and fixture-backed tests
-config/       Capabilities, suites and known-defect policy
-scenarios/    Compact declarative catalogs
-schemas/      Profile, scenario, suite and result contracts
-scripts/      Dry-run, mock and separately gated real-smoke entrypoints
-docs/         Safety, evidence, coverage and authoring documentation
+135 catalog entries
+25 implemented IPv4 scenarios executed
+17 PASS
+7 EXPECTED_FAIL (known defects reproduced)
+1 FAIL_PRODUCT (additional isolated routing failure under investigation)
+0 harness/infrastructure/contamination failures
 ```
 
-## Configuration
+See [Current test results](docs/test-results.md) for the concise sanitized
+summary and limitations.
 
-Copy the example environment file:
+## Included components
+
+- a 135-ID scenario catalog with explicit `EXECUTABLE`, `DECLARATIVE_ONLY`, and
+  `UNSUPPORTED_PRODUCT_SCOPE` boundaries;
+- PowerShell orchestration, profile generation, process lifecycle control,
+  environment preparation, assertions, evidence correlation, reporting, and
+  redaction;
+- source for the deterministic Windows client: `src/pb_net_client.c`;
+- source for the deterministic Linux TCP/UDP endpoint:
+  `src/pb_net_endpoint.py`;
+- an x64 Windows client build script;
+- a systemd service example for the endpoint;
+- dry-run, mock, real-smoke, and real diagnostic suite configurations;
+- dependency-free Windows PowerShell fixture tests;
+- known-defect signature matching so unrelated product failures are not hidden.
+
+The repository intentionally does not include:
+
+- ProxyBridge binaries or driver packages;
+- compiled `pb_net_client.exe` binaries;
+- proxy credentials;
+- SSH private keys;
+- machine-specific `.env` files;
+- raw runtime evidence.
+
+## Quick start
+
+### 1. Clone
 
 ```powershell
-Copy-Item .env.example .env
+git clone https://github.com/dentatli/ProxyBridge-TestLab.git
+Set-Location '.\ProxyBridge-TestLab'
 ```
 
-Edit `.env` and replace the documentation values with values for the local test
-environment.
+### 2. Build the Windows client
 
-The `.env` file may contain:
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+    -File '.\scripts\Build-Harness.ps1'
+```
 
-- local and remote IP addresses;
-- ProxyBridge paths;
-- SOCKS5 endpoints;
-- SSH destinations;
-- expected binary hashes;
-- evidence paths.
+Output:
 
-Scenario defaults and beta CLI readiness are public configuration in
-`config/runtime.json`. Rule basename/full path are derived from normalized
-`PB_CLIENT_EXE`; VPS evidence import and optional egress pins are explicit
-command parameters, not `.env` keys. Real validation rejects placeholder,
-TEST-NET/example endpoint values and relative executable paths before product
-start.
+```text
+bin\pb_net_client.exe
+```
 
-`.env` is ignored by Git and must never be committed.
+### 3. Deploy the Linux endpoint
 
-Environment limitations are configured separately in:
+The endpoint listens on TCP and UDP ports `41001` and `41002` and writes JSONL
+evidence. Follow the complete server and firewall instructions in
+[End-to-end environment setup](docs/environment-setup.md).
+
+### 4. Configure the tester
+
+```powershell
+Copy-Item '.\.env.example' '.\.env'
+notepad '.\.env'
+```
+
+Replace every documentation address, path, and hash with the actual isolated
+test-environment values. `.env` is ignored and must never be committed.
+
+Configure unavailable capabilities in:
 
 ```text
 config/capabilities.json
 ```
 
-For example, an environment without IPv6 should use:
+### 5. Validate TestLab itself
 
-```json
-{
-  "ipv6": {
-    "enabled": false,
-    "reason": "IPv6 is not available in this environment"
-  }
-}
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\tests\Run-All.ps1'
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Invoke-DryRun.ps1' -FixtureMode
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Invoke-MockMatrix.ps1' -FixtureMode
 ```
 
-IPv6 scenarios will then be classified as `SKIPPED_CAPABILITY`, not failed.
+### 6. Run one real smoke
 
-Test selection is configured in:
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+    -File '.\scripts\Invoke-RealSmoke.ps1' `
+    -ConfirmRealRuntime
+```
+
+### 7. Run the current real IPv4 diagnostic subset
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+    -File '.\Run-WfpMatrix.ps1' `
+    -EnvPath '.\.env' `
+    -CapabilitiesPath '.\config\capabilities.json' `
+    -SuitePath '.\config\suites\real-diagnostic-ipv4.json' `
+    -KnownDefectsPath '.\config\known-defects.json' `
+    -ClientContractPath '.\config\client-contract.json' `
+    -RuntimeConfigPath '.\config\runtime.json' `
+    -ScenarioRoot '.\scenarios' `
+    -OutputRoot '.\evidence\real-diagnostic-ipv4' `
+    -AllowProductRuntime `
+    -PrepareRuntimeEnvironment `
+    -ContinueOnProductFailure
+```
+
+The diagnostic suite continues after scenario-local results so it can report
+all current executable tests, but it stops on contaminated state.
+
+## Repository layout
 
 ```text
-config/suites/*.json
+src/          Windows client and Linux endpoint source
+modules/      PowerShell runner modules
+scripts/      build, dry-run, mock and gated real-smoke entrypoints
+deploy/       service examples
+config/       capabilities, runtime policy, suites and known defects
+scenarios/    declarative scenario catalogs
+schemas/      profile, scenario, suite and result contracts
+tests/        dependency-free unit, schema and fixture tests
+docs/         setup, evidence, safety, coverage and current results
 ```
 
 ## Result statuses
 
-Every result includes `run_mode` and `implementation_status`. Catalog entries
-are `EXECUTABLE`, `DECLARATIVE_ONLY`, or `UNSUPPORTED_PRODUCT_SCOPE`.
-
-Dry-run results use:
-
-```text
-DRY_RUN_READY
-NOT_IMPLEMENTED
-```
-
-Mock results use only:
-
-```text
-MOCK_PASS
-MOCK_EXPECTED_FAIL
-MOCK_HOLD
-```
-
-Real-runtime classifications are:
+Real-runtime classifications include:
 
 ```text
 PASS
@@ -171,44 +160,54 @@ HOLD_AMBIGUOUS
 BLOCKED_BY_KNOWN_DEFECT
 SKIPPED_CAPABILITY
 SKIPPED_SELECTION
+NOT_IMPLEMENTED
 UNSUPPORTED_PRODUCT_SCOPE
 FAIL_HARNESS
 FAIL_INFRASTRUCTURE
 CONTAMINATED
 ```
 
-Only real `PASS`/`FAIL_PRODUCT` records become `TESTED_PASS`/`TESTED_FAIL` in
-coverage. Mock evidence validates the orchestration contract; it is never
-reported as product-tested coverage.
+Important distinctions:
 
-Product failures may be recorded while independent scenarios continue.
+- `EXPECTED_FAIL` means a known defect was reproduced with its declared
+  signature; it is not a product pass;
+- `NOT_IMPLEMENTED` means the catalog declares the coverage but no executable
+  client contract exists yet;
+- mock evidence validates TestLab, not ProxyBridge;
+- `RUN_COMPLETE` means reports were written; read `summary.json` and
+  `summary.csv` for execution completeness and the product verdict.
 
-Harness, infrastructure, binary-integrity and contaminated-state failures stop
-the complete run.
+## IPv6
+
+IPv6 scenarios are present, but setting `ipv6.enabled=true` only selects them.
+A valid host/VM route, public server listener, firewall rules, `.env` addresses,
+and proxy support are all required. The published WFP results did not evaluate
+IPv6 because the test environment lacked native public IPv6 connectivity.
 
 ## Security
 
-Generated `.pbprofile` files may contain real hosts, process paths, usernames or
-passwords. They are excluded from Git by default.
+The endpoint is an unauthenticated echo service. Restrict it by firewall to the
+expected DIRECT and proxy egress addresses, and remove temporary rules after
+use.
 
 Do not commit:
 
 - `.env`;
 - generated `.pbprofile` files;
-- credentials;
-- SSH private keys;
-- raw packet captures;
-- crash dumps;
+- credentials or SSH keys;
+- private certificates;
+- raw packet captures or crash dumps;
 - unredacted runtime evidence.
 
-See [SECURITY.md](SECURITY.md).
+See [SECURITY.md](SECURITY.md) and [Runtime safety](docs/runtime-safety.md).
 
 ## Documentation
 
+- [End-to-end environment setup](docs/environment-setup.md)
+- [Current test results](docs/test-results.md)
 - [Orchestrator specification](docs/ORCHESTRATOR_SPEC.md)
 - [Coverage model](docs/COVERAGE_MODEL.json)
 - [Coverage explanation](docs/coverage-model.md)
-- [Environment setup](docs/environment-setup.md)
 - [Adding scenarios](docs/adding-scenarios.md)
 - [Evidence format](docs/evidence-format.md)
 - [Runtime safety](docs/runtime-safety.md)

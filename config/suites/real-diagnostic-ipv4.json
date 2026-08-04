@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "suite_id": "real-diagnostic-ipv4",
+  "selection": {
+    "include_tags": ["synthetic", "correctness"],
+    "exclude_tags": ["performance", "application-canary", "manual-only", "destructive"],
+    "include_scenario_ids": [],
+    "exclude_scenario_ids": []
+  },
+  "execution": {
+    "repeats": 1,
+    "timeout_ms": 5000,
+    "suite_timeout_ms": 1800000,
+    "continue_on_product_failure": true,
+    "continue_on_expected_failure": true,
+    "continue_on_ambiguous_hold": true,
+    "stop_on_harness_failure": false,
+    "stop_on_infrastructure_failure": false,
+    "stop_on_state_contamination": true,
+    "max_consecutive_product_failures": 30,
+    "reset_policy": "rules_only",
+    "runtime_mode": "real",
+    "dry_run": false,
+    "mock_runtime": false
+  }
+}
