@@ -239,8 +239,7 @@ foreach ($item in $decisions) {
         }
         else {
             $clientExecutable = $(if ($environment.ContainsKey('PB_CLIENT_EXE')) { $environment['PB_CLIENT_EXE'] } else { 'pb_net_client.exe' })
-            $clientPlan = New-ClientPlan -Scenario $resolvedScenario -ExecutablePath $clientExecutable -RunId $report.run_id -JsonlPath $clientJsonlPath -Contract $clientContract -ExpectedSha256 $environment['PB_EXPECTED_CLIENT_SHA256']
-            $clientPlan.timeout_ms = [Math]::Min([int]$clientPlan.timeout_ms, [int]$suite.execution.timeout_ms)
+            $clientPlan = New-ClientPlan -Scenario $resolvedScenario -ExecutablePath $clientExecutable -RunId $report.run_id -JsonlPath $clientJsonlPath -Contract $clientContract -ExpectedSha256 $environment['PB_EXPECTED_CLIENT_SHA256'] -OperationTimeoutCapMs ([int]$suite.execution.timeout_ms) -ProcessExitGraceMs ([int]$runtimeConfig.client_process_exit_grace_ms)
         }
         Write-RedactedJsonReport -Value $rulePlan -Path (Join-Path $scenarioEvidence 'rule-plan.json') -Environment $environment
         Write-RedactedJsonReport -Value $resetPlan -Path (Join-Path $scenarioEvidence 'reset-plan.json') -Environment $environment

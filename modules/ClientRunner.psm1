@@ -2,6 +2,8 @@ Set-StrictMode -Version Latest
 
 Import-Module (Join-Path $PSScriptRoot 'ProcessAdapter.psm1')
 
+$script:MaxClientProcessTimeoutMs = 600000
+
 function Get-ClientProperty {
     param($Client, [string]$Name, $Default, [switch]$Required)
     $property = $Client.PSObject.Properties[$Name]
@@ -15,6 +17,23 @@ function Add-ClientArgumentPair {
     if ($null -eq $Value) { throw "CLIENT_ARGUMENT_VALUE_MISSING_$($Name.TrimStart('-').ToUpperInvariant().Replace('-', '_'))" }
     $Arguments.Add($Name)
     $Arguments.Add([string]$Value)
+}
+
+function Get-ClientArgumentInt {
+    param($Plan, [string]$Name, [int]$Default = 0)
+    $index = [array]::IndexOf(@($Plan.arguments), $Name)
+    if ($index -lt 0) { return $Default }
+    if ($index + 1 -ge @($Plan.arguments).Count) { throw "CLIENT_ARGUMENT_VALUE_MISSING_$($Name.TrimStart('-').ToUpperInvariant().Replace('-', '_'))" }
+    $value = 0
+    if (-not [int]::TryParse([string]$Plan.arguments[$index + 1], [ref]$value) -or $value -lt 0) { throw "CLIENT_ARGUMENT_VALUE_INVALID_$($Name.TrimStart('-').ToUpperInvariant().Replace('-', '_'))" }
+    return $value
+}
+
+function Set-ClientOperationTimeoutArgument {
+    param($Plan, [int]$OperationTimeoutMs)
+    $index = [array]::IndexOf(@($Plan.arguments), '--timeout-ms')
+    if ($index -lt 0 -or $index + 1 -ge @($Plan.arguments).Count) { throw 'CLIENT_TIMEOUT_ARGUMENT_MISSING' }
+    $Plan.arguments[$index + 1] = [string]$OperationTimeoutMs
 }
 
 function ConvertTo-ClientPort {
@@ -147,7 +166,7 @@ function New-BaseClientPlan {
         executor = 'base'
         executable = $ExecutablePath
         arguments = $arguments.ToArray()
-        timeout_ms = $timeoutMs
+        operation_timeout_ms = $timeoutMs
         scenario_id = [string]$Scenario.scenario_id
         run_id = $RunId
         jsonl_path = $JsonlPath
@@ -224,7 +243,7 @@ function New-Issue206ClientPlan {
         executor = 'issue206'
         executable = $ExecutablePath
         arguments = $arguments.ToArray()
-        timeout_ms = $timeoutMs
+        operation_timeout_ms = $timeoutMs
         scenario_id = [string]$Scenario.scenario_id
         run_id = $RunId
         jsonl_path = $JsonlPath
@@ -308,7 +327,7 @@ function New-Issue209ClientPlan {
         executor = 'issue209'
         executable = $ExecutablePath
         arguments = $arguments.ToArray()
-        timeout_ms = $timeoutMs
+        operation_timeout_ms = $timeoutMs
         scenario_id = [string]$Scenario.scenario_id
         run_id = $RunId
         jsonl_path = $JsonlPath
@@ -326,9 +345,13 @@ function New-ClientPlan {
         [Parameter(Mandatory)][string]$JsonlPath,
         $Contract,
         [string]$ExpectedSha256 = '',
-        [int]$ActualPathTimeoutMs = 2000
+        [int]$ActualPathTimeoutMs = 2000,
+        [int]$OperationTimeoutCapMs = [int]::MaxValue,
+        [int]$ProcessExitGraceMs = 2000
     )
     if ($ActualPathTimeoutMs -lt 1) { throw 'CLIENT_ACTUAL_PATH_TIMEOUT_INVALID' }
+    if ($OperationTimeoutCapMs -lt 1) { throw 'CLIENT_OPERATION_TIMEOUT_CAP_INVALID' }
+    if ($ProcessExitGraceMs -lt 1) { throw 'CLIENT_PROCESS_EXIT_GRACE_INVALID' }
     $mode = ([string]$Scenario.client.mode).ToLowerInvariant()
     if ($null -ne $Contract -and $null -eq $Contract.modes.PSObject.Properties[$mode]) { throw "CLIENT_CONTRACT_MODE_MISSING_$($mode.ToUpperInvariant())" }
     $plan = switch ($mode) {
@@ -337,6 +360,32 @@ function New-ClientPlan {
         'issue209' { New-Issue209ClientPlan -Scenario $Scenario -ExecutablePath $ExecutablePath -RunId $RunId -JsonlPath $JsonlPath -Contract $Contract }
         default { throw "CLIENT_EXECUTOR_NOT_IMPLEMENTED: $mode" }
     }
+    $operationTimeoutMs = [Math]::Min([int]$plan.operation_timeout_ms, $OperationTimeoutCapMs)
+    Set-ClientOperationTimeoutArgument -Plan $plan -OperationTimeoutMs $operationTimeoutMs
+    $operationCount = switch ([string]$plan.executor) { 'base' { 1 } 'issue206' { 2 } 'issue209' { 3 } default { throw 'CLIENT_TIMEOUT_BUDGET_EXECUTOR_UNSUPPORTED' } }
+    $bindRetryCount = $(if ([string]$plan.executor -eq 'base') { 0 } else { Get-ClientArgumentInt -Plan $plan -Name '--bind-retry-count' })
+    $bindRetryDelayMs = $(if ([string]$plan.executor -eq 'base') { 0 } else { Get-ClientArgumentInt -Plan $plan -Name '--bind-retry-delay-ms' })
+    $interFlowWaitMs = $(if ([string]$plan.executor -eq 'issue209') { Get-ClientArgumentInt -Plan $plan -Name '--inter-flow-wait-ms' } else { 0 })
+    $operationBudgetMs = [long]$operationCount * [long]$operationTimeoutMs
+    $bindRetryBudgetMs = [long]$bindRetryCount * [long]$bindRetryDelayMs
+    $processTimeoutMs = $operationBudgetMs + $bindRetryBudgetMs + [long]$interFlowWaitMs + [long]$ProcessExitGraceMs
+    if ($processTimeoutMs -gt $script:MaxClientProcessTimeoutMs -or $processTimeoutMs -gt [int]::MaxValue) { throw 'CLIENT_PROCESS_TIMEOUT_BUDGET_EXCEEDED' }
+    if ($processTimeoutMs -le $operationTimeoutMs) { throw 'CLIENT_PROCESS_TIMEOUT_NOT_GREATER_THAN_OPERATION_TIMEOUT' }
+    $plan.operation_timeout_ms = $operationTimeoutMs
+    $plan | Add-Member -NotePropertyName process_timeout_ms -NotePropertyValue ([int]$processTimeoutMs)
+    $plan | Add-Member -NotePropertyName process_exit_grace_ms -NotePropertyValue $ProcessExitGraceMs
+    $plan | Add-Member -NotePropertyName timeout_budget_components -NotePropertyValue ([pscustomobject][ordered]@{
+        operation_count = $operationCount
+        operation_timeout_ms = $operationTimeoutMs
+        operation_budget_ms = $operationBudgetMs
+        bind_retry_count = $bindRetryCount
+        bind_retry_delay_ms = $bindRetryDelayMs
+        bind_retry_budget_ms = $bindRetryBudgetMs
+        inter_flow_wait_ms = $interFlowWaitMs
+        process_exit_grace_ms = $ProcessExitGraceMs
+        total_ms = $processTimeoutMs
+        maximum_ms = $script:MaxClientProcessTimeoutMs
+    })
     $plan | Add-Member -NotePropertyName expected_sha256 -NotePropertyValue $ExpectedSha256
     $plan | Add-Member -NotePropertyName actual_path_timeout_ms -NotePropertyValue $ActualPathTimeoutMs
     return $plan

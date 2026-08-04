@@ -68,6 +68,7 @@ try {
     Assert-Equal 'pb_net_client.exe' $environment['PB_RULE_APPLICATION_BASENAME'] 'rule basename must derive from PB_CLIENT_EXE'
     Assert-Equal 'C:\Fixture\bin\pb_net_client.exe' $environment['PB_RULE_APPLICATION_FULLPATH'] 'rule full path must derive from normalized PB_CLIENT_EXE'
     Assert-Equal 2000 ([int]$runtimeConfig.cli_actual_path_timeout_ms) 'CLI actual path timeout default'
+    Assert-Equal 2000 ([int]$runtimeConfig.client_process_exit_grace_ms) 'client process exit grace default'
     Assert-Equal '' ([string]$runtimeConfig.cli_readiness.regex) 'beta CLI readiness regex default must be empty'
     Assert-Equal 2000 ([int]$runtimeConfig.cli_readiness.stable_ms) 'beta CLI stable readiness default'
     Assert-Equal 15000 ([int]$runtimeConfig.cli_readiness.readiness_timeout_ms) 'beta CLI readiness timeout default'

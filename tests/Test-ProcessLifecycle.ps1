@@ -83,6 +83,23 @@ $captured = Invoke-ProcessPlan -Plan ([pscustomobject]@{executable='fixture.exe'
 Assert-Equal $largeStdout.Length $captured.stdout.Length 'pipe-heavy stdout must be drained'
 Assert-Equal $largeStderr.Length $captured.stderr.Length 'pipe-heavy stderr must be drained'
 
+$baseBudgetPlan = [pscustomobject]@{executable='fixture-client.exe';arguments=@();operation_timeout_ms=5000;process_timeout_ms=7000}
+$afterOperationAdapter = New-MockProcessAdapter -InvokeResults @($largeResult) -InvokeDurationsMs @(5001)
+$afterOperation = Invoke-ProcessPlan -Plan $baseBudgetPlan -ProcessAdapter $afterOperationAdapter
+Assert-True (-not $afterOperation.timed_out) 'base no-echo completion immediately after operation timeout must not be killed'
+Assert-Equal 7000 $afterOperationAdapter.state.watchdog_timeouts_ms[0] 'ProcessAdapter must select process_timeout_ms'
+Assert-Equal 0 $afterOperationAdapter.state.watchdog_kill_count 'completion within process budget must not trigger watchdog kill'
+
+$overBudgetAdapter = New-MockProcessAdapter -InvokeResults @($largeResult) -InvokeDurationsMs @(7001)
+$overBudget = Invoke-ProcessPlan -Plan $baseBudgetPlan -ProcessAdapter $overBudgetAdapter
+Assert-True $overBudget.timed_out 'duration beyond process timeout must be marked timed out'
+Assert-Equal 1 $overBudgetAdapter.state.watchdog_kill_count 'duration beyond process timeout must trigger watchdog kill'
+
+$legacyAdapter = New-MockProcessAdapter -InvokeResults @($largeResult) -InvokeDurationsMs @(101)
+$legacyTimeout = Invoke-ProcessPlan -Plan ([pscustomobject]@{executable='fixture.exe';arguments=@();timeout_ms=100}) -ProcessAdapter $legacyAdapter
+Assert-True $legacyTimeout.timed_out 'legacy generic plan must retain timeout_ms watchdog compatibility'
+Assert-Equal 100 $legacyAdapter.state.watchdog_timeouts_ms[0] 'legacy generic watchdog must use timeout_ms fallback'
+
 $timeoutResult = [pscustomobject]@{exit_code=-1;timed_out=$true;pid=9;actual_path='fixture-client.exe';stdout='partial';stderr='timeout'}
 $timeoutPlan = [pscustomobject]@{executable='fixture-client.exe';expected_sha256=('a' * 64);arguments=@();timeout_ms=10;actual_path_timeout_ms=50;jsonl_path='unused-on-timeout.jsonl'}
 $clientTimeout = Invoke-ClientPlan -Plan $timeoutPlan -ProcessAdapter (New-MockProcessAdapter -InvokeResults @($timeoutResult))

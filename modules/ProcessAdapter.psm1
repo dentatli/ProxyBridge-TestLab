@@ -188,6 +188,12 @@ function New-SystemProcessAdapter {
     Initialize-ProcessSessionType
     $adapter = [pscustomobject]@{ is_mock = $false }
 
+    $adapter | Add-Member -NotePropertyName GetWatchdogTimeout -NotePropertyValue {
+        param($plan)
+        $timeout = $(if ($null -ne $plan.PSObject.Properties['process_timeout_ms']) { [long]$plan.process_timeout_ms } elseif ($null -ne $plan.PSObject.Properties['timeout_ms']) { [long]$plan.timeout_ms } else { 0 })
+        if ($timeout -lt 1 -or $timeout -gt [int]::MaxValue) { throw 'PROCESS_TIMEOUT_INVALID' }
+        return [int]$timeout
+    }
     $adapter | Add-Member -NotePropertyName VerifyExecutable -NotePropertyValue {
         param($path, $expectedSha256)
         if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
@@ -282,13 +288,16 @@ function New-SystemProcessAdapter {
         $process = $null
         try {
             $process = & $adapter.StartProcess $plan
+            $watchdog = [System.Diagnostics.Stopwatch]::StartNew()
+            $processTimeoutMs = & $adapter.GetWatchdogTimeout $plan
             $probeTimeoutMs = $(if ($null -ne $plan.PSObject.Properties['actual_path_timeout_ms']) { [int]$plan.actual_path_timeout_ms } else { 2000 })
             $pathProbe = & $adapter.ProbeActualPath $process $probeTimeoutMs 25
             $process.actual_path = [string]$pathProbe.actual_path
             $process.actual_path_probe_status = [string]$pathProbe.status
             $process.actual_path_probe_attempts = [int]$pathProbe.attempts
             $process.actual_path_probe_elapsed_ms = [int]$pathProbe.elapsed_ms
-            $completed = $process.session.WaitForExit([int]$plan.timeout_ms)
+            $remainingMs = $processTimeoutMs - [int]$watchdog.ElapsedMilliseconds
+            $completed = $(if (-not $process.session.IsRunning) { $process.session.WaitForExit(1) } elseif ($remainingMs -gt 0) { $process.session.WaitForExit($remainingMs) } else { $false })
             if (-not $completed) {
                 $process.timed_out = $true
                 & $adapter.KillProcess $process
@@ -313,6 +322,7 @@ function New-MockProcessAdapter {
         [AllowNull()][object[]]$ActualPathProbeSequence = $null,
         [bool]$PrelaunchPathVerified = $true,
         [bool]$PrelaunchHashVerified = $true,
+        [AllowNull()][object[]]$InvokeDurationsMs = $null,
         [string]$LifecycleStdout = '',
         [string]$LifecycleStderr = ''
     )
@@ -326,9 +336,12 @@ function New-MockProcessAdapter {
         kill_count = 0
         dispose_count = 0
         invoke_count = 0
+        watchdog_kill_count = 0
         prelaunch_verify_count = 0
         invoked_plans = [System.Collections.Generic.List[object]]::new()
         results = @($InvokeResults)
+        invoke_durations_ms = $(if ($null -eq $InvokeDurationsMs) { $null } else { @($InvokeDurationsMs) })
+        watchdog_timeouts_ms = [System.Collections.Generic.List[int]]::new()
         ready = $Ready
         stable_ready = $StableReady
         graceful_stop = $GracefulStop
@@ -342,6 +355,12 @@ function New-MockProcessAdapter {
     }
     $adapter = [pscustomobject]@{ is_mock = $true; state = $state }
 
+    $adapter | Add-Member -NotePropertyName GetWatchdogTimeout -NotePropertyValue {
+        param($plan)
+        $timeout = $(if ($null -ne $plan.PSObject.Properties['process_timeout_ms']) { [long]$plan.process_timeout_ms } elseif ($null -ne $plan.PSObject.Properties['timeout_ms']) { [long]$plan.timeout_ms } else { 0 })
+        if ($timeout -lt 1 -or $timeout -gt [int]::MaxValue) { throw 'PROCESS_TIMEOUT_INVALID' }
+        return [int]$timeout
+    }
     $adapter | Add-Member -NotePropertyName VerifyExecutable -NotePropertyValue ({
         param($path, $expectedSha256)
         $state.prelaunch_verify_count++
@@ -426,7 +445,19 @@ function New-MockProcessAdapter {
         $state.invoke_count++
         $state.invoked_plans.Add($plan)
         if ($index -ge @($state.results).Count) { throw 'MOCK_PROCESS_RESULT_NOT_CONFIGURED' }
-        return $state.results[$index]
+        $result = $state.results[$index]
+        if ($null -ne $state.invoke_durations_ms) {
+            if ($index -ge @($state.invoke_durations_ms).Count) { throw 'MOCK_PROCESS_DURATION_NOT_CONFIGURED' }
+            $watchdogTimeoutMs = & $adapter.GetWatchdogTimeout $plan
+            $state.watchdog_timeouts_ms.Add($watchdogTimeoutMs)
+            if ([long]$state.invoke_durations_ms[$index] -gt $watchdogTimeoutMs) {
+                $result = $result | Select-Object *
+                $result.timed_out = $true
+                $result.exit_code = -1
+                $state.watchdog_kill_count++
+            }
+        }
+        return $result
     }.GetNewClosure())
     return $adapter
 }

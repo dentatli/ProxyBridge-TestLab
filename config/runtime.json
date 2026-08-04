@@ -1,6 +1,7 @@
 {
   "schema_version": 1,
   "cli_actual_path_timeout_ms": 2000,
+  "client_process_exit_grace_ms": 2000,
   "cli_readiness": {
     "regex": "",
     "stable_ms": 2000,

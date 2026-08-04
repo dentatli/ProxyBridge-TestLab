@@ -17,6 +17,13 @@ function Get-CanonicalFixture {
     return @($raw | ConvertTo-CanonicalClientEvidence)
 }
 
+function Get-PlanArgumentValue {
+    param($Plan, [string]$Name)
+    $index = [array]::IndexOf(@($Plan.arguments), $Name)
+    if ($index -lt 0 -or $index + 1 -ge @($Plan.arguments).Count) { throw "TEST_PLAN_ARGUMENT_MISSING: $Name" }
+    return [string]$Plan.arguments[$index + 1]
+}
+
 $environment = Get-EffectiveRuntimeEnvironment -Environment (Import-DotEnv (Join-Path $PSScriptRoot 'fixtures/.env.test')) -RuntimeConfig (Import-RuntimeConfig (Join-Path $root 'config/runtime.json'))
 $contract = Import-ClientContract (Join-Path $root 'config/client-contract.json')
 $catalog = @(Import-ScenarioCatalog (Join-Path $root 'scenarios'))
@@ -25,6 +32,8 @@ $jsonlPath = 'C:\Fixture\evidence\client.jsonl'
 $stage34a = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'issue206-proxy-to-block-abortive') -Variables $environment
 $plan34a = New-ClientPlan -Scenario $stage34a -ExecutablePath $environment['PB_CLIENT_EXE'] -RunId 'fixture-run' -JsonlPath $jsonlPath -Contract $contract
 Assert-SequenceEqual (Get-ExpectedArguments 'stage34a-proxy-block') @($plan34a.arguments) 'Stage 3.4A exact argument array'
+Assert-Equal ($plan34a.operation_timeout_ms * 2 + $plan34a.timeout_budget_components.bind_retry_budget_ms + $plan34a.process_exit_grace_ms) $plan34a.process_timeout_ms 'issue206 process budget must include two operations, bind retry, and grace'
+Assert-Equal 2 $plan34a.timeout_budget_components.operation_count 'issue206 operation count'
 
 $stage34b = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'issue206-proxy-to-direct-ipv4-abortive') -Variables $environment
 $plan34b = New-ClientPlan -Scenario $stage34b -ExecutablePath $environment['PB_CLIENT_EXE'] -RunId 'fixture-run' -JsonlPath $jsonlPath -Contract $contract
@@ -33,6 +42,8 @@ Assert-SequenceEqual (Get-ExpectedArguments 'stage34b-proxy-direct') @($plan34b.
 $base = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'tcp-ipv4-direct') -Variables $environment
 $basePlan = New-ClientPlan $base $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
 Assert-SequenceEqual (Get-ExpectedArguments 'base-single-tcp') @($basePlan.arguments) 'base single TCP exact argument array'
+Assert-Equal ($basePlan.operation_timeout_ms + $basePlan.process_exit_grace_ms) $basePlan.process_timeout_ms 'base process budget must include one operation and exit grace'
+Assert-True ($basePlan.process_timeout_ms -gt $basePlan.operation_timeout_ms) 'base watchdog must exceed operation timeout'
 $baseProxy = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'tcp-ipv4-proxy') -Variables $environment
 $baseProxyPlan = New-ClientPlan $baseProxy $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
 $proxyPolicyIndex = [array]::IndexOf(@($baseProxyPlan.arguments), '--tcp-peer-policy')
@@ -51,6 +62,13 @@ $issue209Plan = New-ClientPlan $issue209 $environment['PB_CLIENT_EXE'] 'fixture-
 Assert-SequenceEqual (Get-ExpectedArguments 'issue209-tcp-to-udp') @($issue209Plan.arguments) 'issue209 exact argument array'
 Assert-Equal 'EXECUTABLE' $issue209.implementation_status 'exact issue209 builder and three-record model must be executable'
 Assert-Equal 3 @($issue209Plan.expected_records).Count 'issue209 plan must require two flows and held recheck'
+Assert-Equal ($issue209Plan.operation_timeout_ms * 3 + $issue209Plan.timeout_budget_components.inter_flow_wait_ms + $issue209Plan.timeout_budget_components.bind_retry_budget_ms + $issue209Plan.process_exit_grace_ms) $issue209Plan.process_timeout_ms 'issue209 process budget must include three phases, inter-flow wait, bind retry, and grace'
+Assert-Equal 3 $issue209Plan.timeout_budget_components.operation_count 'issue209 operation count'
+
+$cappedPlan = New-ClientPlan -Scenario $base -ExecutablePath $environment['PB_CLIENT_EXE'] -RunId 'fixture-run' -JsonlPath $jsonlPath -Contract $contract -OperationTimeoutCapMs 1200 -ProcessExitGraceMs 2000
+Assert-Equal 1200 $cappedPlan.operation_timeout_ms 'suite cap must apply to operation timeout'
+Assert-Equal '1200' (Get-PlanArgumentValue -Plan $cappedPlan -Name '--timeout-ms') 'suite cap must synchronize --timeout-ms argument'
+Assert-Equal 3200 $cappedPlan.process_timeout_ms 'base process timeout must be recomputed after operation cap'
 $invalidIssue209 = $issue209 | ConvertTo-Json -Depth 100 | ConvertFrom-Json
 $invalidIssue209.client.first_expect = 'no-echo'
 Assert-Throws { New-ClientPlan $invalidIssue209 $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract } 'CLIENT_ISSUE209_FIRST_EXPECT_MUST_BE_ECHO' 'issue209 first expectation must be echo'
