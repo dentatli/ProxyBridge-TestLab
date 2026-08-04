@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "catalog_id": "tcp-lifecycle",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "lifecycle"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "The base executor does not encode this lifecycle behavior." },
+  "scenarios": [
+    { "id": "tcp-graceful-close", "close_mode": "graceful" },
+    { "id": "tcp-abortive-close", "close_mode": "abortive" },
+    { "id": "tcp-half-close", "close_mode": "half-close" },
+    { "id": "tcp-server-close", "close_mode": "server-close" },
+    { "id": "tcp-reset", "close_mode": "reset", "expected_outcome": "no-echo" },
+    { "id": "tcp-refused", "tags": ["refused"], "expected_outcome": "no-echo" },
+    { "id": "tcp-timeout", "tags": ["timeout"], "expected_outcome": "no-echo" },
+    { "id": "tcp-long-lived", "tags": ["long-lived"] },
+    { "id": "tcp-sequential-reuse", "tags": ["sequential-reuse"] },
+    { "id": "tcp-parallel-connections", "tags": ["parallel"] },
+    { "id": "tcp-process-termination", "tags": ["process-termination"] }
+  ]
+}

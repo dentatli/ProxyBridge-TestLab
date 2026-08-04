@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "catalog_id": "orchestrator-lifecycle",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "orchestrator-lifecycle"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "Lifecycle behavior is covered by adapter unit tests, not by this network scenario executor." },
+  "scenarios": [
+    { "id": "lifecycle-cli-readiness", "tags": ["readiness"] },
+    { "id": "lifecycle-graceful-stop", "tags": ["graceful-stop"] },
+    { "id": "lifecycle-forced-stop-fallback", "tags": ["forced-stop"] },
+    { "id": "lifecycle-post-stop-verification", "tags": ["post-stop"] },
+    { "id": "lifecycle-resume-boundary", "tags": ["resume"] }
+  ]
+}

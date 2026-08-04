@@ -4,6 +4,18 @@
     "ipv4": { "enabled": true, "reason": "" },
     "ipv6": { "enabled": false, "reason": "fixture host 192.0.2.20 has no IPv6" },
     "tcp": { "enabled": true, "reason": "" },
-    "socks5": { "enabled": true, "reason": "" }
+    "udp": { "enabled": true, "reason": "" },
+    "connected_udp": { "enabled": true, "reason": "" },
+    "unconnected_udp": { "enabled": true, "reason": "" },
+    "socks5": { "enabled": true, "reason": "" },
+    "domain_rules": { "enabled": true, "reason": "" },
+    "process_basename_rules": { "enabled": true, "reason": "" },
+    "process_full_path_rules": { "enabled": true, "reason": "fixture regression gate" },
+    "hot_update": { "enabled": true, "reason": "" },
+    "profile_persistence": { "enabled": true, "reason": "" },
+    "failure_injection": { "enabled": true, "reason": "mock only" },
+    "udp_fragmentation": { "enabled": false, "reason": "fixture disabled" },
+    "real_apps": { "enabled": false, "reason": "fixture disabled" },
+    "performance": { "enabled": false, "reason": "fixture disabled" }
   }
 }

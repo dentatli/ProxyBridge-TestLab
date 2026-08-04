@@ -1,0 +1,2 @@
+{"event":"${RECEIVED_EVENT0}","sha256":"${FLOW0_SHA}","local_ip":"${REMOTE0_IP}","local_port":${REMOTE0_PORT},"remote_ip":"${PROXY_EGRESS_IP}","remote_port":50001,"bytes":64,"error":"","test_id":"${TEST_ID}","run_id":"${RUN_ID}","flow_index":0}
+{"event":"ECHOED","sha256":"${FLOW0_SHA}","local_ip":"${REMOTE0_IP}","local_port":${REMOTE0_PORT},"remote_ip":"${PROXY_EGRESS_IP}","remote_port":50001,"bytes":64,"error":"","test_id":"${TEST_ID}","run_id":"${RUN_ID}","flow_index":0}

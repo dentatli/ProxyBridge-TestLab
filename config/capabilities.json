@@ -70,6 +70,22 @@
     "real_apps": {
       "enabled": false,
       "reason": "Synthetic correctness phase first"
+    },
+    "udp_fragmentation": {
+      "enabled": false,
+      "reason": "65507-byte UDP requires an explicitly prepared fragmentation path"
+    },
+    "hot_update": {
+      "enabled": true,
+      "reason": ""
+    },
+    "profile_persistence": {
+      "enabled": true,
+      "reason": ""
+    },
+    "failure_injection": {
+      "enabled": true,
+      "reason": "Mock and declarative plans only by default"
     }
   }
 }

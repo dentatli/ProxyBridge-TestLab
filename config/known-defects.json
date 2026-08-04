@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "id": "full-path-watchlist-mismatch",
+      "matching": { "scenario_ids": [], "tags": ["full-path-regression"] },
+      "expected_status": "EXPECTED_FAIL",
+      "reason": "Full-path watched rule does not consistently match the observed process identity.",
+      "issue": "confirmed internal regression",
+      "policy": "run-as-regression"
+    },
+    {
+      "id": "watched-udp-direct-drop",
+      "matching": { "scenario_ids": ["udp-watched-process-direct-drop"], "tags": [] },
+      "expected_status": "EXPECTED_FAIL",
+      "reason": "Watched-process UDP DIRECT traffic can be silently dropped.",
+      "issue": "confirmed product defect",
+      "policy": "run-as-regression"
+    },
+    {
+      "id": "udp-proxy-reverse-source",
+      "matching": { "scenario_ids": ["udp-proxy-reverse-source"], "tags": [] },
+      "expected_status": "EXPECTED_FAIL",
+      "reason": "UDP PROXY reverse traffic can expose the backend source instead of the original destination.",
+      "issue": "confirmed product defect",
+      "policy": "run-as-regression"
+    },
+    {
+      "id": "issue206-proxy-to-direct-egress",
+      "matching": { "scenario_ids": ["issue206-proxy-to-direct-abortive", "issue206-proxy-to-direct-ipv4-abortive"], "tags": [] },
+      "expected_status": "EXPECTED_FAIL",
+      "reason": "Stage 3.4B second flow followed proxy egress instead of direct egress after same-port reuse.",
+      "issue": "confirmed Stage 3.4B regression",
+      "policy": "run-as-regression"
+    },
+    {
+      "id": "issue209-collision-prerequisite",
+      "matching": { "scenario_ids": [], "tags": ["issue209"] },
+      "expected_status": "BLOCKED_BY_KNOWN_DEFECT",
+      "reason": "Current product behavior can prevent deterministic TCP/UDP numeric-port collision setup.",
+      "issue": "issue #209 prerequisite",
+      "policy": "do-not-run"
+    }
+  ]
+}

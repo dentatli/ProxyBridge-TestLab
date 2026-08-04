@@ -3,6 +3,16 @@
   "scenario_id": "issue206-proxy-to-direct-ipv4-abortive",
   "title": "Issue #206: TCP PROXY to TCP DIRECT with exact local-port reuse",
   "enabled": true,
+  "implementation_status": "EXECUTABLE",
+  "implementation_reason": "",
+  "profile_expectation": "valid",
+  "mock_fixture_id": "issue206-proxy-direct-wrong-second",
+  "coverage_group": "issue206",
+  "repeats": 1,
+  "timeout_ms": 5000,
+  "independent": true,
+  "unsupported_status": "",
+  "known_defect_id": "issue206-proxy-to-direct-egress",
   "tags": [
     "ipv4",
     "tcp",
@@ -53,12 +63,19 @@
   "client": {
     "mode": "issue206",
     "family": 4,
+    "protocol": "TCP",
+    "socket_mode": "connected",
     "local_ip": "${PB_VM_IPV4}",
     "local_port": 0,
     "first_remote_ip": "${PB_VPS_IPV4}",
     "first_remote_port": "${PB_ENDPOINT_B_PORT}",
     "second_remote_ip": "${PB_VPS_IPV4}",
     "second_remote_port": "${PB_ENDPOINT_A_PORT}",
+    "remote_ip": "${PB_VPS_IPV4}",
+    "remote_port": "${PB_ENDPOINT_A_PORT}",
+    "payload_size": 64,
+    "expected_action": "DIRECT",
+    "expected_outcome": "echo",
     "close_mode": "abortive",
     "first_expected_action": "PROXY",
     "second_expected_action": "DIRECT",
@@ -79,5 +96,6 @@
     "proxybridge.flow[1].action == 'DIRECT'",
     "vps.flow[0].matches == 2",
     "vps.flow[1].matches == 2"
-  ]
+  ],
+  "mock": { "expected_status": "EXPECTED_FAIL" }
 }

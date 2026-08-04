@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "catalog_id": "secondary-pairwise",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "pairwise"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "The base executor does not encode delayed endpoints, concurrency, topology or timing-class semantics." },
+  "pairwise": {
+    "id_prefix": "secondary-pairwise",
+    "base": { "tags": ["secondary-dimensions"] },
+    "dimensions": {
+      "payload_size": [64, 1200, 8192],
+      "close_mode": ["graceful", "abortive"],
+      "selector": ["basename", "full-path"],
+      "endpoint_mode": ["echo", "delayed"],
+      "concurrency": [1, 8],
+      "topology": ["external", "lan"],
+      "timing_class": ["immediate", "long-delay"]
+    }
+  }
+}

@@ -2,6 +2,17 @@
   "schema_version": 1,
   "scenario_id": "foundation-profile-test",
   "enabled": true,
+  "implementation_status": "EXECUTABLE",
+  "implementation_reason": "",
+  "profile_expectation": "valid",
+  "mock_fixture_id": "base-proxy",
+  "coverage_group": "foundation",
+  "repeats": 1,
+  "timeout_ms": 5000,
+  "independent": true,
+  "unsupported_status": "",
+  "known_defect_id": "",
+  "reset_policy": "rules_only",
   "tags": ["ipv4", "tcp", "foundation"],
   "requires": ["ipv4", "tcp", "socks5"],
   "rule_set": [
@@ -27,5 +38,21 @@
       "proxy_config_id": 0,
       "enabled": false
     }
-  ]
+  ],
+  "client": {
+    "mode": "base",
+    "family": 4,
+    "protocol": "TCP",
+    "socket_mode": "connected",
+    "local_ip": "${PB_VM_IPV4}",
+    "local_port": 0,
+    "remote_ip": "${PB_VPS_IPV4}",
+    "remote_port": "${PB_ENDPOINT_A_PORT}",
+    "close_mode": "graceful",
+    "payload_size": 64,
+    "expected_action": "PROXY",
+    "expected_outcome": "echo"
+  },
+  "assertions": ["exit_code", "flow_count", "expected_outcome"],
+  "mock": { "expected_status": "PASS" }
 }

@@ -1,6 +1,35 @@
 {
   "schema_version": 1,
   "coverage_model": "meaningful equivalence classes plus exhaustive critical interactions",
+  "result_statuses": [
+    "DRY_RUN_READY",
+    "NOT_IMPLEMENTED",
+    "MOCK_PASS",
+    "MOCK_EXPECTED_FAIL",
+    "MOCK_HOLD",
+    "TESTED_PASS",
+    "TESTED_FAIL",
+    "EXPECTED_FAIL",
+    "BLOCKED_BY_KNOWN_DEFECT",
+    "SKIPPED_CAPABILITY",
+    "SKIPPED_SELECTION",
+    "UNSUPPORTED_PRODUCT_SCOPE"
+  ],
+  "tested_status_policy": "Only real runtime PASS and FAIL_PRODUCT may normalize to TESTED_PASS and TESTED_FAIL.",
+  "implementation_statuses": [
+    "EXECUTABLE",
+    "DECLARATIVE_ONLY",
+    "UNSUPPORTED_PRODUCT_SCOPE"
+  ],
+  "pairwise_secondary_dimensions": [
+    "payload size",
+    "close mode",
+    "selector form",
+    "endpoint mode",
+    "concurrency",
+    "topology",
+    "timing class"
+  ],
   "groups": [
     {
       "id": "base-policy",

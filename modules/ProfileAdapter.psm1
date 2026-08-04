@@ -1,5 +1,7 @@
 Set-StrictMode -Version Latest
 
+Import-Module (Join-Path $PSScriptRoot 'ProfileValidator.psm1') -Force
+
 function Resolve-JsonVariablesInternal {
     param(
         $InputObject,
@@ -96,7 +98,8 @@ function New-ResolvedProfile {
     param(
         [Parameter(Mandatory)]$Scenario,
         [Parameter(Mandatory)][System.Collections.Generic.IDictionary[string, string]]$Environment,
-        [Parameter(Mandatory)][string]$TemplatePath
+        [Parameter(Mandatory)][string]$TemplatePath,
+        [switch]$SkipFinalValidation
     )
 
     if (-not (Test-Path -LiteralPath $TemplatePath -PathType Leaf)) {
@@ -155,7 +158,28 @@ function New-ResolvedProfile {
     if ($serialized -match '\$\{[A-Za-z_][A-Za-z0-9_]*\}') {
         throw "Generated profile contains unresolved placeholders."
     }
+    if (-not $SkipFinalValidation) { $null = Test-ProxyBridgeProfile -Profile $profile -ThrowOnError }
     return $profile
+}
+
+function Test-ExpectedProfileValidation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Scenario,
+        [Parameter(Mandatory)][System.Collections.Generic.IDictionary[string, string]]$Environment,
+        [Parameter(Mandatory)][string]$TemplatePath
+    )
+    $expectation = $(if ($null -ne $Scenario.PSObject.Properties['profile_expectation']) { [string]$Scenario.profile_expectation } else { 'valid' })
+    $profile = New-ResolvedProfile -Scenario $Scenario -Environment $Environment -TemplatePath $TemplatePath -SkipFinalValidation
+    $validation = Test-ProxyBridgeProfile -Profile $profile
+    switch ($expectation) {
+        'valid' { return [pscustomobject]@{ passed=[bool]$validation.valid; expectation=$expectation; errors=@($validation.errors); profile=$profile; may_write=[bool]$validation.valid } }
+        'invalid-missing-proxy-config' {
+            $matched = (-not $validation.valid -and (@($validation.errors) -join ' | ') -match 'missing ProxyConfigId')
+            return [pscustomobject]@{ passed=$matched; expectation=$expectation; errors=@($validation.errors); profile=$profile; may_write=$false }
+        }
+        default { throw "PROFILE_EXPECTATION_UNSUPPORTED: $expectation" }
+    }
 }
 
 function Write-ResolvedProfile {
@@ -169,6 +193,7 @@ function Write-ResolvedProfile {
     if ($ScenarioId -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
         throw "Invalid scenario ID for profile output."
     }
+    $null = Test-ProxyBridgeProfile -Profile $Profile -ThrowOnError
     $null = New-Item -ItemType Directory -Path $OutputDirectory -Force
     $path = Join-Path $OutputDirectory "$ScenarioId.pbprofile"
     $json = $Profile | ConvertTo-Json -Depth 100
@@ -177,4 +202,4 @@ function Write-ResolvedProfile {
     return [pscustomobject]@{ path = $path; sha256 = $hash }
 }
 
-Export-ModuleMember -Function Resolve-JsonVariables, New-ResolvedProfile, Write-ResolvedProfile
+Export-ModuleMember -Function Resolve-JsonVariables, New-ResolvedProfile, Test-ExpectedProfileValidation, Write-ResolvedProfile

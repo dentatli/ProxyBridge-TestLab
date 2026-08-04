@@ -1,0 +1,44 @@
+[CmdletBinding()]param()
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+. (Join-Path $PSScriptRoot 'TestSupport.ps1')
+$root = Split-Path -Parent $PSScriptRoot
+Import-Module (Join-Path $root 'modules/Env.psm1') -Force
+Import-Module (Join-Path $root 'modules/Report.psm1') -Force
+$environment = Import-DotEnv (Join-Path $PSScriptRoot 'fixtures/.env.test')
+$temp = New-TestDirectory
+try {
+    $report = New-RunReport -OutputRoot $temp -RunId 'reports'
+    $records = @(
+        [pscustomobject]@{run_mode='mock';scenario_id='one';coverage_group='group-a';implementation_status='EXECUTABLE';selected=$true;status='MOCK_PASS';reason='ok';attempt=1;duration_ms=1},
+        [pscustomobject]@{run_mode='mock';scenario_id='two';coverage_group='group-a';implementation_status='EXECUTABLE';selected=$true;status='MOCK_EXPECTED_FAIL';reason='fixture-secret';attempt=1;duration_ms=2},
+        [pscustomobject]@{run_mode='mock';scenario_id='three';coverage_group='group-b';implementation_status='DECLARATIVE_ONLY';selected=$false;status='SKIPPED_CAPABILITY';reason='disabled';attempt=0;duration_ms=0}
+    )
+    foreach ($record in $records) { Add-ResultRecord -Report $report -Record $record -Environment $environment }
+    $scenarios = @(
+        [pscustomobject]@{coverage_group='group-a';implementation_status='EXECUTABLE'},
+        [pscustomobject]@{coverage_group='group-a';implementation_status='EXECUTABLE'},
+        [pscustomobject]@{coverage_group='group-b';implementation_status='DECLARATIVE_ONLY'}
+    )
+    Write-RunSummary -Report $report -Records $records -AllScenarios $scenarios -Environment $environment -RunMode mock
+    Write-SafeTranscript -Report $report -Environment $environment -Message 'complete fixture-secret'
+    Write-TestUtf8NoBom (Join-Path $report.scenario_root 'CaseSensitiveName.TXT') 'fixture'
+    Complete-RunChecksums $report
+    foreach ($file in @('results.jsonl','failures.jsonl','skipped.jsonl','summary.csv','summary.json','coverage.json','transcript.txt','SHA256SUMS')) {
+        $path = Join-Path $report.run_root $file; Assert-True (Test-Path -LiteralPath $path) "report '$file' must exist"; Assert-NoUtf8Bom $path "report '$file' must have no BOM"
+    }
+    foreach ($file in @('results.jsonl','failures.jsonl','transcript.txt')) { Assert-True (-not [IO.File]::ReadAllText((Join-Path $report.run_root $file)).Contains('fixture-secret')) 'reports must share redaction boundary' }
+    $checksums = @(Get-Content -LiteralPath $report.checksum_path -Encoding UTF8); Assert-True ($checksums.Count -ge 6) 'checksums must cover evidence files'
+    Assert-True (($checksums -join "`n") -match 'scenarios/CaseSensitiveName\.TXT') 'checksum paths must preserve filename case'
+    $mockCoverage = Get-Content -LiteralPath (Join-Path $report.run_root 'coverage.json') -Raw -Encoding UTF8
+    Assert-True ($mockCoverage -match '"run_mode"\s*:\s*"mock"') 'coverage must include run_mode'
+    Assert-True ($mockCoverage -notmatch 'TESTED_PASS|TESTED_FAIL') 'mock coverage must never claim tested status'
+
+    $realReport = New-RunReport -OutputRoot $temp -RunId 'reports-real'
+    $realRecords = @([pscustomobject]@{run_mode='real';scenario_id='real-one';coverage_group='group-a';implementation_status='EXECUTABLE';selected=$true;status='PASS';reason='ok';attempt=1;duration_ms=1})
+    Write-RunSummary -Report $realReport -Records $realRecords -AllScenarios @([pscustomobject]@{coverage_group='group-a';implementation_status='EXECUTABLE'}) -Environment $environment -RunMode real
+    $realCoverage = Get-Content -LiteralPath (Join-Path $realReport.run_root 'coverage.json') -Raw -Encoding UTF8
+    Assert-True ($realCoverage -match 'TESTED_PASS') 'only real coverage may normalize PASS to TESTED_PASS'
+}
+finally { Remove-Item -LiteralPath $temp -Recurse -Force }
+'PASS: reports'

@@ -1,0 +1,4 @@
+{"event":"MESSAGE_RECEIVED","sha256":"${FLOW0_SHA}","local_ip":"${REMOTE0_IP}","local_port":${REMOTE0_PORT},"remote_ip":"${DIRECT_EGRESS_IP}","remote_port":50011,"bytes":64,"error":"","test_id":"${TEST_ID}","run_id":"${RUN_ID}","flow_index":0}
+{"event":"ECHOED","sha256":"${FLOW0_SHA}","local_ip":"${REMOTE0_IP}","local_port":${REMOTE0_PORT},"remote_ip":"${DIRECT_EGRESS_IP}","remote_port":50011,"bytes":64,"error":"","test_id":"${TEST_ID}","run_id":"${RUN_ID}","flow_index":0}
+{"event":"MESSAGE_RECEIVED","sha256":"${FLOW1_SHA}","local_ip":"${REMOTE1_IP}","local_port":${REMOTE1_PORT},"remote_ip":"${PROXY_EGRESS_IP}","remote_port":50012,"bytes":64,"error":"","test_id":"${TEST_ID}","run_id":"${RUN_ID}","flow_index":1}
+{"event":"ECHOED","sha256":"${FLOW1_SHA}","local_ip":"${REMOTE1_IP}","local_port":${REMOTE1_PORT},"remote_ip":"${PROXY_EGRESS_IP}","remote_port":50012,"bytes":64,"error":"","test_id":"${TEST_ID}","run_id":"${RUN_ID}","flow_index":1}

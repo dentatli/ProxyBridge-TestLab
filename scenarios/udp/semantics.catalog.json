@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "catalog_id": "udp-semantics",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "udp-semantics"], "protocol": "UDP", "family": 4, "action": "DIRECT", "socket_mode": "connected", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "The base UDP executor does not encode this multi-datagram or lifecycle semantic." },
+  "scenarios": [
+    { "id": "udp-one-socket-one-destination", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-direct" },
+    { "id": "udp-one-socket-multiple-destinations", "tags": ["multiple-destinations"] },
+    { "id": "udp-multiple-sockets-one-destination", "tags": ["multiple-sockets"] },
+    { "id": "udp-delayed-response", "tags": ["delayed"] },
+    { "id": "udp-out-of-order", "tags": ["out-of-order"] },
+    { "id": "udp-duplicate-response", "tags": ["duplicate"] },
+    { "id": "udp-drop", "tags": ["drop"], "expected_outcome": "no-echo" },
+    { "id": "udp-receive-only", "tags": ["receive-only"], "socket_mode": "unconnected" },
+    { "id": "udp-idle-reconnect", "tags": ["idle", "reconnect"] },
+    { "id": "udp-backend-restart", "tags": ["backend-restart"] },
+    { "id": "udp-late-response-after-reuse", "tags": ["late-response", "port-reuse"] },
+    { "id": "udp-watched-process-direct-drop", "tags": ["watched-process"], "known_defect_id": "watched-udp-direct-drop", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-wrong-action", "mock_status": "EXPECTED_FAIL" },
+    { "id": "udp-proxy-reverse-source", "action": "PROXY", "tags": ["response-source"], "known_defect_id": "udp-proxy-reverse-source", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-proxy-wrong-egress", "mock_status": "EXPECTED_FAIL" }
+  ]
+}

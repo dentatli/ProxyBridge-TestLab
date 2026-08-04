@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/proxybridge-testlab/scenario.schema.json",
+  "title": "ProxyBridge TestLab scenario or compact catalog",
+  "oneOf": [
+    {
+      "type": "object",
+      "required": ["schema_version", "scenario_id", "enabled", "implementation_status", "tags", "requires", "rule_set", "client", "assertions"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "scenario_id": { "type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$" },
+        "enabled": { "type": "boolean" },
+        "implementation_status": { "enum": ["EXECUTABLE", "DECLARATIVE_ONLY", "UNSUPPORTED_PRODUCT_SCOPE"] },
+        "implementation_reason": { "type": "string" },
+        "tags": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "requires": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+        "repeats": { "type": "integer", "minimum": 1 },
+        "timeout_ms": { "type": "integer", "minimum": 1 },
+        "reset_policy": { "enum": ["none", "rules_only", "profile", "process", "driver", "vm"] },
+        "rule_set": { "type": "array" },
+        "client": { "type": "object" },
+        "assertions": { "type": "array" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "implementation_status": { "const": "DECLARATIVE_ONLY" } } },
+          "then": { "required": ["implementation_reason"], "properties": { "implementation_reason": { "minLength": 1 } } }
+        }
+      ]
+    },
+    {
+      "type": "object",
+      "required": ["schema_version", "catalog_id"],
+      "properties": {
+        "schema_version": { "const": 1 },
+        "catalog_id": { "type": "string" },
+        "defaults": { "type": "object" },
+        "scenarios": { "type": "array" },
+        "pairwise": { "type": "object" }
+      }
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "catalog_id": "application-canaries",
+  "defaults": { "enabled": false, "tags": ["application-canary", "real-app", "not-implemented"], "requires": ["real_apps"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "No real-application executor is implemented." },
+  "scenarios": [
+    { "id": "canary-http", "tags": ["http"] },
+    { "id": "canary-https", "tags": ["https"] },
+    { "id": "canary-http2", "tags": ["http2"] },
+    { "id": "canary-http3-quic", "protocol": "UDP", "tags": ["http3", "quic"] },
+    { "id": "canary-dns", "protocol": "UDP", "tags": ["dns"] },
+    { "id": "canary-stun", "protocol": "UDP", "tags": ["stun"] },
+    { "id": "canary-webrtc", "protocol": "UDP", "tags": ["webrtc", "dtls", "rtp"] },
+    { "id": "canary-discord-voice", "protocol": "UDP", "tags": ["discord-voice"] },
+    { "id": "canary-screen-sharing", "tags": ["screen-sharing"] },
+    { "id": "canary-browser-download", "tags": ["browser-download"] }
+  ]
+}

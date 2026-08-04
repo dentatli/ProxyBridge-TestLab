@@ -1,0 +1,5 @@
+[RELAY] accepted redirect:
+pid=4242
+dest=198.51.100.10:41002
+action=0
+cfg=1

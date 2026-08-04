@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/proxybridge-testlab/suite.schema.json",
+  "type": "object",
+  "required": ["schema_version", "suite_id", "selection", "execution"],
+  "properties": {
+    "schema_version": { "const": 1 },
+    "suite_id": { "type": "string", "minLength": 1 },
+    "selection": {
+      "type": "object",
+      "required": ["include_tags", "exclude_tags", "include_scenario_ids", "exclude_scenario_ids"]
+    },
+    "execution": {
+      "type": "object",
+      "required": ["repeats", "timeout_ms", "suite_timeout_ms", "continue_on_product_failure", "continue_on_expected_failure", "continue_on_ambiguous_hold", "stop_on_harness_failure", "stop_on_infrastructure_failure", "stop_on_state_contamination", "max_consecutive_product_failures", "reset_policy", "runtime_mode", "dry_run", "mock_runtime"],
+      "properties": {
+        "repeats": { "type": "integer", "minimum": 1 },
+        "timeout_ms": { "type": "integer", "minimum": 1 },
+        "suite_timeout_ms": { "type": "integer", "minimum": 1 },
+        "runtime_mode": { "enum": ["dry-run", "mock", "real"] }
+      }
+    }
+  }
+}

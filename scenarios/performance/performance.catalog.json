@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "catalog_id": "performance",
+  "defaults": { "enabled": false, "tags": ["performance", "not-implemented"], "requires": ["performance"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "No performance executor or metric collector is implemented." },
+  "scenarios": [
+    { "id": "performance-latency", "tags": ["p50", "p95", "p99"] },
+    { "id": "performance-throughput", "tags": ["throughput"] },
+    { "id": "performance-cpu", "tags": ["cpu"] },
+    { "id": "performance-memory", "tags": ["memory"] },
+    { "id": "performance-handles", "tags": ["handles"] },
+    { "id": "performance-threads", "tags": ["threads"] },
+    { "id": "performance-flow-rate", "tags": ["flow-rate"] },
+    { "id": "performance-datagrams-per-second", "protocol": "UDP", "tags": ["datagrams-per-second"] }
+  ]
+}

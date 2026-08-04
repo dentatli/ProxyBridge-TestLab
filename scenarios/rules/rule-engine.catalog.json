@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "catalog_id": "rule-engine",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "rule-engine"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "The executor does not encode this rule-engine semantic." },
+  "scenarios": [
+    { "id": "rule-selector-basename", "selector": "basename", "tags": ["basename-rule"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-direct" },
+    { "id": "rule-selector-full-path", "selector": "full-path", "tags": ["full-path-rule", "full-path-regression"], "known_defect_id": "full-path-watchlist-mismatch", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-wrong-action", "mock_status": "EXPECTED_FAIL" },
+    { "id": "rule-destination-ip", "tags": ["destination-ip"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-direct" },
+    { "id": "rule-destination-domain", "tags": ["destination-domain"], "target_kind": "domain", "requires": ["domain_rules"] },
+    { "id": "rule-single-port", "tags": ["single-port"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-direct" },
+    { "id": "rule-port-range", "tags": ["port-range"], "port_expression": "${PB_RULE_PORT_RANGE}", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-direct" },
+    { "id": "rule-protocol-both", "protocol": "BOTH", "tags": ["protocol-both"] },
+    { "id": "rule-disabled", "rule_enabled": false, "tags": ["disabled-rule"] },
+    { "id": "rule-priority-overlap", "tags": ["priority", "overlap"] },
+    { "id": "rule-hot-update", "tags": ["hot-update"], "requires": ["hot_update"] },
+    { "id": "rule-persistence", "tags": ["persistence"], "requires": ["profile_persistence"] },
+    { "id": "rule-multiple-proxy-configs", "action": "PROXY", "tags": ["multiple-proxy-configs"] },
+    { "id": "rule-missing-proxy-config", "action": "PROXY", "tags": ["invalid-proxy-config", "negative-plan"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "profile_expectation": "invalid-missing-proxy-config", "mock_status": "PASS" }
+  ]
+}

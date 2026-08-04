@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "catalog_id": "security",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "security"], "protocol": "TCP", "family": 4, "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "The executor does not encode the required multi-flow or multi-process security semantic." },
+  "scenarios": [
+    { "id": "security-block-no-leak", "action": "BLOCK", "tags": ["block-leak", "no-direct-leak"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-block" },
+    { "id": "security-proxy-no-direct-leak", "action": "PROXY", "tags": ["proxy-leak", "no-direct-leak"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-proxy" },
+    { "id": "security-fresh-flow-no-stale-action", "action": "DIRECT", "tags": ["stale-action"] },
+    { "id": "security-no-wrong-destination", "action": "DIRECT", "tags": ["wrong-destination"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-direct" },
+    { "id": "security-no-cross-process-delivery", "action": "DIRECT", "tags": ["cross-process", "cross-socket"] },
+    { "id": "security-no-proxy-config-inheritance", "action": "PROXY", "tags": ["proxy-config-inheritance"] }
+  ]
+}

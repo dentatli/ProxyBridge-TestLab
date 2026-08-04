@@ -1,0 +1,4 @@
+[11:55:47] pb_net_client.exe (PID:4242) -> 198.51.100.10:41002 via Proxy socks5://proxy.example.invalid:1080
+[11:55:47] pb_net_client.exe (PID:4242) -> 198.51.100.10:41001 via Blocked
+[RELAY] accepted redirect: pid=4242 dest=198.51.100.10:41002 action=0 cfg=1
+[RELAY] accepted redirect pid=4242 dest=198.51.100.10:41001 action=2 cfg=0

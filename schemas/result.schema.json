@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/proxybridge-testlab/result.schema.json",
+  "type": "object",
+  "required": ["run_mode", "scenario_id", "coverage_group", "implementation_status", "status", "reason", "attempt", "duration_ms"],
+  "properties": {
+    "scenario_id": { "type": "string" },
+    "run_mode": { "enum": ["dry-run", "mock", "real"] },
+    "implementation_status": { "enum": ["EXECUTABLE", "DECLARATIVE_ONLY", "UNSUPPORTED_PRODUCT_SCOPE"] },
+    "coverage_group": { "type": "string" },
+    "status": {
+      "enum": ["DRY_RUN_READY", "NOT_IMPLEMENTED", "MOCK_PASS", "MOCK_EXPECTED_FAIL", "MOCK_HOLD", "PASS", "FAIL_PRODUCT", "EXPECTED_FAIL", "HOLD_AMBIGUOUS", "BLOCKED_BY_KNOWN_DEFECT", "SKIPPED_CAPABILITY", "SKIPPED_SELECTION", "UNSUPPORTED_PRODUCT_SCOPE", "FAIL_HARNESS", "FAIL_INFRASTRUCTURE", "CONTAMINATED"]
+    },
+    "reason": { "type": "string" },
+    "attempt": { "type": "integer", "minimum": 0 },
+    "duration_ms": { "type": "integer", "minimum": 0 }
+  }
+}

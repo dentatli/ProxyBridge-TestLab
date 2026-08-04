@@ -5,9 +5,8 @@ function Read-JsonFile {
     param([Parameter(Mandatory)][string]$Path)
 
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
-        throw "JSON configuration file not found."
+        throw 'JSON configuration file not found.'
     }
-
     try {
         return Get-Content -LiteralPath $Path -Raw -Encoding UTF8 | ConvertFrom-Json
     }
@@ -16,7 +15,8 @@ function Read-JsonFile {
     }
 }
 
-function Assert-Properties {
+function Assert-ObjectProperties {
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory)]$InputObject,
         [Parameter(Mandatory)][string[]]$Names,
@@ -24,9 +24,16 @@ function Assert-Properties {
     )
 
     foreach ($name in $Names) {
-        if ($null -eq $InputObject.PSObject.Properties[$name]) {
+        if ($null -eq $InputObject -or $null -eq $InputObject.PSObject.Properties[$name]) {
             throw "$DocumentType is missing required section '$name'."
         }
+    }
+}
+
+function Add-DefaultProperty {
+    param($InputObject, [string]$Name, $Value)
+    if ($null -eq $InputObject.PSObject.Properties[$Name]) {
+        $InputObject | Add-Member -NotePropertyName $Name -NotePropertyValue $Value
     }
 }
 
@@ -35,19 +42,12 @@ function Import-CapabilitiesConfig {
     param([Parameter(Mandatory)][string]$Path)
 
     $config = Read-JsonFile -Path $Path
-    Assert-Properties -InputObject $config -Names @('schema_version', 'capabilities') -DocumentType 'Capabilities configuration'
-    if ($config.schema_version -ne 1) {
-        throw "Unsupported capabilities schema_version '$($config.schema_version)'."
-    }
-    if ($config.capabilities -isnot [pscustomobject]) {
-        throw "Capabilities configuration section 'capabilities' must be an object."
-    }
-
+    Assert-ObjectProperties -InputObject $config -Names @('schema_version', 'capabilities') -DocumentType 'Capabilities configuration'
+    if ($config.schema_version -ne 1) { throw "Unsupported capabilities schema_version '$($config.schema_version)'." }
+    if ($config.capabilities -isnot [pscustomobject]) { throw "Capabilities section must be an object." }
     foreach ($property in $config.capabilities.PSObject.Properties) {
-        Assert-Properties -InputObject $property.Value -Names @('enabled', 'reason') -DocumentType "Capability '$($property.Name)'"
-        if ($property.Value.enabled -isnot [bool]) {
-            throw "Capability '$($property.Name)' enabled value must be boolean."
-        }
+        Assert-ObjectProperties -InputObject $property.Value -Names @('enabled', 'reason') -DocumentType "Capability '$($property.Name)'"
+        if ($property.Value.enabled -isnot [bool]) { throw "Capability '$($property.Name)' enabled value must be boolean." }
     }
     return $config
 }
@@ -57,105 +57,59 @@ function Import-SuiteConfig {
     param([Parameter(Mandatory)][string]$Path)
 
     $config = Read-JsonFile -Path $Path
-    Assert-Properties -InputObject $config -Names @('schema_version', 'suite_id', 'selection') -DocumentType 'Suite configuration'
-    if ($config.schema_version -ne 1) {
-        throw "Unsupported suite schema_version '$($config.schema_version)'."
+    Assert-ObjectProperties -InputObject $config -Names @('schema_version', 'suite_id', 'selection') -DocumentType 'Suite configuration'
+    if ($config.schema_version -ne 1) { throw "Unsupported suite schema_version '$($config.schema_version)'." }
+    Assert-ObjectProperties -InputObject $config.selection -Names @('include_tags', 'exclude_tags', 'include_scenario_ids', 'exclude_scenario_ids') -DocumentType 'Suite selection'
+    foreach ($name in @('include_tags', 'exclude_tags', 'include_scenario_ids', 'exclude_scenario_ids')) {
+        if ($config.selection.$name -is [string]) { throw "Suite selection '$name' must be an array." }
     }
-    Assert-Properties -InputObject $config.selection -Names @(
-        'include_tags', 'exclude_tags', 'include_scenario_ids', 'exclude_scenario_ids'
-    ) -DocumentType 'Suite selection'
+
+    Add-DefaultProperty -InputObject $config -Name 'execution' -Value ([pscustomobject]@{})
+    $defaults = [ordered]@{
+        repeats                            = 1
+        timeout_ms                         = 5000
+        suite_timeout_ms                   = 300000
+        continue_on_product_failure        = $true
+        continue_on_expected_failure       = $true
+        continue_on_ambiguous_hold         = $false
+        stop_on_harness_failure             = $true
+        stop_on_infrastructure_failure      = $true
+        stop_on_state_contamination         = $true
+        max_consecutive_product_failures    = 5
+        reset_policy                        = 'rules_only'
+        runtime_mode                        = 'dry-run'
+        dry_run                             = $true
+        mock_runtime                        = $false
+    }
+    foreach ($entry in $defaults.GetEnumerator()) {
+        Add-DefaultProperty -InputObject $config.execution -Name $entry.Key -Value $entry.Value
+    }
+    if ([int]$config.execution.repeats -lt 1) { throw 'Suite repeats must be at least 1.' }
+    if ([int]$config.execution.timeout_ms -lt 1) { throw 'Suite timeout_ms must be positive.' }
+    if ([int]$config.execution.suite_timeout_ms -lt 1) { throw 'Suite suite_timeout_ms must be positive.' }
+    if ([int]$config.execution.max_consecutive_product_failures -lt 1) { throw 'Suite max_consecutive_product_failures must be at least 1.' }
+    if (@('dry-run', 'mock', 'real') -notcontains [string]$config.execution.runtime_mode) { throw 'Suite runtime_mode is invalid.' }
+    if (@('none', 'rules_only', 'profile', 'process', 'driver', 'vm') -notcontains [string]$config.execution.reset_policy) { throw 'Suite reset_policy is invalid.' }
     return $config
 }
 
-function Import-ScenarioCatalog {
+function Import-KnownDefectsConfig {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][string]$ScenarioRoot)
+    param([Parameter(Mandatory)][string]$Path)
 
-    if (-not (Test-Path -LiteralPath $ScenarioRoot -PathType Container)) {
-        throw "Scenario root not found."
-    }
-
-    $scenarios = [System.Collections.Generic.List[object]]::new()
+    $config = Read-JsonFile -Path $Path
+    Assert-ObjectProperties -InputObject $config -Names @('schema_version', 'items') -DocumentType 'Known defects configuration'
+    if ($config.schema_version -ne 1) { throw "Unsupported known-defects schema_version '$($config.schema_version)'." }
     $ids = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
-    $files = @(Get-ChildItem -LiteralPath $ScenarioRoot -Recurse -File -Filter '*.json' | Sort-Object FullName)
-
-    foreach ($file in $files) {
-        $scenario = Read-JsonFile -Path $file.FullName
-        Assert-Properties -InputObject $scenario -Names @(
-            'schema_version', 'scenario_id', 'enabled', 'tags', 'requires', 'rule_set'
-        ) -DocumentType 'Scenario'
-        if ($scenario.schema_version -ne 1) {
-            throw "Unsupported scenario schema_version in '$($file.Name)'."
-        }
-        if ([string]::IsNullOrWhiteSpace([string]$scenario.scenario_id) -or
-            [string]$scenario.scenario_id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
-            throw "Scenario has an invalid scenario_id."
-        }
-        if (-not $ids.Add([string]$scenario.scenario_id)) {
-            throw "Duplicate scenario ID '$($scenario.scenario_id)'."
-        }
-        if ($scenario.enabled -isnot [bool]) {
-            throw "Scenario '$($scenario.scenario_id)' enabled value must be boolean."
-        }
-        $scenarios.Add($scenario)
+    foreach ($item in @($config.items)) {
+        Assert-ObjectProperties -InputObject $item -Names @('id', 'matching', 'expected_status', 'reason', 'policy') -DocumentType 'Known defect'
+        if (-not $ids.Add([string]$item.id)) { throw "Duplicate known-defect ID '$($item.id)'." }
+        if (@('do-not-run', 'run-as-regression') -notcontains [string]$item.policy) { throw "Known defect '$($item.id)' has invalid policy." }
+        if (@('EXPECTED_FAIL', 'BLOCKED_BY_KNOWN_DEFECT') -notcontains [string]$item.expected_status) { throw "Known defect '$($item.id)' has invalid expected_status." }
+        Add-DefaultProperty -InputObject $item.matching -Name 'scenario_ids' -Value @()
+        Add-DefaultProperty -InputObject $item.matching -Name 'tags' -Value @()
     }
-
-    return ,$scenarios.ToArray()
+    return $config
 }
 
-function Test-ScenarioSelection {
-    [CmdletBinding()]
-    param(
-        [Parameter(Mandatory)]$Scenario,
-        [Parameter(Mandatory)]$Capabilities,
-        [Parameter(Mandatory)]$Suite
-    )
-
-    $id = [string]$Scenario.scenario_id
-    if (-not $Scenario.enabled) {
-        return [pscustomobject]@{ selected = $false; status = 'SKIPPED_SELECTION'; reason = 'scenario disabled' }
-    }
-
-    foreach ($requirement in @($Scenario.requires)) {
-        $capability = $Capabilities.capabilities.PSObject.Properties[[string]$requirement]
-        if ($null -eq $capability) {
-            return [pscustomobject]@{
-                selected = $false
-                status   = 'SKIPPED_CAPABILITY'
-                reason   = "required capability '$requirement' is not declared"
-            }
-        }
-        if (-not $capability.Value.enabled) {
-            $detail = [string]$capability.Value.reason
-            $reason = "required capability '$requirement' is disabled"
-            if (-not [string]::IsNullOrWhiteSpace($detail)) {
-                $reason += ": $detail"
-            }
-            return [pscustomobject]@{ selected = $false; status = 'SKIPPED_CAPABILITY'; reason = $reason }
-        }
-    }
-
-    $selection = $Suite.selection
-    if (@($selection.exclude_scenario_ids) -contains $id) {
-        return [pscustomobject]@{ selected = $false; status = 'SKIPPED_SELECTION'; reason = 'scenario ID excluded' }
-    }
-    if (@($selection.include_scenario_ids).Count -gt 0 -and @($selection.include_scenario_ids) -notcontains $id) {
-        return [pscustomobject]@{ selected = $false; status = 'SKIPPED_SELECTION'; reason = 'scenario ID not included' }
-    }
-
-    $scenarioTags = @($Scenario.tags)
-    foreach ($tag in @($selection.exclude_tags)) {
-        if ($scenarioTags -contains $tag) {
-            return [pscustomobject]@{ selected = $false; status = 'SKIPPED_SELECTION'; reason = "excluded tag '$tag'" }
-        }
-    }
-    foreach ($tag in @($selection.include_tags)) {
-        if ($scenarioTags -notcontains $tag) {
-            return [pscustomobject]@{ selected = $false; status = 'SKIPPED_SELECTION'; reason = "required include tag '$tag' is absent" }
-        }
-    }
-
-    return [pscustomobject]@{ selected = $true; status = 'DRY_RUN_READY'; reason = 'selected' }
-}
-
-Export-ModuleMember -Function Import-CapabilitiesConfig, Import-SuiteConfig, Import-ScenarioCatalog, Test-ScenarioSelection
+Export-ModuleMember -Function Read-JsonFile, Assert-ObjectProperties, Import-CapabilitiesConfig, Import-SuiteConfig, Import-KnownDefectsConfig

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "catalog_id": "failure-injection",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "failure-injection"], "protocol": "TCP", "family": 4, "action": "PROXY", "requires": ["failure_injection"], "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "No failure injector is implemented." },
+  "scenarios": [
+    { "id": "failure-proxy-unavailable", "tags": ["proxy-unavailable"], "expected_outcome": "no-echo" },
+    { "id": "failure-proxy-auth", "tags": ["auth-failure"], "expected_outcome": "no-echo" },
+    { "id": "failure-dns", "tags": ["dns-failure"], "expected_outcome": "no-echo" },
+    { "id": "failure-connect-refused", "tags": ["connect-refused"], "expected_outcome": "no-echo" },
+    { "id": "failure-silent-timeout", "tags": ["timeout"], "expected_outcome": "no-echo" },
+    { "id": "failure-backend-restart", "tags": ["backend-restart"] },
+    { "id": "failure-client-process-exit", "tags": ["process-exit"], "action": "DIRECT" }
+  ]
+}

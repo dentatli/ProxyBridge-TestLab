@@ -316,3 +316,27 @@ performance only after synthetic correctness is sufficiently stable.
 Do not build the full orchestrator before the control-plane audit. The first
 unknown is how rules can be changed and read back without GUI interaction.
 Everything else is already sufficiently specified.
+
+## 11. Implemented safe boundary
+
+The current code implements dry-run, fixture-backed mock orchestration, and a
+separately gated real-smoke path. It performs
+catalog discovery, capability and suite selection, known-defect classification,
+profile generation/validation, executor-specific client plans, mock evidence assertions,
+failure policy and deterministic reports. Selection is recorded for the entire
+catalog before scenario execution, so a later stop remains auditable.
+
+Real product, process-observation and network operations are never selected by
+default. They require `-AllowProductRuntime` and the separate confirmed
+real-smoke script. The real path provides binary hash/process/service/TCP
+preflight, asynchronous CLI/client lifecycle, textual ProxyBridge evidence and
+one gated SSH query per canonical payload SHA after client completion. A
+successful empty exact-match query is complete BLOCK no-leak evidence;
+import-existing remains an explicit manual-audit option. No real adapter is
+invoked by dry-run, mock or the automated tests.
+
+The 135 catalog IDs are declarations, not 135 working tests. Every expanded
+entry is explicitly `EXECUTABLE`, `DECLARATIVE_ONLY` (with a reason), or
+`UNSUPPORTED_PRODUCT_SCOPE`. Only real execution can produce tested coverage;
+dry-run and mock retain `DRY_RUN_*`/`MOCK_*` statuses. Literal exhaustive
+testing of all packet sequences is neither possible nor claimed.

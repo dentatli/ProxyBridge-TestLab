@@ -11,26 +11,44 @@ This repository does not contain or modify ProxyBridge product code.
 
 ## Project status
 
-The project is currently in the design and foundation stage.
+The repository contains a safe orchestration boundary for dry-run and mock
+synthetic-correctness matrices. Windows PowerShell 5.1 is the minimum supported
+version; PowerShell 7 is recommended.
 
 Implemented:
 
-- environment configuration skeleton;
+- private `.env` parsing and capability/suite/scenario separation;
 - capability-based test selection;
-- suite configuration;
-- declarative scenario format;
-- ProxyBridge `.pbprofile` schema;
-- sanitized profile template;
-- coverage model and orchestrator specification.
+- strict `.pbprofile` generation and validation;
+- a 135-ID declaration catalog with an explicitly smaller executable subset;
+- exhaustive declared critical matrix plus deterministic pairwise declarations;
+- known-defect, unsupported and skipped classifications;
+- exact base/issue206/issue209 client command builders;
+- real-harness JSONL normalization with raw and canonical records;
+- shared gated process, CLI lifecycle, health, client, VPS and assertion boundaries;
+- gated per-payload dynamic SSH evidence plans with optional import-existing audit mode;
+- fixture-backed mock evidence that is independent of expected rule actions;
+- redacted UTF-8-without-BOM reports and checksums;
+- dependency-free Windows PowerShell tests.
 
-Not implemented yet:
+Requires a later explicitly authorized real-runtime run:
 
-- PowerShell test runner;
-- automatic `.pbprofile` generation;
-- ProxyBridge CLI lifecycle management;
-- automatic VPS evidence collection;
-- full scenario catalog;
-- runtime GitHub Actions.
+- validation against the installed product/client binary contracts;
+- real product and client process execution;
+- execution of the implemented VPS collector against a real host;
+- driver/service, destructive lifecycle and performance execution.
+
+## Safe commands
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\tests\Run-All.ps1
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-DryRun.ps1 -FixtureMode
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-MockMatrix.ps1 -FixtureMode
+```
+
+Real runtime is never an implicit fallback. `scripts/Invoke-RealSmoke.ps1` is a
+separate manual command requiring `-ConfirmRealRuntime`; do not run it until the
+local `.env`, hashes, binaries and isolated test environment are verified.
 
 ## Goals
 
@@ -56,19 +74,13 @@ dimensions.
 ## Repository layout
 
 ```text
-config/       Environment capabilities and suite selection
-docs/         Architecture and coverage documentation
-scenarios/    Declarative test scenarios
-schemas/      JSON schemas
-templates/    Public sanitized profile templates
-```
-
-Future layout:
-
-```text
 modules/      PowerShell runner modules
-tests/        Unit, schema and loopback tests
-harness/      Deterministic client and endpoint sources
+tests/        Dependency-free unit, schema and fixture-backed tests
+config/       Capabilities, suites and known-defect policy
+scenarios/    Compact declarative catalogs
+schemas/      Profile, scenario, suite and result contracts
+scripts/      Dry-run, mock and separately gated real-smoke entrypoints
+docs/         Safety, evidence, coverage and authoring documentation
 ```
 
 ## Configuration
@@ -115,12 +127,30 @@ IPv6 scenarios will then be classified as `SKIPPED_CAPABILITY`, not failed.
 Test selection is configured in:
 
 ```text
-config/suites.json
+config/suites/*.json
 ```
 
 ## Result statuses
 
-Planned result classifications:
+Every result includes `run_mode` and `implementation_status`. Catalog entries
+are `EXECUTABLE`, `DECLARATIVE_ONLY`, or `UNSUPPORTED_PRODUCT_SCOPE`.
+
+Dry-run results use:
+
+```text
+DRY_RUN_READY
+NOT_IMPLEMENTED
+```
+
+Mock results use only:
+
+```text
+MOCK_PASS
+MOCK_EXPECTED_FAIL
+MOCK_HOLD
+```
+
+Real-runtime classifications are:
 
 ```text
 PASS
@@ -135,6 +165,10 @@ FAIL_HARNESS
 FAIL_INFRASTRUCTURE
 CONTAMINATED
 ```
+
+Only real `PASS`/`FAIL_PRODUCT` records become `TESTED_PASS`/`TESTED_FAIL` in
+coverage. Mock evidence validates the orchestration contract; it is never
+reported as product-tested coverage.
 
 Product failures may be recorded while independent scenarios continue.
 
@@ -162,7 +196,12 @@ See [SECURITY.md](SECURITY.md).
 
 - [Orchestrator specification](docs/ORCHESTRATOR_SPEC.md)
 - [Coverage model](docs/COVERAGE_MODEL.json)
+- [Coverage explanation](docs/coverage-model.md)
 - [Environment setup](docs/environment-setup.md)
+- [Adding scenarios](docs/adding-scenarios.md)
+- [Evidence format](docs/evidence-format.md)
+- [Runtime safety](docs/runtime-safety.md)
+- [Known defects](docs/known-defects.md)
 
 ## License
 

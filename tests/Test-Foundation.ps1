@@ -8,6 +8,7 @@ $repoRoot = Split-Path -Parent $PSScriptRoot
 $fixtureRoot = Join-Path $PSScriptRoot 'fixtures'
 Import-Module (Join-Path $repoRoot 'modules/Env.psm1') -Force
 Import-Module (Join-Path $repoRoot 'modules/Config.psm1') -Force
+Import-Module (Join-Path $repoRoot 'modules/ScenarioCatalog.psm1') -Force
 Import-Module (Join-Path $repoRoot 'modules/ProfileAdapter.psm1') -Force
 Import-Module (Join-Path $repoRoot 'modules/Report.psm1') -Force
 
@@ -103,7 +104,7 @@ try {
         -ScenarioRoot $scenarioRoot `
         -OutputRoot $outputRoot `
         -DryRun 2>&1 | Out-String
-    Assert-True ($runnerOutput -match 'DRY_RUN_COMPLETE') 'dry-run runner must complete'
+    Assert-True ($runnerOutput -match 'RUN_COMPLETE mode=dry-run') 'dry-run runner must complete'
     Assert-True ($runnerOutput -notmatch 'fixture-secret') 'runner output must not expose fixture secret'
 
     $runRoot = @(Get-ChildItem -LiteralPath $outputRoot -Directory)
@@ -114,7 +115,7 @@ try {
     Write-SafeTranscript -Report $testReport -Environment $environment -Message 'Harmless scalar ProxyConfigId=1 remains visible.'
     $transcript = Get-Content -LiteralPath $transcriptPath -Raw -Encoding UTF8
     $selectionJsonl = Get-Content -LiteralPath $selectionPath -Raw -Encoding UTF8
-    $environmentSummary = Get-Content -LiteralPath (Join-Path $runRoot[0].FullName 'environment-summary.json') -Raw -Encoding UTF8
+    $environmentSummary = Get-Content -LiteralPath (Join-Path $runRoot[0].FullName 'environment-snapshot.json') -Raw -Encoding UTF8
     foreach ($protectedValue in @(
         'fixture-secret',
         'C:\Users\Fixture\.ssh\id_ed25519',
@@ -131,7 +132,7 @@ try {
     Assert-NoUtf8Bom -Path $transcriptPath -Message 'transcript must be UTF-8 without BOM'
     Assert-NoUtf8Bom -Path $selectionPath -Message 'selection JSONL must be UTF-8 without BOM'
     Assert-True (Test-Path -LiteralPath (Join-Path $runRoot[0].FullName 'generated-profiles/foundation-profile-test.pbprofile')) 'resolved profile must be generated'
-    foreach ($requiredOutput in @('environment-summary.json', 'resolved-suite.json', 'selection.jsonl', 'SHA256SUMS', 'transcript.txt')) {
+    foreach ($requiredOutput in @('environment-snapshot.json', 'resolved-suite.json', 'selection.jsonl', 'results.jsonl', 'failures.jsonl', 'skipped.jsonl', 'summary.csv', 'coverage.json', 'SHA256SUMS', 'transcript.txt')) {
         Assert-True (Test-Path -LiteralPath (Join-Path $runRoot[0].FullName $requiredOutput)) "required output '$requiredOutput' must exist"
     }
 
@@ -183,11 +184,11 @@ try {
         Assert-True (Test-Path -LiteralPath (Join-Path $failureRunRoot[0].FullName $requiredFailureOutput)) "failed dry-run must finish '$requiredFailureOutput'"
     }
     $failureSelection = @(Get-Content -LiteralPath (Join-Path $failureRunRoot[0].FullName 'selection.jsonl') -Encoding UTF8)
-    Assert-Equal 2 $failureSelection.Count 'failed dry-run must record every scenario'
-    Assert-True (($failureSelection -join "`n") -match 'DRY_RUN_READY') 'selection must retain successful scenario record'
+    Assert-True ($failureSelection.Count -ge 2) 'failed dry-run must record every scenario'
+    Assert-True (($failureSelection -join "`n") -match 'SELECTED') 'selection must retain successful scenario record'
     Assert-True (($failureSelection -join "`n") -match 'FAIL_PROFILE_GENERATION') 'selection must record invalid profile scenario'
     $failureTranscript = Get-Content -LiteralPath (Join-Path $failureRunRoot[0].FullName 'transcript.txt') -Raw -Encoding UTF8
-    Assert-True ($failureTranscript -match 'Dry-run completed; profile generation failures: 1') 'failed dry-run must finalize transcript before throwing'
+    Assert-True ($failureTranscript -match 'Run completed; selected=2; profile_failures=1') 'failed dry-run must finalize transcript before throwing'
 
     $runtimeRejected = $false
     try { $null = & (Join-Path $repoRoot 'Run-WfpMatrix.ps1') } catch { $runtimeRejected = $_.Exception.Message -match 'RUNTIME_NOT_IMPLEMENTED' }

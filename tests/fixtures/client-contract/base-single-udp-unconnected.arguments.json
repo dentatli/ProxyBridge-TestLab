@@ -1,0 +1,16 @@
+[
+  "--mode", "single",
+  "--family", "4",
+  "--protocol", "udp",
+  "--udp-mode", "unconnected",
+  "--local-ip", "192.0.2.20",
+  "--local-port", "0",
+  "--remote-ip", "198.51.100.10",
+  "--udp-remote-port", "41001",
+  "--expected-action", "PROXY",
+  "--expect", "echo",
+  "--timeout-ms", "5000",
+  "--test-id", "udp-ipv4-unconnected-proxy",
+  "--run-id", "fixture-run",
+  "--jsonl-log", "C:\\Fixture\\evidence\\client.jsonl"
+]

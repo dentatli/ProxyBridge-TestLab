@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "catalog_id": "payloads",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "payload-class"], "protocol": "UDP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "The current pb_net_client harness has no configurable payload-size argument.", "mock_fixture_id": "" },
+  "scenarios": [
+    { "id": "udp-payload-0", "payload_size": 0 },
+    { "id": "udp-payload-1", "payload_size": 1 },
+    { "id": "udp-payload-64", "payload_size": 64 },
+    { "id": "udp-payload-512", "payload_size": 512 },
+    { "id": "udp-payload-1200", "payload_size": 1200 },
+    { "id": "udp-payload-1400", "payload_size": 1400 },
+    { "id": "udp-payload-1472", "payload_size": 1472 },
+    { "id": "udp-payload-2000", "payload_size": 2000 },
+    { "id": "udp-payload-8192", "payload_size": 8192 },
+    { "id": "udp-payload-32768", "payload_size": 32768 },
+    { "id": "udp-payload-65507", "payload_size": 65507, "requires": ["udp_fragmentation"] }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "catalog_id": "unsupported-product-scope",
+  "defaults": { "enabled": true, "tags": ["unsupported", "coverage-declaration"], "unsupported_status": "UNSUPPORTED_PRODUCT_SCOPE", "implementation_status": "UNSUPPORTED_PRODUCT_SCOPE" },
+  "scenarios": [
+    { "id": "unsupported-icmp-proxying", "title": "ICMP proxying" },
+    { "id": "unsupported-igmp", "title": "IGMP" },
+    { "id": "unsupported-gre", "title": "GRE" },
+    { "id": "unsupported-esp-ah", "title": "ESP and AH" },
+    { "id": "unsupported-sctp", "title": "SCTP" },
+    { "id": "unsupported-raw-sockets", "title": "Raw sockets" },
+    { "id": "unsupported-link-layer", "title": "Non-IP link-layer traffic" }
+  ]
+}

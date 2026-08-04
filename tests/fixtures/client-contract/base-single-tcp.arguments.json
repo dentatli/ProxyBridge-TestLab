@@ -1,0 +1,16 @@
+[
+  "--mode", "single",
+  "--family", "4",
+  "--protocol", "tcp",
+  "--tcp-peer-policy", "exact",
+  "--local-ip", "192.0.2.20",
+  "--local-port", "0",
+  "--remote-ip", "198.51.100.10",
+  "--tcp-remote-port", "41001",
+  "--expected-action", "DIRECT",
+  "--expect", "echo",
+  "--timeout-ms", "5000",
+  "--test-id", "tcp-ipv4-direct",
+  "--run-id", "fixture-run",
+  "--jsonl-log", "C:\\Fixture\\evidence\\client.jsonl"
+]

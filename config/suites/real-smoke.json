@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "suite_id": "manual-real-smoke",
+  "selection": {
+    "include_tags": [],
+    "exclude_tags": [],
+    "include_scenario_ids": ["issue206-proxy-to-block-abortive"],
+    "exclude_scenario_ids": []
+  },
+  "execution": {
+    "repeats": 1,
+    "timeout_ms": 5000,
+    "suite_timeout_ms": 60000,
+    "continue_on_product_failure": false,
+    "continue_on_expected_failure": false,
+    "continue_on_ambiguous_hold": false,
+    "stop_on_harness_failure": true,
+    "stop_on_infrastructure_failure": true,
+    "stop_on_state_contamination": true,
+    "max_consecutive_product_failures": 1,
+    "reset_policy": "rules_only",
+    "runtime_mode": "real",
+    "dry_run": false,
+    "mock_runtime": false
+  }
+}

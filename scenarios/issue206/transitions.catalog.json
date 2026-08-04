@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "catalog_id": "issue206",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "critical-matrix", "issue206", "stateful", "same-port-reuse"], "protocol": "TCP", "family": 4, "mode": "issue206", "implementation_status": "EXECUTABLE" },
+  "scenarios": [
+    { "id": "issue206-direct-to-block", "transition": "DIRECT->BLOCK", "mock_fixture_id": "issue206-direct-block" },
+    { "id": "issue206-direct-to-proxy", "transition": "DIRECT->PROXY", "mock_fixture_id": "issue206-direct-proxy" },
+    { "id": "issue206-block-to-direct", "transition": "BLOCK->DIRECT", "mock_fixture_id": "issue206-block-direct" },
+    { "id": "issue206-block-to-proxy", "transition": "BLOCK->PROXY", "mock_fixture_id": "issue206-block-proxy" },
+    { "id": "issue206-proxy-to-direct-abortive", "transition": "PROXY->DIRECT", "close_mode": "abortive", "known_defect_id": "issue206-proxy-to-direct-egress", "mock_fixture_id": "issue206-proxy-direct-wrong-second", "mock_status": "EXPECTED_FAIL" },
+    { "id": "issue206-proxy-to-block", "transition": "PROXY->BLOCK", "mock_fixture_id": "issue206-proxy-block" },
+    { "id": "issue206-direct-to-proxy-abortive", "transition": "DIRECT->PROXY", "close_mode": "abortive", "mock_fixture_id": "issue206-direct-proxy" },
+    { "id": "issue206-proxy-to-block-abortive", "transition": "PROXY->BLOCK", "close_mode": "abortive", "mock_fixture_id": "issue206-proxy-block" }
+  ]
+}

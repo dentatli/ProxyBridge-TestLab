@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "catalog_id": "base-policy",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "critical-matrix"], "reset_policy": "rules_only", "implementation_status": "EXECUTABLE" },
+  "scenarios": [
+    { "id": "tcp-ipv4-direct", "protocol": "TCP", "family": 4, "action": "DIRECT", "mock_fixture_id": "base-direct" },
+    { "id": "tcp-ipv4-block", "protocol": "TCP", "family": 4, "action": "BLOCK", "mock_fixture_id": "base-block" },
+    { "id": "tcp-ipv4-proxy", "protocol": "TCP", "family": 4, "action": "PROXY", "mock_fixture_id": "base-proxy" },
+    { "id": "tcp-ipv6-direct", "protocol": "TCP", "family": 6, "action": "DIRECT", "mock_fixture_id": "base-direct" },
+    { "id": "tcp-ipv6-block", "protocol": "TCP", "family": 6, "action": "BLOCK", "mock_fixture_id": "base-block" },
+    { "id": "tcp-ipv6-proxy", "protocol": "TCP", "family": 6, "action": "PROXY", "mock_fixture_id": "base-proxy" },
+    { "id": "udp-ipv4-connected-direct", "protocol": "UDP", "family": 4, "socket_mode": "connected", "action": "DIRECT", "mock_fixture_id": "base-direct" },
+    { "id": "udp-ipv4-connected-block", "protocol": "UDP", "family": 4, "socket_mode": "connected", "action": "BLOCK", "mock_fixture_id": "base-block" },
+    { "id": "udp-ipv4-connected-proxy", "protocol": "UDP", "family": 4, "socket_mode": "connected", "action": "PROXY", "mock_fixture_id": "base-proxy" },
+    { "id": "udp-ipv4-unconnected-direct", "protocol": "UDP", "family": 4, "socket_mode": "unconnected", "action": "DIRECT", "mock_fixture_id": "base-direct" },
+    { "id": "udp-ipv4-unconnected-block", "protocol": "UDP", "family": 4, "socket_mode": "unconnected", "action": "BLOCK", "mock_fixture_id": "base-block" },
+    { "id": "udp-ipv4-unconnected-proxy", "protocol": "UDP", "family": 4, "socket_mode": "unconnected", "action": "PROXY", "mock_fixture_id": "base-proxy" },
+    { "id": "udp-ipv6-connected-direct", "protocol": "UDP", "family": 6, "socket_mode": "connected", "action": "DIRECT", "mock_fixture_id": "base-direct" },
+    { "id": "udp-ipv6-connected-block", "protocol": "UDP", "family": 6, "socket_mode": "connected", "action": "BLOCK", "mock_fixture_id": "base-block" },
+    { "id": "udp-ipv6-connected-proxy", "protocol": "UDP", "family": 6, "socket_mode": "connected", "action": "PROXY", "mock_fixture_id": "base-proxy" },
+    { "id": "udp-ipv6-unconnected-direct", "protocol": "UDP", "family": 6, "socket_mode": "unconnected", "action": "DIRECT", "mock_fixture_id": "base-direct" },
+    { "id": "udp-ipv6-unconnected-block", "protocol": "UDP", "family": 6, "socket_mode": "unconnected", "action": "BLOCK", "mock_fixture_id": "base-block" },
+    { "id": "udp-ipv6-unconnected-proxy", "protocol": "UDP", "family": 6, "socket_mode": "unconnected", "action": "PROXY", "mock_fixture_id": "base-proxy" }
+  ]
+}

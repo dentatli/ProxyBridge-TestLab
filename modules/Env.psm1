@@ -74,7 +74,7 @@ function Get-EnvironmentSummary {
         }
     }
 
-    return ,@($summary)
+    return @($summary)
 }
 
 Export-ModuleMember -Function Import-DotEnv, Get-EnvironmentSummary

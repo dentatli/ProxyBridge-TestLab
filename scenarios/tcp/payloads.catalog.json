@@ -1,0 +1,12 @@
+{
+  "schema_version": 1,
+  "catalog_id": "payloads",
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "payload-class", "tcp-payload"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "The current pb_net_client harness has no configurable payload-size argument.", "mock_fixture_id": "" },
+  "scenarios": [
+    { "id": "tcp-payload-1", "payload_size": 1 },
+    { "id": "tcp-payload-small", "payload_size": 64 },
+    { "id": "tcp-payload-64k", "payload_size": 65536 },
+    { "id": "tcp-payload-1m", "payload_size": 1048576 },
+    { "id": "tcp-payload-streaming", "payload_size": 65536, "tags": ["streaming"], "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "The client plan sends one payload and does not encode a streaming sequence.", "mock_fixture_id": "" }
+  ]
+}
