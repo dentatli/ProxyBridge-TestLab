@@ -25,8 +25,10 @@ Implemented:
 - known-defect, unsupported and skipped classifications;
 - exact base/issue206/issue209 client command builders;
 - real-harness JSONL normalization with raw and canonical records;
-- shared gated process, CLI lifecycle, health, client, VPS and assertion boundaries;
-- gated per-payload dynamic SSH evidence plans with optional import-existing audit mode;
+- shared gated process, CLI lifecycle, environment-preparation, health, client, VPS and assertion boundaries;
+- exact-path/hash-verified GUI/CLI cleanup and GUI-only driver bootstrap when the configured service is Stopped;
+- one-per-run direct-egress baseline discovery before the CLI starts;
+- gated per-payload dynamic SSH evidence plans with explicit-path import-existing audit mode;
 - fixture-backed mock evidence that is independent of expected rule actions;
 - redacted UTF-8-without-BOM reports and checksums;
 - dependency-free Windows PowerShell tests.
@@ -48,7 +50,9 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\scripts\Invoke-MockMat
 
 Real runtime is never an implicit fallback. `scripts/Invoke-RealSmoke.ps1` is a
 separate manual command requiring `-ConfirmRealRuntime`; do not run it until the
-local `.env`, hashes, binaries and isolated test environment are verified.
+local `.env`, hashes, binaries and isolated test environment are verified. It
+prepares only the configured, hash-verified ProxyBridge GUI/CLI paths by default;
+`-SkipEnvironmentPreparation` is an explicit opt-out.
 
 ## Goals
 
@@ -62,7 +66,7 @@ The test lab is designed to provide:
 - stateful connection tests;
 - issue-specific regression tests;
 - exact payload SHA-256 verification;
-- client, ProxyBridge and VPS evidence correlation;
+- client, VPS and optional corroborating/contradictory ProxyBridge evidence correlation;
 - capability-based skips instead of false failures;
 - machine-readable result and coverage reports.
 
@@ -102,6 +106,13 @@ The `.env` file may contain:
 - SSH destinations;
 - expected binary hashes;
 - evidence paths.
+
+Scenario defaults and beta CLI readiness are public configuration in
+`config/runtime.json`. Rule basename/full path are derived from normalized
+`PB_CLIENT_EXE`; VPS evidence import and optional egress pins are explicit
+command parameters, not `.env` keys. Real validation rejects placeholder,
+TEST-NET/example endpoint values and relative executable paths before product
+start.
 
 `.env` is ignored by Git and must never be committed.
 

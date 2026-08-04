@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 foreach ($module in @('Env','Config','ScenarioCatalog','ProfileAdapter','ClientRunner','MockRuntime','ProxyBridgeEvidence','VpsEvidence','Assertions')) { Import-Module (Join-Path $root "modules/$module.psm1") -Force }
 
-$environment = Import-DotEnv (Join-Path $PSScriptRoot 'fixtures/.env.test')
+$environment = Get-EffectiveRuntimeEnvironment -Environment (Import-DotEnv (Join-Path $PSScriptRoot 'fixtures/.env.test')) -RuntimeConfig (Import-RuntimeConfig (Join-Path $root 'config/runtime.json'))
 $contract = Import-ClientContract (Join-Path $root 'config/client-contract.json')
 $catalog = @(Import-ScenarioCatalog (Join-Path $root 'scenarios'))
 $defects = Import-KnownDefectsConfig (Join-Path $root 'config/known-defects.json')
@@ -46,6 +46,21 @@ try {
     $wrongEgress = Invoke-FixtureAssertion 'tcp-ipv4-proxy' 'base-proxy-wrong-egress'
     Assert-Equal 'FAIL_PRODUCT' $wrongEgress.assertion.outcome 'wrong proxy egress must be caught'
     Assert-True ((@($wrongEgress.assertion.product_errors) -join ',') -match 'wrong proxy egress|direct leak') 'wrong egress reason must be explicit'
+
+    $proxyPass = Invoke-FixtureAssertion 'tcp-ipv4-proxy' 'base-proxy'
+    $externalProxyContext = [pscustomobject]@{vps_capture_complete=$true;vps_capture_complete_shas=@($proxyPass.mock.client_result.canonical_records.payload_sha256);channel_capture_completed=$true;records_found=$false;direct_egress_ip='192.0.2.50';proxy_egress_ip='';expected_process='pb_net_client.exe'}
+    $externalProxy = Test-ScenarioAssertions -Scenario $proxyPass.scenario -ClientPlan $proxyPass.plan -ClientResult $proxyPass.mock.client_result -VpsRecords $proxyPass.mock.vps_records -ProxyBridgeRecords @() -EvidenceContext $externalProxyContext -RunMode real
+    Assert-Equal 'PASS' $externalProxy.outcome 'external PROXY evidence must pass without internal route records'
+    Assert-Equal 'CLIENT+VPS+DIRECT_BASELINE' $externalProxy.evidence_basis 'external PROXY evidence basis'
+
+    $ambiguousContext = [pscustomobject]@{vps_capture_complete=$true;vps_capture_complete_shas=@($proxyPass.mock.client_result.canonical_records.payload_sha256);channel_capture_completed=$true;records_found=$false;direct_egress_ip='198.51.100.50';proxy_egress_ip='';expected_process='pb_net_client.exe'}
+    $ambiguous = Test-ScenarioAssertions -Scenario $proxyPass.scenario -ClientPlan $proxyPass.plan -ClientResult $proxyPass.mock.client_result -VpsRecords $proxyPass.mock.vps_records -ProxyBridgeRecords @() -EvidenceContext $ambiguousContext -RunMode real
+    Assert-Equal 'HOLD_AMBIGUOUS' $ambiguous.outcome 'same direct/proxy egress must hold without internal route evidence'
+    Assert-True $ambiguous.route_evidence_required 'same egress must require internal route evidence'
+
+    $contradictory = @(ConvertFrom-ProxyBridgeTextLines @('2030-01-01T00:00:00Z pb_net_client.exe (4242) -> 198.51.100.10:41001 via Direct'))
+    $contradiction = Test-ScenarioAssertions -Scenario $proxyPass.scenario -ClientPlan $proxyPass.plan -ClientResult $proxyPass.mock.client_result -VpsRecords $proxyPass.mock.vps_records -ProxyBridgeRecords $contradictory -EvidenceContext $externalProxyContext -RunMode real
+    Assert-Equal 'FAIL_PRODUCT' $contradiction.outcome 'contradictory internal route must outrank complete external evidence'
 
     $missingVps = Invoke-FixtureAssertion 'tcp-ipv4-direct' 'base-missing-vps'
     Assert-Equal 'HOLD_AMBIGUOUS' $missingVps.assertion.outcome 'missing VPS evidence cannot pass'

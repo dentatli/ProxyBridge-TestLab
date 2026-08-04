@@ -4,10 +4,11 @@ $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'TestSupport.ps1')
 $root = Split-Path -Parent $PSScriptRoot
 Import-Module (Join-Path $root 'modules/Env.psm1') -Force
+Import-Module (Join-Path $root 'modules/Config.psm1') -Force
 Import-Module (Join-Path $root 'modules/ProfileAdapter.psm1') -Force
 Import-Module (Join-Path $root 'modules/ProfileValidator.psm1') -Force
 Import-Module (Join-Path $root 'modules/ScenarioCatalog.psm1') -Force
-$environment = Import-DotEnv -Path (Join-Path $PSScriptRoot 'fixtures/.env.test')
+$environment = Get-EffectiveRuntimeEnvironment -Environment (Import-DotEnv -Path (Join-Path $PSScriptRoot 'fixtures/.env.test')) -RuntimeConfig (Import-RuntimeConfig (Join-Path $root 'config/runtime.json'))
 $scenario = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/scenario.test.json') -Raw -Encoding UTF8 | ConvertFrom-Json
 $profile = New-ResolvedProfile -Scenario $scenario -Environment $environment -TemplatePath (Join-Path $root 'templates/profile.pbprofile.template')
 Assert-True (Test-ProxyBridgeProfile -Profile $profile).valid 'valid generated profile must pass'

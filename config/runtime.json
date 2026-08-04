@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "cli_readiness": {
+    "regex": "",
+    "stable_ms": 2000,
+    "readiness_timeout_ms": 15000,
+    "stop_timeout_ms": 5000
+  },
+  "environment_preparation": {
+    "service_start_timeout_ms": 15000,
+    "poll_interval_ms": 250
+  },
+  "scenario_defaults": {
+    "endpoint_delay_port": "41003",
+    "endpoint_error_port": "41004",
+    "rule_port_range": "41000-41010",
+    "test_domain": "test.example.invalid"
+  }
+}

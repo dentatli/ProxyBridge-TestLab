@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'TestSupport.ps1')
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($module in @('Env','ScenarioCatalog','ProfileAdapter','ProcessAdapter','ClientRunner')) { Import-Module (Join-Path $root "modules/$module.psm1") -Force }
+foreach ($module in @('Env','Config','ScenarioCatalog','ProfileAdapter','ProcessAdapter','ClientRunner')) { Import-Module (Join-Path $root "modules/$module.psm1") -Force }
 
 function Get-ExpectedArguments {
     param([string]$Name)
@@ -17,7 +17,7 @@ function Get-CanonicalFixture {
     return @($raw | ConvertTo-CanonicalClientEvidence)
 }
 
-$environment = Import-DotEnv (Join-Path $PSScriptRoot 'fixtures/.env.test')
+$environment = Get-EffectiveRuntimeEnvironment -Environment (Import-DotEnv (Join-Path $PSScriptRoot 'fixtures/.env.test')) -RuntimeConfig (Import-RuntimeConfig (Join-Path $root 'config/runtime.json'))
 $contract = Import-ClientContract (Join-Path $root 'config/client-contract.json')
 $catalog = @(Import-ScenarioCatalog (Join-Path $root 'scenarios'))
 $jsonlPath = 'C:\Fixture\evidence\client.jsonl'

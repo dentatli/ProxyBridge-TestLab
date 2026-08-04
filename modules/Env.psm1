@@ -77,4 +77,28 @@ function Get-EnvironmentSummary {
     return @($summary)
 }
 
-Export-ModuleMember -Function Import-DotEnv, Get-EnvironmentSummary
+function Get-EffectiveRuntimeEnvironment {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][System.Collections.Generic.IDictionary[string, string]]$Environment,
+        [Parameter(Mandatory)]$RuntimeConfig
+    )
+
+    $effective = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($key in $Environment.Keys) { $effective[[string]$key] = [string]$Environment[$key] }
+
+    if (-not $effective.ContainsKey('PB_CLIENT_EXE') -or [string]::IsNullOrWhiteSpace([string]$effective['PB_CLIENT_EXE'])) {
+        throw 'PB_CLIENT_EXE is required to derive rule application values.'
+    }
+    try { $normalizedClient = [System.IO.Path]::GetFullPath([string]$effective['PB_CLIENT_EXE']).TrimEnd('\') }
+    catch { throw 'PB_CLIENT_EXE cannot be normalized.' }
+    $effective['PB_RULE_APPLICATION_BASENAME'] = [System.IO.Path]::GetFileName($normalizedClient)
+    $effective['PB_RULE_APPLICATION_FULLPATH'] = $normalizedClient
+    $effective['PB_ENDPOINT_DELAY_PORT'] = [string]$RuntimeConfig.scenario_defaults.endpoint_delay_port
+    $effective['PB_ENDPOINT_ERROR_PORT'] = [string]$RuntimeConfig.scenario_defaults.endpoint_error_port
+    $effective['PB_RULE_PORT_RANGE'] = [string]$RuntimeConfig.scenario_defaults.rule_port_range
+    $effective['PB_TEST_DOMAIN'] = [string]$RuntimeConfig.scenario_defaults.test_domain
+    return ,$effective
+}
+
+Export-ModuleMember -Function Import-DotEnv, Get-EnvironmentSummary, Get-EffectiveRuntimeEnvironment

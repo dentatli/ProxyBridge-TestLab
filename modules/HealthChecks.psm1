@@ -20,11 +20,10 @@ function New-HealthCheckPlan {
     )) {
         $checks.Add([pscustomobject][ordered]@{ type='binary'; id=$entry[0]; path_key=$entry[1]; hash_key=$entry[2]; required=[bool]$entry[3] })
     }
-    $checks.Add([pscustomobject][ordered]@{ type='process-conflict'; id='proxybridge-process-conflict'; names=@('ProxyBridge', 'ProxyBridge_CLI'); required=$true })
-    $checks.Add([pscustomobject][ordered]@{ type='service-observation'; id='driver-service-state'; service_key='PB_PROXYBRIDGE_SERVICE'; required=$false })
     $checks.Add([pscustomobject][ordered]@{ type='tcp-reachability'; id='endpoint-reachability'; host_key='PB_VPS_IPV4'; port_key='PB_ENDPOINT_A_PORT'; required=$true })
     $checks.Add([pscustomobject][ordered]@{ type='tcp-reachability'; id='endpoint-b-reachability'; host_key='PB_VPS_IPV4'; port_key='PB_ENDPOINT_B_PORT'; required=$true })
     $checks.Add([pscustomobject][ordered]@{ type='tcp-reachability'; id='socks-reachability'; host_key='PB_SOCKS_HOST'; port_key='PB_SOCKS_PORT'; required=$true })
+    $checks.Add([pscustomobject][ordered]@{ type='tcp-reachability'; id='ssh-reachability'; host_key='PB_SSH_HOST'; port_key='PB_SSH_PORT'; required=$true })
     return [pscustomobject][ordered]@{ schema_version=1; checks=$checks.ToArray(); requires_product_runtime=$true }
 }
 
@@ -135,6 +134,16 @@ function Invoke-HealthCheckPlan {
             }
         }
         catch { $results.Add([pscustomobject]@{id=$check.id;status='FAIL_INFRASTRUCTURE';reason=$_.Exception.Message;observed='CHECK_EXCEPTION'}) }
+    }
+    foreach ($result in $results) {
+        if ($null -ne $result.PSObject.Properties['remediation']) { continue }
+        $remediation = ''
+        if ([string]$result.status -ne 'PASS') {
+            if ([string]$result.id -match 'binary') { $remediation = 'Correct the configured absolute binary path or exact SHA-256 before runtime.' }
+            elseif ([string]$result.id -match 'reachability') { $remediation = 'Verify the configured endpoint listener and existing route outside the harness; no firewall change is attempted.' }
+            else { $remediation = 'Correct the immutable runtime prerequisite and retry.' }
+        }
+        $result | Add-Member -NotePropertyName remediation -NotePropertyValue $remediation
     }
     return $results.ToArray()
 }

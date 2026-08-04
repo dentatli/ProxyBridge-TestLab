@@ -54,7 +54,8 @@ function ConvertTo-CatalogScenario {
     $requires = Merge-UniqueStrings -Sets @((Get-OptionalValue $Defaults 'requires' @()), (Get-OptionalValue $Entry 'requires' @()), $derivedRequires)
     $tags = Merge-UniqueStrings -Sets @((Get-OptionalValue $Defaults 'tags' @()), (Get-OptionalValue $Entry 'tags' @()), @($coverageGroup, $protocol.ToLowerInvariant(), "ipv$family", $action.ToLowerInvariant(), $socketMode, "selector-$selector"))
 
-    $application = $(if ($selector -eq 'full-path') { '${PB_RULE_APPLICATION_FULLPATH}' } else { '${PB_RULE_APPLICATION_BASENAME}' })
+    $defaultApplication = $(if ($selector -eq 'full-path') { '${PB_RULE_APPLICATION_FULLPATH}' } else { '${PB_RULE_APPLICATION_BASENAME}' })
+    $application = [string](Get-OptionalValue $Entry 'application' (Get-OptionalValue $Defaults 'application' $defaultApplication))
     $host = $(if ($family -eq 6) { '${PB_VPS_IPV6}' } else { '${PB_VPS_IPV4}' })
     $localIp = $(if ($family -eq 6) { '${PB_VM_IPV6}' } else { '${PB_VM_IPV4}' })
     $targetKind = [string](Get-OptionalValue $Entry 'target_kind' 'ip')

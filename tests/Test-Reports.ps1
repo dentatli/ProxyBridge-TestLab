@@ -27,6 +27,8 @@ try {
     foreach ($file in @('results.jsonl','failures.jsonl','skipped.jsonl','summary.csv','summary.json','coverage.json','transcript.txt','SHA256SUMS')) {
         $path = Join-Path $report.run_root $file; Assert-True (Test-Path -LiteralPath $path) "report '$file' must exist"; Assert-NoUtf8Bom $path "report '$file' must have no BOM"
     }
+    foreach ($file in @('results.jsonl','failures.jsonl','skipped.jsonl')) { foreach ($line in @(Get-Content -LiteralPath (Join-Path $report.run_root $file) -Encoding UTF8 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) { $null = $line | ConvertFrom-Json } }
+    foreach ($file in @('summary.json','coverage.json')) { $null = Get-Content -LiteralPath (Join-Path $report.run_root $file) -Raw -Encoding UTF8 | ConvertFrom-Json }
     foreach ($file in @('results.jsonl','failures.jsonl','transcript.txt')) { Assert-True (-not [IO.File]::ReadAllText((Join-Path $report.run_root $file)).Contains('fixture-secret')) 'reports must share redaction boundary' }
     $checksums = @(Get-Content -LiteralPath $report.checksum_path -Encoding UTF8); Assert-True ($checksums.Count -ge 6) 'checksums must cover evidence files'
     Assert-True (($checksums -join "`n") -match 'scenarios/CaseSensitiveName\.TXT') 'checksum paths must preserve filename case'

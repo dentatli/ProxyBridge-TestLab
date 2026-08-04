@@ -9,7 +9,11 @@ $tests = @(
     'Test-Pairwise.ps1',
     'Test-ClientContract.ps1',
     'Test-ProcessLifecycle.ps1',
+    'Test-RuntimePreparation.ps1',
+    'Test-DirectBaseline.ps1',
     'Test-EvidenceAssertions.ps1',
+    'Test-AcceptedSmoke.ps1',
+    'Test-PreparedRealSmoke.ps1',
     'Test-MockRuntime.ps1',
     'Test-Reports.ps1',
     'Test-Catalog.ps1'

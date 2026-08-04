@@ -8,8 +8,8 @@ function New-ProxyBridgeCliPlan {
         [Parameter(Mandatory)][string]$ExecutablePath,
         [Parameter(Mandatory)][string]$ProfilePath,
         [string]$ReadyRegex = '',
-        [int]$ReadyStableMs = 1000,
-        [int]$ReadinessTimeoutMs = 10000,
+        [int]$ReadyStableMs = 2000,
+        [int]$ReadinessTimeoutMs = 15000,
         [int]$StopTimeoutMs = 5000
     )
     if ($ReadinessTimeoutMs -lt 1 -or $StopTimeoutMs -lt 1 -or $ReadyStableMs -lt 0) { throw 'CLI_TIMEOUT_CONFIGURATION_INVALID' }

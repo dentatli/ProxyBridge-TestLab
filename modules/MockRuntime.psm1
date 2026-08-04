@@ -77,8 +77,8 @@ function Invoke-MockScenario {
         RECEIVED_EVENT1=$(if ($protocol1 -eq 'UDP') { 'RECEIVED' } else { 'MESSAGE_RECEIVED' })
         REMOTE0_IP=(Get-MockPlanValue $ClientPlan 0 'remote_ip'); REMOTE0_PORT=(Get-MockPlanValue $ClientPlan 0 'remote_port')
         REMOTE1_IP=(Get-MockPlanValue $ClientPlan 1 'remote_ip'); REMOTE1_PORT=(Get-MockPlanValue $ClientPlan 1 'remote_port')
-        DIRECT_EGRESS_IP=$(if ($Environment.ContainsKey('PB_DIRECT_EGRESS_IPV4')) { $Environment['PB_DIRECT_EGRESS_IPV4'] } else { '' })
-        PROXY_EGRESS_IP=$(if ($Environment.ContainsKey('PB_PROXY_EGRESS_IPV4')) { $Environment['PB_PROXY_EGRESS_IPV4'] } else { '' })
+        DIRECT_EGRESS_IP='192.0.2.50'
+        PROXY_EGRESS_IP='198.51.100.50'
     }
     $variables.REMOTE0_ENDPOINT = $(if ($variables.REMOTE0_IP -match ':') { "[$($variables.REMOTE0_IP)]:$($variables.REMOTE0_PORT)" } else { "$($variables.REMOTE0_IP):$($variables.REMOTE0_PORT)" })
     $variables.REMOTE1_ENDPOINT = $(if ($variables.REMOTE1_IP -match ':') { "[$($variables.REMOTE1_IP)]:$($variables.REMOTE1_PORT)" } else { "$($variables.REMOTE1_IP):$($variables.REMOTE1_PORT)" })
@@ -99,7 +99,8 @@ function Invoke-MockScenario {
     $proxyBridgeRecords = @(Import-ProxyBridgeTextEvidence -Path $proxyBridgePath)
     $vpsRecords = @(Import-VpsEvidence -Path $vpsPath)
     $context = [pscustomobject][ordered]@{
-        vps_capture_complete=$true; proxybridge_capture_complete=$true
+        vps_capture_complete=$true; vps_capture_complete_shas=@($clientResult.canonical_records | ForEach-Object { [string]$_.payload_sha256 } | Sort-Object -Unique)
+        channel_capture_completed=$true; records_found=(@($proxyBridgeRecords).Count -gt 0)
         direct_egress_ip=[string]$variables.DIRECT_EGRESS_IP; proxy_egress_ip=[string]$variables.PROXY_EGRESS_IP
         expected_process=[string]$variables.PROCESS
         start_time_utc=[datetime]'2029-12-31T23:59:00Z'; end_time_utc=[datetime]'2030-01-01T00:01:00Z'

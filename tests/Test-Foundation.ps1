@@ -40,9 +40,37 @@ try {
         Assert-True (-not (Test-Path -LiteralPath (Join-Path $repoRoot $rootDuplicate))) "root duplicate '$rootDuplicate' must be absent"
     }
 
+    $expectedExampleKeys = @(
+        'PB_VM_IPV4','PB_VM_IPV6','PB_VPS_IPV4','PB_VPS_IPV6','PB_ENDPOINT_A_PORT','PB_ENDPOINT_B_PORT',
+        'PB_SOCKS_HOST','PB_SOCKS_PORT','PB_SOCKS_PROXY_CONFIG_ID','PB_CLIENT_EXE','PB_PROXYBRIDGE_EXE','PB_PROXYBRIDGE_CLI_EXE',
+        'PB_DRIVER_PATH','PB_PROXYBRIDGE_SERVICE','PB_EVIDENCE_ROOT','PB_EXPECTED_CLIENT_SHA256','PB_EXPECTED_PROXYBRIDGE_CLI_SHA256',
+        'PB_EXPECTED_PROXYBRIDGE_EXE_SHA256','PB_EXPECTED_DRIVER_SHA256','PB_SSH_HOST','PB_SSH_USER','PB_SSH_PORT','PB_SSH_KEY','PB_VPS_SERVER_LOG'
+    )
+    $examplePath = Join-Path $repoRoot '.env.example'
+    $exampleKeys = @(
+        foreach ($line in [System.IO.File]::ReadAllLines($examplePath)) {
+            if ($line -match '^\s*#?\s*(PB_[A-Z0-9_]+)=') { [string]$Matches[1] }
+        }
+    )
+    Assert-Equal $expectedExampleKeys.Count $exampleKeys.Count '.env.example key count must be exact'
+    for ($keyIndex=0; $keyIndex -lt $expectedExampleKeys.Count; $keyIndex++) { Assert-Equal $expectedExampleKeys[$keyIndex] $exampleKeys[$keyIndex] ".env.example key order index=$keyIndex" }
+    foreach ($removedKey in @('PB_ENDPOINT_DELAY_PORT','PB_ENDPOINT_ERROR_PORT','PB_RULE_PORT_RANGE','PB_TEST_DOMAIN','PB_VPS_EVIDENCE_IMPORT','PB_RULE_APPLICATION_BASENAME','PB_RULE_APPLICATION_FULLPATH','PB_CLI_READY_REGEX','PB_CLI_READY_STABLE_MS','PB_DIRECT_EGRESS_IPV4','PB_PROXY_EGRESS_IPV4')) {
+        Assert-True ($exampleKeys -notcontains $removedKey) "removed example key '$removedKey' must be absent"
+    }
+    Assert-NoUtf8Bom -Path $examplePath -Message '.env.example must be UTF-8 without BOM'
+
     $environment = Import-DotEnv -Path (Join-Path $fixtureRoot '.env.test')
+    Assert-True (-not $environment.ContainsKey('PB_VPS_EVIDENCE_IMPORT')) 'fixture environment must not provide VPS import path'
     Assert-Equal 'C:\Users\Fixture\.ssh\id_ed25519' $environment['PB_SSH_KEY'] 'Windows backslashes must be preserved'
     Assert-Equal 'left=middle=right' $environment['PB_VALUE_WITH_EQUALS'] 'values may contain additional equals signs'
+    $runtimeConfig = Import-RuntimeConfig (Join-Path $repoRoot 'config/runtime.json')
+    $environment = Get-EffectiveRuntimeEnvironment -Environment $environment -RuntimeConfig $runtimeConfig
+    Assert-Equal 'pb_net_client.exe' $environment['PB_RULE_APPLICATION_BASENAME'] 'rule basename must derive from PB_CLIENT_EXE'
+    Assert-Equal 'C:\Fixture\bin\pb_net_client.exe' $environment['PB_RULE_APPLICATION_FULLPATH'] 'rule full path must derive from normalized PB_CLIENT_EXE'
+    Assert-Equal '' ([string]$runtimeConfig.cli_readiness.regex) 'beta CLI readiness regex default must be empty'
+    Assert-Equal 2000 ([int]$runtimeConfig.cli_readiness.stable_ms) 'beta CLI stable readiness default'
+    Assert-Equal 15000 ([int]$runtimeConfig.cli_readiness.readiness_timeout_ms) 'beta CLI readiness timeout default'
+    Assert-Equal 5000 ([int]$runtimeConfig.cli_readiness.stop_timeout_ms) 'beta CLI stop timeout default'
 
     $duplicatePath = Join-Path $temporaryRoot 'duplicate.env'
     [System.IO.File]::WriteAllText($duplicatePath, "DUPLICATE=one`nDUPLICATE=two`n")
@@ -127,6 +155,7 @@ try {
         Assert-True (-not $selectionJsonl.Contains($protectedValue)) "selection JSONL must redact protected environment value"
     }
     Assert-True ($selectionJsonl -match '\[REDACTED\]') 'selection JSONL must apply redaction'
+    foreach ($line in @(Get-Content -LiteralPath $selectionPath -Encoding UTF8 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) { $null = $line | ConvertFrom-Json }
     Assert-True ($transcript -match 'ProxyConfigId=1') 'harmless short scalar must not be globally redacted'
     Assert-True ($environmentSummary -notmatch 'fixture-secret') 'environment summary must not expose fixture secret'
     Assert-NoUtf8Bom -Path $transcriptPath -Message 'transcript must be UTF-8 without BOM'
@@ -135,6 +164,8 @@ try {
     foreach ($requiredOutput in @('environment-snapshot.json', 'resolved-suite.json', 'selection.jsonl', 'results.jsonl', 'failures.jsonl', 'skipped.jsonl', 'summary.csv', 'coverage.json', 'SHA256SUMS', 'transcript.txt')) {
         Assert-True (Test-Path -LiteralPath (Join-Path $runRoot[0].FullName $requiredOutput)) "required output '$requiredOutput' must exist"
     }
+    foreach ($jsonFile in @(Get-ChildItem -LiteralPath $runRoot[0].FullName -Recurse -File -Filter '*.json')) { $null = Get-Content -LiteralPath $jsonFile.FullName -Raw -Encoding UTF8 | ConvertFrom-Json }
+    foreach ($jsonlFile in @(Get-ChildItem -LiteralPath $runRoot[0].FullName -Recurse -File -Filter '*.jsonl')) { foreach ($line in @(Get-Content -LiteralPath $jsonlFile.FullName -Encoding UTF8 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) { $null = $line | ConvertFrom-Json } }
 
     $failureScenarioRoot = Join-Path $temporaryRoot 'failure-scenarios'
     $failureOutputRoot = Join-Path $temporaryRoot 'failure-output'
@@ -193,6 +224,19 @@ try {
     $runtimeRejected = $false
     try { $null = & (Join-Path $repoRoot 'Run-WfpMatrix.ps1') } catch { $runtimeRejected = $_.Exception.Message -match 'RUNTIME_NOT_IMPLEMENTED' }
     Assert-True $runtimeRejected 'runner without DryRun must reject runtime execution'
+
+    $realSmokeRejected = $false
+    try { $null = & (Join-Path $repoRoot 'scripts/Invoke-RealSmoke.ps1') -ConfirmRealRuntime:$false } catch { $realSmokeRejected = $_.Exception.Message -match 'REAL_RUNTIME_CONFIRMATION_REQUIRED' }
+    Assert-True $realSmokeRejected 'real smoke must remain explicitly confirmation-gated'
+
+    $runnerSource = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'Run-WfpMatrix.ps1'))
+    $realSmokeSource = [System.IO.File]::ReadAllText((Join-Path $repoRoot 'scripts/Invoke-RealSmoke.ps1'))
+    Assert-True ($runnerSource -match '\[string\]\$VpsEvidenceImportPath') 'VPS evidence import must be an explicit runner parameter'
+    Assert-True ($runnerSource -notmatch 'PB_VPS_EVIDENCE_IMPORT') 'runner must not read VPS import path from environment'
+    Assert-True ($realSmokeSource -match 'SkipEnvironmentPreparation') 'real smoke must expose only explicit preparation opt-out'
+    $runtimeSources = @((Join-Path $repoRoot 'Run-WfpMatrix.ps1'), (Join-Path $repoRoot 'scripts/Invoke-RealSmoke.ps1')) + @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'modules') -File -Filter '*.psm1' | Select-Object -ExpandProperty FullName)
+    $forbiddenMutationPattern = '(?im)\b(New-Service|Remove-Service|Set-Service|Start-Service|Stop-Service|New-NetFirewallRule|Set-NetFirewallRule|Remove-NetFirewallRule|netsh|pnputil|signtool)(?:\.exe)?\b|\bsc(?:\.exe)?\s+(create|delete|start|stop)\b'
+    foreach ($sourcePath in $runtimeSources) { Assert-True (-not ([System.IO.File]::ReadAllText($sourcePath) -match $forbiddenMutationPattern)) "forbidden machine mutation call in $(Split-Path -Leaf $sourcePath)" }
 
     'PASS: Stage 3.1E-1 foundation'
 }

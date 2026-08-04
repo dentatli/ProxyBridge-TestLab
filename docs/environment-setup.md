@@ -94,8 +94,8 @@ error
 The endpoint emits `MESSAGE_RECEIVED` for TCP, `RECEIVED` for UDP and
 `ECHOED` after a response is sent. Real smoke uses the configured OpenSSH
 client to query `${PB_VPS_SERVER_LOG}` once for every canonical client payload
-SHA. `PB_VPS_EVIDENCE_IMPORT` is optional and used only by an explicitly
-selected manual/import audit mode.
+SHA. Import-existing audit mode accepts only the explicit
+`-VpsEvidenceImportPath <local-file>` parameter; it is not configured in `.env`.
 
 ## SOCKS5 backend
 
@@ -107,7 +107,7 @@ Record:
 host
 port
 authentication mode
-expected public egress IP where stable
+optional independently known public egress IP for a manual comparison
 ```
 
 Do not store credentials in committed files.
@@ -122,6 +122,16 @@ notepad .env
 ```
 
 Replace all documentation addresses and placeholder hashes.
+
+Keep `.env` machine-specific: endpoints, configured binary/service paths,
+exact hashes, evidence root and SSH collection values. Delay/error ports, the
+declarative port range, test domain and beta CLI readiness live in
+`config/runtime.json`. Rule application basename/full path are derived from
+normalized `PB_CLIENT_EXE`.
+
+Real-runtime validation rejects `REPLACE_WITH...`, TEST-NET/documentation
+addresses for required live endpoints, `.example`/`.invalid` live hosts and
+missing or relative executable paths before any process is started or stopped.
 
 Verify that Git ignores it:
 
@@ -162,6 +172,12 @@ A complete run should eventually contain:
 
 ```text
 environment-snapshot.json
+environment-preparation-plan.json
+environment-preparation-result.json
+immutable-preflight.json
+direct-baseline-client.json
+direct-baseline-vps.jsonl
+direct-baseline-result.json
 resolved-suite.json
 resolved profiles
 client JSONL

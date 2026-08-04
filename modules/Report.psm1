@@ -40,6 +40,57 @@ function Protect-SensitiveText {
     return $safe
 }
 
+function Test-SensitivePropertyName {
+    param(
+        [string]$Name,
+        [System.Collections.Generic.IDictionary[string, string]]$Environment
+    )
+    if ($Name -match '(?i)(PASSWORD|USERNAME|_USER$|SECRET|TOKEN|CREDENTIAL|SSH_(KEY|PATH)|(^|_)PATH$|_EXE$|_ROOT$|_LOG$|_HOST$|IPV4|IPV6|_IP$)') { return $true }
+    if ($Environment.ContainsKey($Name) -and $Name -match '(?i)(_PORT$|_ID$|SHA256|_HASH$)') { return $true }
+    return $false
+}
+
+function Protect-SensitiveObjectInternal {
+    param(
+        $Value,
+        [System.Collections.Generic.IDictionary[string, string]]$Environment
+    )
+    if ($null -eq $Value) { return $null }
+    if ($Value -is [System.Collections.IDictionary]) {
+        $result = [ordered]@{}
+        foreach ($key in $Value.Keys) {
+            $name = [string]$key
+            if (Test-SensitivePropertyName -Name $name -Environment $Environment) { $result[$name] = '[REDACTED]' }
+            else { $result[$name] = Protect-SensitiveObjectInternal -Value $Value[$key] -Environment $Environment }
+        }
+        return [pscustomobject]$result
+    }
+    if ($Value -is [pscustomobject]) {
+        $result = [ordered]@{}
+        foreach ($property in $Value.PSObject.Properties) {
+            if (Test-SensitivePropertyName -Name $property.Name -Environment $Environment) { $result[$property.Name] = '[REDACTED]' }
+            else { $result[$property.Name] = Protect-SensitiveObjectInternal -Value $property.Value -Environment $Environment }
+        }
+        return [pscustomobject]$result
+    }
+    if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
+        $items = [System.Collections.Generic.List[object]]::new()
+        foreach ($item in $Value) { $items.Add((Protect-SensitiveObjectInternal -Value $item -Environment $Environment)) }
+        return ,$items.ToArray()
+    }
+    if ($Value -is [string]) { return Protect-SensitiveText -Text ([string]$Value) -Environment $Environment }
+    return $Value
+}
+
+function Protect-SensitiveObject {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][AllowEmptyString()]$Value,
+        [Parameter(Mandatory)][System.Collections.Generic.IDictionary[string, string]]$Environment
+    )
+    return Protect-SensitiveObjectInternal -Value $Value -Environment $Environment
+}
+
 function Write-Utf8Atomic {
     param([string]$Path, [AllowEmptyString()][string]$Text)
     $directory = Split-Path -Parent $Path
@@ -91,9 +142,14 @@ function Write-SafeTranscript {
 }
 
 function Write-RedactedJsonReport {
-    param($Value, [string]$Path, [System.Collections.Generic.IDictionary[string, string]]$Environment)
-    $json = $Value | ConvertTo-Json -Depth 100
-    Write-Utf8Atomic -Path $Path -Text ((Protect-SensitiveText -Text $json -Environment $Environment) + [Environment]::NewLine)
+    param([Parameter(Mandatory)][AllowNull()][AllowEmptyCollection()][object]$Value, [string]$Path, [System.Collections.Generic.IDictionary[string, string]]$Environment)
+    if ($Value -is [System.Array] -and $Value.Length -eq 0) { $json = '[]' }
+    else {
+        $protected = Protect-SensitiveObject -Value $Value -Environment $Environment
+        if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string] -and $Value -isnot [System.Collections.IDictionary]) { $protected = @($protected) }
+        $json = ConvertTo-Json -InputObject $protected -Depth 100
+    }
+    Write-Utf8Atomic -Path $Path -Text ($json + [Environment]::NewLine)
 }
 
 function Write-JsonReport {
@@ -104,8 +160,9 @@ function Write-JsonReport {
 
 function Add-RedactedJsonLine {
     param([string]$Path, $Record, [System.Collections.Generic.IDictionary[string, string]]$Environment)
-    $line = $Record | ConvertTo-Json -Depth 30 -Compress
-    Add-Utf8NoBomLine -Path $Path -Text (Protect-SensitiveText -Text $line -Environment $Environment)
+    $protected = Protect-SensitiveObject -Value $Record -Environment $Environment
+    $line = ConvertTo-Json -InputObject $protected -Depth 30 -Compress
+    Add-Utf8NoBomLine -Path $Path -Text $line
 }
 
 function Add-SelectionRecord { param($Report, $Record, [System.Collections.Generic.IDictionary[string, string]]$Environment) Add-RedactedJsonLine -Path $Report.selection_path -Record $Record -Environment $Environment }
@@ -186,4 +243,4 @@ function Complete-RunChecksums {
     Write-Utf8Atomic -Path $Report.checksum_path -Text ((@($lines) -join [Environment]::NewLine) + [Environment]::NewLine)
 }
 
-Export-ModuleMember -Function Protect-SensitiveText, New-RunReport, New-DryRunReport, Write-SafeTranscript, Write-JsonReport, Write-RedactedJsonReport, Add-RedactedJsonLine, Add-SelectionRecord, Add-ResultRecord, Write-RunSummary, Write-ChecksumReport, Complete-RunChecksums
+Export-ModuleMember -Function Protect-SensitiveText, Protect-SensitiveObject, New-RunReport, New-DryRunReport, Write-SafeTranscript, Write-JsonReport, Write-RedactedJsonReport, Add-RedactedJsonLine, Add-SelectionRecord, Add-ResultRecord, Write-RunSummary, Write-ChecksumReport, Complete-RunChecksums

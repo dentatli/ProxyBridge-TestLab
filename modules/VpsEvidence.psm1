@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 
 Import-Module (Join-Path $PSScriptRoot 'ProcessAdapter.psm1')
+Import-Module (Join-Path $PSScriptRoot 'Report.psm1')
 
 $script:Utf8NoBom = [System.Text.UTF8Encoding]::new($false)
 
@@ -138,6 +139,7 @@ function Invoke-VpsDynamicEvidencePlan {
     param(
         [Parameter(Mandatory)]$Plan,
         [Parameter(Mandatory)]$ProcessAdapter,
+        [System.Collections.Generic.IDictionary[string, string]]$Environment,
         [switch]$AllowProductRuntime
     )
     if ([string]$Plan.mode -ne 'dynamic-ssh') { throw 'VPS_DYNAMIC_PLAN_REQUIRED' }
@@ -156,11 +158,13 @@ function Invoke-VpsDynamicEvidencePlan {
         if ($success) {
             $directory = Split-Path -Parent ([string]$query.output_path)
             if (-not (Test-Path -LiteralPath $directory)) { $null = New-Item -ItemType Directory -Path $directory -Force }
-            [System.IO.File]::WriteAllText([string]$query.output_path, [string]$result.stdout, $script:Utf8NoBom)
             $records = @(ConvertFrom-VpsJsonLines -Lines @(([string]$result.stdout) -split "`r?`n"))
+            [System.IO.File]::WriteAllText([string]$query.output_path, '', $script:Utf8NoBom)
             foreach ($record in $records) {
                 if (-not [string]::Equals([string]$record.sha256, [string]$query.sha256, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'VPS_QUERY_NONEXACT_SHA_RECORD' }
                 $allRecords.Add($record)
+                if ($null -ne $Environment) { Add-RedactedJsonLine -Path ([string]$query.output_path) -Record $record -Environment $Environment }
+                else { [System.IO.File]::AppendAllText([string]$query.output_path, (($record | ConvertTo-Json -Depth 30 -Compress) + [Environment]::NewLine), $script:Utf8NoBom) }
             }
             $recordCount = $records.Count
             $completeShas.Add(([string]$query.sha256).ToLowerInvariant())

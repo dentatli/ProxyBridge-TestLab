@@ -4,6 +4,12 @@ Each run creates one unique directory containing:
 
 ```text
 environment-snapshot.json
+environment-preparation-plan.json
+environment-preparation-result.json
+immutable-preflight.json
+direct-baseline-client.json
+direct-baseline-vps.jsonl
+direct-baseline-result.json
 resolved-suite.json
 selection.jsonl
 results.jsonl
@@ -30,6 +36,9 @@ Text files use UTF-8 without BOM. JSONL contains one compact object per line.
 Writes that replace whole reports use a same-directory temporary file. The
 shared redaction boundary protects raw, JSON-escaped and Windows-escaped
 environment values before transcript, JSONL, JSON, CSV or errors are emitted.
+Structured values are recursively redacted before JSON serialization, so a
+sensitive numeric field becomes the JSON string `[REDACTED]` without breaking
+syntax. Short harmless scalars are not globally replaced.
 Environment snapshots contain key, presence and category only.
 
 Generated profiles are intentionally excluded from Git and audit packages
@@ -45,3 +54,11 @@ for BLOCK. ProxyBridge route evidence is parsed from textual
 Direct/Proxy/Blocked and single- or multi-line relay records and is correlated
 by process, optional PID, destination, action and scoped CLI lifetime;
 ProxyBridge text is not required to contain a payload SHA.
+
+ProxyBridge route records are authoritative contradictions when present and
+otherwise corroboration. Complete client plus exact-SHA VPS evidence may prove
+TCP PROXY, DIRECT or BLOCK without internal Activity/RELAY output. Assertions
+record `channel_capture_completed`, `records_found`,
+`route_evidence_required`, `external_route_proof_complete` and
+`evidence_basis`. Equal observed direct/proxy egress remains ambiguous unless
+an internal route record resolves it.
