@@ -294,7 +294,7 @@ foreach ($item in $decisions) {
                 $readyStableMs = $(if ($environment.ContainsKey('PB_CLI_READY_STABLE_MS')) { [int]$environment['PB_CLI_READY_STABLE_MS'] } else { [int]$runtimeConfig.cli_readiness.stable_ms })
                 $readinessTimeoutMs = $(if ($environment.ContainsKey('PB_CLI_READINESS_TIMEOUT_MS')) { [int]$environment['PB_CLI_READINESS_TIMEOUT_MS'] } else { [int]$runtimeConfig.cli_readiness.readiness_timeout_ms })
                 $stopTimeoutMs = $(if ($environment.ContainsKey('PB_CLI_STOP_TIMEOUT_MS')) { [int]$environment['PB_CLI_STOP_TIMEOUT_MS'] } else { [int]$runtimeConfig.cli_readiness.stop_timeout_ms })
-                $cliPlan = New-ProxyBridgeCliPlan -ExecutablePath $environment['PB_PROXYBRIDGE_CLI_EXE'] -ProfilePath $writtenProfile.path -ReadyRegex $readyRegex -ReadyStableMs $readyStableMs -ReadinessTimeoutMs $readinessTimeoutMs -StopTimeoutMs $stopTimeoutMs
+                $cliPlan = New-ProxyBridgeCliPlan -ExecutablePath $environment['PB_PROXYBRIDGE_CLI_EXE'] -ProfilePath $writtenProfile.path -ReadyRegex $readyRegex -ReadyStableMs $readyStableMs -ReadinessTimeoutMs $readinessTimeoutMs -StopTimeoutMs $stopTimeoutMs -ActualPathTimeoutMs ([int]$runtimeConfig.cli_actual_path_timeout_ms)
                 Write-RedactedJsonReport -Value $cliPlan -Path (Join-Path $scenarioEvidence 'cli-plan.json') -Environment $environment
                 $clientAdapter = New-SystemProcessAdapter
                 $workload = { Invoke-ClientPlan -Plan $clientPlan -ProcessAdapter $clientAdapter -AllowProductRuntime }.GetNewClosure()
@@ -334,7 +334,7 @@ foreach ($item in $decisions) {
             catch {
                 $safe = Get-SafeExceptionMessage -ErrorRecord $_ -Environment $environment
                 if ($safe -match 'CLI_CLEANUP_FAILED|POST_STOP_VERIFICATION') { $status='CONTAMINATED' }
-                elseif ($safe -match 'READINESS|PATH_VERIFICATION|START_FAILED|PROCESS_START') { $status='FAIL_INFRASTRUCTURE' }
+                elseif ($safe -match 'READINESS|ACTUAL_PATH|PATH_VERIFICATION|START_FAILED|PROCESS_START') { $status='FAIL_INFRASTRUCTURE' }
                 elseif ($safe -match 'VPS_SSH_(COLLECTION_INCOMPLETE|TIMEOUT|FAILED|PROCESS_FAILED|HOST_INVALID|USER_INVALID|PORT_INVALID|EXECUTABLE_MISSING)|VPS_ENVIRONMENT_MISSING_') { $status='FAIL_INFRASTRUCTURE' }
                 elseif ($safe -match 'VPS_EVIDENCE_IMPORT_NOT_FOUND') { $status='HOLD_AMBIGUOUS' }
                 else { $status='FAIL_HARNESS' }

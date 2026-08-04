@@ -117,11 +117,12 @@ function Import-RuntimeConfig {
     param([Parameter(Mandatory)][string]$Path)
 
     $config = Read-JsonFile -Path $Path
-    Assert-ObjectProperties -InputObject $config -Names @('schema_version', 'cli_readiness', 'environment_preparation', 'scenario_defaults') -DocumentType 'Runtime configuration'
+    Assert-ObjectProperties -InputObject $config -Names @('schema_version', 'cli_actual_path_timeout_ms', 'cli_readiness', 'environment_preparation', 'scenario_defaults') -DocumentType 'Runtime configuration'
     if ($config.schema_version -ne 1) { throw "Unsupported runtime schema_version '$($config.schema_version)'." }
     Assert-ObjectProperties -InputObject $config.cli_readiness -Names @('regex', 'stable_ms', 'readiness_timeout_ms', 'stop_timeout_ms') -DocumentType 'Runtime CLI readiness'
     Assert-ObjectProperties -InputObject $config.environment_preparation -Names @('service_start_timeout_ms', 'poll_interval_ms') -DocumentType 'Runtime environment preparation'
     Assert-ObjectProperties -InputObject $config.scenario_defaults -Names @('endpoint_delay_port', 'endpoint_error_port', 'rule_port_range', 'test_domain') -DocumentType 'Runtime scenario defaults'
+    if ([int]$config.cli_actual_path_timeout_ms -lt 1) { throw 'Runtime CLI actual path timeout must be positive.' }
     if ([int]$config.cli_readiness.stable_ms -lt 1 -or [int]$config.cli_readiness.readiness_timeout_ms -lt 1 -or [int]$config.cli_readiness.stop_timeout_ms -lt 1) { throw 'Runtime CLI readiness timeouts must be positive.' }
     if ([int]$config.environment_preparation.service_start_timeout_ms -lt 1 -or [int]$config.environment_preparation.poll_interval_ms -lt 1) { throw 'Runtime environment preparation timeouts must be positive.' }
     if (-not [string]::IsNullOrWhiteSpace([string]$config.cli_readiness.regex)) {

@@ -62,13 +62,10 @@ namespace ProxyBridge.TestLab
 
         public int Pid { get { return process.Id; } }
 
-        public string ActualPath
+        public string QueryActualPath()
         {
-            get
-            {
-                try { return process.MainModule.FileName; }
-                catch { return String.Empty; }
-            }
+            try { return process.MainModule.FileName; }
+            catch { return String.Empty; }
         }
 
         public bool IsRunning
@@ -197,9 +194,37 @@ function New-SystemProcessAdapter {
         $session = [ProxyBridge.TestLab.SafeProcessSession]::Start([string]$plan.executable, $argumentText)
         return [pscustomobject]@{
             pid = $session.Pid
-            actual_path = $session.ActualPath
+            actual_path = ''
             session = $session
             timed_out = $false
+        }
+    }
+    $adapter | Add-Member -NotePropertyName ProbeActualPath -NotePropertyValue {
+        param($process, $timeoutMs, $intervalMs)
+        $timeout = [Math]::Max(1, [int]$timeoutMs)
+        $interval = [Math]::Max(25, [Math]::Min(50, [int]$intervalMs))
+        $attempts = 0
+        $timer = [System.Diagnostics.Stopwatch]::StartNew()
+        while ($true) {
+            if (-not $process.session.IsRunning) {
+                return [pscustomobject]@{ status='PROCESS_EXITED'; attempts=$attempts; elapsed_ms=[int]$timer.ElapsedMilliseconds; actual_path='' }
+            }
+
+            $attempts++
+            $actualPath = [string]$process.session.QueryActualPath()
+            if (-not [string]::IsNullOrWhiteSpace($actualPath)) {
+                $process.actual_path = $actualPath
+                return [pscustomobject]@{ status='PATH_OBTAINED'; attempts=$attempts; elapsed_ms=[int]$timer.ElapsedMilliseconds; actual_path=$actualPath }
+            }
+            if (-not $process.session.IsRunning) {
+                return [pscustomobject]@{ status='PROCESS_EXITED'; attempts=$attempts; elapsed_ms=[int]$timer.ElapsedMilliseconds; actual_path='' }
+            }
+            if ($timer.ElapsedMilliseconds -ge $timeout) {
+                return [pscustomobject]@{ status='QUERY_TIMEOUT'; attempts=$attempts; elapsed_ms=[int]$timer.ElapsedMilliseconds; actual_path='' }
+            }
+
+            $remaining = $timeout - [int]$timer.ElapsedMilliseconds
+            [System.Threading.Thread]::Sleep([Math]::Max(1, [Math]::Min($interval, $remaining)))
         }
     }
     $adapter | Add-Member -NotePropertyName WaitForReadiness -NotePropertyValue {
@@ -238,6 +263,9 @@ function New-SystemProcessAdapter {
         $process = $null
         try {
             $process = & $adapter.StartProcess $plan
+            $probeTimeoutMs = $(if ($null -ne $plan.PSObject.Properties['actual_path_timeout_ms']) { [int]$plan.actual_path_timeout_ms } else { 2000 })
+            $pathProbe = & $adapter.ProbeActualPath $process $probeTimeoutMs 25
+            $process.actual_path = [string]$pathProbe.actual_path
             $completed = $process.session.WaitForExit([int]$plan.timeout_ms)
             if (-not $completed) {
                 $process.timed_out = $true
@@ -260,9 +288,12 @@ function New-MockProcessAdapter {
         [bool]$StableReady = $true,
         [bool]$GracefulStop = $true,
         [string]$ActualPath = 'fixture-process.exe',
+        [AllowNull()][object[]]$ActualPathProbeSequence = $null,
         [string]$LifecycleStdout = '',
         [string]$LifecycleStderr = ''
     )
+
+    $probeSequence = $(if ($PSBoundParameters.ContainsKey('ActualPathProbeSequence')) { @($ActualPathProbeSequence) } else { @($ActualPath) })
 
     $state = [pscustomobject]@{
         running = $false
@@ -277,6 +308,8 @@ function New-MockProcessAdapter {
         stable_ready = $StableReady
         graceful_stop = $GracefulStop
         actual_path = $ActualPath
+        actual_path_probe_sequence = @($probeSequence)
+        actual_path_probe_index = 0
         stdout = $LifecycleStdout
         stderr = $LifecycleStderr
     }
@@ -286,7 +319,38 @@ function New-MockProcessAdapter {
         param($plan)
         $state.start_count++
         $state.running = $true
-        return [pscustomobject]@{ pid = 4242; actual_path = [string]$state.actual_path; timed_out = $false }
+        return [pscustomobject]@{ pid = 4242; actual_path = ''; timed_out = $false }
+    }.GetNewClosure())
+    $adapter | Add-Member -NotePropertyName ProbeActualPath -NotePropertyValue ({
+        param($process, $timeoutMs, $intervalMs)
+        $timeout = [Math]::Max(1, [int]$timeoutMs)
+        $interval = [Math]::Max(25, [Math]::Min(50, [int]$intervalMs))
+        $attempts = 0
+        $elapsed = 0
+        while ($true) {
+            if (-not $state.running) {
+                return [pscustomobject]@{ status='PROCESS_EXITED'; attempts=$attempts; elapsed_ms=$elapsed; actual_path='' }
+            }
+
+            $attempts++
+            $probeValue = ''
+            if ($state.actual_path_probe_index -lt @($state.actual_path_probe_sequence).Count) {
+                $probeValue = [string]$state.actual_path_probe_sequence[$state.actual_path_probe_index]
+                $state.actual_path_probe_index++
+            }
+            if ($probeValue -eq '__PROCESS_EXITED__') {
+                $state.running = $false
+                return [pscustomobject]@{ status='PROCESS_EXITED'; attempts=$attempts; elapsed_ms=$elapsed; actual_path='' }
+            }
+            if (-not [string]::IsNullOrWhiteSpace($probeValue)) {
+                $process.actual_path = $probeValue
+                return [pscustomobject]@{ status='PATH_OBTAINED'; attempts=$attempts; elapsed_ms=$elapsed; actual_path=$probeValue }
+            }
+            if ($elapsed -ge $timeout) {
+                return [pscustomobject]@{ status='QUERY_TIMEOUT'; attempts=$attempts; elapsed_ms=$elapsed; actual_path='' }
+            }
+            $elapsed = [Math]::Min($timeout, $elapsed + $interval)
+        }
     }.GetNewClosure())
     $adapter | Add-Member -NotePropertyName WaitForReadiness -NotePropertyValue ({
         param($process, $regex, $timeoutMs, $stableMs)

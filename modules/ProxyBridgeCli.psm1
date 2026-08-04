@@ -10,9 +10,10 @@ function New-ProxyBridgeCliPlan {
         [string]$ReadyRegex = '',
         [int]$ReadyStableMs = 2000,
         [int]$ReadinessTimeoutMs = 15000,
-        [int]$StopTimeoutMs = 5000
+        [int]$StopTimeoutMs = 5000,
+        [int]$ActualPathTimeoutMs = 2000
     )
-    if ($ReadinessTimeoutMs -lt 1 -or $StopTimeoutMs -lt 1 -or $ReadyStableMs -lt 0) { throw 'CLI_TIMEOUT_CONFIGURATION_INVALID' }
+    if ($ReadinessTimeoutMs -lt 1 -or $StopTimeoutMs -lt 1 -or $ActualPathTimeoutMs -lt 1 -or $ReadyStableMs -lt 0) { throw 'CLI_TIMEOUT_CONFIGURATION_INVALID' }
     if ([string]::IsNullOrWhiteSpace($ReadyRegex) -and $ReadyStableMs -lt 1) { throw 'CLI_READINESS_SIGNAL_REQUIRED' }
     if (-not [string]::IsNullOrWhiteSpace($ReadyRegex)) {
         try { $null = [regex]::new($ReadyRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase) }
@@ -26,7 +27,9 @@ function New-ProxyBridgeCliPlan {
         readiness_stable_ms = $ReadyStableMs
         readiness_timeout_ms = $ReadinessTimeoutMs
         stop_timeout_ms = $StopTimeoutMs
-        timeout_ms = $ReadinessTimeoutMs + $StopTimeoutMs
+        actual_path_timeout_ms = $ActualPathTimeoutMs
+        actual_path_probe_interval_ms = 25
+        timeout_ms = $ActualPathTimeoutMs + $ReadinessTimeoutMs + $StopTimeoutMs
     }
 }
 
@@ -52,7 +55,7 @@ function Invoke-ProxyBridgeCliLifecycle {
     )
 
     if (-not [bool]$ProcessAdapter.is_mock -and -not $AllowProductRuntime) { throw 'PRODUCT_RUNTIME_NOT_ALLOWED' }
-    foreach ($member in @('StartProcess', 'WaitForReadiness', 'StopProcess', 'KillProcess', 'IsRunning', 'GetProcessResult', 'DisposeProcess')) {
+    foreach ($member in @('StartProcess', 'ProbeActualPath', 'WaitForReadiness', 'StopProcess', 'KillProcess', 'IsRunning', 'GetProcessResult', 'DisposeProcess')) {
         if ($null -eq $ProcessAdapter.PSObject.Properties[$member]) { throw "PROCESS_ADAPTER_MISSING_$($member.ToUpperInvariant())" }
     }
 
@@ -65,13 +68,23 @@ function Invoke-ProxyBridgeCliLifecycle {
     $forcedStop = $false
     $postStopVerified = $false
     $processResult = $null
+    $actualPathProbeStatus = 'NOT_STARTED'
+    $actualPathProbeAttempts = 0
+    $actualPathProbeElapsedMs = 0
     $startedAt = (Get-Date).ToUniversalTime()
     $completedAt = $null
 
     try {
         $process = & $ProcessAdapter.StartProcess $Plan
         if ($null -eq $process -or [int]$process.pid -le 0) { throw 'CLI_START_FAILED' }
-        if (-not (Test-EquivalentExecutablePath -Expected ([string]$Plan.expected_path) -Actual ([string]$process.actual_path))) { throw 'CLI_PATH_VERIFICATION_FAILED' }
+        $pathProbe = & $ProcessAdapter.ProbeActualPath $process $Plan.actual_path_timeout_ms $Plan.actual_path_probe_interval_ms
+        $actualPathProbeStatus = [string]$pathProbe.status
+        $actualPathProbeAttempts = [int]$pathProbe.attempts
+        $actualPathProbeElapsedMs = [int]$pathProbe.elapsed_ms
+        if ($actualPathProbeStatus -eq 'PROCESS_EXITED') { throw 'CLI_ACTUAL_PATH_PROCESS_EXITED' }
+        if ($actualPathProbeStatus -eq 'QUERY_TIMEOUT') { throw 'CLI_ACTUAL_PATH_QUERY_TIMEOUT' }
+        if ($actualPathProbeStatus -ne 'PATH_OBTAINED') { throw 'CLI_ACTUAL_PATH_PROBE_FAILED' }
+        if (-not (Test-EquivalentExecutablePath -Expected ([string]$Plan.expected_path) -Actual ([string]$pathProbe.actual_path))) { throw 'CLI_PATH_VERIFICATION_FAILED' }
         $ready = [bool](& $ProcessAdapter.WaitForReadiness $process $Plan.readiness_regex $Plan.readiness_timeout_ms $Plan.readiness_stable_ms)
         if (-not $ready) { throw 'CLI_READINESS_TIMEOUT' }
         if ($null -ne $Workload) { $workloadResult = & $Workload }
@@ -106,6 +119,9 @@ function Invoke-ProxyBridgeCliLifecycle {
             completed_at_utc = $completedAt.ToString('o')
             pid = $(if ($null -ne $process) { [int]$process.pid } else { 0 })
             actual_path = $(if ($null -ne $process) { [string]$process.actual_path } else { '' })
+            actual_path_probe_status = $actualPathProbeStatus
+            actual_path_probe_attempts = $actualPathProbeAttempts
+            actual_path_probe_elapsed_ms = $actualPathProbeElapsedMs
             ready = $ready
             graceful_stop = $gracefulStop
             forced_stop = $forcedStop
@@ -132,6 +148,9 @@ function Invoke-ProxyBridgeCliLifecycle {
         graceful_stop = $gracefulStop
         forced_stop = $forcedStop
         post_stop_verified = $postStopVerified
+        actual_path_probe_status = $actualPathProbeStatus
+        actual_path_probe_attempts = $actualPathProbeAttempts
+        actual_path_probe_elapsed_ms = $actualPathProbeElapsedMs
         workload_result = $workloadResult
         process_result = $processResult
     }
