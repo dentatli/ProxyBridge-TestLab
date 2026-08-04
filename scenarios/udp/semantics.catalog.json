@@ -14,7 +14,7 @@
     { "id": "udp-idle-reconnect", "tags": ["idle", "reconnect"] },
     { "id": "udp-backend-restart", "tags": ["backend-restart"] },
     { "id": "udp-late-response-after-reuse", "tags": ["late-response", "port-reuse"] },
-    { "id": "udp-watched-process-direct-drop", "tags": ["watched-process"], "known_defect_id": "watched-udp-direct-drop", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-wrong-action", "mock_status": "EXPECTED_FAIL" },
+    { "id": "udp-watched-process-direct-drop", "tags": ["watched-process"], "watch_enable_action": "BLOCK", "known_defect_id": "watched-udp-direct-drop", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-wrong-action", "mock_status": "EXPECTED_FAIL" },
     { "id": "udp-proxy-reverse-source", "action": "PROXY", "tags": ["response-source"], "known_defect_id": "udp-proxy-reverse-source", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-proxy-wrong-egress", "mock_status": "EXPECTED_FAIL" }
   ]
 }

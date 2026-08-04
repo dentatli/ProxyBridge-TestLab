@@ -108,6 +108,13 @@ function Import-KnownDefectsConfig {
         if (@('EXPECTED_FAIL', 'BLOCKED_BY_KNOWN_DEFECT') -notcontains [string]$item.expected_status) { throw "Known defect '$($item.id)' has invalid expected_status." }
         Add-DefaultProperty -InputObject $item.matching -Name 'scenario_ids' -Value @()
         Add-DefaultProperty -InputObject $item.matching -Name 'tags' -Value @()
+        if ($null -ne $item.PSObject.Properties['signature']) {
+            Assert-ObjectProperties -InputObject $item.signature -Names @('required_product_error_suffixes') -DocumentType "Known defect '$($item.id)' signature"
+            if ($item.signature.required_product_error_suffixes -is [string] -or @($item.signature.required_product_error_suffixes).Count -eq 0) { throw "Known defect '$($item.id)' signature suffixes must be a non-empty array." }
+            foreach ($suffix in @($item.signature.required_product_error_suffixes)) {
+                if ([string]::IsNullOrWhiteSpace([string]$suffix)) { throw "Known defect '$($item.id)' signature contains an empty product-error suffix." }
+            }
+        }
     }
     return $config
 }

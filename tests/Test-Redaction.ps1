@@ -36,6 +36,10 @@ try {
         PB_SSH_HOST = $environment['PB_SSH_HOST']
         PB_VPS_IPV4 = $environment['PB_VPS_IPV4']
         values = @($rawPath, $escapedPath, $environment['PB_SSH_HOST'], 'public-value')
+        product_errors = @('wrong response source', 'client result failed')
+        harness_errors = @('flow count actual=1 expected=2')
+        missing_evidence = @('complete VPS capture')
+        environment_keys = @('PB_SSH_HOST', 'PB_VPS_IPV4')
     }
     Write-RedactedJsonReport -Value $structured -Path $structuredPath -Environment $environment
     Write-RedactedJsonReport -Value @() -Path $emptyArrayPath -Environment $environment
@@ -44,6 +48,13 @@ try {
     Assert-Equal '[REDACTED]' $parsedStructured.PB_SSH_PORT 'sensitive numeric property must become a JSON string'
     Assert-Equal 1 $parsedStructured.ProxyConfigId 'harmless numeric scalar must retain its type and value'
     Assert-Equal '[REDACTED]' $parsedStructured.actual_path 'path property must be redacted structurally'
+    Assert-SequenceEqual @('wrong response source','client result failed') @($parsedStructured.product_errors) 'redacted product errors must remain strings'
+    Assert-SequenceEqual @('flow count actual=1 expected=2') @($parsedStructured.harness_errors) 'redacted harness errors must remain strings'
+    Assert-SequenceEqual @('complete VPS capture') @($parsedStructured.missing_evidence) 'redacted missing-evidence entries must remain strings'
+    Assert-SequenceEqual @('PB_SSH_HOST','PB_VPS_IPV4') @($parsedStructured.environment_keys) 'environment key names must remain readable strings'
+    foreach ($propertyName in @('values','product_errors','harness_errors','missing_evidence','environment_keys')) {
+        foreach ($item in @($parsedStructured.$propertyName)) { Assert-True ($item -is [string]) "$propertyName entries must not serialize as Length objects" }
+    }
     $emptyArrayJson = Get-Content -LiteralPath $emptyArrayPath -Raw -Encoding UTF8
     $null = $emptyArrayJson | ConvertFrom-Json
     Assert-Equal '[]' $emptyArrayJson.Trim() 'empty structured array must retain JSON array form'

@@ -98,7 +98,7 @@ Write-SafeTranscript -Report $report -Environment $environment -Message "Run sta
 function Stop-RunBeforeScenarios {
     param([string]$Status, [string]$Reason)
     Write-SafeTranscript -Report $report -Environment $environment -Message "Run stopped before scenarios; status=$Status; reason=$Reason."
-    Write-RunSummary -Report $report -Records @() -AllScenarios $scenarios -Environment $environment -RunMode $runMode
+    Write-RunSummary -Report $report -Records @() -AllScenarios $scenarios -Environment $environment -RunMode $runMode -ExecutionComplete $false
     Complete-RunChecksums -Report $report
     Write-Output "RUN_COMPLETE mode=$runMode run_id=$($report.run_id) scenarios=$($scenarios.Count) selected=$selectedCount status=$Status"
     Write-Output "EVIDENCE_PATH=$($report.run_root)"
@@ -263,8 +263,9 @@ foreach ($item in $decisions) {
         $reason = ''
         if ($suiteTimer.ElapsedMilliseconds -ge [long]$suite.execution.suite_timeout_ms) { $status='SKIPPED_SELECTION';$reason='suite timeout reached' }
         elseif (-not $profileValidation.may_write) {
-            $status = $(if ($DryRun) { 'DRY_RUN_READY' } elseif ($MockRuntime) { 'MOCK_PASS' } else { 'FAIL_HARNESS' })
-            $reason = 'intentional invalid profile was rejected before product start'
+            $disposition = Get-ExpectedProfileValidationDisposition -Validation $profileValidation -RunMode $runMode
+            $status = [string]$disposition.status
+            $reason = [string]$disposition.reason
         }
         elseif ([string]$scenario.implementation_status -eq 'DECLARATIVE_ONLY') {
             $status = $(if ($DryRun) { 'NOT_IMPLEMENTED' } else { 'MOCK_HOLD' })
@@ -357,7 +358,7 @@ foreach ($item in $decisions) {
 }
 
 $suiteTimer.Stop()
-Write-RunSummary -Report $report -Records $records.ToArray() -AllScenarios $scenarios -Environment $environment -RunMode $runMode
+Write-RunSummary -Report $report -Records $records.ToArray() -AllScenarios $scenarios -Environment $environment -RunMode $runMode -ExecutionComplete (-not $stopRun)
 Write-SafeTranscript -Report $report -Environment $environment -Message "Run completed; selected=$selectedCount; profile_failures=$profileFailures; mode=$runMode."
 Complete-RunChecksums -Report $report
 "RUN_COMPLETE mode=$runMode run_id=$($report.run_id) scenarios=$($scenarios.Count) selected=$selectedCount status=$(if($profileFailures -gt 0){'FAIL_HARNESS'}else{'COMPLETE'})"

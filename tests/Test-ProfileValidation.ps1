@@ -28,4 +28,8 @@ $negative = Import-ScenarioCatalog (Join-Path $root 'scenarios') | Where-Object 
 $negativeValidation = Test-ExpectedProfileValidation -Scenario $negative -Environment $environment -TemplatePath (Join-Path $root 'templates/profile.pbprofile.template')
 Assert-True $negativeValidation.passed 'intentional missing proxy config must be rejected as expected'
 Assert-True (-not $negativeValidation.may_write) 'invalid profile must never be written for product runtime'
+$negativeDisposition = Get-ExpectedProfileValidationDisposition -Validation $negativeValidation -RunMode real
+Assert-Equal 'PASS' $negativeDisposition.status 'expected invalid-profile rejection must pass without product start'
+Assert-True (-not [bool]$negativeDisposition.product_started) 'expected invalid-profile rejection must not start product runtime'
+Assert-True ([string]$negativeDisposition.reason -match 'rejected before product start') 'expected rejection reason must be explicit'
 'PASS: profile validation'

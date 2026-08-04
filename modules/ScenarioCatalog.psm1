@@ -83,6 +83,14 @@ function ConvertTo-CatalogScenario {
             rule_key='primary'; application=$application; host=$ruleHost; ports=$rulePorts; domains=$ruleDomains
             protocol=$protocol; action=$action; proxy_config_id=$proxyConfigId; enabled=[bool](Get-OptionalValue $Entry 'rule_enabled' $true)
         })
+        $watchEnableAction = ([string](Get-OptionalValue $Entry 'watch_enable_action' '')).ToUpperInvariant()
+        if (-not [string]::IsNullOrWhiteSpace($watchEnableAction)) {
+            if (@('BLOCK','PROXY') -notcontains $watchEnableAction) { throw "Scenario '$id' watch_enable_action must be BLOCK or PROXY." }
+            $rules.Add([pscustomobject][ordered]@{
+                rule_key='watch-enable'; application=$application; host=$ruleHost; ports=@('${PB_ENDPOINT_B_PORT}'); domains=$ruleDomains
+                protocol=$protocol; action=$watchEnableAction; proxy_config_id=$(if ($watchEnableAction -eq 'PROXY') { '${PB_SOCKS_PROXY_CONFIG_ID}' } else { 0 }); enabled=$true
+            })
+        }
     }
 
     $clientMode = [string](Get-OptionalValue $Entry 'mode' (Get-OptionalValue $Defaults 'mode' $(if ($transition) { 'issue206' } else { 'base' })))

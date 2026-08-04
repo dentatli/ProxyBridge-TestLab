@@ -29,6 +29,9 @@ try {
     }
     foreach ($file in @('results.jsonl','failures.jsonl','skipped.jsonl')) { foreach ($line in @(Get-Content -LiteralPath (Join-Path $report.run_root $file) -Encoding UTF8 | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })) { $null = $line | ConvertFrom-Json } }
     foreach ($file in @('summary.json','coverage.json')) { $null = Get-Content -LiteralPath (Join-Path $report.run_root $file) -Raw -Encoding UTF8 | ConvertFrom-Json }
+    $mockSummary = Get-Content -LiteralPath (Join-Path $report.run_root 'summary.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True ([bool]$mockSummary.execution_complete) 'summary must report completed execution independently of verdict'
+    Assert-Equal 'EXPECTED_FAILURE_OBSERVED' $mockSummary.product_verdict 'summary must preserve a product verdict distinct from execution completion'
     foreach ($file in @('results.jsonl','failures.jsonl','transcript.txt')) { Assert-True (-not [IO.File]::ReadAllText((Join-Path $report.run_root $file)).Contains('fixture-secret')) 'reports must share redaction boundary' }
     $checksums = @(Get-Content -LiteralPath $report.checksum_path -Encoding UTF8); Assert-True ($checksums.Count -ge 6) 'checksums must cover evidence files'
     Assert-True (($checksums -join "`n") -match 'scenarios/CaseSensitiveName\.TXT') 'checksum paths must preserve filename case'
@@ -37,10 +40,16 @@ try {
     Assert-True ($mockCoverage -notmatch 'TESTED_PASS|TESTED_FAIL') 'mock coverage must never claim tested status'
 
     $realReport = New-RunReport -OutputRoot $temp -RunId 'reports-real'
-    $realRecords = @([pscustomobject]@{run_mode='real';scenario_id='real-one';coverage_group='group-a';implementation_status='EXECUTABLE';selected=$true;status='PASS';reason='ok';attempt=1;duration_ms=1})
+    $realRecords = @(
+        [pscustomobject]@{run_mode='real';scenario_id='real-one';coverage_group='group-a';implementation_status='EXECUTABLE';selected=$true;status='PASS';reason='ok';attempt=1;duration_ms=1},
+        [pscustomobject]@{run_mode='real';scenario_id='real-two';coverage_group='group-a';implementation_status='EXECUTABLE';selected=$true;status='FAIL_PRODUCT';reason='known product failure';attempt=1;duration_ms=1}
+    )
     Write-RunSummary -Report $realReport -Records $realRecords -AllScenarios @([pscustomobject]@{coverage_group='group-a';implementation_status='EXECUTABLE'}) -Environment $environment -RunMode real
     $realCoverage = Get-Content -LiteralPath (Join-Path $realReport.run_root 'coverage.json') -Raw -Encoding UTF8
     Assert-True ($realCoverage -match 'TESTED_PASS') 'only real coverage may normalize PASS to TESTED_PASS'
+    $realSummary = Get-Content -LiteralPath (Join-Path $realReport.run_root 'summary.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+    Assert-True ([bool]$realSummary.execution_complete) 'product failure must not imply an incomplete sweep'
+    Assert-Equal 'FAIL_PRODUCT' $realSummary.product_verdict 'real product verdict must remain explicit'
 }
 finally { Remove-Item -LiteralPath $temp -Recurse -Force }
 'PASS: reports'

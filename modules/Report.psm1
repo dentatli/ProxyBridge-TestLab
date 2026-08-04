@@ -56,6 +56,7 @@ function Protect-SensitiveObjectInternal {
         [System.Collections.Generic.IDictionary[string, string]]$Environment
     )
     if ($null -eq $Value) { return $null }
+    if ($Value -is [string]) { return Protect-SensitiveText -Text ([string]$Value) -Environment $Environment }
     if ($Value -is [System.Collections.IDictionary]) {
         $result = [ordered]@{}
         foreach ($key in $Value.Keys) {
@@ -65,6 +66,11 @@ function Protect-SensitiveObjectInternal {
         }
         return [pscustomobject]$result
     }
+    if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
+        $items = [System.Collections.Generic.List[object]]::new()
+        foreach ($item in $Value) { $items.Add((Protect-SensitiveObjectInternal -Value $item -Environment $Environment)) }
+        return ,$items.ToArray()
+    }
     if ($Value -is [pscustomobject]) {
         $result = [ordered]@{}
         foreach ($property in $Value.PSObject.Properties) {
@@ -73,12 +79,6 @@ function Protect-SensitiveObjectInternal {
         }
         return [pscustomobject]$result
     }
-    if ($Value -is [System.Collections.IEnumerable] -and $Value -isnot [string]) {
-        $items = [System.Collections.Generic.List[object]]::new()
-        foreach ($item in $Value) { $items.Add((Protect-SensitiveObjectInternal -Value $item -Environment $Environment)) }
-        return ,$items.ToArray()
-    }
-    if ($Value -is [string]) { return Protect-SensitiveText -Text ([string]$Value) -Environment $Environment }
     return $Value
 }
 
@@ -180,7 +180,8 @@ function Write-RunSummary {
         [object[]]$Records,
         [object[]]$AllScenarios,
         [System.Collections.Generic.IDictionary[string, string]]$Environment,
-        [ValidateSet('dry-run','mock','real')][string]$RunMode = 'dry-run'
+        [ValidateSet('dry-run','mock','real')][string]$RunMode = 'dry-run',
+        [bool]$ExecutionComplete = $true
     )
     $csv = [System.Collections.Generic.List[string]]::new()
     $csv.Add('run_mode,scenario_id,implementation_status,status,attempt,duration_ms')
@@ -200,6 +201,8 @@ function Write-RunSummary {
     $summary = [pscustomobject][ordered]@{
         schema_version = 1
         run_mode = $RunMode
+        execution_complete = $ExecutionComplete
+        product_verdict = $(if (@($Records | Where-Object { [string]$_.status -eq 'FAIL_PRODUCT' }).Count -gt 0) { 'FAIL_PRODUCT' } elseif (@($Records | Where-Object { [string]$_.status -in @('EXPECTED_FAIL','MOCK_EXPECTED_FAIL') }).Count -gt 0) { 'EXPECTED_FAILURE_OBSERVED' } else { 'NO_PRODUCT_FAILURE_OBSERVED' })
         catalog = $catalogSummary
         statuses = @($Records | Group-Object status | Sort-Object Name | ForEach-Object { [pscustomobject]@{ status=$_.Name; count=$_.Count; run_mode=$RunMode } })
     }

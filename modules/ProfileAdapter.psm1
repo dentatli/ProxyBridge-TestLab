@@ -182,6 +182,19 @@ function Test-ExpectedProfileValidation {
     }
 }
 
+function Get-ExpectedProfileValidationDisposition {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Validation,
+        [Parameter(Mandatory)][ValidateSet('dry-run','mock','real')][string]$RunMode
+    )
+    if (-not [bool]$Validation.passed -or [bool]$Validation.may_write -or [string]$Validation.expectation -eq 'valid') {
+        throw 'PROFILE_REJECTION_DISPOSITION_REQUIRES_EXPECTED_INVALID_PROFILE'
+    }
+    $status = switch ($RunMode) { 'dry-run' { 'DRY_RUN_READY' } 'mock' { 'MOCK_PASS' } 'real' { 'PASS' } }
+    return [pscustomobject]@{ status=$status; reason='intentional invalid profile was rejected before product start'; product_started=$false }
+}
+
 function Write-ResolvedProfile {
     [CmdletBinding()]
     param(
@@ -202,4 +215,4 @@ function Write-ResolvedProfile {
     return [pscustomobject]@{ path = $path; sha256 = $hash }
 }
 
-Export-ModuleMember -Function Resolve-JsonVariables, New-ResolvedProfile, Test-ExpectedProfileValidation, Write-ResolvedProfile
+Export-ModuleMember -Function Resolve-JsonVariables, New-ResolvedProfile, Test-ExpectedProfileValidation, Get-ExpectedProfileValidationDisposition, Write-ResolvedProfile

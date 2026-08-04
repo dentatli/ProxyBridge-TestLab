@@ -3,7 +3,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 . (Join-Path $PSScriptRoot 'TestSupport.ps1')
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($module in @('Env','Config','ScenarioCatalog','ProfileAdapter','ClientRunner','MockRuntime','ProxyBridgeEvidence','VpsEvidence','Assertions')) { Import-Module (Join-Path $root "modules/$module.psm1") -Force }
+foreach ($module in @('Env','Config','ScenarioCatalog','ProfileAdapter','ProcessAdapter','ClientRunner','MockRuntime','ProxyBridgeEvidence','VpsEvidence','Assertions')) { Import-Module (Join-Path $root "modules/$module.psm1") -Force }
 
 $environment = Get-EffectiveRuntimeEnvironment -Environment (Import-DotEnv (Join-Path $PSScriptRoot 'fixtures/.env.test')) -RuntimeConfig (Import-RuntimeConfig (Join-Path $root 'config/runtime.json'))
 $contract = Import-ClientContract (Join-Path $root 'config/client-contract.json')
@@ -67,6 +67,44 @@ try {
 
     $blockLeak = Invoke-FixtureAssertion 'tcp-ipv4-block' 'base-block-leak'
     Assert-Equal 'FAIL_PRODUCT' $blockLeak.assertion.outcome 'block leak must be caught'
+
+    $udpBlock = Invoke-FixtureAssertion 'udp-ipv4-connected-block' 'udp-block-no-response'
+    Assert-Equal 'PASS' $udpBlock.assertion.outcome 'UDP BLOCK no-response must not require an observed response source'
+
+    $udpProxySource = Invoke-FixtureAssertion 'udp-ipv4-connected-proxy' 'udp-proxy-source-mismatch'
+    $udpProxySource.mock.client_result.exit_code = 10
+    $udpProxyAssertion = Test-ScenarioAssertions -Scenario $udpProxySource.scenario -ClientPlan $udpProxySource.plan -ClientResult $udpProxySource.mock.client_result -VpsRecords $udpProxySource.mock.vps_records -ProxyBridgeRecords $udpProxySource.mock.proxybridge_records -EvidenceContext $udpProxySource.mock.evidence_context -RunMode real
+    Assert-Equal 'FAIL_PRODUCT' $udpProxyAssertion.outcome 'canonical UDP source mismatch with exit 10 must be a product failure'
+    Assert-True ((@($udpProxyAssertion.product_errors) -join ',') -match 'fail:udp_response_source') 'UDP source mismatch signature must remain readable'
+    Assert-True (-not ((@($udpProxyAssertion.harness_errors) -join ',') -match 'client exit code 10')) 'proven product-path failure must suppress generic exit-code harness classification'
+    $udpProxyDefect = Get-KnownDefectMatch -Scenario $udpProxySource.scenario -KnownDefects $defects
+    Assert-SequenceEqual @('wrong response source','fail:udp_response_source') @($udpProxyDefect.signature.required_product_error_suffixes) 'UDP reverse-source defect must declare its complete product-error signature'
+    Assert-Equal 'EXPECTED_FAIL' (Get-ClassifiedStatus -AssertionResult $udpProxyAssertion -KnownDefect $udpProxyDefect -RunMode real) 'base UDP PROXY source mismatch must map to the known defect'
+
+    $udpUnrelated = Invoke-FixtureAssertion 'udp-ipv4-connected-proxy' 'base-proxy-wrong-egress'
+    Assert-Equal 'FAIL_PRODUCT' $udpUnrelated.assertion.outcome 'unrelated UDP PROXY wrong-egress fixture must remain a product failure'
+    Assert-Equal 'FAIL_PRODUCT' (Get-ClassifiedStatus -AssertionResult $udpUnrelated.assertion -KnownDefect $udpProxyDefect -RunMode real) 'unrelated UDP PROXY product failure must not match reverse-source signature'
+
+    $signatureOutsideProductErrors = [pscustomobject]@{
+        outcome='FAIL_PRODUCT'
+        product_errors=@('flow 0 wrong proxy egress')
+        harness_errors=@('flow 0 client result failed: fail:udp_response_source')
+        missing_evidence=@('flow 0 wrong response source')
+    }
+    Assert-Equal 'FAIL_PRODUCT' (Get-ClassifiedStatus -AssertionResult $signatureOutsideProductErrors -KnownDefect $udpProxyDefect -RunMode real) 'known-defect signature must ignore harness and missing-evidence text'
+
+    $unscopedProductFailure = [pscustomobject]@{outcome='FAIL_PRODUCT';product_errors=@('unrelated product failure');harness_errors=@();missing_evidence=@()}
+    foreach($legacyScenarioId in @('rule-selector-full-path','udp-watched-process-direct-drop','issue206-proxy-to-direct-abortive')){
+        $legacyScenario=$catalog|Where-Object scenario_id -eq $legacyScenarioId
+        $legacyDefect=Get-KnownDefectMatch -Scenario $legacyScenario -KnownDefects $defects
+        Assert-True ($null -eq $legacyDefect.PSObject.Properties['signature']) "$legacyScenarioId defect must remain signature-free"
+        Assert-Equal 'EXPECTED_FAIL' (Get-ClassifiedStatus -AssertionResult $unscopedProductFailure -KnownDefect $legacyDefect -RunMode real) "$legacyScenarioId legacy mapping must remain unchanged"
+    }
+
+    $issue206Missing = Invoke-FixtureAssertion 'issue206-proxy-to-block-abortive' 'issue206-missing-second'
+    Assert-Equal 'FAIL_HARNESS' $issue206Missing.assertion.outcome 'issue206 missing second flow must not produce a product verdict'
+    Assert-Equal 0 @($issue206Missing.assertion.product_errors).Count 'invalid issue206 execution contract must suppress product errors'
+    Assert-True ((@($issue206Missing.assertion.harness_errors) -join ',') -match 'flow count|both phases') 'issue206 harness limitation must be explicit'
 
     $issue206 = Invoke-FixtureAssertion 'issue206-proxy-to-direct-abortive' 'issue206-proxy-direct-wrong-second'
     Assert-Equal 'FAIL_PRODUCT' $issue206.assertion.outcome 'issue206 wrong second route must fail assertions'

@@ -19,7 +19,8 @@
     },
     {
       "id": "udp-proxy-reverse-source",
-      "matching": { "scenario_ids": ["udp-proxy-reverse-source"], "tags": [] },
+      "matching": { "scenario_ids": ["udp-proxy-reverse-source", "udp-ipv4-connected-proxy", "udp-ipv4-unconnected-proxy"], "tags": [] },
+      "signature": { "required_product_error_suffixes": ["wrong response source", "fail:udp_response_source"] },
       "expected_status": "EXPECTED_FAIL",
       "reason": "UDP PROXY reverse traffic can expose the backend source instead of the original destination.",
       "issue": "confirmed product defect",

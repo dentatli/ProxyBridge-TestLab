@@ -37,7 +37,6 @@ function Test-ScenarioAssertions {
     $externalProofs=[System.Collections.Generic.List[bool]]::new()
     $routeEvidenceRequired=$false;$internalRouteUsed=$false
     if([bool]$ClientResult.timed_out){$harnessErrors.Add('client timeout')}
-    if([int]$ClientResult.exit_code -ne 0){$harnessErrors.Add("client exit code $($ClientResult.exit_code)")}
 
     $clientRecords=@()
     if($null -ne $ClientResult.PSObject.Properties['canonical_records']){$clientRecords=@($ClientResult.canonical_records)}
@@ -46,6 +45,15 @@ function Test-ScenarioAssertions {
     $heldRechecks=@($clientRecords|Where-Object{[string]$_.record_kind -eq 'held_recheck'})
     $expectedFlows=@($ClientPlan.flows|Sort-Object{[int]$_.flow_index})
     if($flows.Count -ne $expectedFlows.Count){$harnessErrors.Add("flow count actual=$($flows.Count) expected=$($expectedFlows.Count)")}
+    $issue206ContractInvalid=$false
+    if([string]$Scenario.client.mode -eq 'issue206'){
+        if($flows.Count -ne $expectedFlows.Count){$issue206ContractInvalid=$true}
+        if($flows.Count -ge 2){
+            if([string]$flows[0].phase -ne 'first_flow' -or [string]$flows[1].phase -ne 'second_flow'){$harnessErrors.Add('issue206 both phases were not reached');$issue206ContractInvalid=$true}
+            if([int]$flows[0].wsa_error -eq 10048 -or [int]$flows[1].wsa_error -eq 10048){$harnessErrors.Add('issue206 exact-port reuse failed with WSAEADDRINUSE 10048');$issue206ContractInvalid=$true}
+            if([string]$flows[0].actual_local_ip -ne [string]$flows[1].actual_local_ip -or [int]$flows[0].actual_local_port -ne [int]$flows[1].actual_local_port){$harnessErrors.Add('issue206 exact same local tuple was not created');$issue206ContractInvalid=$true}
+        }elseif($flows.Count -gt 0){$harnessErrors.Add('issue206 both phases were not reached');$issue206ContractInvalid=$true}
+    }
     if([string]$Scenario.client.mode -eq 'issue209' -and $heldRechecks.Count -ne 1){$harnessErrors.Add("issue209 held_recheck count actual=$($heldRechecks.Count) expected=1")}
     elseif([string]$Scenario.client.mode -ne 'issue209' -and $heldRechecks.Count -gt 0){$harnessErrors.Add('unexpected held_recheck record')}
     if(-not (Test-EvidenceIdentity $clientRecords ([string]$ClientPlan.run_id) ([string]$Scenario.scenario_id))){$contamination.Add('client evidence identity mismatch')}
@@ -77,11 +85,15 @@ function Test-ScenarioAssertions {
         if([string]$record.expected_action -ne [string]$expected.expected_action){$harnessErrors.Add("$label expected action does not match plan")}
         if([string]$record.expected_outcome -ne [string]$expected.expected_outcome){$harnessErrors.Add("$label expectation does not match plan")}
         if($null -ne $expected.PSObject.Properties['tcp_peer_policy'] -and [string]$expected.protocol -eq 'TCP' -and [string]$record.tcp_peer_policy -ne [string]$expected.tcp_peer_policy){$harnessErrors.Add("$label TCP peer policy does not match plan")}
-        if([string]$record.remote_ip -ne [string]$expected.remote_ip -or [int]$record.remote_port -ne [int]$expected.remote_port -or [string]$record.actual_remote_ip -ne [string]$expected.remote_ip -or [int]$record.actual_remote_port -ne [int]$expected.remote_port){$productErrors.Add("$label wrong destination")}
+        if([string]$record.remote_ip -ne [string]$expected.remote_ip -or [int]$record.remote_port -ne [int]$expected.remote_port){$harnessErrors.Add("$label requested destination does not match plan")}
         if([string]$expected.expected_outcome -eq 'echo'){
+            if([string]$record.actual_remote_ip -ne [string]$expected.remote_ip -or [int]$record.actual_remote_port -ne [int]$expected.remote_port){$productErrors.Add("$label wrong response source")}
             if([string]$record.payload_sha256 -ne [string]$record.response_sha256 -or [bool]$record.no_response){$productErrors.Add("$label echo mismatch")}
         }elseif(-not [bool]$record.no_response -or -not [string]::IsNullOrEmpty([string]$record.response_sha256)){$productErrors.Add("$label unexpected response")}
-        if(-not [bool]$record.client_pass){$productErrors.Add("$label client result failed")}
+        if(-not [bool]$record.client_pass){
+            $actualResult=$(if($null -ne $record.PSObject.Properties['actual_result']){[string]$record.actual_result}else{'failed'})
+            $productErrors.Add("$label client result failed: $actualResult")
+        }
 
         $sameDestination=@(Find-ProxyBridgeFlowEvidence -Records $ProxyBridgeRecords -Process $expectedProcess -Pid $expectedPid -DestinationIp ([string]$expected.remote_ip) -DestinationPort ([int]$expected.remote_port) -StartTimeUtc $startTime -EndTimeUtc $endTime)
         $expectedRoute=@($sameDestination|Where-Object{[string]$_.action -eq [string]$expected.expected_action})
@@ -131,13 +143,15 @@ function Test-ScenarioAssertions {
     }
 
     if($expectedFlows.Count -ge 2 -and $flows.Count -ge 2){
-        if([string]$Scenario.client.mode -eq 'issue206' -and ([string]$flows[0].actual_local_ip -ne [string]$flows[1].actual_local_ip -or [int]$flows[0].actual_local_port -ne [int]$flows[1].actual_local_port)){$productErrors.Add('same local IP/port reuse')}
         if([string]$Scenario.client.mode -eq 'issue209'){
             if([int]$flows[0].actual_local_port -ne [int]$flows[1].actual_local_port){$productErrors.Add('issue209 same numeric local port reuse')}
             if([string]$flows[0].protocol -eq [string]$flows[1].protocol){$harnessErrors.Add('issue209 opposite protocol was not exercised')}
             if($heldRechecks.Count -eq 1){$held=$heldRechecks[0];if([int]$held.actual_local_port -ne [int]$flows[0].actual_local_port){$harnessErrors.Add('issue209 held_recheck local port mismatch')};if([int]$held.flow_index -ne 0){$harnessErrors.Add('issue209 held_recheck does not reference first flow')}}
         }
     }
+
+    if($issue206ContractInvalid){$productErrors.Clear()}
+    if(-not [bool]$ClientResult.timed_out -and [int]$ClientResult.exit_code -ne 0 -and $productErrors.Count -eq 0){$harnessErrors.Add("client exit code $($ClientResult.exit_code)")}
 
     $outcome='PASS'
     if($contamination.Count -gt 0){$outcome='CONTAMINATED'}elseif($harnessErrors.Count -gt 0){$outcome='FAIL_HARNESS'}elseif($productErrors.Count -gt 0){$outcome='FAIL_PRODUCT'}elseif($missingEvidence.Count -gt 0){$outcome='HOLD_AMBIGUOUS'}
@@ -156,10 +170,27 @@ function Test-ScenarioAssertions {
 function Get-ClassifiedStatus {
     [CmdletBinding()]
     param([Parameter(Mandatory)]$AssertionResult,$KnownDefect,[ValidateSet('mock','real')][string]$RunMode,[string]$MockExpectation='PASS')
-    if($RunMode -eq 'mock'){
-        switch([string]$AssertionResult.outcome){'PASS'{return 'MOCK_PASS'}'HOLD_AMBIGUOUS'{return 'MOCK_HOLD'}'FAIL_PRODUCT'{if($null -ne $KnownDefect -or $MockExpectation -eq 'EXPECTED_FAIL'){return 'MOCK_EXPECTED_FAIL'};return 'MOCK_HOLD'}default{return 'MOCK_HOLD'}}
+    $knownDefectMatched=$false
+    if($null -ne $KnownDefect){
+        $knownDefectMatched=$true
+        if($null -ne $KnownDefect.PSObject.Properties['signature']){
+            $knownDefectMatched=$false
+            $productErrors=$(if($null -ne $AssertionResult.PSObject.Properties['product_errors']){@($AssertionResult.product_errors)}else{@()})
+            $requiredSuffixes=$(if($null -ne $KnownDefect.signature.PSObject.Properties['required_product_error_suffixes']){@($KnownDefect.signature.required_product_error_suffixes)}else{@()})
+            if($requiredSuffixes.Count -gt 0){
+                $knownDefectMatched=$true
+                foreach($suffix in $requiredSuffixes){
+                    $suffixMatched=$false
+                    foreach($productError in $productErrors){if(([string]$productError).EndsWith([string]$suffix,[System.StringComparison]::OrdinalIgnoreCase)){$suffixMatched=$true;break}}
+                    if(-not $suffixMatched){$knownDefectMatched=$false;break}
+                }
+            }
+        }
     }
-    if([string]$AssertionResult.outcome -eq 'FAIL_PRODUCT' -and $null -ne $KnownDefect){return 'EXPECTED_FAIL'}
+    if($RunMode -eq 'mock'){
+        switch([string]$AssertionResult.outcome){'PASS'{return 'MOCK_PASS'}'HOLD_AMBIGUOUS'{return 'MOCK_HOLD'}'FAIL_PRODUCT'{if($knownDefectMatched -or ($null -eq $KnownDefect -and $MockExpectation -eq 'EXPECTED_FAIL')){return 'MOCK_EXPECTED_FAIL'};return 'MOCK_HOLD'}default{return 'MOCK_HOLD'}}
+    }
+    if([string]$AssertionResult.outcome -eq 'FAIL_PRODUCT' -and $knownDefectMatched){return 'EXPECTED_FAIL'}
     return [string]$AssertionResult.outcome
 }
 
