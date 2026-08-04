@@ -84,7 +84,7 @@ Assert-Equal $largeStdout.Length $captured.stdout.Length 'pipe-heavy stdout must
 Assert-Equal $largeStderr.Length $captured.stderr.Length 'pipe-heavy stderr must be drained'
 
 $timeoutResult = [pscustomobject]@{exit_code=-1;timed_out=$true;pid=9;actual_path='fixture-client.exe';stdout='partial';stderr='timeout'}
-$timeoutPlan = [pscustomobject]@{executable='fixture-client.exe';arguments=@();timeout_ms=10;jsonl_path='unused-on-timeout.jsonl'}
+$timeoutPlan = [pscustomobject]@{executable='fixture-client.exe';expected_sha256=('a' * 64);arguments=@();timeout_ms=10;actual_path_timeout_ms=50;jsonl_path='unused-on-timeout.jsonl'}
 $clientTimeout = Invoke-ClientPlan -Plan $timeoutPlan -ProcessAdapter (New-MockProcessAdapter -InvokeResults @($timeoutResult))
 Assert-True $clientTimeout.timed_out 'client timeout must be returned without blocking on JSONL'
 Assert-Equal 0 @($clientTimeout.records).Count 'timed-out client must not parse absent JSONL'

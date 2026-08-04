@@ -188,6 +188,19 @@ function New-SystemProcessAdapter {
     Initialize-ProcessSessionType
     $adapter = [pscustomobject]@{ is_mock = $false }
 
+    $adapter | Add-Member -NotePropertyName VerifyExecutable -NotePropertyValue {
+        param($path, $expectedSha256)
+        if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {
+            return [pscustomobject]@{ path_verified=$false; hash_verified=$false; status='PATH_MISSING' }
+        }
+        if ([string]$expectedSha256 -notmatch '^[A-Fa-f0-9]{64}$') {
+            return [pscustomobject]@{ path_verified=$true; hash_verified=$false; status='EXPECTED_HASH_INVALID' }
+        }
+        try { $actualSha256 = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash }
+        catch { return [pscustomobject]@{ path_verified=$true; hash_verified=$false; status='HASH_QUERY_FAILED' } }
+        $hashVerified = [string]::Equals([string]$expectedSha256, [string]$actualSha256, [System.StringComparison]::OrdinalIgnoreCase)
+        return [pscustomobject]@{ path_verified=$true; hash_verified=$hashVerified; status=$(if ($hashVerified) { 'VERIFIED' } else { 'HASH_MISMATCH' }) }
+    }
     $adapter | Add-Member -NotePropertyName StartProcess -NotePropertyValue {
         param($plan)
         $argumentText = Join-ProcessArguments -Arguments @($plan.arguments)
@@ -197,6 +210,9 @@ function New-SystemProcessAdapter {
             actual_path = ''
             session = $session
             timed_out = $false
+            actual_path_probe_status = 'NOT_STARTED'
+            actual_path_probe_attempts = 0
+            actual_path_probe_elapsed_ms = 0
         }
     }
     $adapter | Add-Member -NotePropertyName ProbeActualPath -NotePropertyValue {
@@ -250,6 +266,9 @@ function New-SystemProcessAdapter {
             timed_out = [bool]$process.timed_out
             pid = [int]$process.pid
             actual_path = [string]$process.actual_path
+            actual_path_probe_status = [string]$process.actual_path_probe_status
+            actual_path_probe_attempts = [int]$process.actual_path_probe_attempts
+            actual_path_probe_elapsed_ms = [int]$process.actual_path_probe_elapsed_ms
             stdout = [string]$process.session.Stdout
             stderr = [string]$process.session.Stderr
         }
@@ -266,6 +285,9 @@ function New-SystemProcessAdapter {
             $probeTimeoutMs = $(if ($null -ne $plan.PSObject.Properties['actual_path_timeout_ms']) { [int]$plan.actual_path_timeout_ms } else { 2000 })
             $pathProbe = & $adapter.ProbeActualPath $process $probeTimeoutMs 25
             $process.actual_path = [string]$pathProbe.actual_path
+            $process.actual_path_probe_status = [string]$pathProbe.status
+            $process.actual_path_probe_attempts = [int]$pathProbe.attempts
+            $process.actual_path_probe_elapsed_ms = [int]$pathProbe.elapsed_ms
             $completed = $process.session.WaitForExit([int]$plan.timeout_ms)
             if (-not $completed) {
                 $process.timed_out = $true
@@ -289,6 +311,8 @@ function New-MockProcessAdapter {
         [bool]$GracefulStop = $true,
         [string]$ActualPath = 'fixture-process.exe',
         [AllowNull()][object[]]$ActualPathProbeSequence = $null,
+        [bool]$PrelaunchPathVerified = $true,
+        [bool]$PrelaunchHashVerified = $true,
         [string]$LifecycleStdout = '',
         [string]$LifecycleStderr = ''
     )
@@ -302,6 +326,7 @@ function New-MockProcessAdapter {
         kill_count = 0
         dispose_count = 0
         invoke_count = 0
+        prelaunch_verify_count = 0
         invoked_plans = [System.Collections.Generic.List[object]]::new()
         results = @($InvokeResults)
         ready = $Ready
@@ -310,11 +335,19 @@ function New-MockProcessAdapter {
         actual_path = $ActualPath
         actual_path_probe_sequence = @($probeSequence)
         actual_path_probe_index = 0
+        prelaunch_path_verified = $PrelaunchPathVerified
+        prelaunch_hash_verified = $PrelaunchHashVerified
         stdout = $LifecycleStdout
         stderr = $LifecycleStderr
     }
     $adapter = [pscustomobject]@{ is_mock = $true; state = $state }
 
+    $adapter | Add-Member -NotePropertyName VerifyExecutable -NotePropertyValue ({
+        param($path, $expectedSha256)
+        $state.prelaunch_verify_count++
+        $status = $(if (-not $state.prelaunch_path_verified) { 'PATH_MISSING' } elseif (-not $state.prelaunch_hash_verified) { 'HASH_MISMATCH' } else { 'VERIFIED' })
+        return [pscustomobject]@{ path_verified=[bool]$state.prelaunch_path_verified; hash_verified=[bool]$state.prelaunch_hash_verified; status=$status }
+    }.GetNewClosure())
     $adapter | Add-Member -NotePropertyName StartProcess -NotePropertyValue ({
         param($plan)
         $state.start_count++
@@ -412,6 +445,11 @@ function Invoke-ProcessPlan {
     foreach ($field in @('exit_code', 'timed_out', 'pid', 'actual_path', 'stdout', 'stderr')) {
         if ($null -eq $result.PSObject.Properties[$field]) { throw "PROCESS_RESULT_MISSING_$field" }
     }
+    if ($null -eq $result.PSObject.Properties['actual_path_probe_status']) {
+        $result | Add-Member -NotePropertyName actual_path_probe_status -NotePropertyValue $(if ([string]::IsNullOrWhiteSpace([string]$result.actual_path)) { 'PROCESS_EXITED' } else { 'PATH_OBTAINED' })
+    }
+    if ($null -eq $result.PSObject.Properties['actual_path_probe_attempts']) { $result | Add-Member -NotePropertyName actual_path_probe_attempts -NotePropertyValue 1 }
+    if ($null -eq $result.PSObject.Properties['actual_path_probe_elapsed_ms']) { $result | Add-Member -NotePropertyName actual_path_probe_elapsed_ms -NotePropertyValue 0 }
     return $result
 }
 

@@ -18,7 +18,7 @@ function Invoke-FixtureAssertion {
     $scenario.mock_fixture_id = $FixtureId
     $evidence = Join-Path $temp ($ScenarioId + '-' + $FixtureId)
     $null = New-Item -ItemType Directory -Path $evidence -Force
-    $plan = New-ClientPlan -Scenario $scenario -ExecutablePath $environment['PB_CLIENT_EXE'] -RunId 'fixture-run' -JsonlPath (Join-Path $evidence 'client.jsonl') -Contract $contract
+    $plan = New-ClientPlan -Scenario $scenario -ExecutablePath $environment['PB_CLIENT_EXE'] -RunId 'fixture-run' -JsonlPath (Join-Path $evidence 'client.jsonl') -Contract $contract -ExpectedSha256 $environment['PB_EXPECTED_CLIENT_SHA256']
     $mock = Invoke-MockScenario -Scenario $scenario -ClientPlan $plan -FixtureRoot $fixtureRoot -EvidenceDirectory $evidence -Environment $environment
     $assertion = Test-ScenarioAssertions -Scenario $scenario -ClientPlan $plan -ClientResult $mock.client_result -VpsRecords $mock.vps_records -ProxyBridgeRecords $mock.proxybridge_records -EvidenceContext $mock.evidence_context -RunMode mock
     return [pscustomobject]@{scenario=$scenario;plan=$plan;mock=$mock;assertion=$assertion}

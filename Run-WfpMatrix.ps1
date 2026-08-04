@@ -239,7 +239,7 @@ foreach ($item in $decisions) {
         }
         else {
             $clientExecutable = $(if ($environment.ContainsKey('PB_CLIENT_EXE')) { $environment['PB_CLIENT_EXE'] } else { 'pb_net_client.exe' })
-            $clientPlan = New-ClientPlan -Scenario $resolvedScenario -ExecutablePath $clientExecutable -RunId $report.run_id -JsonlPath $clientJsonlPath -Contract $clientContract
+            $clientPlan = New-ClientPlan -Scenario $resolvedScenario -ExecutablePath $clientExecutable -RunId $report.run_id -JsonlPath $clientJsonlPath -Contract $clientContract -ExpectedSha256 $environment['PB_EXPECTED_CLIENT_SHA256']
             $clientPlan.timeout_ms = [Math]::Min([int]$clientPlan.timeout_ms, [int]$suite.execution.timeout_ms)
         }
         Write-RedactedJsonReport -Value $rulePlan -Path (Join-Path $scenarioEvidence 'rule-plan.json') -Environment $environment
@@ -334,7 +334,7 @@ foreach ($item in $decisions) {
             catch {
                 $safe = Get-SafeExceptionMessage -ErrorRecord $_ -Environment $environment
                 if ($safe -match 'CLI_CLEANUP_FAILED|POST_STOP_VERIFICATION') { $status='CONTAMINATED' }
-                elseif ($safe -match 'READINESS|ACTUAL_PATH|PATH_VERIFICATION|START_FAILED|PROCESS_START') { $status='FAIL_INFRASTRUCTURE' }
+                elseif ($safe -match 'READINESS|ACTUAL_PATH|PATH_VERIFICATION|CLIENT_PRELAUNCH|START_FAILED|PROCESS_START') { $status='FAIL_INFRASTRUCTURE' }
                 elseif ($safe -match 'VPS_SSH_(COLLECTION_INCOMPLETE|TIMEOUT|FAILED|PROCESS_FAILED|HOST_INVALID|USER_INVALID|PORT_INVALID|EXECUTABLE_MISSING)|VPS_ENVIRONMENT_MISSING_') { $status='FAIL_INFRASTRUCTURE' }
                 elseif ($safe -match 'VPS_EVIDENCE_IMPORT_NOT_FOUND') { $status='HOLD_AMBIGUOUS' }
                 else { $status='FAIL_HARNESS' }

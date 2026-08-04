@@ -324,16 +324,22 @@ function New-ClientPlan {
         [Parameter(Mandatory)][string]$ExecutablePath,
         [Parameter(Mandatory)][string]$RunId,
         [Parameter(Mandatory)][string]$JsonlPath,
-        $Contract
+        $Contract,
+        [string]$ExpectedSha256 = '',
+        [int]$ActualPathTimeoutMs = 2000
     )
+    if ($ActualPathTimeoutMs -lt 1) { throw 'CLIENT_ACTUAL_PATH_TIMEOUT_INVALID' }
     $mode = ([string]$Scenario.client.mode).ToLowerInvariant()
     if ($null -ne $Contract -and $null -eq $Contract.modes.PSObject.Properties[$mode]) { throw "CLIENT_CONTRACT_MODE_MISSING_$($mode.ToUpperInvariant())" }
-    switch ($mode) {
-        'base' { return New-BaseClientPlan -Scenario $Scenario -ExecutablePath $ExecutablePath -RunId $RunId -JsonlPath $JsonlPath -Contract $Contract }
-        'issue206' { return New-Issue206ClientPlan -Scenario $Scenario -ExecutablePath $ExecutablePath -RunId $RunId -JsonlPath $JsonlPath -Contract $Contract }
-        'issue209' { return New-Issue209ClientPlan -Scenario $Scenario -ExecutablePath $ExecutablePath -RunId $RunId -JsonlPath $JsonlPath -Contract $Contract }
+    $plan = switch ($mode) {
+        'base' { New-BaseClientPlan -Scenario $Scenario -ExecutablePath $ExecutablePath -RunId $RunId -JsonlPath $JsonlPath -Contract $Contract }
+        'issue206' { New-Issue206ClientPlan -Scenario $Scenario -ExecutablePath $ExecutablePath -RunId $RunId -JsonlPath $JsonlPath -Contract $Contract }
+        'issue209' { New-Issue209ClientPlan -Scenario $Scenario -ExecutablePath $ExecutablePath -RunId $RunId -JsonlPath $JsonlPath -Contract $Contract }
         default { throw "CLIENT_EXECUTOR_NOT_IMPLEMENTED: $mode" }
     }
+    $plan | Add-Member -NotePropertyName expected_sha256 -NotePropertyValue $ExpectedSha256
+    $plan | Add-Member -NotePropertyName actual_path_timeout_ms -NotePropertyValue $ActualPathTimeoutMs
+    return $plan
 }
 
 function ConvertFrom-ClientJsonLines {
@@ -413,16 +419,33 @@ function Invoke-ClientPlan {
         [Parameter(Mandatory)]$ProcessAdapter,
         [switch]$AllowProductRuntime
     )
+
+    if ($null -eq $ProcessAdapter.PSObject.Properties['VerifyExecutable']) { throw 'CLIENT_ADAPTER_MISSING_VERIFY_EXECUTABLE' }
+    if ($null -eq $Plan.PSObject.Properties['expected_sha256'] -or [string]$Plan.expected_sha256 -notmatch '^[A-Fa-f0-9]{64}$') { throw 'CLIENT_PRELAUNCH_EXPECTED_HASH_INVALID' }
+    $prelaunch = & $ProcessAdapter.VerifyExecutable ([string]$Plan.executable) ([string]$Plan.expected_sha256)
+    if (-not [bool]$prelaunch.path_verified) { throw 'CLIENT_PRELAUNCH_PATH_MISSING' }
+    if (-not [bool]$prelaunch.hash_verified) {
+        if ([string]$prelaunch.status -eq 'HASH_MISMATCH') { throw 'CLIENT_PRELAUNCH_HASH_MISMATCH' }
+        throw 'CLIENT_PRELAUNCH_HASH_VERIFICATION_FAILED'
+    }
+
     $processResult = Invoke-ProcessPlan -Plan $Plan -ProcessAdapter $ProcessAdapter -AllowProductRuntime:$AllowProductRuntime
-    try {
-        $expectedPath = [System.IO.Path]::GetFullPath([string]$Plan.executable).TrimEnd('\')
-        $actualPath = [System.IO.Path]::GetFullPath([string]$processResult.actual_path).TrimEnd('\')
-        if (-not [string]::Equals($expectedPath, $actualPath, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'CLIENT_PATH_VERIFICATION_FAILED' }
+    $probeStatus = [string]$processResult.actual_path_probe_status
+    $actualPathRequired = $probeStatus -ne 'PROCESS_EXITED'
+    if ($probeStatus -eq 'QUERY_TIMEOUT') { throw 'CLIENT_PATH_QUERY_TIMEOUT' }
+    if ($probeStatus -eq 'PATH_OBTAINED') {
+        try {
+            $expectedPath = [System.IO.Path]::GetFullPath([string]$Plan.executable).TrimEnd('\')
+            $actualPath = [System.IO.Path]::GetFullPath([string]$processResult.actual_path).TrimEnd('\')
+            if (-not [string]::Equals($expectedPath, $actualPath, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'CLIENT_PATH_VERIFICATION_FAILED' }
+        }
+        catch {
+            if ($_.Exception.Message -eq 'CLIENT_PATH_VERIFICATION_FAILED') { throw }
+            throw 'CLIENT_PATH_VERIFICATION_FAILED'
+        }
     }
-    catch {
-        if ($_.Exception.Message -eq 'CLIENT_PATH_VERIFICATION_FAILED') { throw }
-        throw 'CLIENT_PATH_VERIFICATION_FAILED'
-    }
+    elseif ($probeStatus -ne 'PROCESS_EXITED') { throw 'CLIENT_PATH_PROBE_STATUS_INVALID' }
+
     $rawRecords = @()
     $canonicalRecords = @()
     if (-not [bool]$processResult.timed_out) {
@@ -434,6 +457,12 @@ function Invoke-ClientPlan {
         timed_out = [bool]$processResult.timed_out
         pid = [int]$processResult.pid
         actual_path = [string]$processResult.actual_path
+        prelaunch_path_verified = [bool]$prelaunch.path_verified
+        prelaunch_hash_verified = [bool]$prelaunch.hash_verified
+        actual_path_probe_status = $probeStatus
+        actual_path_probe_attempts = [int]$processResult.actual_path_probe_attempts
+        actual_path_probe_elapsed_ms = [int]$processResult.actual_path_probe_elapsed_ms
+        actual_path_required = [bool]$actualPathRequired
         stdout = [string]$processResult.stdout
         stderr = [string]$processResult.stderr
         raw_records = $rawRecords

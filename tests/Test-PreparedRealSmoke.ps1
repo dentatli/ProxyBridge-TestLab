@@ -30,7 +30,7 @@ $scenario=Resolve-JsonVariables -InputObject ($catalog|Where-Object scenario_id 
 $contract=Import-ClientContract (Join-Path $root 'config/client-contract.json')
 $temp=New-TestDirectory
 try{
-    $clientPlan=New-ClientPlan -Scenario $scenario -ExecutablePath $environment['PB_CLIENT_EXE'] -RunId 'prepared-real-smoke' -JsonlPath (Join-Path $temp 'client.jsonl') -Contract $contract
+    $clientPlan=New-ClientPlan -Scenario $scenario -ExecutablePath $environment['PB_CLIENT_EXE'] -RunId 'prepared-real-smoke' -JsonlPath (Join-Path $temp 'client.jsonl') -Contract $contract -ExpectedSha256 $environment['PB_EXPECTED_CLIENT_SHA256']
     $mock=Invoke-MockScenario -Scenario $scenario -ClientPlan $clientPlan -FixtureRoot (Join-Path $PSScriptRoot 'fixtures/mock') -EvidenceDirectory $temp -Environment $environment
     $context=[pscustomobject]@{vps_capture_complete=$true;vps_capture_complete_shas=@($mock.client_result.canonical_records.payload_sha256);channel_capture_completed=$true;records_found=$false;direct_egress_ip=$baseline.direct_egress_ip;proxy_egress_ip='';expected_process='pb_net_client.exe'}
     $assertion=Test-ScenarioAssertions -Scenario $scenario -ClientPlan $clientPlan -ClientResult $mock.client_result -VpsRecords $mock.vps_records -ProxyBridgeRecords @() -EvidenceContext $context -RunMode real

@@ -83,13 +83,40 @@ try {
     $outputPath = Join-Path $temp 'client.jsonl'
     $fixtureLine = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'fixtures/client-jsonl/stage34a-issue206-proxy-block.jsonl') -Encoding UTF8 | Select-Object -First 1
     Write-TestUtf8NoBom $outputPath $fixtureLine
-    $filePlan = [pscustomobject]@{ executable='fixture-client.exe';arguments=@('--mode','single');timeout_ms=100;jsonl_path=$outputPath }
-    $processResult = [pscustomobject]@{exit_code=0;timed_out=$false;pid=7;actual_path='fixture-client.exe';stdout='human stdout, not json';stderr='human stderr'}
+    $expectedHash = 'a' * 64
+    $filePlan = [pscustomobject]@{ executable='fixture-client.exe';expected_sha256=$expectedHash;arguments=@('--mode','single');timeout_ms=100;actual_path_timeout_ms=50;jsonl_path=$outputPath }
+    $processResult = [pscustomobject]@{exit_code=0;timed_out=$false;pid=7;actual_path='fixture-client.exe';actual_path_probe_status='PATH_OBTAINED';actual_path_probe_attempts=1;actual_path_probe_elapsed_ms=0;stdout='human stdout, not json';stderr='human stderr'}
     $result = Invoke-ClientPlan -Plan $filePlan -ProcessAdapter (New-MockProcessAdapter -InvokeResults @($processResult))
     Assert-Equal 1 @($result.raw_records).Count 'client must preserve raw JSONL records'
     Assert-Equal 1 @($result.canonical_records).Count 'client must return canonical JSONL records'
     Assert-Equal 'human stdout, not json' $result.stdout 'human stdout must be preserved separately'
     Assert-Equal 'human stderr' $result.stderr 'human stderr must be preserved separately'
+    Assert-True $result.prelaunch_path_verified 'client path must be verified before launch'
+    Assert-True $result.prelaunch_hash_verified 'client hash must be verified before launch'
+    Assert-True $result.actual_path_required 'observed client path must remain required when available'
+
+    $shortResult = [pscustomobject]@{exit_code=0;timed_out=$false;pid=8;actual_path='';actual_path_probe_status='PROCESS_EXITED';actual_path_probe_attempts=1;actual_path_probe_elapsed_ms=1;stdout='';stderr=''}
+    $shortClient = Invoke-ClientPlan -Plan $filePlan -ProcessAdapter (New-MockProcessAdapter -InvokeResults @($shortResult))
+    Assert-Equal 0 $shortClient.exit_code 'successful short-lived client exit code'
+    Assert-Equal 1 @($shortClient.canonical_records).Count 'successful short-lived client must still consume valid JSONL'
+    Assert-Equal 'PROCESS_EXITED' $shortClient.actual_path_probe_status 'short-lived client probe status'
+    Assert-True (-not $shortClient.actual_path_required) 'successful hash-verified short-lived client must not require observed path'
+    Assert-Equal '' $shortClient.actual_path 'short-lived client must not substitute requested path as observed path'
+
+    $failedShortResult = [pscustomobject]@{exit_code=7;timed_out=$false;pid=9;actual_path='';actual_path_probe_status='PROCESS_EXITED';actual_path_probe_attempts=1;actual_path_probe_elapsed_ms=1;stdout='';stderr='fixture client failure'}
+    $failedShortClient = Invoke-ClientPlan -Plan $filePlan -ProcessAdapter (New-MockProcessAdapter -InvokeResults @($failedShortResult))
+    Assert-Equal 7 $failedShortClient.exit_code 'nonzero short-lived client must remain a client failure result'
+    Assert-Equal 'PROCESS_EXITED' $failedShortClient.actual_path_probe_status 'nonzero short-lived client must not become a path failure'
+
+    $queryTimeoutResult = [pscustomobject]@{exit_code=-1;timed_out=$true;pid=10;actual_path='';actual_path_probe_status='QUERY_TIMEOUT';actual_path_probe_attempts=3;actual_path_probe_elapsed_ms=50;stdout='';stderr=''}
+    Assert-Throws { Invoke-ClientPlan -Plan $filePlan -ProcessAdapter (New-MockProcessAdapter -InvokeResults @($queryTimeoutResult)) } 'CLIENT_PATH_QUERY_TIMEOUT' 'long-running client with unavailable path must fail explicitly'
+
+    $wrongPathResult = [pscustomobject]@{exit_code=0;timed_out=$false;pid=11;actual_path='C:\Fixture\wrong-client.exe';actual_path_probe_status='PATH_OBTAINED';actual_path_probe_attempts=1;actual_path_probe_elapsed_ms=0;stdout='';stderr=''}
+    Assert-Throws { Invoke-ClientPlan -Plan $filePlan -ProcessAdapter (New-MockProcessAdapter -InvokeResults @($wrongPathResult)) } 'CLIENT_PATH_VERIFICATION_FAILED' 'observed wrong client path must fail verification'
+
+    $hashMismatchAdapter = New-MockProcessAdapter -InvokeResults @($processResult) -PrelaunchHashVerified $false
+    Assert-Throws { Invoke-ClientPlan -Plan $filePlan -ProcessAdapter $hashMismatchAdapter } 'CLIENT_PRELAUNCH_HASH_MISMATCH' 'prelaunch hash mismatch must fail before process start'
+    Assert-Equal 0 $hashMismatchAdapter.state.invoke_count 'prelaunch hash mismatch must not invoke process adapter'
 }
 finally { Remove-Item -LiteralPath $temp -Recurse -Force }
 
