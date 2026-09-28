@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "runtime_id": "proxybridge-protocol-worker",
+  "python": {
+    "minimum_version": "3.10",
+    "maximum_tested_minor": "3.14",
+    "bundled_executable": "runtime/python/python.exe",
+    "entrypoint": "worker/pb_protocol_worker.py",
+    "isolated_mode": true,
+    "user_site_disabled": true,
+    "environment_inheritance": "allowlist"
+  },
+  "worker": {
+    "plan_schema_version": 1,
+    "manifest": "worker/plugins/manifest.json",
+    "max_operation_timeout_ms": 86400000,
+    "max_plan_depth": 8,
+    "max_plan_nodes": 512,
+    "max_scalar_characters": 4096,
+    "output_encoding": "utf-8-without-bom",
+    "output_format": "jsonl",
+    "overwrite_existing_output": false
+  },
+  "dependency_policy": {
+    "installation_during_run": false,
+    "network_download_during_run": false,
+    "lock_file_required": true,
+    "hashes_required": true,
+    "offline_wheelhouse_required": true,
+    "sbom_required_for_release": true
+  },
+  "process_identity_policy": {
+    "protocol_workers_share_one_bundled_python_image": true,
+    "process-selector_truth_tests_use_native_workers": true,
+    "browser_truth_tests_use_the_observed_browser_image": true,
+    "requested_path_is_never_substituted_for_observed_path": true
+  },
+  "allowed_environment_keys": [
+    "SYSTEMROOT",
+    "WINDIR",
+    "TEMP",
+    "TMP",
+    "COMSPEC",
+    "NUMBER_OF_PROCESSORS"
+  ]
+}

@@ -1,0 +1,206 @@
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix2/modules/ProtocolRunner.psm1" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix3/modules/ProtocolRunner.psm1"
+index 20acfc4..544c38f 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix2/modules/ProtocolRunner.psm1"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix3/modules/ProtocolRunner.psm1"
+@@ -380,6 +380,7 @@ function Test-BrowserProtocolScenarioAssertions {
+         if([string]$server.content_sha256-notmatch'^[0-9a-f]{64}$'-or[string]$server.browser_session_id-notmatch'^[0-9a-f]{64}$'){$harness.Add('browser server digest invalid')}
+         elseif([string]$server.browser_session_id-ne$expectedBrowserSessionId){$contamination.Add('browser origin identity-bound session mismatch')}
+         if([string]$server.local_ip-ne[string]$ExecutionPlan.remote_host-or[int]$server.local_port-ne[int]$ExecutionPlan.remote_port){$contamination.Add('browser server destination identity mismatch')}
++        if(-not(Test-ProtocolJsonInteger $server.remote_port 1)-or[decimal]$server.remote_port-gt 65535){$harness.Add('browser origin client port invalid');$allServerContractsValid=$false}
+     }
+     $pages=@($ServerRecords|Where-Object{$null-ne$_.PSObject.Properties['resource']-and[string]$_.resource-eq'page'})
+     $downloads=@($ServerRecords|Where-Object{$null-ne$_.PSObject.Properties['resource']-and[string]$_.resource-eq'download'})
+@@ -387,6 +388,7 @@ function Test-BrowserProtocolScenarioAssertions {
+     if($downloads.Count-eq 0){$missing.Add('browser origin download record')}elseif($downloads.Count-gt 1){$contamination.Add('duplicate browser origin download records')}
+     if($ServerRecords.Count-gt 2-and($pages.Count-le 1-and$downloads.Count-le 1)){$contamination.Add('unexpected browser origin records')}
+     $serverResourcesValid=$pages.Count-eq 1-and$downloads.Count-eq 1-and$allServerContractsValid
++    $originConnectionsDistinct=$false
+     if($serverResourcesValid){
+         $page=$pages[0];$download=$downloads[0]
+         $pagePath=[string]$ExecutionPlan.worker_plan.parameters.target_url
+@@ -396,6 +398,7 @@ function Test-BrowserProtocolScenarioAssertions {
+         if([string]$page.event-ne'BROWSER_ORIGIN_PAGE_SERVED'-or[string]$download.event-ne'BROWSER_ORIGIN_DOWNLOAD_SERVED'){$harness.Add('browser origin resource event invalid')}
+         if([string]$page.request_path-ne$pagePath-or[string]$download.request_path-ne$downloadPath){$contamination.Add('browser origin request path identity mismatch')}
+         if([string]$page.browser_session_id-ne[string]$download.browser_session_id){$contamination.Add('browser origin session identity mismatch')}
++        if([int]$page.remote_port-eq[int]$download.remote_port){$missing.Add('two distinct browser origin TCP connections')}else{$originConnectionsDistinct=$true}
+         if($clientContractValid){
+             if([string]$download.content_sha256-ne[string]$client.content_sha256){$product.Add('browser download server content mismatch')}
+             foreach($server in @($page,$download)){
+@@ -422,43 +425,23 @@ function Test-BrowserProtocolScenarioAssertions {
+         if($observed-lt$start.ToUniversalTime()-or$observed-gt$end.ToUniversalTime()){continue}
+         $routePid=0
+         if(-not[int]::TryParse([string](Get-ProtocolProperty $route 'pid' 0),[ref]$routePid)-or$routePid-lt 1){$harness.Add('browser route pid invalid');continue}
+-        $localIpText=[string](Get-ProtocolProperty $route 'local_ip' '')
+-        $parsedLocalIp=$null
+-        $localPort=Get-ProtocolProperty $route 'local_port' $null
+-        if([string]::IsNullOrWhiteSpace($localIpText)-or-not[System.Net.IPAddress]::TryParse($localIpText,[ref]$parsedLocalIp)-or-not(Test-ProtocolJsonInteger $localPort 1)-or[decimal]$localPort-gt 65535){$harness.Add('browser route local endpoint invalid');continue}
+         $canonicalRoute=[pscustomobject][ordered]@{
+             process=[string](Get-ProtocolProperty $route 'process' '');pid=$routePid
+-            local_ip=$parsedLocalIp.ToString();local_port=[int]$localPort
+             destination_ip=[string](Get-ProtocolProperty $route 'destination_ip' '');destination_port=[int](Get-ProtocolProperty $route 'destination_port' 0)
+             action=[string](Get-ProtocolProperty $route 'action' '')
+         }
+         if($verifiedPids.Contains($routePid)){$insideRoutes.Add($canonicalRoute)}else{$outsideRoutes.Add($canonicalRoute)}
+     }
+     if($outsideRoutes.Count-gt 0){$contamination.Add('browser route pid is outside verified process tree')}
+-    $connectionActions=@{}
+-    foreach($route in $insideRoutes){
+-        $connectionIdentity=([string](Get-ProtocolProperty $route 'process' '')).ToLowerInvariant()+'|'+[string](Get-ProtocolProperty $route 'pid' 0)+'|'+([string](Get-ProtocolProperty $route 'local_ip' '')).ToLowerInvariant()+'|'+[string](Get-ProtocolProperty $route 'local_port' 0)+'|'+([string](Get-ProtocolProperty $route 'destination_ip' '')).ToLowerInvariant()+'|'+[string](Get-ProtocolProperty $route 'destination_port' 0)
+-        if(-not$connectionActions.ContainsKey($connectionIdentity)){$connectionActions[$connectionIdentity]=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)}
+-        $null=$connectionActions[$connectionIdentity].Add([string](Get-ProtocolProperty $route 'action' ''))
+-    }
+-    $expectedConnections=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+-    $wrongConnections=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+-    $contradictoryConnections=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
+-    foreach($connectionIdentity in $connectionActions.Keys){
+-        $actions=$connectionActions[$connectionIdentity]
+-        $hasExpected=$actions.Contains([string]$ExecutionPlan.expected_action)
+-        $hasWrong=@($actions|Where-Object{$_-ne[string]$ExecutionPlan.expected_action}).Count-gt 0
+-        if($hasExpected-and$hasWrong){$null=$contradictoryConnections.Add($connectionIdentity)}
+-        elseif($hasExpected){$null=$expectedConnections.Add($connectionIdentity)}
+-        elseif($hasWrong){$null=$wrongConnections.Add($connectionIdentity)}
+-    }
+-    $routeValid=$expectedConnections.Count-ge 2-and$wrongConnections.Count-eq 0-and$contradictoryConnections.Count-eq 0-and$outsideRoutes.Count-eq 0
+-    if($contradictoryConnections.Count-gt 0-or($expectedConnections.Count-gt 0-and$wrongConnections.Count-gt 0)){$contamination.Add('contradictory browser route records')}
+-    elseif($wrongConnections.Count-ge 2){
+-        $externalWrongActionProof=$clientContractValid-and$serverCapture-and$serverResourcesValid-and$routeCapture
++    $expectedRoutes=@($insideRoutes|Where-Object{[string]$_.action-eq[string]$ExecutionPlan.expected_action})
++    $wrongRoutes=@($insideRoutes|Where-Object{-not[string]::IsNullOrWhiteSpace([string]$_.action)-and[string]$_.action-ne[string]$ExecutionPlan.expected_action})
++    $routeValid=$expectedRoutes.Count-ge 1-and$wrongRoutes.Count-eq 0-and$outsideRoutes.Count-eq 0
++    if($expectedRoutes.Count-gt 0-and$wrongRoutes.Count-gt 0){$contamination.Add('contradictory browser route records')}
++    elseif($wrongRoutes.Count-gt 0){
++        $externalWrongActionProof=$clientContractValid-and$serverCapture-and$serverResourcesValid-and$originConnectionsDistinct-and$routeCapture
+         if($externalWrongActionProof){$product.Add('browser flow wrong ProxyBridge action')}else{$missing.Add('complete browser wrong-action proof')}
+     }
+-    elseif($expectedConnections.Count-lt 2){$missing.Add('two distinct browser TCP route decisions')}
++    elseif($expectedRoutes.Count-eq 0){$missing.Add('browser expected-action route corroboration')}
+ 
+     if(-not[bool]$ClientResult.timed_out-and[int]$ClientResult.exit_code-ne 0-and$product.Count-eq 0){$harness.Add("browser worker exit code $($ClientResult.exit_code)")}
+     $outcome='PASS'
+@@ -468,12 +451,12 @@ function Test-BrowserProtocolScenarioAssertions {
+         [pscustomobject][ordered]@{channel='client_plan';mandatory=$true;requested=$true;captured=$true;parsed=$true;validated=$true},
+         [pscustomobject][ordered]@{channel='client_jsonl';mandatory=$true;requested=$true;captured=($clientRecords.Count-gt 0);parsed=($clientRecords.Count-gt 0);validated=($clientRecords.Count-eq 1-and$clientContractValid)},
+         [pscustomobject][ordered]@{channel='endpoint_query';mandatory=$true;requested=$true;captured=$serverCapture;parsed=$serverCapture;validated=$serverCapture},
+-        [pscustomobject][ordered]@{channel='endpoint_jsonl';mandatory=$true;requested=$true;captured=($ServerRecords.Count-gt 0);parsed=$serverCapture;validated=$serverResourcesValid},
++        [pscustomobject][ordered]@{channel='endpoint_jsonl';mandatory=$true;requested=$true;captured=($ServerRecords.Count-gt 0);parsed=$serverCapture;validated=($serverResourcesValid-and$originConnectionsDistinct)},
+         [pscustomobject][ordered]@{channel='proxybridge_records';mandatory=$true;requested=$routeCapture;captured=($insideRoutes.Count-gt 0);parsed=$routeCapture;validated=$routeValid},
+         [pscustomobject][ordered]@{channel='cleanup';mandatory=$true;requested=$true;captured=$clientContractValid;parsed=$clientContractValid;validated=($clientContractValid-and$cleanupVerified)},
+         [pscustomobject][ordered]@{channel='assertion_result';mandatory=$true;requested=$true;captured=$true;parsed=$true;validated=($contamination.Count-eq 0-and$harness.Count-eq 0)}
+     )
+-    return [pscustomobject][ordered]@{passed=($outcome-eq'PASS');outcome=$outcome;product_errors=@($product|Sort-Object -Unique);harness_errors=@($harness|Sort-Object -Unique);missing_evidence=@($missing|Sort-Object -Unique);contamination=@($contamination|Sort-Object -Unique);errors=@($errors|Sort-Object -Unique);channel_capture_completed=$routeCapture;records_found=($insideRoutes.Count-gt 0);route_evidence_required=$true;external_route_proof_complete=($serverCapture-and$serverResourcesValid-and$routeValid);evidence_basis='BROWSER_CLIENT+ORIGIN_PAGE_DOWNLOAD+VERIFIED_PROCESS_TREE_ROUTES';run_mode=$RunMode;evidence_completeness=$completeness}
++    return [pscustomobject][ordered]@{passed=($outcome-eq'PASS');outcome=$outcome;product_errors=@($product|Sort-Object -Unique);harness_errors=@($harness|Sort-Object -Unique);missing_evidence=@($missing|Sort-Object -Unique);contamination=@($contamination|Sort-Object -Unique);errors=@($errors|Sort-Object -Unique);channel_capture_completed=$routeCapture;records_found=($insideRoutes.Count-gt 0);route_evidence_required=$true;external_route_proof_complete=($serverCapture-and$serverResourcesValid-and$originConnectionsDistinct-and$routeValid);evidence_basis='BROWSER_CLIENT+DISTINCT_ORIGIN_PAGE_DOWNLOAD+VERIFIED_PROCESS_TREE_ROUTE';run_mode=$RunMode;evidence_completeness=$completeness}
+ }
+ 
+ function Test-ProtocolScenarioAssertions {
+@@ -698,8 +681,8 @@ function Invoke-MockBrowserProtocolScenario {
+         })
+     }
+     $routeLines=@(
+-        "2030-01-01T00:00:01Z $($ExecutionPlan.expected_process) ($rootPid) from 192.0.2.20:32001 -> $($ExecutionPlan.remote_host):$($ExecutionPlan.remote_port) via $($fixture.route_text)",
+-        "2030-01-01T00:00:02Z $($ExecutionPlan.expected_process) ($rootPid) from 192.0.2.20:32002 -> $($ExecutionPlan.remote_host):$($ExecutionPlan.remote_port) via $($fixture.route_text)"
++        "2030-01-01T00:00:01Z $($ExecutionPlan.expected_process) ($rootPid) -> $($ExecutionPlan.remote_host):$($ExecutionPlan.remote_port) via $($fixture.route_text)",
++        "2030-01-01T00:00:02Z $($ExecutionPlan.expected_process) ($rootPid) -> $($ExecutionPlan.remote_host):$($ExecutionPlan.remote_port) via $($fixture.route_text)"
+     )
+     $routes=@(ConvertFrom-ProxyBridgeTextLines -Lines $routeLines -DefaultTimestampUtc ([datetime]'2030-01-01T00:00:00Z'))
+     [System.IO.File]::WriteAllText([string]$ExecutionPlan.client_jsonl_path,(($client|ConvertTo-Json -Compress -Depth 20)+[Environment]::NewLine),$script:ProtocolUtf8NoBom)
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix2/tests/Test-ProtocolRunner.ps1" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix3/tests/Test-ProtocolRunner.ps1"
+index a05bfc4..4ac2fa0 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix2/tests/Test-ProtocolRunner.ps1"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix3/tests/Test-ProtocolRunner.ps1"
+@@ -162,10 +162,6 @@ try {
+     Assert-SequenceEqual @() @($browserPlan.worker_plan.parameters.browser_arguments) 'browser UI/scenario cannot inject launch arguments'
+ 
+     $browserMock=Invoke-MockProtocolScenario -Scenario $browserScenario -ExecutionPlan $browserPlan -FixtureRoot (Join-Path $root 'tests/fixtures/mock')
+-    for($routeIndex=0;$routeIndex-lt@($browserMock.proxybridge_records).Count;$routeIndex++){
+-        $browserMock.proxybridge_records[$routeIndex]|Add-Member -NotePropertyName local_ip -NotePropertyValue '192.0.2.20' -Force
+-        $browserMock.proxybridge_records[$routeIndex]|Add-Member -NotePropertyName local_port -NotePropertyValue (32001+$routeIndex) -Force
+-    }
+     $browserPass=Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $browserMock.client_result -ServerRecords @($browserMock.server_records) -ProxyBridgeRecords @($browserMock.proxybridge_records) -EvidenceContext $browserMock.evidence_context -RunMode mock
+     Assert-Equal 'PASS' $browserPass.outcome 'truthful generated browser fixture must pass'
+     Assert-Equal 1 @($browserMock.client_result.records).Count 'browser mock must emit exactly one canonical client completion'
+@@ -197,9 +193,28 @@ try {
+     foreach($route in @($outsideTree.proxybridge_records)){$route.pid=9999}
+     Assert-Equal 'CONTAMINATED' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $outsideTree.client_result -ServerRecords @($outsideTree.server_records) -ProxyBridgeRecords @($outsideTree.proxybridge_records) -EvidenceContext $outsideTree.evidence_context -RunMode mock).outcome 'browser route from outside verified process tree must be contamination'
+ 
++    $fixRound3Failures=[System.Collections.Generic.List[string]]::new()
+     $oneRoute=Copy-TestObject $browserMock
+     $oneRoute.proxybridge_records=@($oneRoute.proxybridge_records | Select-Object -First 1)
+-    Assert-Equal 'HOLD_AMBIGUOUS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $oneRoute.client_result -ServerRecords @($oneRoute.server_records) -ProxyBridgeRecords @($oneRoute.proxybridge_records) -EvidenceContext $oneRoute.evidence_context -RunMode mock).outcome 'one browser route decision cannot prove two closed HTTP responses'
++    Add-FixRoundOutcomeMismatch $fixRound3Failures 'one expected browser route corroborates two origin connections' 'PASS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $oneRoute.client_result -ServerRecords @($oneRoute.server_records) -ProxyBridgeRecords @($oneRoute.proxybridge_records) -EvidenceContext $oneRoute.evidence_context -RunMode mock).outcome
++
++    $legacyRouteBrowser=Copy-TestObject $browserMock
++    $legacyRouteBrowser.proxybridge_records=@(ConvertFrom-ProxyBridgeTextLines -Lines @(
++        "2030-01-01T00:00:01Z $($browserPlan.expected_process) (6100) -> $($browserPlan.remote_host):$($browserPlan.remote_port) via Direct"
++    ))
++    Add-FixRoundOutcomeMismatch $fixRound3Failures 'documented route without local endpoint' 'PASS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $legacyRouteBrowser.client_result -ServerRecords @($legacyRouteBrowser.server_records) -ProxyBridgeRecords @($legacyRouteBrowser.proxybridge_records) -EvidenceContext $legacyRouteBrowser.evidence_context -RunMode mock).outcome
++
++    $missingRoute=Copy-TestObject $browserMock
++    $missingRoute.proxybridge_records=@()
++    Add-FixRoundOutcomeMismatch $fixRound3Failures 'missing mandatory browser route corroboration' 'HOLD_AMBIGUOUS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $missingRoute.client_result -ServerRecords @($missingRoute.server_records) -ProxyBridgeRecords @($missingRoute.proxybridge_records) -EvidenceContext $missingRoute.evidence_context -RunMode mock).outcome
++
++    $equalServerRemotePorts=Copy-TestObject $browserMock
++    $equalServerRemotePorts.server_records[1].remote_port=$equalServerRemotePorts.server_records[0].remote_port
++    Add-FixRoundOutcomeMismatch $fixRound3Failures 'equal browser origin client ports' 'HOLD_AMBIGUOUS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $equalServerRemotePorts.client_result -ServerRecords @($equalServerRemotePorts.server_records) -ProxyBridgeRecords @($equalServerRemotePorts.proxybridge_records) -EvidenceContext $equalServerRemotePorts.evidence_context -RunMode mock).outcome
++
++    $malformedServerRemotePort=Copy-TestObject $browserMock
++    $malformedServerRemotePort.server_records[0].remote_port='51001'
++    Add-FixRoundOutcomeMismatch $fixRound3Failures 'string browser origin client port' 'FAIL_HARNESS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $malformedServerRemotePort.client_result -ServerRecords @($malformedServerRemotePort.server_records) -ProxyBridgeRecords @($malformedServerRemotePort.proxybridge_records) -EvidenceContext $malformedServerRemotePort.evidence_context -RunMode mock).outcome
+ 
+     $contradictoryRoute=Copy-TestObject $browserMock
+     $wrongRoute=Copy-TestObject @($contradictoryRoute.proxybridge_records)[0]
+@@ -220,12 +235,6 @@ try {
+     Assert-Equal 'FAIL_HARNESS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $malformedServer.client_result -ServerRecords @($malformedServer.server_records) -ProxyBridgeRecords @($malformedServer.proxybridge_records) -EvidenceContext $malformedServer.evidence_context -RunMode mock).outcome 'malformed browser server evidence cannot pass'
+ 
+     $fixRoundFailures=[System.Collections.Generic.List[string]]::new()
+-    $duplicateConnection=Copy-TestObject $browserMock
+-    $duplicateConnection.proxybridge_records[1].pid=$duplicateConnection.proxybridge_records[0].pid
+-    $duplicateConnection.proxybridge_records[1].local_ip=$duplicateConnection.proxybridge_records[0].local_ip
+-    $duplicateConnection.proxybridge_records[1].local_port=$duplicateConnection.proxybridge_records[0].local_port
+-    Add-FixRoundOutcomeMismatch $fixRoundFailures 'duplicate same browser connection' 'HOLD_AMBIGUOUS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $duplicateConnection.client_result -ServerRecords @($duplicateConnection.server_records) -ProxyBridgeRecords @($duplicateConnection.proxybridge_records) -EvidenceContext $duplicateConnection.evidence_context -RunMode mock).outcome
+-
+     $wrongNavigationDigest=Copy-TestObject $browserMock
+     $wrongNavigationDigest.client_result.records[0].navigation_url_digest=('0'*64)
+     Add-FixRoundOutcomeMismatch $fixRoundFailures 'wrong navigation URL digest' 'CONTAMINATED' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $wrongNavigationDigest.client_result -ServerRecords @($wrongNavigationDigest.server_records) -ProxyBridgeRecords @($wrongNavigationDigest.proxybridge_records) -EvidenceContext $wrongNavigationDigest.evidence_context -RunMode mock).outcome
+@@ -266,25 +275,31 @@ try {
+     $stringCleanup.client_result.records[0].process_tree_cleaned='false'
+     Add-FixRoundOutcomeMismatch $fixRoundFailures 'string false browser cleanup' 'FAIL_HARNESS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $stringCleanup.client_result -ServerRecords @($stringCleanup.server_records) -ProxyBridgeRecords @($stringCleanup.proxybridge_records) -EvidenceContext $stringCleanup.evidence_context -RunMode mock).outcome
+ 
+-    $singleWrongAction=Copy-TestObject $browserMock
+-    $singleWrongAction.proxybridge_records=@($singleWrongAction.proxybridge_records|Select-Object -First 1)
+-    $singleWrongAction.proxybridge_records[0].action='BLOCK'
+-    Add-FixRoundOutcomeMismatch $fixRoundFailures 'one wrong-action browser connection' 'HOLD_AMBIGUOUS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $singleWrongAction.client_result -ServerRecords @($singleWrongAction.server_records) -ProxyBridgeRecords @($singleWrongAction.proxybridge_records) -EvidenceContext $singleWrongAction.evidence_context -RunMode mock).outcome
+     if($fixRoundFailures.Count-gt 0){throw "FIX ROUND 1 RED: $($fixRoundFailures -join '; ')"}
+ 
+-    $fixRound2Failures=[System.Collections.Generic.List[string]]::new()
+-    $samePidDistinctLocalPorts=Copy-TestObject $browserMock
+-    $samePidDistinctLocalPorts.proxybridge_records[1].pid=$samePidDistinctLocalPorts.proxybridge_records[0].pid
+-    Add-FixRoundOutcomeMismatch $fixRound2Failures 'same browser PID with distinct local ports' 'PASS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $samePidDistinctLocalPorts.client_result -ServerRecords @($samePidDistinctLocalPorts.server_records) -ProxyBridgeRecords @($samePidDistinctLocalPorts.proxybridge_records) -EvidenceContext $samePidDistinctLocalPorts.evidence_context -RunMode mock).outcome
++    $duplicateConnection=Copy-TestObject $browserMock
++    $duplicateConnection.proxybridge_records[1].pid=$duplicateConnection.proxybridge_records[0].pid
++    $duplicateConnection.proxybridge_records[1].local_ip=$duplicateConnection.proxybridge_records[0].local_ip
++    $duplicateConnection.proxybridge_records[1].local_port=$duplicateConnection.proxybridge_records[0].local_port
++    Add-FixRoundOutcomeMismatch $fixRound3Failures 'duplicate internal route observations are corroboration only' 'PASS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $duplicateConnection.client_result -ServerRecords @($duplicateConnection.server_records) -ProxyBridgeRecords @($duplicateConnection.proxybridge_records) -EvidenceContext $duplicateConnection.evidence_context -RunMode mock).outcome
+ 
+     $missingLocalEndpoint=Copy-TestObject $browserMock
+     $missingLocalEndpoint.proxybridge_records[0]=$missingLocalEndpoint.proxybridge_records[0]|Select-Object * -ExcludeProperty local_ip,local_port
+-    Add-FixRoundOutcomeMismatch $fixRound2Failures 'missing browser local endpoint' 'FAIL_HARNESS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $missingLocalEndpoint.client_result -ServerRecords @($missingLocalEndpoint.server_records) -ProxyBridgeRecords @($missingLocalEndpoint.proxybridge_records) -EvidenceContext $missingLocalEndpoint.evidence_context -RunMode mock).outcome
++    Add-FixRoundOutcomeMismatch $fixRound3Failures 'missing optional internal local endpoint' 'PASS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $missingLocalEndpoint.client_result -ServerRecords @($missingLocalEndpoint.server_records) -ProxyBridgeRecords @($missingLocalEndpoint.proxybridge_records) -EvidenceContext $missingLocalEndpoint.evidence_context -RunMode mock).outcome
+ 
+     $malformedLocalEndpoint=Copy-TestObject $browserMock
+     $malformedLocalEndpoint.proxybridge_records[0].local_port='32001'
+-    Add-FixRoundOutcomeMismatch $fixRound2Failures 'malformed browser local endpoint' 'FAIL_HARNESS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $malformedLocalEndpoint.client_result -ServerRecords @($malformedLocalEndpoint.server_records) -ProxyBridgeRecords @($malformedLocalEndpoint.proxybridge_records) -EvidenceContext $malformedLocalEndpoint.evidence_context -RunMode mock).outcome
+-    if($fixRound2Failures.Count-gt 0){throw "FIX ROUND 2 RED: $($fixRound2Failures -join '; ')"}
++    Add-FixRoundOutcomeMismatch $fixRound3Failures 'malformed optional internal local endpoint' 'PASS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $malformedLocalEndpoint.client_result -ServerRecords @($malformedLocalEndpoint.server_records) -ProxyBridgeRecords @($malformedLocalEndpoint.proxybridge_records) -EvidenceContext $malformedLocalEndpoint.evidence_context -RunMode mock).outcome
++
++    $singleWrongAction=Copy-TestObject $browserMock
++    $singleWrongAction.proxybridge_records=@($singleWrongAction.proxybridge_records|Select-Object -First 1)
++    $singleWrongAction.proxybridge_records[0].action='BLOCK'
++    Add-FixRoundOutcomeMismatch $fixRound3Failures 'one wrong-action route with complete external connections' 'FAIL_PRODUCT' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $singleWrongAction.client_result -ServerRecords @($singleWrongAction.server_records) -ProxyBridgeRecords @($singleWrongAction.proxybridge_records) -EvidenceContext $singleWrongAction.evidence_context -RunMode mock).outcome
++
++    $incompleteWrongAction=Copy-TestObject $singleWrongAction
++    $incompleteWrongAction.server_records=@($incompleteWrongAction.server_records|Where-Object resource -ne 'download')
++    Add-FixRoundOutcomeMismatch $fixRound3Failures 'one wrong-action route with incomplete external connections' 'HOLD_AMBIGUOUS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $incompleteWrongAction.client_result -ServerRecords @($incompleteWrongAction.server_records) -ProxyBridgeRecords @($incompleteWrongAction.proxybridge_records) -EvidenceContext $incompleteWrongAction.evidence_context -RunMode mock).outcome
++    if($fixRound3Failures.Count-gt 0){throw "FIX ROUND 3 RED: $($fixRound3Failures -join '; ')"}
+ 
+     $blockScenario=New-Scenario 'BLOCK'
+     $blockPlan=New-ProtocolExecutionPlan -Scenario $blockScenario -Environment $environment -RunId 'protocol-block-run' -Attempt 1 -EvidenceDirectory (Join-Path $temp 'block') -RuntimeContracts $runtimeContracts -OperationTimeoutCapMs 5000 -ProcessExitGraceMs 2000

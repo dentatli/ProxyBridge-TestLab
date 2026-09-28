@@ -1,0 +1,337 @@
+diff --git a/src/server_agent/negative_proxy.py b/src/server_agent/negative_proxy.py
+new file mode 100644
+--- /dev/null
++++ b/src/server_agent/negative_proxy.py
+@@ -0,0 +1,79 @@
++from __future__ import annotations
++
++import hashlib
++import re
++from typing import Any
++
++
++class NegativeProxyContractError(ValueError):
++    def __init__(self, code: str) -> None:
++        super().__init__(code)
++        self.code = code
++
++
++_IDENTITY = "testlab-isolated-negative-socks5-v1"
++_ATTEMPT_ID_MAX_LENGTH = 64
++_ATTEMPT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
++
++
++def validate_negative_proxy_config(value: object, allocated_ports: set[int] | None = None) -> dict[str, Any]:
++    if not isinstance(value, dict) or set(value) != {"enabled", "identity", "auth_port", "unavailable_port"}:
++        raise NegativeProxyContractError("NEGATIVE_PROXY_CONFIG_FIELDS_INVALID")
++    if value["enabled"] is not False:
++        raise NegativeProxyContractError("NEGATIVE_PROXY_RUNTIME_DISABLED")
++    if value["identity"] != _IDENTITY:
++        raise NegativeProxyContractError("NEGATIVE_PROXY_IDENTITY_INVALID")
++    auth_port = value["auth_port"]
++    unavailable_port = value["unavailable_port"]
++    if (isinstance(auth_port, bool) or not isinstance(auth_port, int) or auth_port < 1 or auth_port > 65535 or
++            isinstance(unavailable_port, bool) or not isinstance(unavailable_port, int) or unavailable_port < 1 or unavailable_port > 65535 or
++            auth_port == unavailable_port):
++        raise NegativeProxyContractError("NEGATIVE_PROXY_PORTS_INVALID")
++    if allocated_ports is not None and (auth_port in allocated_ports or unavailable_port in allocated_ports):
++        raise NegativeProxyContractError("NEGATIVE_PROXY_PORT_COLLISION")
++    return {
++        "semantic_version": 1,
++        "identity": _IDENTITY,
++        "auth_listener_state": "NOT_VERIFIED",
++        "unavailable_state": "NOT_VERIFIED",
++        "proof_required": True,
++        "relay_count": 0,
++    }
++
++
++def evaluate_socks5_auth_attempt(greeting: bytes, authentication: bytes, attempt_id: str) -> dict[str, Any]:
++    if not isinstance(attempt_id, str) or len(attempt_id) > _ATTEMPT_ID_MAX_LENGTH or not _ATTEMPT_ID.fullmatch(attempt_id):
++        raise NegativeProxyContractError("NEGATIVE_PROXY_ATTEMPT_ID_INVALID")
++    if len(greeting) < 2 or greeting[0] != 5 or greeting[1] == 0 or len(greeting) != greeting[1] + 2 or 2 not in greeting[2:]:
++        raise NegativeProxyContractError("NEGATIVE_PROXY_METHOD_NEGOTIATION_INVALID")
++    if len(authentication) < 3 or authentication[0] != 1:
++        raise NegativeProxyContractError("NEGATIVE_PROXY_AUTH_FRAME_INVALID")
++    username_length = authentication[1]
++    username_end = 2 + username_length
++    if username_length == 0 or username_end >= len(authentication):
++        raise NegativeProxyContractError("NEGATIVE_PROXY_AUTH_FRAME_INVALID")
++    password_length = authentication[username_end]
++    if password_length == 0 or username_end + 1 + password_length != len(authentication):
++        raise NegativeProxyContractError("NEGATIVE_PROXY_AUTH_FRAME_INVALID")
++    try:
++        attempt_bytes = attempt_id.encode("ascii", "strict")
++    except UnicodeEncodeError as exc:
++        raise NegativeProxyContractError("NEGATIVE_PROXY_ATTEMPT_ID_INVALID") from exc
++    principal_digest = hashlib.sha256(
++        b"proxybridge-testlab-negative-proxy-v1\0" + attempt_bytes + b"\0" + authentication[2:username_end]
++    ).hexdigest()
++    return {
++        "method_reply": b"\x05\x02",
++        "auth_reply": b"\x01\x01",
++        "auth_rejected": True,
++        "principal_digest": principal_digest,
++        "relay_count": 0,
++    }
++
++
++def self_test(config: object) -> dict[str, Any]:
++    semantic = validate_negative_proxy_config(config)
++    attempt = evaluate_socks5_auth_attempt(b"\x05\x02\x00\x02", b"\x01\x01x\x01y", "negative-proxy-self-test")
++    if attempt["auth_reply"] != b"\x01\x01" or attempt["relay_count"] != 0 or len(attempt["principal_digest"]) != 64:
++        raise NegativeProxyContractError("NEGATIVE_PROXY_SELF_TEST_FAILED")
++    return semantic
+diff --git a/src/server_agent/pb_protocol_server.py b/src/server_agent/pb_protocol_server.py
+--- a/src/server_agent/pb_protocol_server.py
++++ b/src/server_agent/pb_protocol_server.py
+@@ -50,7 +50,7 @@
+         raise ProtocolServerError("CONFIG_JSON_INVALID") from exc
+     if not isinstance(value, dict) or value.get("schema_version") != 1:
+         raise ProtocolServerError("CONFIG_SCHEMA_UNSUPPORTED")
+-    required = {"bind_ipv4", "bind_ipv6", "jsonl_log", "dns", "http", "tls", "https", "http2", "quic_http3", "websocket", "grpc", "webtransport", "ftp", "ftp_data", "smtp", "smtps", "imap", "imaps", "pop3", "pop3s", "mqtt", "mqtts", "amqp", "amqps", "ntp", "irc", "ircs", "multipeer", "stun_turn", "rtp_media", "receive_only", "failure_control"}
++    required = {"bind_ipv4", "bind_ipv6", "jsonl_log", "dns", "http", "tls", "https", "http2", "quic_http3", "websocket", "grpc", "webtransport", "ftp", "ftp_data", "smtp", "smtps", "imap", "imaps", "pop3", "pop3s", "mqtt", "mqtts", "amqp", "amqps", "ntp", "irc", "ircs", "multipeer", "stun_turn", "rtp_media", "receive_only", "failure_control", "negative_proxy"}
+     if not required.issubset(value):
+         raise ProtocolServerError("CONFIG_REQUIRED_FIELD_MISSING")
+     allow_ephemeral = value.get("allow_ephemeral_ports", False) is True
+@@ -63,6 +63,14 @@
+         if not isinstance(item, dict) or isinstance(item.get("port"), bool) or not isinstance(item.get("port"), int) or item["port"] < minimum_port or item["port"] > 65535:
+             raise ProtocolServerError("CONFIG_PORT_INVALID")
+         ports.append(item["port"])
++    try:
++        from negative_proxy import validate_negative_proxy_config
++        validate_negative_proxy_config(value["negative_proxy"], set(ports))
++    except ImportError as exc:
++        raise ProtocolServerError("NEGATIVE_PROXY_MODULE_UNAVAILABLE") from exc
++    except ValueError as exc:
++        raise ProtocolServerError(str(exc)) from exc
++    ports.extend([value["negative_proxy"]["auth_port"], value["negative_proxy"]["unavailable_port"]])
+     nonzero_ports = [port for port in ports if port != 0]
+     if len(set(nonzero_ports)) != len(nonzero_ports):
+         raise ProtocolServerError("CONFIG_PORT_DUPLICATE")
+@@ -807,6 +815,11 @@
+         config = _load_config(Path(arguments.config))
+         _ssl_context(config, ())
+         _quic_configuration(config)
++        try:
++            from negative_proxy import self_test as negative_proxy_self_test
++            negative_proxy_self_test(config["negative_proxy"])
++        except ImportError as exc:
++            raise ProtocolServerError("NEGATIVE_PROXY_MODULE_UNAVAILABLE") from exc
+         if arguments.self_test:
+             print("PROTOCOL_SERVER_SELF_TEST_OK services=29")
+             return 0
+diff --git a/ui/ProxyBridge.TestLab.Ui/Services/ServerArtifactBuilder.cs b/ui/ProxyBridge.TestLab.Ui/Services/ServerArtifactBuilder.cs
+--- a/ui/ProxyBridge.TestLab.Ui/Services/ServerArtifactBuilder.cs
++++ b/ui/ProxyBridge.TestLab.Ui/Services/ServerArtifactBuilder.cs
+@@ -70,6 +70,13 @@
+             ,rtp_media = new { port = portCatalog["realtime_start"] }
+             ,receive_only = new { port = portCatalog["realtime_start"] + 1 }
+             ,failure_control = new { port = portCatalog["failure_control"] }
++            ,negative_proxy = new
++            {
++                enabled = false,
++                identity = "testlab-isolated-negative-socks5-v1",
++                auth_port = portCatalog["negative_proxy"],
++                unavailable_port = portCatalog["negative_proxy_unavailable"]
++            }
+         }, new JsonSerializerOptions { WriteIndented = true });
+         var runtimeFiles = new SortedDictionary<string, byte[]>(StringComparer.Ordinal)
+         {
+@@ -80,6 +87,7 @@
+             ["standard_protocols.py"] = ReadPublicFile("src", "server_agent", "standard_protocols.py"),
+             ["realtime_protocols.py"] = ReadPublicFile("src", "server_agent", "realtime_protocols.py"),
+             ["failure_protocols.py"] = ReadPublicFile("src", "server_agent", "failure_protocols.py"),
++            ["negative_proxy.py"] = ReadPublicFile("src", "server_agent", "negative_proxy.py"),
+             ["plugins/catalog.json"] = ReadPublicFile("src", "server_agent", "plugins", "catalog.json"),
+             ["protocol-server-config.json"] = protocolConfig,
+             ["tls/ca.pem"] = certificates.CaCertificatePem,
+diff --git a/tests/Test-ServerProvisioning.ps1 b/tests/Test-ServerProvisioning.ps1
+--- a/tests/Test-ServerProvisioning.ps1
++++ b/tests/Test-ServerProvisioning.ps1
+@@ -18,6 +18,8 @@
+     $program = Get-Content -LiteralPath (Join-Path $uiRoot 'Program.cs') -Raw
+     $transport = Get-Content -LiteralPath (Join-Path $uiRoot 'Services\ServerTransport.cs') -Raw
+     $artifactBuilder = Get-Content -LiteralPath (Join-Path $uiRoot 'Services\ServerArtifactBuilder.cs') -Raw
++    $protocolServer = Get-Content -LiteralPath (Join-Path $repoRoot 'src\server_agent\pb_protocol_server.py') -Raw -Encoding UTF8
++    $serverProbe = Get-Content -LiteralPath (Join-Path $repoRoot 'ui\ProxyBridge.TestLab.Ui.ServerProbe\Program.cs') -Raw -Encoding UTF8
+     $schema = Get-Content -LiteralPath (Join-Path $uiRoot 'Services\SettingsSchema.cs') -Raw
+     $javascript = Get-Content -LiteralPath (Join-Path $uiRoot 'wwwroot\app.js') -Raw
+ 
+@@ -40,6 +42,8 @@
+     Assert-True ($transport -match 'chmod 0600 "\$version/tls/server\.key\.pem"') 'protocol private key must remain readable only by the service account'
+     Assert-True ($artifactBuilder -match 'ExecStartPre=.+pb_server_agent\.py --self-test') 'systemd readiness must run the server plugin self-test before endpoint start'
+     Assert-True ($artifactBuilder -match 'ExecStartPre=.+pb_protocol_server\.py --self-test' -and $artifactBuilder -match 'pb_server_agent\.py --serve') 'protocol server must be self-tested and supervised by the endpoint agent'
++    Assert-True ($protocolServer -match 'print\("PROTOCOL_SERVER_SELF_TEST_OK services=29"\)') 'protocol self-test output must preserve the exact transport-verified contract'
++    Assert-True ($serverProbe -match 'relative is .+"negative_proxy\.py"') 'safe protocol fixture export must include the negative-proxy artifact'
+     $protocolSmoke = Get-Content -LiteralPath (Join-Path $repoRoot 'scripts\Invoke-ProtocolOnlySmoke.ps1') -Raw
+     Assert-True ($protocolSmoke -match "'protocol-dns-udp-direct'" -and $protocolSmoke -match "'protocol-https-direct'") 'protocol-only smoke must cover DNS through HTTPS'
+     Assert-True ($protocolSmoke -match 'proxybridge_started=\$false') 'protocol-only smoke must explicitly prove that product startup is absent'
+diff --git a/tests/fixtures/failure-control/contract_test.py b/tests/fixtures/failure-control/contract_test.py
+--- a/tests/fixtures/failure-control/contract_test.py
++++ b/tests/fixtures/failure-control/contract_test.py
+@@ -6,6 +6,11 @@
+ sys.path.insert(0, str(root / "src" / "server_agent"))
+ 
+ from failure_control import FailureControlError, execute_failure_control_request
++from negative_proxy import (
++    NegativeProxyContractError,
++    evaluate_socks5_auth_attempt,
++    validate_negative_proxy_config,
++)
+ 
+ 
+ class FakeAdapter:
+@@ -87,4 +92,92 @@
+ else:
+     raise AssertionError("restart must produce a new invocation identity")
+ 
++
++NEGATIVE_PROXY_CONFIG = {
++    "enabled": False,
++    "auth_port": 46080,
++    "unavailable_port": 46081,
++    "identity": "testlab-isolated-negative-socks5-v1",
++}
++
++def expect_negative_error(callback, code):
++    try:
++        callback()
++    except NegativeProxyContractError as error:
++        assert error.code == code, (error.code, code)
++        return
++    raise AssertionError(f"expected {code}")
++
++
++def auth_frame(password: bytes) -> bytes:
++    return b"\x01\x0cfixture-user" + bytes([len(password)]) + password
++
++
++def assert_negative_proxy_regressions() -> None:
++    failures = []
++
++    def check(name, callback):
++        try:
++            callback()
++        except (AssertionError, NegativeProxyContractError, TypeError) as error:
++            failures.append(name + ":" + str(error))
++
++    check("planned-artifacts", lambda: assert_planned_artifacts_empty())
++    check("not-verified-state", lambda: assert_not_verified_state())
++    check("multi-method", lambda: assert_multi_method_rejected_auth())
++    check("password-independent-digest", lambda: assert_password_independent_digest())
++    check("global-port-collision", lambda: expect_negative_error(
++        lambda: validate_negative_proxy_config(NEGATIVE_PROXY_CONFIG, {46080}), "NEGATIVE_PROXY_PORT_COLLISION"))
++    check("global-unavailable-port-collision", lambda: expect_negative_error(
++        lambda: validate_negative_proxy_config(NEGATIVE_PROXY_CONFIG, {46081}), "NEGATIVE_PROXY_PORT_COLLISION"))
++    check("invalid-attempt", lambda: expect_negative_error(
++        lambda: evaluate_socks5_auth_attempt(b"\x05\x01\x02", auth_frame(b"x"), "invalid attempt"),
++        "NEGATIVE_PROXY_ATTEMPT_ID_INVALID"))
++    check("truncated-greeting", lambda: expect_negative_error(
++        lambda: evaluate_socks5_auth_attempt(b"\x05\x02\x02", auth_frame(b"x"), "attempt-negative-proxy-1"),
++        "NEGATIVE_PROXY_METHOD_NEGOTIATION_INVALID"))
++    check("truncated-auth", lambda: expect_negative_error(
++        lambda: evaluate_socks5_auth_attempt(b"\x05\x01\x02", b"\x01\x0cfixture-user", "attempt-negative-proxy-1"),
++        "NEGATIVE_PROXY_AUTH_FRAME_INVALID"))
++    if failures:
++        raise AssertionError("NEGATIVE_PROXY_REGRESSION_RED: " + " | ".join(failures))
++
++
++def assert_planned_artifacts_empty() -> None:
++    catalog = json.loads((root / "src" / "server_agent" / "plugins" / "catalog.json").read_text(encoding="utf-8"))
++    negative = next(item for item in catalog["plugins"] if item["id"] == "negative-proxy")
++    assert negative["implementation_status"] == "PLANNED"
++    assert negative["artifacts"] == []
++
++
++def assert_not_verified_state() -> None:
++    semantic = validate_negative_proxy_config(NEGATIVE_PROXY_CONFIG)
++    assert semantic["auth_listener_state"] == "NOT_VERIFIED"
++    assert semantic["unavailable_state"] == "NOT_VERIFIED"
++    assert semantic["proof_required"] is True
++    assert semantic["relay_count"] == 0
++
++
++def assert_multi_method_rejected_auth() -> None:
++    attempt = evaluate_socks5_auth_attempt(
++        b"\x05\x02\x00\x02", auth_frame(b"fixture-password"), "attempt-negative-proxy-1")
++    assert attempt["method_reply"] == b"\x05\x02"
++    assert attempt["auth_reply"] == b"\x01\x01"
++    assert attempt["auth_rejected"] is True
++    assert attempt["relay_count"] == 0
++    assert len(attempt["principal_digest"]) == 64
++    assert "fixture-user" not in str(attempt)
++    assert "fixture-password" not in str(attempt)
++
++
++def assert_password_independent_digest() -> None:
++    first = evaluate_socks5_auth_attempt(b"\x05\x01\x02", auth_frame(b"first-password"), "attempt-negative-proxy-1")
++    second = evaluate_socks5_auth_attempt(b"\x05\x01\x02", auth_frame(b"second-password"), "attempt-negative-proxy-1")
++    assert first["principal_digest"] == second["principal_digest"]
++
++
++assert_negative_proxy_regressions()
++
++expect_negative_error(lambda: validate_negative_proxy_config({**NEGATIVE_PROXY_CONFIG, "enabled": True}), "NEGATIVE_PROXY_RUNTIME_DISABLED")
++
+ print("PASS: offline failure-control contract")
+diff --git a/config/server-protocol-ports.json b/config/server-protocol-ports.json
+--- a/config/server-protocol-ports.json
++++ b/config/server-protocol-ports.json
+@@ -34,6 +34,7 @@
+     "realtime_end": 43031,
+     "failure_control": 42701,
+     "negative_proxy": 42702,
++    "negative_proxy_unavailable": 42704,
+     "impairment_control": 42703,
+     "performance": 42501
+   },
+diff --git a/ui/ProxyBridge.TestLab.Ui/Services/ServerProtocolPortCatalog.cs b/ui/ProxyBridge.TestLab.Ui/Services/ServerProtocolPortCatalog.cs
+--- a/ui/ProxyBridge.TestLab.Ui/Services/ServerProtocolPortCatalog.cs
++++ b/ui/ProxyBridge.TestLab.Ui/Services/ServerProtocolPortCatalog.cs
+@@ -13,7 +13,7 @@
+         "ftp_control", "ftp_data_start", "ftp_data_end", "sftp", "smtp", "smtps", "imap", "imaps",
+         "pop3", "pop3s", "mqtt", "mqtts", "amqp", "amqps", "ntp", "irc", "ircs", "stun_turn",
+         "turn_tls", "realtime_start", "realtime_end", "multipeer", "failure_control", "negative_proxy",
+-        "impairment_control", "performance"
++        "negative_proxy_unavailable", "impairment_control", "performance"
+     ];
+ 
+     private readonly Lazy<IReadOnlyDictionary<string, int>> _ports = new(() => Load(paths));
+diff --git a/ui/ProxyBridge.TestLab.Ui.ServerProbe/Program.cs b/ui/ProxyBridge.TestLab.Ui.ServerProbe/Program.cs
+--- a/ui/ProxyBridge.TestLab.Ui.ServerProbe/Program.cs
++++ b/ui/ProxyBridge.TestLab.Ui.ServerProbe/Program.cs
+@@ -27,6 +27,7 @@
+ await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "standard_protocols.py"), "# fixture standard protocols\n");
+ await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "realtime_protocols.py"), "# fixture realtime protocols\n");
+ await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "failure_protocols.py"), "# fixture failure protocols\n");
++await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "negative_proxy.py"), "# fixture negative proxy\n");
+ await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "plugins", "catalog.json"), """
+     {
+       "schema_version": 1,
+@@ -48,6 +49,7 @@
+         ,{ "id": "multipeer-origin", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json"], "capabilities": ["server_python_protocols"] }
+         ,{ "id": "realtime-suite", "implementation_status": "IMPLEMENTED", "milestone": 15, "artifacts": ["pb_protocol_server.py", "realtime_protocols.py", "protocol-server-config.json", "vendor/cryptography/__init__.py"], "capabilities": ["server_realtime"] }
+         ,{ "id": "browser-origin", "implementation_status": "IMPLEMENTED", "milestone": 15, "artifacts": ["pb_protocol_server.py", "browser_origin.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_python_protocols", "server_tls_pki"] }
++        ,{ "id": "negative-proxy", "implementation_status": "PLANNED", "milestone": 16, "artifacts": [], "capabilities": ["isolated_proxy_negative_target"] }
+         ,{ "id": "failure-control", "implementation_status": "IMPLEMENTED", "milestone": 16, "artifacts": ["pb_protocol_server.py", "failure_protocols.py", "protocol-server-config.json"], "capabilities": ["control_failure_injection"] }
+       ]
+     }
+@@ -63,7 +65,7 @@
+         "pop3s": 42995, "mqtt": 42183, "mqtts": 42883, "amqp": 42572, "amqps": 42571,
+         "ntp": 42132, "irc": 42667, "ircs": 42697, "stun_turn": 42378, "turn_tls": 42534,
+         "realtime_start": 43000, "realtime_end": 43031, "multipeer": 42668, "failure_control": 42701,
+-        "negative_proxy": 42702, "impairment_control": 42703, "performance": 42501
++        "negative_proxy": 42702, "negative_proxy_unavailable": 42704, "impairment_control": 42703, "performance": 42501
+       }
+     }
+     """);
+@@ -222,7 +224,7 @@
+     };
+     var bundle = builder.Build(settings, ["127.0.0.1"]);
+     foreach (var relative in bundle.RuntimeFiles.Keys.Where(relative =>
+-        relative is "pb_protocol_server.py" or "browser_origin.py" or "standard_protocols.py" or "realtime_protocols.py" or "failure_protocols.py" or "protocol-server-config.json" or "tls/ca.pem" or "tls/server-chain.pem" or "tls/server.key.pem"))
++        relative is "pb_protocol_server.py" or "browser_origin.py" or "standard_protocols.py" or "realtime_protocols.py" or "failure_protocols.py" or "negative_proxy.py" or "protocol-server-config.json" or "tls/ca.pem" or "tls/server-chain.pem" or "tls/server.key.pem"))
+     {
+         var target = Path.Combine(outputRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+         Directory.CreateDirectory(Path.GetDirectoryName(target)!);

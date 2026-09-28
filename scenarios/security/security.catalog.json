@@ -5,9 +5,9 @@
   "scenarios": [
     { "id": "security-block-no-leak", "action": "BLOCK", "tags": ["block-leak", "no-direct-leak"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-block" },
     { "id": "security-proxy-no-direct-leak", "action": "PROXY", "tags": ["proxy-leak", "no-direct-leak"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-proxy" },
-    { "id": "security-fresh-flow-no-stale-action", "action": "DIRECT", "tags": ["stale-action"] },
+    { "id": "security-fresh-flow-no-stale-action", "transition": "PROXY->DIRECT", "close_mode": "abortive", "tags": ["stale-action"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "issue206-proxy-direct" },
     { "id": "security-no-wrong-destination", "action": "DIRECT", "tags": ["wrong-destination"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-direct" },
-    { "id": "security-no-cross-process-delivery", "action": "DIRECT", "tags": ["cross-process", "cross-socket"] },
-    { "id": "security-no-proxy-config-inheritance", "action": "PROXY", "tags": ["proxy-config-inheritance"] }
+    { "id": "security-no-cross-process-delivery", "action": "DIRECT", "payload_size": 64, "process_count": 2, "require_internal_route": true, "tags": ["cross-process", "cross-socket"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "generated-base-direct" },
+    { "id": "security-no-proxy-config-inheritance", "transition": "PROXY->PROXY", "close_mode": "abortive", "first_proxy_config_id": 1, "second_proxy_config_id": 2, "additional_proxy_config_id": 2, "require_internal_route": true, "require_proxy_config_evidence": true, "tags": ["proxy-config-inheritance"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "issue206-proxy-config-switch" }
   ]
 }

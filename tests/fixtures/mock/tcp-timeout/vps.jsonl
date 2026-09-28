@@ -1,0 +1,1 @@
+{"event":"MESSAGE_RECEIVED","sha256":"${FLOW0_SHA}","local_ip":"${REMOTE0_IP}","local_port":${REMOTE0_PORT},"remote_ip":"${DIRECT_EGRESS_IP}","remote_port":50025,"bytes":${BYTES0},"error":"","test_id":"${TEST_ID}","run_id":"${RUN_ID}","flow_index":0}

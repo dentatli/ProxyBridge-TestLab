@@ -1,0 +1,2 @@
+${TIMESTAMP} ${PROCESS} (4242) -> ${REMOTE0_ENDPOINT} via Proxy SOCKS5 ProxyConfigId=1
+${TIMESTAMP} ${PROCESS} (4242) -> ${REMOTE1_ENDPOINT} via Proxy SOCKS5 ProxyConfigId=2

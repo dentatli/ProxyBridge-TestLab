@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "plugins": [
+    { "id": "endpoint-core", "implementation_status": "IMPLEMENTED", "milestone": 8, "artifacts": ["pb_net_endpoint.py"], "capabilities": ["server_endpoint_core"] },
+    { "id": "dns-authoritative", "implementation_status": "IMPLEMENTED", "milestone": 12, "artifacts": ["pb_protocol_server.py", "protocol-server-config.json"], "capabilities": ["server_python_protocols"] },
+    { "id": "dns-encrypted", "implementation_status": "PLANNED", "milestone": 12, "artifacts": [], "capabilities": ["server_python_protocols", "server_tls_pki"] },
+    { "id": "tls-origin", "implementation_status": "IMPLEMENTED", "milestone": 12, "artifacts": ["pb_protocol_server.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_python_protocols", "server_tls_pki"] },
+    { "id": "http-origin", "implementation_status": "IMPLEMENTED", "milestone": 12, "artifacts": ["pb_protocol_server.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_python_protocols", "server_tls_pki"] },
+    { "id": "http2-origin", "implementation_status": "IMPLEMENTED", "milestone": 13, "artifacts": ["pb_protocol_server.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem", "vendor/h2/__init__.py"], "capabilities": ["server_http2", "server_tls_pki"] },
+    { "id": "quic-origin", "implementation_status": "IMPLEMENTED", "milestone": 13, "artifacts": ["pb_protocol_server.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem", "vendor/aioquic/__init__.py", "vendor/pylsqpack/__init__.py"], "capabilities": ["server_quic", "server_tls_pki"] },
+    { "id": "websocket-origin", "implementation_status": "IMPLEMENTED", "milestone": 13, "artifacts": ["pb_protocol_server.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_python_protocols", "server_tls_pki"] },
+    { "id": "grpc-origin", "implementation_status": "IMPLEMENTED", "milestone": 13, "artifacts": ["pb_protocol_server.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem", "vendor/h2/__init__.py"], "capabilities": ["server_http2", "server_tls_pki"] },
+    { "id": "webtransport-origin", "implementation_status": "IMPLEMENTED", "milestone": 13, "artifacts": ["pb_protocol_server.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem", "vendor/aioquic/__init__.py", "vendor/pylsqpack/__init__.py"], "capabilities": ["server_quic", "server_tls_pki"] },
+    { "id": "file-transfer", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_file_transfer", "server_tls_pki"] },
+    { "id": "mail-suite", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_mail", "server_tls_pki"] },
+    { "id": "messaging-suite", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_messaging", "server_tls_pki"] },
+    { "id": "ntp-origin", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json"], "capabilities": ["server_python_protocols"] },
+    { "id": "irc-origin", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_python_protocols", "server_tls_pki"] },
+    { "id": "multipeer-origin", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json"], "capabilities": ["server_python_protocols"] },
+    { "id": "realtime-suite", "implementation_status": "IMPLEMENTED", "milestone": 15, "artifacts": ["pb_protocol_server.py", "realtime_protocols.py", "protocol-server-config.json", "vendor/cryptography/__init__.py"], "capabilities": ["server_realtime"] },
+    { "id": "browser-origin", "implementation_status": "PLANNED", "milestone": 15, "artifacts": [], "capabilities": ["server_python_protocols", "server_tls_pki"] },
+    { "id": "negative-proxy", "implementation_status": "PLANNED", "milestone": 16, "artifacts": [], "capabilities": ["isolated_proxy_negative_target"] },
+    { "id": "failure-control", "implementation_status": "IMPLEMENTED", "milestone": 16, "artifacts": ["pb_protocol_server.py", "failure_protocols.py", "protocol-server-config.json"], "capabilities": ["control_failure_injection"] },
+    { "id": "network-impairment", "implementation_status": "PLANNED", "milestone": 16, "artifacts": [], "capabilities": ["server_test_namespace", "server_netem"] },
+    { "id": "performance-origin", "implementation_status": "PLANNED", "milestone": 17, "artifacts": [], "capabilities": ["server_metrics"] },
+    { "id": "lan-peer-agent", "implementation_status": "PLANNED", "milestone": 18, "artifacts": [], "capabilities": ["topology_lan_peer"] }
+  ]
+}

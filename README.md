@@ -55,6 +55,23 @@ The repository intentionally does not include:
 
 ## Quick start
 
+### Local web UI
+
+The release-candidate interface includes an English local dashboard, authoritative catalog browser,
+Run Builder, live fixture-job progress, sanitized report viewer, UI-managed
+configuration and guarded server setup. Fixture preview uses the authoritative
+runner without ProxyBridge, SSH or network access. Real traffic remains
+fail-closed until an exact immutable-preflight receipt can authorize it.
+
+```powershell
+& 'C:\Program Files\dotnet\dotnet.exe' run `
+    --project '.\ui\ProxyBridge.TestLab.Ui\ProxyBridge.TestLab.Ui.csproj'
+```
+
+Open `http://127.0.0.1:5178`. See [Local web UI](ui/README.md). UI-managed
+configuration replaces manual environment editing. Server provisioning uses
+explicit SSH-key actions and does not by itself unlock real test execution.
+
 ### 1. Clone
 
 ```powershell
@@ -75,27 +92,21 @@ Output:
 bin\pb_net_client.exe
 ```
 
-### 3. Deploy the Linux endpoint
+### 3. Open Environment Setup
 
-The endpoint listens on TCP and UDP ports `41001` and `41002` and writes JSONL
-evidence. Follow the complete server and firewall instructions in
-[End-to-end environment setup](docs/environment-setup.md).
+Start the local UI and select `Environment Setup`. Enter product, proxy, server,
+capability and timeout settings there. The traffic client path and binary
+integrity values are derived automatically. Sensitive paths, hostnames,
+addresses and the SSH private-key path are encrypted for the current Windows
+user and are never returned by the API; the SSH user is a normal public setting.
 
 ### 4. Configure the tester
 
-```powershell
-Copy-Item '.\.env.example' '.\.env'
-notepad '.\.env'
-```
-
-Replace every documentation address, path, and hash with the actual isolated
-test-environment values. `.env` is ignored and must never be committed.
-
-Configure unavailable capabilities in:
-
-```text
-config/capabilities.json
-```
+All configuration is performed in the UI. Do not create or edit a repository
+`.env` file. The controller stores non-secret settings in the per-user
+application directory and sensitive values in a DPAPI CurrentUser envelope.
+The existing runner's flat environment input is an internal temporary adapter
+and is never a user-facing file.
 
 ### 5. Validate TestLab itself
 
@@ -105,34 +116,12 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Invoke-DryRun
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Invoke-MockMatrix.ps1' -FixtureMode
 ```
 
-### 6. Run one real smoke
+### 6. Real execution status
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File '.\scripts\Invoke-RealSmoke.ps1' `
-    -ConfirmRealRuntime
-```
-
-### 7. Run the current real IPv4 diagnostic subset
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File '.\Run-WfpMatrix.ps1' `
-    -EnvPath '.\.env' `
-    -CapabilitiesPath '.\config\capabilities.json' `
-    -SuitePath '.\config\suites\real-diagnostic-ipv4.json' `
-    -KnownDefectsPath '.\config\known-defects.json' `
-    -ClientContractPath '.\config\client-contract.json' `
-    -RuntimeConfigPath '.\config\runtime.json' `
-    -ScenarioRoot '.\scenarios' `
-    -OutputRoot '.\evidence\real-diagnostic-ipv4' `
-    -AllowProductRuntime `
-    -PrepareRuntimeEnvironment `
-    -ContinueOnProductFailure
-```
-
-The diagnostic suite continues after scenario-local results so it can report
-all current executable tests, but it stops on contaminated state.
+The safe job orchestrator and real runner adapter are present. Real execution
+still requires a dedicated signed immutable-preflight receipt for the exact
+selection; Server Setup readiness alone is insufficient and there is no UI
+bypass.
 
 ## Repository layout
 
@@ -180,8 +169,8 @@ Important distinctions:
 ## IPv6
 
 IPv6 scenarios are present, but setting `ipv6.enabled=true` only selects them.
-A valid host/VM route, public server listener, firewall rules, `.env` addresses,
-and proxy support are all required. The published WFP results did not evaluate
+A valid host/VM route, public server listener, firewall rules, UI-configured
+addresses, and proxy support are all required. The published WFP results did not evaluate
 IPv6 because the test environment lacked native public IPv6 connectivity.
 
 ## Security

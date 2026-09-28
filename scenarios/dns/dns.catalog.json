@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "catalog_id": "dns",
-  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "dns"], "protocol": "UDP", "family": 4, "socket_mode": "unconnected", "requires": ["domain_rules"], "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "The current client contract accepts remote IP endpoints and does not generate domain traffic." },
+  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "dns"], "protocol": "UDP", "family": 4, "socket_mode": "unconnected", "requires": ["domain_rules"], "implementation_status": "EXECUTABLE", "implementation_reason": "" },
   "scenarios": [
-    { "id": "dns-domain-direct", "action": "DIRECT", "tags": ["domain-rule"], "target_kind": "domain" },
-    { "id": "dns-domain-proxy", "action": "PROXY", "tags": ["domain-rule"], "target_kind": "domain" }
+    { "id": "dns-domain-direct", "action": "DIRECT", "tags": ["domain-rule"], "target_kind": "domain", "fallback_action": "BLOCK", "mock_fixture_id": "base-direct" },
+    { "id": "dns-domain-proxy", "action": "PROXY", "tags": ["domain-rule"], "target_kind": "domain", "mock_fixture_id": "base-proxy" }
   ]
 }

@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "catalog_id": "protocol-realtime",
+  "defaults": {
+    "enabled": true,
+    "executor_kind": "protocol-worker",
+    "implementation_status": "EXECUTABLE",
+    "implementation_reason": "A bounded standards-aware realtime worker and controlled TestLab endpoint produce correlated wire evidence.",
+    "family": 4,
+    "selector": "basename",
+    "socket_mode": "connected",
+    "tags": ["synthetic", "correctness", "realtime", "milestone-15"],
+    "requires": ["protocol_worker", "server_realtime"],
+    "mock_fixture_id": "protocol-generated",
+    "timeout_ms": 10000
+  },
+  "scenarios": [
+    { "id": "protocol-stun-direct", "title": "STUN Binding follows DIRECT", "protocol": "UDP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_STUN_TURN_PORT}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "tags": ["stun", "ice"], "protocol_worker": { "plugin_id": "protocol-realtime", "protocol_family": "stun-turn", "transport": "UDP", "evidence_profile_id": "stun-turn-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "ice_protocol": "STUN" }, "expected": { "method": "BINDING", "integrity_verified": true } } },
+    { "id": "protocol-stun-block", "title": "STUN Binding follows BLOCK", "protocol": "UDP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_STUN_TURN_PORT}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "tags": ["stun", "ice"], "protocol_worker": { "plugin_id": "protocol-realtime", "protocol_family": "stun-turn", "transport": "UDP", "evidence_profile_id": "stun-turn-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "ice_protocol": "STUN" }, "expected": {} } },
+    { "id": "protocol-stun-proxy", "title": "STUN Binding follows PROXY", "protocol": "UDP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_STUN_TURN_PORT}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "tags": ["stun", "ice"], "protocol_worker": { "plugin_id": "protocol-realtime", "protocol_family": "stun-turn", "transport": "UDP", "evidence_profile_id": "stun-turn-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "ice_protocol": "STUN" }, "expected": { "method": "BINDING", "integrity_verified": true } } },
+
+    { "id": "protocol-turn-direct", "title": "Authenticated TURN Allocate follows DIRECT", "protocol": "UDP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_STUN_TURN_PORT}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "tags": ["turn", "ice"], "protocol_worker": { "plugin_id": "protocol-realtime", "protocol_family": "stun-turn", "transport": "UDP", "evidence_profile_id": "stun-turn-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "ice_protocol": "TURN" }, "expected": { "method": "ALLOCATE", "integrity_verified": true } } },
+    { "id": "protocol-turn-block", "title": "Authenticated TURN Allocate follows BLOCK", "protocol": "UDP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_STUN_TURN_PORT}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "tags": ["turn", "ice"], "protocol_worker": { "plugin_id": "protocol-realtime", "protocol_family": "stun-turn", "transport": "UDP", "evidence_profile_id": "stun-turn-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "ice_protocol": "TURN" }, "expected": {} } },
+    { "id": "protocol-turn-proxy", "title": "Authenticated TURN Allocate follows PROXY", "protocol": "UDP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_STUN_TURN_PORT}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "tags": ["turn", "ice"], "protocol_worker": { "plugin_id": "protocol-realtime", "protocol_family": "stun-turn", "transport": "UDP", "evidence_profile_id": "stun-turn-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_STUN_TURN_PORT}", "ice_protocol": "TURN" }, "expected": { "method": "ALLOCATE", "integrity_verified": true } } },
+
+    { "id": "protocol-srtp-direct", "title": "AEAD-SRTP media follows DIRECT", "protocol": "UDP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "remote_port": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "tags": ["rtp", "rtcp", "srtp", "media"], "protocol_worker": { "plugin_id": "protocol-media", "protocol_family": "rtp-media", "transport": "UDP", "evidence_profile_id": "rtp-media-session", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "packet_count": 12 }, "expected": { "rtcp_status": "RECEIVER_REPORT", "sequence_gap_count": 0 } } },
+    { "id": "protocol-srtp-block", "title": "AEAD-SRTP media follows BLOCK", "protocol": "UDP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "remote_port": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "tags": ["rtp", "rtcp", "srtp", "media"], "protocol_worker": { "plugin_id": "protocol-media", "protocol_family": "rtp-media", "transport": "UDP", "evidence_profile_id": "rtp-media-session", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "packet_count": 12 }, "expected": {} } },
+    { "id": "protocol-srtp-proxy", "title": "AEAD-SRTP media follows PROXY", "protocol": "UDP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "remote_port": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "tags": ["rtp", "rtcp", "srtp", "media"], "protocol_worker": { "plugin_id": "protocol-media", "protocol_family": "rtp-media", "transport": "UDP", "evidence_profile_id": "rtp-media-session", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "packet_count": 12 }, "expected": { "rtcp_status": "RECEIVER_REPORT", "sequence_gap_count": 0 } } }
+  ]
+}

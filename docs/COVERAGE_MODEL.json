@@ -19,6 +19,8 @@
   "implementation_statuses": [
     "EXECUTABLE",
     "DECLARATIVE_ONLY",
+    "SYSTEM_CHECK",
+    "CAPABILITY_GATED",
     "UNSUPPORTED_PRODUCT_SCOPE"
   ],
   "pairwise_secondary_dimensions": [

@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "catalog_id": "protocol-advanced",
+  "defaults": {
+    "enabled": true,
+    "executor_kind": "protocol-worker",
+    "implementation_status": "EXECUTABLE",
+    "implementation_reason": "A pinned protocol worker and controlled TestLab origin validate the application protocol with independent client, server and route evidence.",
+    "family": 4,
+    "selector": "basename",
+    "socket_mode": "connected",
+    "tags": ["synthetic", "correctness", "protocol-aware", "milestone-13"],
+    "requires": ["protocol_worker", "server_python_protocols", "server_tls_pki"],
+    "mock_fixture_id": "protocol-generated",
+    "timeout_ms": 10000
+  },
+  "scenarios": [
+    {
+      "id": "protocol-http2-direct", "title": "HTTP/2 follows DIRECT", "protocol": "TCP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_HTTP2_PORT}", "remote_port": "${PB_PROTOCOL_HTTP2_PORT}", "tags": ["http2"], "requires": ["server_http2"],
+      "protocol_worker": { "plugin_id": "protocol-http2", "protocol_family": "http2", "transport": "TCP", "evidence_profile_id": "http2-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_HTTP2_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "status_code": 200 } }
+    },
+    {
+      "id": "protocol-http2-block", "title": "HTTP/2 follows BLOCK", "protocol": "TCP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_HTTP2_PORT}", "remote_port": "${PB_PROTOCOL_HTTP2_PORT}", "tags": ["http2"], "requires": ["server_http2"],
+      "protocol_worker": { "plugin_id": "protocol-http2", "protocol_family": "http2", "transport": "TCP", "evidence_profile_id": "http2-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_HTTP2_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": {} }
+    },
+    {
+      "id": "protocol-http2-proxy", "title": "HTTP/2 follows PROXY", "protocol": "TCP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_HTTP2_PORT}", "remote_port": "${PB_PROTOCOL_HTTP2_PORT}", "tags": ["http2"], "requires": ["server_http2"],
+      "protocol_worker": { "plugin_id": "protocol-http2", "protocol_family": "http2", "transport": "TCP", "evidence_profile_id": "http2-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_HTTP2_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "status_code": 200 } }
+    },
+    {
+      "id": "protocol-grpc-direct", "title": "gRPC unary call follows DIRECT", "protocol": "TCP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_GRPC_PORT}", "remote_port": "${PB_PROTOCOL_GRPC_PORT}", "tags": ["grpc", "rpc"], "requires": ["server_http2"],
+      "protocol_worker": { "plugin_id": "protocol-grpc", "protocol_family": "grpc", "transport": "TCP", "evidence_profile_id": "rpc-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_GRPC_PORT}", "authority": "proxybridge-testlab.test", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}", "service": "testlab.Echo", "method": "Unary" }, "expected": { "application_status": "0" } }
+    },
+    {
+      "id": "protocol-grpc-block", "title": "gRPC unary call follows BLOCK", "protocol": "TCP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_GRPC_PORT}", "remote_port": "${PB_PROTOCOL_GRPC_PORT}", "tags": ["grpc", "rpc"], "requires": ["server_http2"],
+      "protocol_worker": { "plugin_id": "protocol-grpc", "protocol_family": "grpc", "transport": "TCP", "evidence_profile_id": "rpc-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_GRPC_PORT}", "authority": "proxybridge-testlab.test", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}", "service": "testlab.Echo", "method": "Unary" }, "expected": {} }
+    },
+    {
+      "id": "protocol-grpc-proxy", "title": "gRPC unary call follows PROXY", "protocol": "TCP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_GRPC_PORT}", "remote_port": "${PB_PROTOCOL_GRPC_PORT}", "tags": ["grpc", "rpc"], "requires": ["server_http2"],
+      "protocol_worker": { "plugin_id": "protocol-grpc", "protocol_family": "grpc", "transport": "TCP", "evidence_profile_id": "rpc-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_GRPC_PORT}", "authority": "proxybridge-testlab.test", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}", "service": "testlab.Echo", "method": "Unary" }, "expected": { "application_status": "0" } }
+    },
+    {
+      "id": "protocol-websocket-direct", "title": "Secure WebSocket follows DIRECT", "protocol": "TCP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_WEBSOCKET_PORT}", "remote_port": "${PB_PROTOCOL_WEBSOCKET_PORT}", "tags": ["websocket", "wss"],
+      "protocol_worker": { "plugin_id": "protocol-websocket", "protocol_family": "websocket", "transport": "TCP", "evidence_profile_id": "websocket-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_WEBSOCKET_PORT}", "authority": "proxybridge-testlab.test", "path": "/socket", "subprotocol": "pb-test.v1", "use_tls": true, "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "close_code": 1000 } }
+    },
+    {
+      "id": "protocol-websocket-block", "title": "Secure WebSocket follows BLOCK", "protocol": "TCP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_WEBSOCKET_PORT}", "remote_port": "${PB_PROTOCOL_WEBSOCKET_PORT}", "tags": ["websocket", "wss"],
+      "protocol_worker": { "plugin_id": "protocol-websocket", "protocol_family": "websocket", "transport": "TCP", "evidence_profile_id": "websocket-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_WEBSOCKET_PORT}", "authority": "proxybridge-testlab.test", "path": "/socket", "subprotocol": "pb-test.v1", "use_tls": true, "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": {} }
+    },
+    {
+      "id": "protocol-websocket-proxy", "title": "Secure WebSocket follows PROXY", "protocol": "TCP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_WEBSOCKET_PORT}", "remote_port": "${PB_PROTOCOL_WEBSOCKET_PORT}", "tags": ["websocket", "wss"],
+      "protocol_worker": { "plugin_id": "protocol-websocket", "protocol_family": "websocket", "transport": "TCP", "evidence_profile_id": "websocket-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_WEBSOCKET_PORT}", "authority": "proxybridge-testlab.test", "path": "/socket", "subprotocol": "pb-test.v1", "use_tls": true, "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "close_code": 1000 } }
+    },
+    {
+      "id": "protocol-http3-direct", "title": "HTTP/3 over QUIC follows DIRECT", "protocol": "UDP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_QUIC_HTTP3_PORT}", "remote_port": "${PB_PROTOCOL_QUIC_HTTP3_PORT}", "tags": ["http3", "quic"], "requires": ["server_quic"],
+      "protocol_worker": { "plugin_id": "protocol-quic", "protocol_family": "quic-http3", "transport": "UDP", "evidence_profile_id": "quic-http3-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_QUIC_HTTP3_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "status_code": 200 } }
+    },
+    {
+      "id": "protocol-http3-block", "title": "HTTP/3 over QUIC follows BLOCK", "protocol": "UDP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_QUIC_HTTP3_PORT}", "remote_port": "${PB_PROTOCOL_QUIC_HTTP3_PORT}", "tags": ["http3", "quic"], "requires": ["server_quic"],
+      "protocol_worker": { "plugin_id": "protocol-quic", "protocol_family": "quic-http3", "transport": "UDP", "evidence_profile_id": "quic-http3-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_QUIC_HTTP3_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": {} }
+    },
+    {
+      "id": "protocol-http3-proxy", "title": "HTTP/3 over QUIC follows PROXY", "protocol": "UDP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_QUIC_HTTP3_PORT}", "remote_port": "${PB_PROTOCOL_QUIC_HTTP3_PORT}", "tags": ["http3", "quic"], "requires": ["server_quic"],
+      "protocol_worker": { "plugin_id": "protocol-quic", "protocol_family": "quic-http3", "transport": "UDP", "evidence_profile_id": "quic-http3-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_QUIC_HTTP3_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "status_code": 200 } }
+    },
+    {
+      "id": "protocol-webtransport-direct", "title": "WebTransport datagram follows DIRECT", "protocol": "UDP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_WEBTRANSPORT_PORT}", "remote_port": "${PB_PROTOCOL_WEBTRANSPORT_PORT}", "tags": ["webtransport", "quic"], "requires": ["server_quic"],
+      "protocol_worker": { "plugin_id": "protocol-webtransport", "protocol_family": "webtransport", "transport": "UDP", "evidence_profile_id": "quic-http3-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_WEBTRANSPORT_PORT}", "authority": "proxybridge-testlab.test", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "status_code": 200 } }
+    },
+    {
+      "id": "protocol-webtransport-block", "title": "WebTransport datagram follows BLOCK", "protocol": "UDP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_WEBTRANSPORT_PORT}", "remote_port": "${PB_PROTOCOL_WEBTRANSPORT_PORT}", "tags": ["webtransport", "quic"], "requires": ["server_quic"],
+      "protocol_worker": { "plugin_id": "protocol-webtransport", "protocol_family": "webtransport", "transport": "UDP", "evidence_profile_id": "quic-http3-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_WEBTRANSPORT_PORT}", "authority": "proxybridge-testlab.test", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": {} }
+    },
+    {
+      "id": "protocol-webtransport-proxy", "title": "WebTransport datagram follows PROXY", "protocol": "UDP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_WEBTRANSPORT_PORT}", "remote_port": "${PB_PROTOCOL_WEBTRANSPORT_PORT}", "tags": ["webtransport", "quic"], "requires": ["server_quic"],
+      "protocol_worker": { "plugin_id": "protocol-webtransport", "protocol_family": "webtransport", "transport": "UDP", "evidence_profile_id": "quic-http3-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_WEBTRANSPORT_PORT}", "authority": "proxybridge-testlab.test", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "status_code": 200 } }
+    }
+  ]
+}

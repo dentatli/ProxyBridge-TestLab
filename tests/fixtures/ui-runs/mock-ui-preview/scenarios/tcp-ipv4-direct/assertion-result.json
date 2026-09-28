@@ -1,0 +1,8 @@
+{
+  "outcome": "PASS",
+  "evidence_basis": "CLIENT+VPS+DIRECT_BASELINE",
+  "product_errors": [],
+  "harness_errors": [],
+  "missing_evidence": [],
+  "external_route_proof_complete": true
+}

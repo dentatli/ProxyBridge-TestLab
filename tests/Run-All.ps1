@@ -12,11 +12,22 @@ $tests = @(
     'Test-RuntimePreparation.ps1',
     'Test-DirectBaseline.ps1',
     'Test-EvidenceAssertions.ps1',
+    'Test-EndpointEvidence.ps1',
     'Test-AcceptedSmoke.ps1',
     'Test-PreparedRealSmoke.ps1',
     'Test-MockRuntime.ps1',
     'Test-Reports.ps1',
     'Test-Catalog.ps1'
+    'Test-ProtocolContracts.ps1'
+    'Test-ProtocolWorker.ps1'
+    'Test-ProtocolVerticalSlice.ps1'
+    'Test-ProtocolRunner.ps1'
+    'Test-ProtocolMatrixIntegration.ps1'
+    'Test-UiShell.ps1'
+    'Test-UiSettings.ps1'
+    'Test-ServerProvisioning.ps1'
+    'Test-RunOrchestration.ps1'
+    'Test-Packaging.ps1'
 )
 $passed = 0
 foreach ($test in $tests) {

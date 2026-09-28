@@ -1,0 +1,1 @@
+ui/ProxyBridge.TestLab.Ui/Services/RuntimeCapabilityService.cs

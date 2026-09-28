@@ -38,12 +38,10 @@ function ConvertTo-PosixSingleQuoted {
     return $quote + $Value.Replace($quote, $escapedQuote) + $quote
 }
 
-function New-VpsDynamicEvidencePlan {
+function New-VpsLogCursorPlan {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][System.Collections.Generic.IDictionary[string, string]]$Environment,
-        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$CanonicalRecords,
-        [Parameter(Mandatory)][string]$EvidenceDirectory,
         [string]$SshExecutablePath = 'ssh.exe',
         [int]$TimeoutMs = 10000
     )
@@ -51,6 +49,60 @@ function New-VpsDynamicEvidencePlan {
     $hostName = Get-VpsEnvironmentValue $Environment 'PB_SSH_HOST'
     $userName = Get-VpsEnvironmentValue $Environment 'PB_SSH_USER'
     $keyPath = Get-VpsEnvironmentValue $Environment 'PB_SSH_KEY'
+    $knownHosts = Get-VpsEnvironmentValue $Environment 'PB_SSH_KNOWN_HOSTS'
+    $serverLog = Get-VpsEnvironmentValue $Environment 'PB_VPS_SERVER_LOG'
+    if ($hostName -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]*$') { throw 'VPS_SSH_HOST_INVALID' }
+    if ($userName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') { throw 'VPS_SSH_USER_INVALID' }
+    $port = 0
+    if (-not [int]::TryParse((Get-VpsEnvironmentValue $Environment 'PB_SSH_PORT'), [ref]$port) -or $port -lt 1 -or $port -gt 65535) { throw 'VPS_SSH_PORT_INVALID' }
+    $quotedLog = ConvertTo-PosixSingleQuoted $serverLog
+    $remoteCommand = "inode=`$(stat -c %i -- $quotedLog) && size=`$(stat -c %s -- $quotedLog) && printf 'INODE=%s\nOFFSET=%s\n' `"`$inode`" `"`$size`""
+    return [pscustomobject][ordered]@{
+        mode='dynamic-ssh-cursor'; requires_network=$true
+        process_plan=[pscustomobject][ordered]@{
+            executable=$SshExecutablePath
+            arguments=@('-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o',("UserKnownHostsFile=$knownHosts"),'-p',[string]$port,'-i',$keyPath,("$userName@$hostName"),$remoteCommand)
+            timeout_ms=$TimeoutMs
+        }
+    }
+}
+
+function Invoke-VpsLogCursorPlan {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Plan,
+        [Parameter(Mandatory)]$ProcessAdapter,
+        [switch]$AllowProductRuntime
+    )
+    if ([string]$Plan.mode -ne 'dynamic-ssh-cursor') { throw 'VPS_CURSOR_PLAN_REQUIRED' }
+    $result = Invoke-ProcessPlan -Plan $Plan.process_plan -ProcessAdapter $ProcessAdapter -AllowProductRuntime:$AllowProductRuntime
+    if ([bool]$result.timed_out) { throw 'VPS_CURSOR_TIMEOUT' }
+    if ([int]$result.exit_code -ne 0) { throw 'VPS_CURSOR_FAILED' }
+    $values = @{}
+    foreach ($line in @(([string]$result.stdout) -split "`r?`n")) {
+        if ($line -match '^(INODE|OFFSET)=([0-9]+)$') { $values[$Matches[1]] = $Matches[2] }
+    }
+    if (-not $values.ContainsKey('INODE') -or -not $values.ContainsKey('OFFSET')) { throw 'VPS_CURSOR_OUTPUT_INVALID' }
+    $offset = 0L
+    if (-not [long]::TryParse([string]$values.OFFSET, [ref]$offset) -or $offset -lt 0) { throw 'VPS_CURSOR_OFFSET_INVALID' }
+    return [pscustomobject][ordered]@{ inode=[string]$values.INODE; offset=$offset; captured_at_utc=[datetime]::UtcNow.ToString('o') }
+}
+
+function New-VpsDynamicEvidencePlan {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][System.Collections.Generic.IDictionary[string, string]]$Environment,
+        [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$CanonicalRecords,
+        [Parameter(Mandatory)][string]$EvidenceDirectory,
+        [string]$SshExecutablePath = 'ssh.exe',
+        [int]$TimeoutMs = 10000,
+        $Cursor
+    )
+    if ($TimeoutMs -lt 1) { throw 'VPS_SSH_TIMEOUT_INVALID' }
+    $hostName = Get-VpsEnvironmentValue $Environment 'PB_SSH_HOST'
+    $userName = Get-VpsEnvironmentValue $Environment 'PB_SSH_USER'
+    $keyPath = Get-VpsEnvironmentValue $Environment 'PB_SSH_KEY'
+    $knownHosts = Get-VpsEnvironmentValue $Environment 'PB_SSH_KNOWN_HOSTS'
     $serverLog = Get-VpsEnvironmentValue $Environment 'PB_VPS_SERVER_LOG'
     if ($hostName -notmatch '^[A-Za-z0-9][A-Za-z0-9._:-]*$') { throw 'VPS_SSH_HOST_INVALID' }
     if ($userName -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') { throw 'VPS_SSH_USER_INVALID' }
@@ -58,35 +110,59 @@ function New-VpsDynamicEvidencePlan {
     $port = 0
     if (-not [int]::TryParse((Get-VpsEnvironmentValue $Environment 'PB_SSH_PORT'), [ref]$port) -or $port -lt 1 -or $port -gt 65535) { throw 'VPS_SSH_PORT_INVALID' }
     $queries = [System.Collections.Generic.List[object]]::new()
-    $phases = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    $identities = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($record in @($CanonicalRecords | Sort-Object { [int]$_.sequence })) {
         $sha = ([string]$record.payload_sha256).ToLowerInvariant()
         if ($sha -notmatch '^[a-f0-9]{64}$') { throw 'VPS_QUERY_PAYLOAD_SHA_INVALID' }
         $phase = ([string]$record.phase).ToLowerInvariant()
-        if ($phase -notmatch '^[a-z0-9_-]+$' -or -not $phases.Add($phase)) { throw "VPS_QUERY_PHASE_INVALID: $phase" }
-        $outputPath = Join-Path $EvidenceDirectory ($phase + '-vps.jsonl')
+        $sequence = [int]$record.sequence
+        $identityKey = "$phase-$sequence"
+        if ($phase -notmatch '^[a-z0-9_-]+$' -or $sequence -lt 1 -or -not $identities.Add($identityKey)) { throw "VPS_QUERY_IDENTITY_INVALID: $identityKey" }
+        $outputPath = Join-Path $EvidenceDirectory ($identityKey + '-vps.jsonl')
         $quotedSha = ConvertTo-PosixSingleQuoted $sha
         $quotedLog = ConvertTo-PosixSingleQuoted $serverLog
         $remoteCommand = "grep -F -- $quotedSha $quotedLog; rc=`$?; if [ `$rc -eq 1 ]; then exit 0; else exit `$rc; fi"
+        if ($null -ne $Cursor) {
+            if ([string]$Cursor.inode -notmatch '^[0-9]+$' -or [long]$Cursor.offset -lt 0) { throw 'VPS_CURSOR_INVALID' }
+            $startByte = [long]$Cursor.offset + 1
+            $remoteCommand = "inode=`$(stat -c %i -- $quotedLog) && [ `"`$inode`" = '$($Cursor.inode)' ] && size=`$(stat -c %s -- $quotedLog) && [ `"`$size`" -ge '$($Cursor.offset)' ] && tail -c +$startByte -- $quotedLog | grep -F -- $quotedSha; rc=`$?; if [ `$rc -eq 1 ]; then exit 0; else exit `$rc; fi"
+        }
         $arguments = @(
-            '-o','BatchMode=yes','-o','StrictHostKeyChecking=yes','-p',[string]$port,
+            '-o','BatchMode=yes','-o','IdentitiesOnly=yes','-o','StrictHostKeyChecking=yes','-o',("UserKnownHostsFile=$knownHosts"),'-p',[string]$port,
             '-i',$keyPath,("$userName@$hostName"),$remoteCommand
         )
         $queries.Add([pscustomobject][ordered]@{
-            phase=$phase; sha256=$sha; expected_action=[string]$record.expected_action; output_path=$outputPath
+            phase=$phase; sequence=$sequence; test_id=[string]$record.test_id; run_id=[string]$record.run_id
+            family=[string]$record.family; protocol=[string]$record.protocol
+            sha256=$sha; expected_action=[string]$record.expected_action; output_path=$outputPath
             process_plan=[pscustomobject][ordered]@{ executable=$SshExecutablePath; arguments=$arguments; timeout_ms=$TimeoutMs }
         })
     }
-    return [pscustomobject][ordered]@{ mode='dynamic-ssh'; requires_network=$true; queries=$queries.ToArray() }
+    return [pscustomobject][ordered]@{ mode='dynamic-ssh'; requires_network=$true; cursor=$Cursor; queries=$queries.ToArray() }
 }
 
 function Assert-VpsEvidenceRecord {
     param($Record, [int]$LineNumber)
-    foreach ($field in @('event', 'sha256', 'local_ip', 'local_port', 'remote_ip', 'remote_port', 'bytes', 'error')) {
+    foreach ($field in @('timestamp_utc', 'monotonic_ns', 'event', 'family', 'protocol', 'sha256', 'local_ip', 'local_port', 'remote_ip', 'remote_port', 'bytes', 'error', 'test_id', 'run_id', 'phase', 'sequence')) {
         if ($null -eq $Record.PSObject.Properties[$field]) { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber missing=$field" }
     }
+    $timestamp = [datetimeoffset]::MinValue
+    if ($Record.timestamp_utc -is [datetimeoffset]) { $timestamp = [datetimeoffset]$Record.timestamp_utc }
+    elseif ($Record.timestamp_utc -is [datetime]) { $timestamp = [datetimeoffset]([datetime]$Record.timestamp_utc).ToUniversalTime() }
+    elseif (-not [datetimeoffset]::TryParse([string]$Record.timestamp_utc, [ref]$timestamp)) { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber timestamp_utc" }
+    $Record.timestamp_utc = $timestamp.UtcDateTime.ToString('o')
+    $monotonic = 0L
+    if (-not [long]::TryParse([string]$Record.monotonic_ns, [ref]$monotonic) -or $monotonic -lt 1) { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber monotonic_ns" }
     if ([string]$Record.event -notmatch '^[A-Z][A-Z0-9_]*$') { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber event" }
+    if ([string]$Record.family -notin @('IPv4', 'IPv6')) { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber family" }
+    if ([string]$Record.protocol -notin @('TCP', 'UDP')) { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber protocol" }
     if ([string]$Record.sha256 -notmatch '^[A-Fa-f0-9]{64}$') { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber sha256" }
+    foreach ($identityField in @('test_id', 'run_id')) {
+        if ([string]$Record.$identityField -notmatch '^[A-Za-z0-9._-]{1,128}$') { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber $identityField" }
+    }
+    if ([string]$Record.phase -notmatch '^[A-Za-z0-9_-]{1,64}$') { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber phase" }
+    $sequence = 0
+    if (-not [int]::TryParse([string]$Record.sequence, [ref]$sequence) -or $sequence -lt 1) { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber sequence" }
     foreach ($portField in @('local_port', 'remote_port')) {
         $port = 0
         if (-not [int]::TryParse([string]$Record.$portField, [ref]$port) -or $port -lt 0 -or $port -gt 65535) { throw "VPS_EVIDENCE_SCHEMA_INVALID line=$LineNumber $portField" }
@@ -97,7 +173,10 @@ function Assert-VpsEvidenceRecord {
 
 function ConvertFrom-VpsJsonLines {
     [CmdletBinding()]
-    param([Parameter(Mandatory)][AllowEmptyCollection()][AllowEmptyString()][string[]]$Lines)
+    param(
+        [Parameter(Mandatory)][AllowEmptyCollection()][AllowEmptyString()][string[]]$Lines,
+        $ExpectedIdentity
+    )
     $records = [System.Collections.Generic.List[object]]::new()
     $lineNumber = 0
     foreach ($line in $Lines) {
@@ -105,6 +184,20 @@ function ConvertFrom-VpsJsonLines {
         if ([string]::IsNullOrWhiteSpace($line)) { continue }
         try { $record = $line | ConvertFrom-Json }
         catch { throw "VPS_EVIDENCE_JSONL_INVALID line=$lineNumber" }
+        if ($null -ne $ExpectedIdentity) {
+            $payloadIdentityPresent = -not [string]::IsNullOrWhiteSpace([string]$record.test_id) -or
+                -not [string]::IsNullOrWhiteSpace([string]$record.run_id) -or
+                -not [string]::IsNullOrWhiteSpace([string]$record.phase) -or [int]$record.sequence -gt 0
+            if (-not $payloadIdentityPresent) {
+                foreach ($field in @('test_id','run_id','phase','sequence')) {
+                    $record | Add-Member -NotePropertyName $field -NotePropertyValue $ExpectedIdentity.$field -Force
+                }
+                $record | Add-Member -NotePropertyName identity_source -NotePropertyValue 'cursor_exact_sha' -Force
+            }
+            elseif ($null -eq $record.PSObject.Properties['identity_source']) {
+                $record | Add-Member -NotePropertyName identity_source -NotePropertyValue 'payload' -Force
+            }
+        }
         Assert-VpsEvidenceRecord -Record $record -LineNumber $lineNumber
         $records.Add($record)
     }
@@ -158,7 +251,7 @@ function Invoke-VpsDynamicEvidencePlan {
         if ($success) {
             $directory = Split-Path -Parent ([string]$query.output_path)
             if (-not (Test-Path -LiteralPath $directory)) { $null = New-Item -ItemType Directory -Path $directory -Force }
-            $records = @(ConvertFrom-VpsJsonLines -Lines @(([string]$result.stdout) -split "`r?`n"))
+            $records = @(ConvertFrom-VpsJsonLines -Lines @(([string]$result.stdout) -split "`r?`n") -ExpectedIdentity $query)
             [System.IO.File]::WriteAllText([string]$query.output_path, '', $script:Utf8NoBom)
             foreach ($record in $records) {
                 if (-not [string]::Equals([string]$record.sha256, [string]$query.sha256, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'VPS_QUERY_NONEXACT_SHA_RECORD' }
@@ -175,7 +268,7 @@ function Invoke-VpsDynamicEvidencePlan {
             output_path=[string]$query.output_path
         })
     }
-    $complete = @($Plan.queries).Count -eq $completeShas.Count
+    $complete = @($Plan.queries).Count -eq @($queryResults | Where-Object { [bool]$_.success }).Count
     return [pscustomobject][ordered]@{
         capture_complete=$complete; complete_shas=$completeShas.ToArray(); records=$allRecords.ToArray()
         query_results=$queryResults.ToArray()
@@ -244,4 +337,4 @@ function Test-VpsPayloadEvidence {
     }
 }
 
-Export-ModuleMember -Function New-VpsEvidencePlan, New-VpsSshEvidencePlan, New-VpsDynamicEvidencePlan, ConvertFrom-VpsJsonLines, Import-VpsEvidence, Invoke-VpsEvidencePlan, Invoke-VpsImportEvidencePlan, Invoke-VpsDynamicEvidencePlan, Test-VpsPayloadEvidence
+Export-ModuleMember -Function New-VpsEvidencePlan, New-VpsSshEvidencePlan, New-VpsLogCursorPlan, Invoke-VpsLogCursorPlan, New-VpsDynamicEvidencePlan, ConvertFrom-VpsJsonLines, Import-VpsEvidence, Invoke-VpsEvidencePlan, Invoke-VpsImportEvidencePlan, Invoke-VpsDynamicEvidencePlan, Test-VpsPayloadEvidence

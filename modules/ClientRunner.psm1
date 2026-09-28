@@ -134,6 +134,113 @@ function New-BaseClientPlan {
         $defaultPolicy = $(if ($expectedAction -eq 'PROXY') { 'record-only' } else { 'exact' })
         $tcpPeerPolicy = ConvertTo-ClientPeerPolicy (Get-ClientProperty $client 'tcp_peer_policy' $defaultPolicy) 'BASE'
     }
+    $payloadSize = $null
+    if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+        $null -ne $Scenario.parameters.PSObject.Properties['payload_size']) {
+        $parsedPayloadSize = -1
+        if (-not [int]::TryParse([string]$Scenario.parameters.payload_size, [ref]$parsedPayloadSize) -or $parsedPayloadSize -lt 0) {
+            throw 'CLIENT_PAYLOAD_SIZE_INVALID'
+        }
+        $maximumPayloadSize = $(if ($protocol -eq 'udp') { 65507 } else { 1048576 })
+        if ($parsedPayloadSize -gt $maximumPayloadSize) { throw 'CLIENT_PAYLOAD_SIZE_UNSUPPORTED' }
+        $payloadSize = $parsedPayloadSize
+    }
+    $streamCount = 1
+    if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+        $null -ne $Scenario.parameters.PSObject.Properties['stream_count']) {
+        if (-not [int]::TryParse([string]$Scenario.parameters.stream_count, [ref]$streamCount) -or
+            $streamCount -lt 2 -or $streamCount -gt 64) {
+            throw 'CLIENT_STREAM_COUNT_INVALID'
+        }
+        if ($null -eq $payloadSize) { throw 'CLIENT_STREAM_PAYLOAD_SIZE_REQUIRED' }
+    }
+    $parallelCount = 1
+    if ($null -ne $Scenario.PSObject.Properties['parameters']) {
+        $parallelValue = $null
+        if ($null -ne $Scenario.parameters.PSObject.Properties['parallel_count']) {
+            $parallelValue = $Scenario.parameters.parallel_count
+        } elseif ($null -ne $Scenario.parameters.PSObject.Properties['concurrency']) {
+            $parallelValue = $Scenario.parameters.concurrency
+        }
+        if ($null -ne $parallelValue) {
+            if (-not [int]::TryParse([string]$parallelValue, [ref]$parallelCount) -or
+                $parallelCount -lt 1 -or $parallelCount -gt 32) {
+                throw 'CLIENT_PARALLEL_COUNT_INVALID'
+            }
+        }
+    }
+    if ($parallelCount -gt 1 -and $streamCount -gt 1) { throw 'CLIENT_PARALLEL_STREAM_CONFLICT' }
+    if ($parallelCount -gt 1 -and $localPort -ne 0) { throw 'CLIENT_PARALLEL_REQUIRES_EPHEMERAL_PORTS' }
+    $processCount = 1
+    if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+        $null -ne $Scenario.parameters.PSObject.Properties['process_count']) {
+        if (-not [int]::TryParse([string]$Scenario.parameters.process_count, [ref]$processCount) -or
+            $processCount -lt 1 -or $processCount -gt 8) { throw 'CLIENT_PROCESS_COUNT_INVALID' }
+    }
+    if ($processCount -gt 1 -and ($parallelCount -gt 1 -or $streamCount -gt 1)) { throw 'CLIENT_MULTI_PROCESS_FLOW_MODE_CONFLICT' }
+    if ($processCount -gt 1 -and $localPort -ne 0) { throw 'CLIENT_MULTI_PROCESS_REQUIRES_EPHEMERAL_PORTS' }
+    $reconnectCount = 1
+    $reconnectWaitMs = 0
+    if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+        $null -ne $Scenario.parameters.PSObject.Properties['reconnect_count']) {
+        if (-not [int]::TryParse([string]$Scenario.parameters.reconnect_count, [ref]$reconnectCount) -or
+            $reconnectCount -lt 2 -or $reconnectCount -gt 32) { throw 'CLIENT_RECONNECT_COUNT_INVALID' }
+        if ($protocol -ne 'udp') { throw 'CLIENT_RECONNECT_REQUIRES_UDP' }
+        if ($parallelCount -gt 1 -or $processCount -gt 1 -or $streamCount -gt 1) { throw 'CLIENT_RECONNECT_FLOW_MODE_CONFLICT' }
+        if ($localPort -ne 0) { throw 'CLIENT_RECONNECT_REQUIRES_EPHEMERAL_PORTS' }
+        if ($null -eq $Scenario.parameters.PSObject.Properties['reconnect_wait_ms'] -or
+            -not [int]::TryParse([string]$Scenario.parameters.reconnect_wait_ms, [ref]$reconnectWaitMs) -or
+            $reconnectWaitMs -lt 1 -or $reconnectWaitMs -gt 60000) { throw 'CLIENT_RECONNECT_WAIT_INVALID' }
+    }
+    $secondStreamRemotePort = $null
+    if ($streamCount -gt 1 -and $protocol -eq 'udp') {
+        if ($udpMode -ne 'unconnected') { throw 'CLIENT_UDP_MULTI_DESTINATION_REQUIRES_UNCONNECTED' }
+        if ($null -eq $Scenario.parameters.PSObject.Properties['second_remote_port']) { throw 'CLIENT_UDP_STREAM_SECOND_REMOTE_PORT_REQUIRED' }
+        $secondStreamRemotePort = ConvertTo-ClientPort $Scenario.parameters.second_remote_port 'SECOND_REMOTE'
+    }
+    $streamIntervalMs = 0
+    if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+        $null -ne $Scenario.parameters.PSObject.Properties['stream_interval_ms']) {
+        if (-not [int]::TryParse([string]$Scenario.parameters.stream_interval_ms, [ref]$streamIntervalMs) -or
+            $streamIntervalMs -lt 0 -or $streamIntervalMs -gt 60000) { throw 'CLIENT_STREAM_INTERVAL_INVALID' }
+        if ($streamCount -lt 2) { throw 'CLIENT_STREAM_INTERVAL_REQUIRES_STREAM' }
+    }
+    $baseCloseMode = ''
+    if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+        $null -ne $Scenario.parameters.PSObject.Properties['close_mode']) {
+        $baseCloseMode = ([string]$Scenario.parameters.close_mode).ToLowerInvariant()
+        if (@('graceful','abortive','half-close') -notcontains $baseCloseMode) { throw 'CLIENT_BASE_CLOSE_MODE_UNSUPPORTED' }
+    }
+    $endpointBehavior = ''
+    $behaviorDelayMs = 0
+    $baseBindRetryCount = 0
+    $baseBindRetryDelayMs = 0
+    if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+        $null -ne $Scenario.parameters.PSObject.Properties['endpoint_behavior']) {
+        $endpointBehavior = ([string]$Scenario.parameters.endpoint_behavior).ToLowerInvariant()
+        if (@('normal','delay','server-close','reset','silent-timeout','drop','duplicate','out-of-order','late-response') -notcontains $endpointBehavior) { throw 'CLIENT_ENDPOINT_BEHAVIOR_UNSUPPORTED' }
+        if ($null -eq $payloadSize) { throw 'CLIENT_ENDPOINT_BEHAVIOR_PAYLOAD_SIZE_REQUIRED' }
+        if ($null -ne $Scenario.parameters.PSObject.Properties['behavior_delay_ms']) {
+            if (-not [int]::TryParse([string]$Scenario.parameters.behavior_delay_ms, [ref]$behaviorDelayMs) -or $behaviorDelayMs -lt 0 -or $behaviorDelayMs -gt 60000) { throw 'CLIENT_BEHAVIOR_DELAY_INVALID' }
+        }
+        if ($endpointBehavior -eq 'out-of-order' -and
+            ($protocol -ne 'udp' -or $udpMode -ne 'unconnected' -or $streamCount -ne 2 -or $secondStreamRemotePort -ne $remotePort)) {
+            throw 'CLIENT_OUT_OF_ORDER_CONTRACT_INVALID'
+        }
+        if ($endpointBehavior -eq 'late-response' -and
+            ($protocol -ne 'udp' -or $udpMode -ne 'unconnected' -or $streamCount -ne 2 -or
+             $secondStreamRemotePort -ne $remotePort -or $behaviorDelayMs -lt 100)) {
+            throw 'CLIENT_LATE_RESPONSE_CONTRACT_INVALID'
+        }
+        if ($endpointBehavior -eq 'late-response') {
+            if ($null -eq $Scenario.parameters.PSObject.Properties['bind_retry_count'] -or
+                -not [int]::TryParse([string]$Scenario.parameters.bind_retry_count, [ref]$baseBindRetryCount) -or
+                $baseBindRetryCount -lt 1 -or $baseBindRetryCount -gt 1000) { throw 'CLIENT_BASE_BIND_RETRY_COUNT_INVALID' }
+            if ($null -eq $Scenario.parameters.PSObject.Properties['bind_retry_delay_ms'] -or
+                -not [int]::TryParse([string]$Scenario.parameters.bind_retry_delay_ms, [ref]$baseBindRetryDelayMs) -or
+                $baseBindRetryDelayMs -lt 1 -or $baseBindRetryDelayMs -gt 60000) { throw 'CLIENT_BASE_BIND_RETRY_DELAY_INVALID' }
+        }
+    }
 
     $arguments = [System.Collections.Generic.List[string]]::new()
     Add-ClientArgumentPair $arguments '--mode' 'single'
@@ -141,25 +248,115 @@ function New-BaseClientPlan {
     Add-ClientArgumentPair $arguments '--protocol' $protocol
     if ($protocol -eq 'udp') { Add-ClientArgumentPair $arguments '--udp-mode' $udpMode }
     if ($protocol -eq 'tcp') { Add-ClientArgumentPair $arguments '--tcp-peer-policy' $tcpPeerPolicy }
+    if (-not [string]::IsNullOrWhiteSpace($baseCloseMode)) { Add-ClientArgumentPair $arguments '--close-mode' $baseCloseMode }
     Add-ClientArgumentPair $arguments '--local-ip' (Get-ClientProperty $client 'local_ip' $null -Required)
     Add-ClientArgumentPair $arguments '--local-port' $localPort
     Add-ClientArgumentPair $arguments '--remote-ip' (Get-ClientProperty $client 'remote_ip' $null -Required)
+    $remoteHost = [string](Get-ClientProperty $client 'remote_host' '')
+    if (-not [string]::IsNullOrWhiteSpace($remoteHost)) { Add-ClientArgumentPair $arguments '--remote-host' $remoteHost }
     Add-ClientArgumentPair $arguments $(if ($protocol -eq 'tcp') { '--tcp-remote-port' } else { '--udp-remote-port' }) $remotePort
     Add-ClientArgumentPair $arguments '--expected-action' $expectedAction
     Add-ClientArgumentPair $arguments '--expect' $expect
     Add-ClientArgumentPair $arguments '--timeout-ms' $timeoutMs
+    if ($null -ne $payloadSize) { Add-ClientArgumentPair $arguments '--payload-size' $payloadSize }
+    if ($streamCount -gt 1) { Add-ClientArgumentPair $arguments '--stream-count' $streamCount }
+    if ($parallelCount -gt 1) { Add-ClientArgumentPair $arguments '--parallel-count' $parallelCount }
+    if ($reconnectCount -gt 1) {
+        Add-ClientArgumentPair $arguments '--reconnect-count' $reconnectCount
+        Add-ClientArgumentPair $arguments '--inter-flow-wait-ms' $reconnectWaitMs
+    }
+    if ($streamIntervalMs -gt 0) { Add-ClientArgumentPair $arguments '--stream-interval-ms' $streamIntervalMs }
+    if ($null -ne $secondStreamRemotePort) { Add-ClientArgumentPair $arguments '--second-remote-port' $secondStreamRemotePort }
+    if (-not [string]::IsNullOrWhiteSpace($endpointBehavior)) {
+        Add-ClientArgumentPair $arguments '--endpoint-behavior' $endpointBehavior
+        Add-ClientArgumentPair $arguments '--behavior-delay-ms' $behaviorDelayMs
+        if ($endpointBehavior -eq 'late-response') {
+            Add-ClientArgumentPair $arguments '--bind-retry-count' $baseBindRetryCount
+            Add-ClientArgumentPair $arguments '--bind-retry-delay-ms' $baseBindRetryDelayMs
+        }
+    }
     Add-ClientArgumentPair $arguments '--test-id' $Scenario.scenario_id
     Add-ClientArgumentPair $arguments '--run-id' $RunId
     Add-ClientArgumentPair $arguments '--jsonl-log' $JsonlPath
 
-    $flow = [pscustomobject][ordered]@{
-        flow_index = 0
-        protocol = $protocol.ToUpperInvariant()
-        expected_action = $expectedAction
-        expected_outcome = $expect
-        remote_ip = [string](Get-ClientProperty $client 'remote_ip' $null -Required)
-        remote_port = $remotePort
-        expected_proxy_config_id = Get-ExpectedProxyConfigId -Scenario $Scenario -Action $expectedAction -RuleKey 'primary'
+    $flows = [System.Collections.Generic.List[object]]::new()
+    $flowCount = $(if ($processCount -gt 1) { $processCount } elseif ($parallelCount -gt 1) { $parallelCount } elseif ($reconnectCount -gt 1) { $reconnectCount } else { $streamCount })
+    for ($flowIndex = 0; $flowIndex -lt $flowCount; $flowIndex++) {
+        $flow = [pscustomobject][ordered]@{
+            flow_index = $flowIndex
+            protocol = $protocol.ToUpperInvariant()
+            expected_action = $expectedAction
+            expected_outcome = $expect
+            remote_ip = [string](Get-ClientProperty $client 'remote_ip' $null -Required)
+            remote_port = $(if ($flowIndex -gt 0 -and $null -ne $secondStreamRemotePort) { $secondStreamRemotePort } else { $remotePort })
+            expected_proxy_config_id = Get-ExpectedProxyConfigId -Scenario $Scenario -Action $expectedAction -RuleKey 'primary'
+        }
+        if (-not [string]::IsNullOrWhiteSpace($remoteHost)) { $flow | Add-Member -NotePropertyName remote_host -NotePropertyValue $remoteHost }
+        if ($null -ne $payloadSize) { $flow | Add-Member -NotePropertyName payload_size -NotePropertyValue $payloadSize }
+        if (-not [string]::IsNullOrWhiteSpace($baseCloseMode)) { $flow | Add-Member -NotePropertyName close_mode -NotePropertyValue $baseCloseMode }
+        if (-not [string]::IsNullOrWhiteSpace($endpointBehavior)) {
+            $flow | Add-Member -NotePropertyName endpoint_behavior -NotePropertyValue $endpointBehavior
+            $flow | Add-Member -NotePropertyName behavior_delay_ms -NotePropertyValue $behaviorDelayMs
+            if ($endpointBehavior -eq 'out-of-order') {
+                $flow | Add-Member -NotePropertyName expected_response_order -NotePropertyValue $(if ($flowIndex -eq 0) { 2 } else { 1 })
+            }
+            if ($endpointBehavior -eq 'late-response') {
+                if ($flowIndex -eq 0) {
+                    $flow.expected_outcome = 'no-echo'
+                    $flow | Add-Member -NotePropertyName expected_vps_received -NotePropertyValue 1
+                    $flow | Add-Member -NotePropertyName expected_vps_echoed -NotePropertyValue 1
+                    $flow | Add-Member -NotePropertyName expected_response_count -NotePropertyValue 0
+                } else {
+                    $flow | Add-Member -NotePropertyName expected_response_count -NotePropertyValue 1
+                }
+            }
+        }
+        if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+            $null -ne $Scenario.parameters.PSObject.Properties['expected_vps_received']) {
+            $expectedVpsReceived = -1
+            if (-not [int]::TryParse([string]$Scenario.parameters.expected_vps_received, [ref]$expectedVpsReceived) -or $expectedVpsReceived -lt 0) { throw 'CLIENT_EXPECTED_VPS_RECEIVED_INVALID' }
+            $flow | Add-Member -NotePropertyName expected_vps_received -NotePropertyValue $expectedVpsReceived
+        }
+        if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+            $null -ne $Scenario.parameters.PSObject.Properties['expected_vps_echoed']) {
+            $expectedVpsEchoed = -1
+            if (-not [int]::TryParse([string]$Scenario.parameters.expected_vps_echoed, [ref]$expectedVpsEchoed) -or $expectedVpsEchoed -lt 0) { throw 'CLIENT_EXPECTED_VPS_ECHOED_INVALID' }
+            $flow | Add-Member -NotePropertyName expected_vps_echoed -NotePropertyValue $expectedVpsEchoed
+        }
+        if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+            $null -ne $Scenario.parameters.PSObject.Properties['expected_response_count']) {
+            $expectedResponseCount = -1
+            if (-not [int]::TryParse([string]$Scenario.parameters.expected_response_count, [ref]$expectedResponseCount) -or $expectedResponseCount -lt 0) { throw 'CLIENT_EXPECTED_RESPONSE_COUNT_INVALID' }
+            $flow | Add-Member -NotePropertyName expected_response_count -NotePropertyValue $expectedResponseCount
+        }
+        if ($null -ne $Scenario.PSObject.Properties['parameters'] -and
+            $null -ne $Scenario.parameters.PSObject.Properties['expected_min_timing_ms']) {
+            $expectedMinTimingMs = -1
+            if (-not [int]::TryParse([string]$Scenario.parameters.expected_min_timing_ms, [ref]$expectedMinTimingMs) -or $expectedMinTimingMs -lt 0) { throw 'CLIENT_EXPECTED_MIN_TIMING_INVALID' }
+            $flow | Add-Member -NotePropertyName expected_min_timing_ms -NotePropertyValue $expectedMinTimingMs
+        }
+        $flows.Add($flow)
+    }
+    $childProcessPlans = [System.Collections.Generic.List[object]]::new()
+    if ($processCount -gt 1) {
+        $testIdIndex = [array]::IndexOf(@($arguments), '--test-id')
+        $jsonlIndex = [array]::IndexOf(@($arguments), '--jsonl-log')
+        if ($testIdIndex -lt 0 -or $jsonlIndex -lt 0 -or $jsonlIndex + 1 -ge $arguments.Count) { throw 'CLIENT_MULTI_PROCESS_ARGUMENT_LAYOUT_INVALID' }
+        $jsonlDirectory = [System.IO.Path]::GetDirectoryName($JsonlPath)
+        $jsonlName = [System.IO.Path]::GetFileNameWithoutExtension($JsonlPath)
+        $jsonlExtension = [System.IO.Path]::GetExtension($JsonlPath)
+        for ($processIndex = 1; $processIndex -le $processCount; $processIndex++) {
+            $childArguments = [System.Collections.Generic.List[string]]::new()
+            foreach ($argument in @($arguments)) { $childArguments.Add([string]$argument) }
+            $childArguments.Insert($testIdIndex, [string]$processIndex)
+            $childArguments.Insert($testIdIndex, '--process-index')
+            $childJsonlPath = Join-Path $jsonlDirectory ("$jsonlName.process-$processIndex$jsonlExtension")
+            $childJsonlArgumentIndex = [array]::IndexOf(@($childArguments), '--jsonl-log')
+            $childArguments[$childJsonlArgumentIndex + 1] = $childJsonlPath
+            $childProcessPlans.Add([pscustomobject][ordered]@{
+                process_index=$processIndex; executable=$ExecutablePath; arguments=$childArguments.ToArray(); jsonl_path=$childJsonlPath
+            })
+        }
     }
     return [pscustomobject][ordered]@{
         contract_id = $(if ($null -ne $Contract) { [string]$Contract.contract_id } else { 'proxybridge-client-stage34' })
@@ -167,11 +364,18 @@ function New-BaseClientPlan {
         executable = $ExecutablePath
         arguments = $arguments.ToArray()
         operation_timeout_ms = $timeoutMs
+        operation_count = $(if ($reconnectCount -gt 1) { $reconnectCount } else { $streamCount })
+        parallel_count = $parallelCount
+        process_count = $processCount
+        reconnect_count = $reconnectCount
+        reconnect_wait_ms = $reconnectWaitMs
+        additional_wait_budget_ms = (([long]([Math]::Max(0, $streamCount - 1)) * [long]$streamIntervalMs) + ([long]([Math]::Max(0, $reconnectCount - 1)) * [long]$reconnectWaitMs))
         scenario_id = [string]$Scenario.scenario_id
         run_id = $RunId
         jsonl_path = $JsonlPath
-        flows = @($flow)
-        expected_records = @($flow)
+        flows = $flows.ToArray()
+        expected_records = $flows.ToArray()
+        child_process_plans = $childProcessPlans.ToArray()
     }
 }
 
@@ -362,10 +566,15 @@ function New-ClientPlan {
     }
     $operationTimeoutMs = [Math]::Min([int]$plan.operation_timeout_ms, $OperationTimeoutCapMs)
     Set-ClientOperationTimeoutArgument -Plan $plan -OperationTimeoutMs $operationTimeoutMs
-    $operationCount = switch ([string]$plan.executor) { 'base' { 1 } 'issue206' { 2 } 'issue209' { 3 } default { throw 'CLIENT_TIMEOUT_BUDGET_EXECUTOR_UNSUPPORTED' } }
-    $bindRetryCount = $(if ([string]$plan.executor -eq 'base') { 0 } else { Get-ClientArgumentInt -Plan $plan -Name '--bind-retry-count' })
-    $bindRetryDelayMs = $(if ([string]$plan.executor -eq 'base') { 0 } else { Get-ClientArgumentInt -Plan $plan -Name '--bind-retry-delay-ms' })
-    $interFlowWaitMs = $(if ([string]$plan.executor -eq 'issue209') { Get-ClientArgumentInt -Plan $plan -Name '--inter-flow-wait-ms' } else { 0 })
+    $operationCount = if ($null -ne $plan.PSObject.Properties['operation_count']) {
+        [int]$plan.operation_count
+    } else {
+        switch ([string]$plan.executor) { 'base' { 1 } 'issue206' { 2 } 'issue209' { 3 } default { throw 'CLIENT_TIMEOUT_BUDGET_EXECUTOR_UNSUPPORTED' } }
+    }
+    if ($operationCount -lt 1) { throw 'CLIENT_TIMEOUT_OPERATION_COUNT_INVALID' }
+    $bindRetryCount = Get-ClientArgumentInt -Plan $plan -Name '--bind-retry-count'
+    $bindRetryDelayMs = Get-ClientArgumentInt -Plan $plan -Name '--bind-retry-delay-ms'
+    $interFlowWaitMs = $(if ($null -ne $plan.PSObject.Properties['additional_wait_budget_ms']) { [long]$plan.additional_wait_budget_ms } elseif ([string]$plan.executor -eq 'issue209') { Get-ClientArgumentInt -Plan $plan -Name '--inter-flow-wait-ms' } else { 0 })
     $operationBudgetMs = [long]$operationCount * [long]$operationTimeoutMs
     $bindRetryBudgetMs = [long]$bindRetryCount * [long]$bindRetryDelayMs
     $processTimeoutMs = $operationBudgetMs + $bindRetryBudgetMs + [long]$interFlowWaitMs + [long]$ProcessExitGraceMs
@@ -388,6 +597,12 @@ function New-ClientPlan {
     })
     $plan | Add-Member -NotePropertyName expected_sha256 -NotePropertyValue $ExpectedSha256
     $plan | Add-Member -NotePropertyName actual_path_timeout_ms -NotePropertyValue $ActualPathTimeoutMs
+    if ($null -ne $plan.PSObject.Properties['child_process_plans']) {
+        foreach ($childPlan in @($plan.child_process_plans)) {
+            $childPlan | Add-Member -NotePropertyName process_timeout_ms -NotePropertyValue ([int]$processTimeoutMs)
+            $childPlan | Add-Member -NotePropertyName actual_path_timeout_ms -NotePropertyValue $ActualPathTimeoutMs
+        }
+    }
     return $plan
 }
 
@@ -408,6 +623,15 @@ function Import-ClientJsonLinesFile {
     param([Parameter(Mandatory)][string]$Path)
     if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { throw 'CLIENT_JSONL_NOT_FOUND' }
     return @(ConvertFrom-ClientJsonLines -Lines @([System.IO.File]::ReadAllLines((Resolve-Path -LiteralPath $Path))))
+}
+
+function ConvertTo-ClientEvidenceTimestamp {
+    param($Value)
+    if ($Value -is [datetimeoffset]) { return ([datetimeoffset]$Value).UtcDateTime.ToString('o') }
+    if ($Value -is [datetime]) { return ([datetime]$Value).ToUniversalTime().ToString('o') }
+    $parsed = [datetimeoffset]::MinValue
+    if (-not [datetimeoffset]::TryParse([string]$Value, [ref]$parsed)) { throw 'CLIENT_EVIDENCE_TIMESTAMP_INVALID' }
+    return $parsed.UtcDateTime.ToString('o')
 }
 
 function ConvertTo-CanonicalClientEvidence {
@@ -432,19 +656,41 @@ function ConvertTo-CanonicalClientEvidence {
         $mode = ([string]$raw.mode).ToLowerInvariant()
         $recordKind = 'flow'
         $flowIndex = -1
-        switch ($phase) {
-            'single' { if ($mode -ne 'single') { throw 'CLIENT_EVIDENCE_SINGLE_MODE_MISMATCH' }; $flowIndex = 0 }
-            'first_flow' { $flowIndex = 0 }
-            'second_flow' { $flowIndex = 1 }
-            'held_recheck' { $recordKind = 'held_recheck'; $flowIndex = 0 }
-            default { throw "CLIENT_EVIDENCE_PHASE_UNSUPPORTED: $phase" }
+        if ($phase -match '^stream_([1-9][0-9]*)$') {
+            if ($mode -ne 'single') { throw 'CLIENT_EVIDENCE_STREAM_MODE_MISMATCH' }
+            $streamSequence = [int]$Matches[1]
+            if ($streamSequence -ne [int]$raw.sequence) { throw 'CLIENT_EVIDENCE_STREAM_SEQUENCE_MISMATCH' }
+            $flowIndex = $streamSequence - 1
+        } elseif ($phase -match '^parallel_([1-9][0-9]*)$') {
+            if ($mode -ne 'single') { throw 'CLIENT_EVIDENCE_PARALLEL_MODE_MISMATCH' }
+            $parallelSequence = [int]$Matches[1]
+            if ($parallelSequence -ne [int]$raw.sequence -or $parallelSequence -gt 32) { throw 'CLIENT_EVIDENCE_PARALLEL_SEQUENCE_MISMATCH' }
+            $flowIndex = $parallelSequence - 1
+        } elseif ($phase -match '^process_([1-8])$') {
+            if ($mode -ne 'single') { throw 'CLIENT_EVIDENCE_PROCESS_MODE_MISMATCH' }
+            $processSequence = [int]$Matches[1]
+            if ($processSequence -ne [int]$raw.sequence) { throw 'CLIENT_EVIDENCE_PROCESS_SEQUENCE_MISMATCH' }
+            $flowIndex = $processSequence - 1
+        } elseif ($phase -match '^reconnect_([1-9]|[12][0-9]|3[0-2])$') {
+            if ($mode -ne 'single') { throw 'CLIENT_EVIDENCE_RECONNECT_MODE_MISMATCH' }
+            $reconnectSequence = [int]$Matches[1]
+            if ($reconnectSequence -ne [int]$raw.sequence) { throw 'CLIENT_EVIDENCE_RECONNECT_SEQUENCE_MISMATCH' }
+            $flowIndex = $reconnectSequence - 1
+        } else {
+            switch ($phase) {
+                'single' { if ($mode -ne 'single') { throw 'CLIENT_EVIDENCE_SINGLE_MODE_MISMATCH' }; $flowIndex = 0 }
+                'first_flow' { $flowIndex = 0 }
+                'second_flow' { $flowIndex = 1 }
+                'held_recheck' { $recordKind = 'held_recheck'; $flowIndex = 0 }
+                default { throw "CLIENT_EVIDENCE_PHASE_UNSUPPORTED: $phase" }
+            }
         }
         $actualResult = [string]$raw.actual_result
         $clientPass = $actualResult -match '^pass(?::|$)'
         $noResponse = $clientPass -and $actualResult -match '^pass:no_echo_' -and [long]$raw.bytes_received -eq 0 -and [string]::IsNullOrEmpty([string]$raw.response_sha256)
-        [pscustomobject][ordered]@{
+        $canonical = [pscustomobject][ordered]@{
             raw_record=$raw; record_kind=$recordKind; flow_index=$flowIndex
-            timestamp_utc=[string]$raw.timestamp_utc; test_id=[string]$raw.test_id; run_id=[string]$raw.run_id
+            timestamp_utc=(ConvertTo-ClientEvidenceTimestamp $raw.timestamp_utc); test_id=[string]$raw.test_id; run_id=[string]$raw.run_id
             mode=$mode; sequence=[int]$raw.sequence; phase=$phase
             expected_action=([string]$raw.expected_action).ToUpperInvariant(); expected_outcome=([string]$raw.expect).ToLowerInvariant()
             family=[string]$raw.family; protocol=([string]$raw.protocol).ToUpperInvariant()
@@ -458,6 +704,28 @@ function ConvertTo-CanonicalClientEvidence {
             expected_result=[string]$raw.expected_result; actual_result=$actualResult
             no_response=[bool]$noResponse; client_pass=[bool]$clientPass
         }
+        if ($null -ne $raw.PSObject.Properties['requested_remote_host']) {
+            $canonical | Add-Member -NotePropertyName remote_host -NotePropertyValue ([string]$raw.requested_remote_host)
+        }
+        if ($null -ne $raw.PSObject.Properties['endpoint_behavior']) {
+            $canonical | Add-Member -NotePropertyName endpoint_behavior -NotePropertyValue ([string]$raw.endpoint_behavior)
+        }
+        if ($null -ne $raw.PSObject.Properties['behavior_delay_ms']) {
+            $canonical | Add-Member -NotePropertyName behavior_delay_ms -NotePropertyValue ([int]$raw.behavior_delay_ms)
+        }
+        if ($null -ne $raw.PSObject.Properties['response_count']) {
+            $canonical | Add-Member -NotePropertyName response_count -NotePropertyValue ([int]$raw.response_count)
+        }
+        if ($null -ne $raw.PSObject.Properties['response_order']) {
+            $canonical | Add-Member -NotePropertyName response_order -NotePropertyValue ([int]$raw.response_order)
+        }
+        if ($null -ne $raw.PSObject.Properties['process_id']) {
+            $canonical | Add-Member -NotePropertyName process_id -NotePropertyValue ([int]$raw.process_id)
+        }
+        if ($null -ne $raw.PSObject.Properties['socket_id']) {
+            $canonical | Add-Member -NotePropertyName socket_id -NotePropertyValue ([long]$raw.socket_id)
+        }
+        $canonical
     }
 }
 
@@ -476,6 +744,49 @@ function Invoke-ClientPlan {
     if (-not [bool]$prelaunch.hash_verified) {
         if ([string]$prelaunch.status -eq 'HASH_MISMATCH') { throw 'CLIENT_PRELAUNCH_HASH_MISMATCH' }
         throw 'CLIENT_PRELAUNCH_HASH_VERIFICATION_FAILED'
+    }
+
+    if ($null -ne $Plan.PSObject.Properties['child_process_plans'] -and @($Plan.child_process_plans).Count -gt 1) {
+        $processResults = @(Invoke-ConcurrentProcessPlans -Plans @($Plan.child_process_plans) -ProcessAdapter $ProcessAdapter -AllowProductRuntime:$AllowProductRuntime)
+        $rawRecords = [System.Collections.Generic.List[object]]::new()
+        $canonicalRecords = [System.Collections.Generic.List[object]]::new()
+        $actualPathRequired = $false
+        $expectedPath = [System.IO.Path]::GetFullPath([string]$Plan.executable).TrimEnd('\')
+        for ($processIndex = 0; $processIndex -lt $processResults.Count; $processIndex++) {
+            $processResult = $processResults[$processIndex]
+            $probeStatus = [string]$processResult.actual_path_probe_status
+            if ($probeStatus -eq 'QUERY_TIMEOUT') { throw 'CLIENT_PATH_QUERY_TIMEOUT' }
+            if ($probeStatus -eq 'PATH_OBTAINED') {
+                $actualPathRequired = $true
+                try { $actualPath = [System.IO.Path]::GetFullPath([string]$processResult.actual_path).TrimEnd('\') }
+                catch { throw 'CLIENT_PATH_VERIFICATION_FAILED' }
+                if (-not [string]::Equals($expectedPath, $actualPath, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'CLIENT_PATH_VERIFICATION_FAILED' }
+            } elseif ($probeStatus -ne 'PROCESS_EXITED') { throw 'CLIENT_PATH_PROBE_STATUS_INVALID' }
+            if (-not [bool]$processResult.timed_out) {
+                $childRecords = @(Import-ClientJsonLinesFile -Path ([string]$Plan.child_process_plans[$processIndex].jsonl_path))
+                if ($childRecords.Count -ne 1) { throw 'CLIENT_PROCESS_RECORD_COUNT_INVALID' }
+                if ($null -eq $childRecords[0].PSObject.Properties['process_id'] -or [int]$childRecords[0].process_id -ne [int]$processResult.pid) { throw 'CLIENT_PROCESS_IDENTITY_MISMATCH' }
+                $rawRecords.Add($childRecords[0])
+                $canonicalRecords.Add(($childRecords[0] | ConvertTo-CanonicalClientEvidence))
+            }
+        }
+        $utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+        $combinedLines = @($rawRecords | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 20 })
+        [System.IO.File]::WriteAllLines([string]$Plan.jsonl_path, $combinedLines, $utf8NoBom)
+        $timedOut = @($processResults | Where-Object { [bool]$_.timed_out }).Count -gt 0
+        $nonzero = @($processResults | Where-Object { [int]$_.exit_code -ne 0 } | Select-Object -First 1)
+        $exitCode = $(if ($timedOut) { -1 } elseif ($nonzero.Count -gt 0) { [int]$nonzero[0].exit_code } else { 0 })
+        return [pscustomobject][ordered]@{
+            exit_code=$exitCode; timed_out=$timedOut; pid=[int]$processResults[0].pid
+            pids=@($processResults | ForEach-Object { [int]$_.pid }); actual_path=[string]$processResults[0].actual_path
+            prelaunch_path_verified=[bool]$prelaunch.path_verified; prelaunch_hash_verified=[bool]$prelaunch.hash_verified
+            actual_path_probe_status='MULTI_PROCESS'; actual_path_probe_attempts=[int](($processResults | Measure-Object -Property actual_path_probe_attempts -Sum).Sum)
+            actual_path_probe_elapsed_ms=[int](($processResults | Measure-Object -Property actual_path_probe_elapsed_ms -Maximum).Maximum)
+            actual_path_required=[bool]$actualPathRequired; process_results=$processResults
+            stdout=(@($processResults.stdout) -join [Environment]::NewLine); stderr=(@($processResults.stderr) -join [Environment]::NewLine)
+            raw_records=$rawRecords.ToArray(); canonical_records=$canonicalRecords.ToArray(); records=$canonicalRecords.ToArray()
+            jsonl_path=[string]$Plan.jsonl_path; run_mode=$(if ([bool]$ProcessAdapter.is_mock) { 'mock' } else { 'real' })
+        }
     }
 
     $processResult = Invoke-ProcessPlan -Plan $Plan -ProcessAdapter $ProcessAdapter -AllowProductRuntime:$AllowProductRuntime

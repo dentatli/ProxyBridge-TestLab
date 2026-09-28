@@ -24,6 +24,9 @@ bin/
 obj/
 
 # Editors
+__pycache__/
+*.pyc
+.serena/
 .vscode/
 .idea/
 

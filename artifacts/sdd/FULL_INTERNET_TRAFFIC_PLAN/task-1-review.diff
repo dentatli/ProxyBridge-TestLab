@@ -1,0 +1,514 @@
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-1-before/tests/Test-BrowserPlugin.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-1-after/tests/Test-BrowserPlugin.ps1', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-before/src/protocol_worker/plugins/browser.py" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/src/protocol_worker/plugins/browser.py"
+index e198130..90d0286 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-before/src/protocol_worker/plugins/browser.py"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/src/protocol_worker/plugins/browser.py"
+@@ -4,8 +4,10 @@ import ctypes
+ import hashlib
+ import json
+ import os
++import re
+ import shutil
+ import subprocess
++import threading
+ import time
+ from datetime import datetime, timezone
+ from pathlib import Path
+@@ -16,6 +18,9 @@ from model import WorkerContractError, WorkerPlan
+ 
+ 
+ _DOM_MARKER = "PB_TESTLAB_BROWSER_READY"
++_DOM_RESULT_ID = "proxybridge-testlab-browser-result"
++_MAX_BROWSER_OUTPUT_BYTES = 65_536
++_PATH_PROBE_INTERVAL_SECONDS = 0.025
+ _WINDOWS_STILL_ACTIVE = 259
+ _PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+ _PROCESS_SET_QUOTA = 0x0100
+@@ -107,9 +112,40 @@ def _browser_arguments(plan: WorkerPlan) -> list[str]:
+     value = plan.raw["parameters"].get("browser_arguments", [])
+     if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+         raise WorkerContractError("BROWSER_PARAMETER_INVALID:browser_arguments")
++    if any(item.startswith("--testlab-") for item in value):
++        raise WorkerContractError("BROWSER_ARGUMENT_FORBIDDEN")
+     return list(value)
+ 
+ 
++def _sha256_file(path: Path) -> str:
++    digest = hashlib.sha256()
++    try:
++        with path.open("rb") as stream:
++            while True:
++                block = stream.read(65_536)
++                if not block:
++                    break
++                digest.update(block)
++    except OSError as exc:
++        raise WorkerContractError("BROWSER_EXECUTABLE_READ_FAILED") from exc
++    return digest.hexdigest()
++
++
++def _sha256_parameter(plan: WorkerPlan, name: str) -> str:
++    value = _required_string(plan, name).lower()
++    if len(value) != 64 or any(character not in "0123456789abcdef" for character in value):
++        raise WorkerContractError(f"BROWSER_PARAMETER_INVALID:{name}")
++    return value
++
++
++def _positive_timeout_ms(plan: WorkerPlan, name: str) -> int:
++    value = plan.raw["parameters"].get(name)
++    operation_timeout_ms = plan.raw["operation_timeout_ms"]
++    if isinstance(value, bool) or not isinstance(value, int) or value <= 0 or value > operation_timeout_ms:
++        raise WorkerContractError(f"BROWSER_PARAMETER_INVALID:{name}")
++    return value
++
++
+ def _query_process_image(pid: int) -> str:
+     if os.name != "nt":
+         raise WorkerContractError("BROWSER_OBSERVED_PATH_UNAVAILABLE")
+@@ -233,14 +269,93 @@ def _remove_isolated_directories(profile: Path, downloads: Path) -> bool:
+     return not profile.exists() and not downloads.exists()
+ 
+ 
++def _probe_actual_path(process: subprocess.Popen[bytes], timeout_ms: int) -> tuple[str, str, int, int]:
++    started = time.monotonic()
++    deadline = started + timeout_ms / 1000.0
++    attempts = 0
++    while True:
++        if process.poll() is not None:
++            elapsed = int((time.monotonic() - started) * 1000)
++            return "", "PROCESS_EXITED", attempts, elapsed
++        attempts += 1
++        try:
++            observed = _query_process_image(process.pid)
++        except WorkerContractError:
++            if time.monotonic() >= deadline:
++                elapsed = int((time.monotonic() - started) * 1000)
++                return "", "QUERY_TIMEOUT", attempts, elapsed
++            time.sleep(_PATH_PROBE_INTERVAL_SECONDS)
++            continue
++        elapsed = int((time.monotonic() - started) * 1000)
++        return observed, "PATH_OBTAINED", attempts, elapsed
++
++
++def _drain_bounded(stream: Any, captured: bytearray, overflow: list[bool]) -> None:
++    while True:
++        block = stream.read(4096)
++        if not block:
++            return
++        remaining = _MAX_BROWSER_OUTPUT_BYTES - len(captured)
++        if remaining > 0:
++            captured.extend(block[:remaining])
++        if len(block) > remaining:
++            overflow[0] = True
++
++
++def _start_output_capture(process: subprocess.Popen[bytes]) -> tuple[bytearray, bytearray, list[bool], list[threading.Thread]]:
++    stdout = bytearray()
++    stderr = bytearray()
++    overflow = [False]
++    assert process.stdout is not None and process.stderr is not None
++    readers = [
++        threading.Thread(target=_drain_bounded, args=(process.stdout, stdout, overflow), daemon=True),
++        threading.Thread(target=_drain_bounded, args=(process.stderr, stderr, overflow), daemon=True),
++    ]
++    for reader in readers:
++        reader.start()
++    return stdout, stderr, overflow, readers
++
++
++def _wait_for_browser_exit(process: subprocess.Popen[bytes], deadline: float) -> None:
++    while process.poll() is None:
++        if time.monotonic() >= deadline:
++            raise WorkerContractError("BROWSER_EVIDENCE_TIMEOUT")
++        time.sleep(_PATH_PROBE_INTERVAL_SECONDS)
++
++
++def _parse_dom_marker(dom: bytes) -> dict[str, Any]:
++    try:
++        text = dom.decode("utf-8")
++    except UnicodeDecodeError as exc:
++        raise WorkerContractError("BROWSER_DOM_MARKER_INVALID") from exc
++    marker_pattern = re.compile(
++        r'<script\b[^>]*\bid=["\']' + re.escape(_DOM_RESULT_ID) + r'["\'][^>]*>(.*?)</script\s*>',
++        re.IGNORECASE | re.DOTALL,
++    )
++    matches = marker_pattern.findall(text)
++    if len(matches) != 1:
++        raise WorkerContractError("BROWSER_DOM_MARKER_INVALID")
++    try:
++        marker = json.loads(matches[0])
++    except json.JSONDecodeError as exc:
++        raise WorkerContractError("BROWSER_DOM_MARKER_INVALID") from exc
++    if not isinstance(marker, dict) or marker.get("dom_marker") != _DOM_MARKER:
++        raise WorkerContractError("BROWSER_DOM_MARKER_INVALID")
++    return marker
++
++
+ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+     """Run one isolated browser canary and return only post-cleanup evidence."""
+     started = time.monotonic()
+-    parameters = plan.raw["parameters"]
+     requested = Path(_required_string(plan, "browser_executable"))
+     if not requested.is_file():
+         raise WorkerContractError("BROWSER_EXECUTABLE_MISSING")
+     requested = requested.resolve()
++    expected_image_sha256 = _sha256_parameter(plan, "expected_browser_sha256")
++    if _sha256_file(requested) != expected_image_sha256:
++        raise WorkerContractError("BROWSER_EXECUTABLE_HASH_MISMATCH")
++    browser_identity = _required_string(plan, "expected_browser_identity")
++    browser_version = _required_string(plan, "expected_browser_version")
+     target_url = _required_string(plan, "target_url")
+     parsed = urlparse(target_url)
+     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+@@ -249,49 +364,70 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+     downloads = Path(_required_string(plan, "download_dir")).resolve()
+     if profile == downloads or profile.exists() or downloads.exists():
+         raise WorkerContractError("BROWSER_ISOLATION_PATH_INVALID")
+-    download = downloads / _safe_name(plan, "download_name")
+-    marker = downloads / _safe_name(plan, "dom_marker_name")
+-    expected_hash = _required_string(plan, "expected_download_sha256").lower()
+-    if len(expected_hash) != 64 or any(character not in "0123456789abcdef" for character in expected_hash):
+-        raise WorkerContractError("BROWSER_PARAMETER_INVALID:expected_download_sha256")
++    expected_content_sha256 = _sha256_parameter(plan, "expected_content_sha256")
++    expected_response_status = plan.raw["parameters"].get("expected_response_status")
++    if isinstance(expected_response_status, bool) or not isinstance(expected_response_status, int) or not 100 <= expected_response_status <= 599:
++        raise WorkerContractError("BROWSER_PARAMETER_INVALID:expected_response_status")
++    expected_protocol = _required_string(plan, "expected_negotiated_protocol")
++    virtual_time_budget_ms = _positive_timeout_ms(plan, "virtual_time_budget_ms") if "virtual_time_budget_ms" in plan.raw["parameters"] else min(1_000, plan.raw["operation_timeout_ms"])
++    actual_path_timeout_ms = _positive_timeout_ms(plan, "actual_path_timeout_ms")
+ 
+     profile.mkdir(parents=True, exist_ok=False)
+     downloads.mkdir(parents=True, exist_ok=False)
+     process: subprocess.Popen[bytes] | None = None
+     tree_pids: list[int] = []
+     observed = ""
++    probe_status = ""
++    probe_attempts = 0
++    probe_elapsed_ms = 0
++    stdout = bytearray()
++    stderr = bytearray()
++    output_overflow = [False]
++    readers: list[threading.Thread] = []
+     failure: BaseException | None = None
+-    cleanup_ok = False
++    cleanup_ok = True
+     try:
+         command = [
+             str(requested), *_browser_arguments(plan), "--headless=new", "--disable-background-networking", "--disable-sync",
+-            "--no-first-run", "--no-default-browser-check", f"--user-data-dir={profile}",
+-            f"--download-default-directory={downloads}", f"--testlab-dom-marker-path={marker}",
+-            f"--testlab-download-path={download}", target_url,
++            "--no-first-run", "--no-default-browser-check", "--dump-dom", f"--virtual-time-budget={virtual_time_budget_ms}",
++            f"--user-data-dir={profile}", target_url,
+         ]
+-        process = subprocess.Popen(command, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, close_fds=True)
+-        observed = _query_process_image(process.pid)
++        process = subprocess.Popen(
++            command,
++            stdin=subprocess.DEVNULL,
++            stdout=subprocess.PIPE,
++            stderr=subprocess.PIPE,
++            close_fds=True,
++            cwd=str(downloads),
++        )
++        stdout, stderr, output_overflow, readers = _start_output_capture(process)
++        observed, probe_status, probe_attempts, probe_elapsed_ms = _probe_actual_path(process, actual_path_timeout_ms)
++        if probe_status == "PROCESS_EXITED":
++            raise WorkerContractError("BROWSER_EXITED_BEFORE_PATH_OBSERVABLE")
++        if probe_status == "QUERY_TIMEOUT":
++            raise WorkerContractError("BROWSER_OBSERVED_PATH_QUERY_TIMEOUT")
+         if os.path.normcase(str(observed)) != os.path.normcase(str(requested)):
+             raise WorkerContractError("BROWSER_OBSERVED_PATH_MISMATCH")
+-        deadline = started + plan.raw["operation_timeout_ms"] / 1000.0
+-        while time.monotonic() < deadline and not (marker.is_file() and download.is_file()):
+-            if process.poll() is not None:
+-                raise WorkerContractError("BROWSER_EXITED_BEFORE_EVIDENCE")
+-            time.sleep(0.025)
+-        if not marker.is_file() or not download.is_file():
+-            raise WorkerContractError("BROWSER_EVIDENCE_TIMEOUT")
+         tree_pids = _process_tree(process.pid)
+         if process.pid not in tree_pids:
+             raise WorkerContractError("BROWSER_PROCESS_TREE_INVALID")
+-        try:
+-            marker_data = json.loads(marker.read_text(encoding="utf-8"))
+-        except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+-            raise WorkerContractError("BROWSER_DOM_MARKER_INVALID") from exc
+-        actual_hash = hashlib.sha256(download.read_bytes()).hexdigest()
+-        if marker_data.get("dom_marker") != _DOM_MARKER:
+-            raise WorkerContractError("BROWSER_DOM_MARKER_MISMATCH")
+-        if marker_data.get("download_sha256") != actual_hash or actual_hash != expected_hash:
+-            raise WorkerContractError("BROWSER_DOWNLOAD_HASH_MISMATCH")
++        _wait_for_browser_exit(process, started + plan.raw["operation_timeout_ms"] / 1000.0)
++        for reader in readers:
++            reader.join(timeout=2.0)
++        if any(reader.is_alive() for reader in readers):
++            raise WorkerContractError("BROWSER_OUTPUT_CAPTURE_FAILED")
++        if output_overflow[0]:
++            raise WorkerContractError("BROWSER_OUTPUT_LIMIT_EXCEEDED")
++        if process.returncode != 0:
++            raise WorkerContractError("BROWSER_PROCESS_FAILED")
++        marker_data = _parse_dom_marker(bytes(stdout))
++        content_sha256 = marker_data.get("content_sha256")
++        if not isinstance(content_sha256, str) or content_sha256.lower() != expected_content_sha256:
++            raise WorkerContractError("BROWSER_CONTENT_HASH_MISMATCH")
++        if marker_data.get("response_status") != expected_response_status:
++            raise WorkerContractError("BROWSER_RESPONSE_STATUS_MISMATCH")
++        if marker_data.get("negotiated_protocol") != expected_protocol:
++            raise WorkerContractError("BROWSER_NEGOTIATED_PROTOCOL_MISMATCH")
+     except BaseException as exc:
+         failure = exc
+     finally:
+@@ -302,6 +438,10 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+                 except WorkerContractError:
+                     tree_pids = [process.pid]
+             cleanup_ok = _terminate_tree(process.pid, tree_pids)
++        for reader in readers:
++            reader.join(timeout=2.0)
++        if any(reader.is_alive() for reader in readers):
++            cleanup_ok = False
+         directories_removed = _remove_isolated_directories(profile, downloads)
+         cleanup_ok = cleanup_ok and directories_removed
+     if not cleanup_ok:
+@@ -311,7 +451,7 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+             raise failure
+         raise WorkerContractError("BROWSER_WORKER_UNEXPECTED_FAILURE") from failure
+ 
+-    payload_sha256 = expected_hash
++    payload_sha256 = expected_content_sha256
+     return [{
+         "schema_version": 1,
+         "run_id": plan.raw["run_id"],
+@@ -334,11 +474,20 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+         "payload_sha256": payload_sha256,
+         "bytes": len(payload_sha256),
+         "result": "PASS",
+-        "dom_marker": _DOM_MARKER,
+-        "download_sha256": payload_sha256,
++        "browser_identity": browser_identity,
++        "browser_version": browser_version,
++        "navigation_url_digest": hashlib.sha256(target_url.encode("utf-8")).hexdigest(),
++        "negotiated_protocol": expected_protocol,
++        "response_status": expected_response_status,
++        "content_sha256": payload_sha256,
+         "browser_executable_requested": str(requested),
+         "browser_executable_observed": observed,
++        "browser_image_sha256": expected_image_sha256,
++        "browser_image_sha256_verified": True,
+         "browser_process_tree_pids": tree_pids,
+         "profile_id": hashlib.sha256(str(profile).encode("utf-8")).hexdigest(),
++        "actual_path_probe_status": probe_status,
++        "actual_path_probe_attempts": probe_attempts,
++        "actual_path_probe_elapsed_ms": probe_elapsed_ms,
+         "process_tree_cleaned": True,
+     }]
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-before/tests/Test-BrowserPlugin.ps1" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/tests/Test-BrowserPlugin.ps1"
+index eb72e1d..5c6d2bd 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-before/tests/Test-BrowserPlugin.ps1"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/tests/Test-BrowserPlugin.ps1"
+@@ -7,36 +7,54 @@ $root = Split-Path -Parent $PSScriptRoot
+ $python = (Get-Command python -ErrorAction Stop).Source
+ $fixture = Join-Path $PSScriptRoot 'fixtures/browser/fake_browser.py'
+ $temp = New-TestDirectory
+-try {
+-    $profile = Join-Path $temp 'profile'
+-    $downloads = Join-Path $temp 'downloads'
+-    $expectedHash = '388845361f44c3de3ce6182455dc3ef7736448a68530cc0e9c43448560cd066c'
+-    $driver = Join-Path $temp 'run_browser_plugin.py'
++$expectedContentHash = '388845361f44c3de3ce6182455dc3ef7736448a68530cc0e9c43448560cd066c'
++$expectedImageHash = (Get-FileHash -LiteralPath $python -Algorithm SHA256).Hash.ToLowerInvariant()
++
++function Invoke-BrowserFixtureCase {
++    param(
++        [Parameter(Mandatory = $true)][string]$Mode,
++        [string[]]$BrowserArguments = @(),
++        [string]$ExpectedError = ''
++    )
++    $profile = Join-Path $temp ("profile-" + $Mode)
++    $downloads = Join-Path $temp ("downloads-" + $Mode)
++    $driver = Join-Path $temp ("run_browser_" + $Mode + '.py')
++    $argumentsJson = ConvertTo-Json -InputObject (@($fixture) + @($BrowserArguments)) -Compress
+     $driverText = @"
+ import json
++import os
+ import sys
+-from pathlib import Path
+ sys.path.insert(0, r'$($root.Replace('\','\\'))\\src\\protocol_worker')
+-from model import WorkerPlan
+-from plugins.browser import run_browser
++from model import WorkerContractError, WorkerPlan
++import plugins.browser as browser
+ plan = WorkerPlan(raw={
+     'run_id': 'm15-browser-run', 'scenario_id': 'canary-browser-download', 'attempt_id': 'attempt-1', 'flow_id': 'flow-1',
+-    'plugin_id': 'browser-worker', 'protocol_family': 'browser-web', 'transport': 'TCP', 'operation_timeout_ms': 5000,
++    'plugin_id': 'browser-worker', 'protocol_family': 'browser-web', 'transport': 'TCP', 'operation_timeout_ms': 1000,
+     'parameters': {
+         'browser_executable': r'$($python.Replace('\','\\'))',
+-        'browser_arguments': [r'$($fixture.Replace('\','\\'))', '--testlab-download-content=browser-canary-payload'],
++        'expected_browser_sha256': '$expectedImageHash',
++        'expected_browser_identity': 'Fixture Chromium', 'expected_browser_version': '123.0.0.0',
++        'browser_arguments': $argumentsJson,
+         'target_url': 'https://testlab.invalid/browser/download',
+-        'profile_dir': r'$($profile.Replace('\','\\'))',
+-        'download_dir': r'$($downloads.Replace('\','\\'))',
+-        'expected_download_sha256': '$expectedHash', 'expected_response_status': 200,
+-        'expected_negotiated_protocol': 'h2', 'actual_path_timeout_ms': 1000
++        'profile_dir': r'$($profile.Replace('\','\\'))', 'download_dir': r'$($downloads.Replace('\','\\'))',
++        'expected_content_sha256': '$expectedContentHash', 'expected_response_status': 200,
++        'expected_negotiated_protocol': 'h2', 'virtual_time_budget_ms': 250, 'actual_path_timeout_ms': 100
+     },
+     'expected': {'outcome': 'response'}, 'capabilities': []
+ })
+-print(json.dumps(run_browser(plan), separators=(',', ':')))
++os.environ['PB_BROWSER_FIXTURE_MODE'] = '$Mode'
++if '$Mode' in ('path-query-timeout', 'exit-before-path'):
++    browser._query_process_image = lambda pid: (_ for _ in ()).throw(WorkerContractError('BROWSER_OBSERVED_PATH_UNAVAILABLE'))
++elif '$Mode' == 'path-mismatch':
++    browser._query_process_image = lambda pid: r'C:\\fixture\\wrong-browser.exe'
++elif '$Mode' == 'cleanup-failure':
++    browser._terminate_tree = lambda root_pid, known_pids: False
++try:
++    print(json.dumps({'record': browser.run_browser(plan)}, separators=(',', ':')))
++except WorkerContractError as exc:
++    print(json.dumps({'error': str(exc)}, separators=(',', ':')))
+ "@
+     Write-TestUtf8NoBom $driver $driverText
+-
+     $processInfo = [System.Diagnostics.ProcessStartInfo]::new()
+     $processInfo.FileName = $python
+     $processInfo.Arguments = '"' + $driver.Replace('"', '\"') + '"'
+@@ -45,26 +63,48 @@ print(json.dumps(run_browser(plan), separators=(',', ':')))
+     $processInfo.RedirectStandardOutput = $true
+     $processInfo.RedirectStandardError = $true
+     $process = [System.Diagnostics.Process]::Start($processInfo)
+-    Assert-True $process.WaitForExit(10000) 'browser plugin driver must complete within the bounded timeout'
++    Assert-True $process.WaitForExit(10000) "browser fixture $Mode must complete within the bounded timeout"
+     $stdout = $process.StandardOutput.ReadToEnd().Trim()
+     $stderr = $process.StandardError.ReadToEnd().Trim()
+-    Assert-Equal 0 $process.ExitCode "browser plugin must run against the deterministic fake browser: $stderr"
+-    $records = @($stdout | ConvertFrom-Json)
+-    Assert-Equal 1 $records.Count 'browser plugin must emit one evidence record'
++    Assert-Equal 0 $process.ExitCode "browser fixture $Mode driver must complete: $stderr"
++    $result = $stdout | ConvertFrom-Json
++    if ($ExpectedError) {
++        Assert-Equal $ExpectedError ([string]$result.error) "browser fixture $Mode must fail closed"
++        Assert-True ($null -eq $result.PSObject.Properties['record']) "browser fixture $Mode must never emit PASS evidence"
++    }
++    return $result
++}
++
++try {
++    $success = Invoke-BrowserFixtureCase -Mode 'success'
++    $successError = if ($null -ne $success.PSObject.Properties['error']) { [string]$success.error } else { '' }
++    Assert-True ($null -ne $success.PSObject.Properties['record']) "supported Chromium-only fixture must produce evidence instead of rejecting fake-only switches: $successError"
++    $records = @($success.record)
++    Assert-Equal 1 $records.Count 'real Chromium-style dumped DOM must produce one evidence record'
+     $record = $records[0]
+-    Assert-Equal 'PASS' ([string]$record.result) 'matching DOM marker and download hash must pass'
+-    Assert-Equal 'PB_TESTLAB_BROWSER_READY' ([string]$record.dom_marker) 'browser DOM marker must be recorded'
+-    Assert-Equal $expectedHash ([string]$record.download_sha256) 'download hash must be independently validated'
+-    Assert-Equal ([System.IO.Path]::GetFullPath($python)) ([string]$record.browser_executable_observed) 'observed browser image must be the actual process image'
+-    Assert-True (@($record.browser_process_tree_pids).Count -ge 1) 'browser evidence must include the observed process tree'
+-    Assert-Equal 'Fake Chromium' ([string]$record.browser_identity) 'browser identity must come from the deterministic DOM marker'
+-    Assert-Equal '1.0.0' ([string]$record.browser_version) 'browser version must come from the deterministic DOM marker'
+-    Assert-Equal 'h2' ([string]$record.negotiated_protocol) 'controlled browser navigation must record negotiated protocol'
+-    Assert-Equal 200 ([int]$record.response_status) 'controlled browser navigation must record response status'
+-    Assert-Equal $expectedHash ([string]$record.content_sha256) 'controlled browser navigation must record content hash'
++    Assert-Equal 'PASS' ([string]$record.result) 'matching dumped DOM marker must pass'
++    Assert-Equal 'Fixture Chromium' ([string]$record.browser_identity) 'controller-provided browser identity must be recorded'
++    Assert-Equal '123.0.0.0' ([string]$record.browser_version) 'controller-provided browser version must be recorded'
++    Assert-Equal $expectedImageHash ([string]$record.browser_image_sha256) 'exact prelaunch browser image hash must be recorded'
++    Assert-Equal ([System.IO.Path]::GetFullPath($python)) ([string]$record.browser_executable_observed) 'observed browser image must come from the process query'
++    Assert-Equal 'PATH_OBTAINED' ([string]$record.actual_path_probe_status) 'actual path probe must report success separately'
++    Assert-True ([int]$record.actual_path_probe_attempts -ge 1) 'actual path probe must retain attempt count'
++    Assert-True ([int]$record.actual_path_probe_elapsed_ms -ge 0) 'actual path probe must retain elapsed time'
++    Assert-Equal 'h2' ([string]$record.negotiated_protocol) 'controlled navigation must record browser-observed protocol'
++    Assert-Equal 200 ([int]$record.response_status) 'controlled navigation must record response status'
++    Assert-Equal $expectedContentHash ([string]$record.content_sha256) 'controlled navigation must record deterministic content hash'
+     Assert-True ([bool]$record.process_tree_cleaned) 'browser process tree must be verified clean before PASS'
+-    Assert-True (-not (Test-Path -LiteralPath $profile)) 'isolated browser profile must be removed after verified cleanup'
+-    Assert-True (-not (Test-Path -LiteralPath $downloads)) 'isolated download directory must be removed after verified cleanup'
++    Assert-True (-not (Test-Path -LiteralPath (Join-Path $temp 'profile-success'))) 'isolated browser profile must be removed after verified cleanup'
++    Assert-True (-not (Test-Path -LiteralPath (Join-Path $temp 'downloads-success'))) 'isolated download directory must be removed after verified cleanup'
++
++    Invoke-BrowserFixtureCase -Mode 'success' -BrowserArguments @('--testlab-unsupported') -ExpectedError 'BROWSER_ARGUMENT_FORBIDDEN' | Out-Null
++    Invoke-BrowserFixtureCase -Mode 'malformed-marker' -ExpectedError 'BROWSER_DOM_MARKER_INVALID' | Out-Null
++    Invoke-BrowserFixtureCase -Mode 'multiple-markers' -ExpectedError 'BROWSER_DOM_MARKER_INVALID' | Out-Null
++    Invoke-BrowserFixtureCase -Mode 'wrong-content-hash' -ExpectedError 'BROWSER_CONTENT_HASH_MISMATCH' | Out-Null
++    Invoke-BrowserFixtureCase -Mode 'path-query-timeout' -ExpectedError 'BROWSER_OBSERVED_PATH_QUERY_TIMEOUT' | Out-Null
++    Invoke-BrowserFixtureCase -Mode 'exit-before-path' -ExpectedError 'BROWSER_EXITED_BEFORE_PATH_OBSERVABLE' | Out-Null
++    Invoke-BrowserFixtureCase -Mode 'path-mismatch' -ExpectedError 'BROWSER_OBSERVED_PATH_MISMATCH' | Out-Null
++    Invoke-BrowserFixtureCase -Mode 'cleanup-failure' -ExpectedError 'BROWSER_TREE_CLEANUP_FAILED' | Out-Null
+ }
+ finally {
+     if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-before/tests/fixtures/browser/fake_browser.py" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/tests/fixtures/browser/fake_browser.py"
+index 8250fc3..735948b 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-before/tests/fixtures/browser/fake_browser.py"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/tests/fixtures/browser/fake_browser.py"
+@@ -2,17 +2,54 @@ from __future__ import annotations
+ 
+ import hashlib
+ import json
++import os
+ import sys
++import time
+ 
+ 
+-payload = b"browser-canary-payload"
+-marker = json.dumps({
+-    "dom_marker": "PB_TESTLAB_BROWSER_READY",
+-    "browser_identity": "Fake Chromium",
+-    "browser_version": "1.0.0",
+-    "negotiated_protocol": "h2",
+-    "response_status": 200,
+-    "content_sha256": hashlib.sha256(payload).hexdigest(),
+-}, separators=(",", ":"))
+-print(f'<html><body><script id="proxybridge-testlab-browser-result" type="application/json">{marker}</script></body></html>')
+-sys.stdout.flush()
++def _argument_value(prefix: str) -> str:
++    matches = [argument[len(prefix):] for argument in sys.argv[1:] if argument.startswith(prefix)]
++    if len(matches) != 1 or not matches[0]:
++        raise SystemExit(21)
++    return matches[0]
++
++
++def main() -> int:
++    arguments = sys.argv[1:]
++    if any(argument.startswith("--testlab-") for argument in arguments):
++        return 20
++    _argument_value("--headless=")
++    if "--dump-dom" not in arguments:
++        return 21
++    _argument_value("--virtual-time-budget=")
++    _argument_value("--user-data-dir=")
++    if not arguments[-1].startswith(("http://", "https://")):
++        return 21
++
++    mode = os.environ.get("PB_BROWSER_FIXTURE_MODE", "success")
++    if mode == "exit-before-path":
++        return 0
++
++    payload = b"browser-canary-payload"
++    marker: object = {
++        "dom_marker": "PB_TESTLAB_BROWSER_READY",
++        "negotiated_protocol": "h2",
++        "response_status": 200,
++        "content_sha256": hashlib.sha256(payload).hexdigest(),
++    }
++    if mode == "malformed-marker":
++        rendered = "not-json"
++    else:
++        if mode == "wrong-content-hash":
++            marker["content_sha256"] = "0" * 64
++        rendered = json.dumps(marker, separators=(",", ":"))
++    script = '<script id="proxybridge-testlab-browser-result" type="application/json">' + rendered + "</script>"
++    if mode == "multiple-markers":
++        script += script
++    print("<html><body>" + script + "</body></html>")
++    sys.stdout.flush()
++    time.sleep(0.2)
++    return 0
++
++
++raise SystemExit(main())

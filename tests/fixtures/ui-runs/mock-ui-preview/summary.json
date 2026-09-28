@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "run_mode": "mock",
+  "execution_complete": true,
+  "product_verdict": "EXPECTED_FAILURE_OBSERVED",
+  "fixture": true,
+  "catalog": {
+    "declared": 135,
+    "executable": 25,
+    "declarative": 103,
+    "unsupported": 7,
+    "selected": 3,
+    "dry_run_records": 0,
+    "mock_records": 3,
+    "real_records": 0
+  },
+  "statuses": [
+    { "status": "MOCK_EXPECTED_FAIL", "count": 1, "run_mode": "mock" },
+    { "status": "MOCK_HOLD", "count": 1, "run_mode": "mock" },
+    { "status": "MOCK_PASS", "count": 1, "run_mode": "mock" }
+  ]
+}

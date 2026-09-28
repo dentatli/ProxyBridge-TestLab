@@ -1,0 +1,2 @@
+${TIMESTAMP} ${PROCESS} (4242) -> ${REMOTE0_ENDPOINT} via Proxy SOCKS5 ProxyConfigId=2
+${TIMESTAMP} [RELAY] accepted redirect process=${PROCESS} pid=4242 destination=${REMOTE0_ENDPOINT} cfg=2

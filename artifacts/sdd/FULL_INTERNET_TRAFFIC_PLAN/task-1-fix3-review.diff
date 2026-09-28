@@ -1,0 +1,219 @@
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-1-after-fix2/tests/Test-BrowserPlugin.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-1-after-fix3/tests/Test-BrowserPlugin.ps1', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix2/src/protocol_worker/plugins/browser.py" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix3/src/protocol_worker/plugins/browser.py"
+index cdd5ca3..0de2ea1 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix2/src/protocol_worker/plugins/browser.py"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix3/src/protocol_worker/plugins/browser.py"
+@@ -69,10 +69,15 @@ class _SuspendedBrowserProcess:
+         self.returncode: int | None = None
+         self.stdout: Any = None
+         self.stderr: Any = None
+-        stdout_read, stdout_write = self._create_pipe()
+-        stderr_read, stderr_write = self._create_pipe()
+-        null_input = self._open_null_input()
++        stdout_read: int | None = None
++        stdout_write: int | None = None
++        stderr_read: int | None = None
++        stderr_write: int | None = None
++        null_input: int | None = None
+         try:
++            stdout_read, stdout_write = self._create_pipe()
++            stderr_read, stderr_write = self._create_pipe()
++            null_input = self._open_null_input()
+             startup = _StartupInfoW()
+             startup.cb = ctypes.sizeof(_StartupInfoW)
+             startup.dwFlags = _STARTF_USESTDHANDLES
+@@ -89,23 +94,43 @@ class _SuspendedBrowserProcess:
+             self._process_handle = int(info.hProcess)
+             self._thread_handle = int(info.hThread)
+             self.pid = int(info.dwProcessId)
+-        except BaseException:
+-            self._close_handle(stdout_read)
+-            self._close_handle(stderr_read)
+-            raise
+-        finally:
+             self._close_handle(null_input)
++            null_input = None
+             self._close_handle(stdout_write)
++            stdout_write = None
+             self._close_handle(stderr_write)
+-        try:
++            stderr_write = None
+             self.stdout = self._open_reader(stdout_read)
+             stdout_read = None
+             self.stderr = self._open_reader(stderr_read)
+             stderr_read = None
++        except BaseException as exc:
++            self._terminate_created_process()
++            self.close()
++            raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED") from exc
+         finally:
++            self._close_handle(null_input)
++            self._close_handle(stdout_write)
++            self._close_handle(stderr_write)
+             self._close_handle(stdout_read)
+             self._close_handle(stderr_read)
+ 
++    def _terminate_created_process(self) -> None:
++        if not self._process_handle:
++            return
++        try:
++            terminate = self._kernel32.TerminateProcess
++            terminate.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
++            terminate.restype = ctypes.c_bool
++            if not terminate(self._process_handle, 1):
++                return
++            wait = self._kernel32.WaitForSingleObject
++            wait.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
++            wait.restype = ctypes.c_uint32
++            wait(self._process_handle, 2_000)
++        except (AttributeError, OSError):
++            return
++
+     def _create_pipe(self) -> tuple[int, int]:
+         create_pipe = self._kernel32.CreatePipe
+         create_pipe.argtypes = [ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(_SecurityAttributes), ctypes.c_uint32]
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix2/tests/Test-BrowserPlugin.ps1" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix3/tests/Test-BrowserPlugin.ps1"
+index e2e2b36..a56c4e8 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix2/tests/Test-BrowserPlugin.ps1"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix3/tests/Test-BrowserPlugin.ps1"
+@@ -53,7 +53,12 @@ Add-Type -TypeDefinition $fixtureSource -OutputAssembly $fixtureBrowser -OutputT
+ $expectedImageHash = (Get-FileHash -LiteralPath $fixtureBrowser -Algorithm SHA256).Hash.ToLowerInvariant()
+ 
+ function Stop-TestDriverTree {
+-    param([Parameter(Mandatory = $true)][System.Diagnostics.Process]$Process)
++    param(
++        [Parameter(Mandatory = $true)][System.Diagnostics.Process]$Process,
++        [int]$TaskkillTimeoutMs = 5000,
++        [int]$DriverTimeoutMs = 5000,
++        [scriptblock]$StartTaskkill = $null
++    )
+     if ($Process.HasExited) { return }
+     $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+@@ -61,13 +66,23 @@ function Stop-TestDriverTree {
+     $startInfo.Arguments = "/PID $($Process.Id) /T /F"
+     $startInfo.UseShellExecute = $false
+     $startInfo.CreateNoWindow = $true
+-    $killer = [System.Diagnostics.Process]::Start($startInfo)
+-    if (-not $killer.WaitForExit(5000)) {
+-        try { $killer.Kill() } finally { throw 'ASSERTION FAILED: driver-tree cleanup timed out' }
++    $killer = if ($null -ne $StartTaskkill) { & $StartTaskkill $startInfo } else { [System.Diagnostics.Process]::Start($startInfo) }
++    $taskkillTimedOut = $false
++    try {
++        if (-not $killer.WaitForExit($TaskkillTimeoutMs)) {
++            $taskkillTimedOut = $true
++        }
+     }
+-    if (-not $Process.WaitForExit(5000)) {
++    finally {
++        if (-not $killer.HasExited) { $killer.Kill() }
++        if ($taskkillTimedOut -and -not $Process.HasExited) { $Process.Kill() }
++    }
++    if (-not $Process.WaitForExit($DriverTimeoutMs)) {
+         try { $Process.Kill() } finally { throw 'ASSERTION FAILED: driver-tree cleanup did not terminate the driver' }
+     }
++    if ($taskkillTimedOut) {
++        throw 'ASSERTION FAILED: driver-tree cleanup timed out'
++    }
+ }
+ 
+ function Invoke-BrowserFixtureCase {
+@@ -123,12 +138,51 @@ elif '$Mode' == 'ownership-race':
+         profile.mkdir(parents=True, exist_ok=False)
+         return original_create(profile, downloads)
+     browser._create_isolated_directories = ownership_race
++elif '$Mode' == 'reader-open-failure':
++    created_pids = []
++    def reader_failure(self, handle):
++        created_pids.append(self.pid)
++        raise OSError('fixture reader open failure')
++    browser._SuspendedBrowserProcess._open_reader = reader_failure
++elif '$Mode' in ('stderr-pipe-failure', 'nul-input-failure'):
++    acquired_handles = []
++    closed_handles = []
++    original_create_pipe = browser._SuspendedBrowserProcess._create_pipe
++    original_close_handle = browser._SuspendedBrowserProcess._close_handle
++    def tracked_create_pipe(self):
++        pair = original_create_pipe(self)
++        acquired_handles.extend(pair)
++        return pair
++    def tracked_close_handle(self, handle):
++        if handle in acquired_handles:
++            closed_handles.append(handle)
++        return original_close_handle(self, handle)
++    browser._SuspendedBrowserProcess._create_pipe = tracked_create_pipe
++    browser._SuspendedBrowserProcess._close_handle = tracked_close_handle
++    if '$Mode' == 'stderr-pipe-failure':
++        create_calls = [0]
++        def fail_stderr_pipe(self):
++            create_calls[0] += 1
++            if create_calls[0] == 2:
++                raise WorkerContractError('BROWSER_SUSPENDED_LAUNCH_FAILED')
++            return tracked_create_pipe(self)
++        browser._SuspendedBrowserProcess._create_pipe = fail_stderr_pipe
++    else:
++        def fail_null_input(self):
++            raise WorkerContractError('BROWSER_SUSPENDED_LAUNCH_FAILED')
++        browser._SuspendedBrowserProcess._open_null_input = fail_null_input
+ try:
+     print(json.dumps({'record': browser.run_browser(plan)}, separators=(',', ':')))
+ except WorkerContractError as exc:
+     result = {'error': str(exc)}
+     if '$Mode' == 'ownership-race':
+         result['ownership_race_preserved'] = os.path.isdir(r'$($profile.Replace('\','\\'))')
++    if '$Mode' == 'reader-open-failure':
++        result['created_pid'] = created_pids[0] if created_pids else 0
++        result['created_root_alive_before_test_cleanup'] = bool(created_pids and browser._process_running(created_pids[0]))
++        result['created_root_cleaned_by_test'] = bool(created_pids and browser._terminate_tree(created_pids[0], [created_pids[0]]))
++    if '$Mode' in ('stderr-pipe-failure', 'nul-input-failure'):
++        result['resource_handles_closed'] = bool(acquired_handles) and set(acquired_handles).issubset(closed_handles)
+     print(json.dumps(result, separators=(',', ':')))
+ "@
+     Write-TestUtf8NoBom $driver $driverText
+@@ -196,6 +250,45 @@ try {
+     Invoke-BrowserFixtureCase -Mode 'resume-failure' -ExpectedError 'BROWSER_RESUME_FAILED' | Out-Null
+     $ownershipRace = Invoke-BrowserFixtureCase -Mode 'ownership-race' -ExpectedError 'BROWSER_ISOLATION_SETUP_FAILED'
+     Assert-True ([bool]$ownershipRace.ownership_race_preserved) 'worker must not remove a directory won by another actor during setup'
++    $readerOpenFailure = Invoke-BrowserFixtureCase -Mode 'reader-open-failure'
++    Assert-True ([int]$readerOpenFailure.created_pid -gt 0) 'reader-open regression must record the created suspended root PID'
++    Assert-True (-not [bool]$readerOpenFailure.created_root_alive_before_test_cleanup) 'reader-open failure must terminate the created suspended root before returning control'
++    Assert-True ([bool]$readerOpenFailure.created_root_cleaned_by_test) 'reader-open regression cleanup must leave no fixture root behind'
++    Assert-Equal 'BROWSER_SUSPENDED_LAUNCH_FAILED' ([string]$readerOpenFailure.error) 'reader-open failure must use the stable launch error'
++    Assert-True ($null -eq $readerOpenFailure.PSObject.Properties['record']) 'reader-open failure must never emit PASS evidence'
++    $stderrPipeFailure = Invoke-BrowserFixtureCase -Mode 'stderr-pipe-failure' -ExpectedError 'BROWSER_SUSPENDED_LAUNCH_FAILED'
++    Assert-True ([bool]$stderrPipeFailure.resource_handles_closed) 'stderr-pipe acquisition failure must close every previously acquired pipe handle'
++    $nulInputFailure = Invoke-BrowserFixtureCase -Mode 'nul-input-failure' -ExpectedError 'BROWSER_SUSPENDED_LAUNCH_FAILED'
++    Assert-True ([bool]$nulInputFailure.resource_handles_closed) 'NUL-input acquisition failure must close every previously acquired pipe handle'
++    $driverInfo = [System.Diagnostics.ProcessStartInfo]::new()
++    $driverInfo.FileName = $python
++    $driverInfo.Arguments = '-c "import time; time.sleep(10)"'
++    $driverInfo.UseShellExecute = $false
++    $driverInfo.CreateNoWindow = $true
++    $driver = [System.Diagnostics.Process]::Start($driverInfo)
++    try {
++        $timeoutThrown = $false
++        try {
++            Stop-TestDriverTree -Process $driver -TaskkillTimeoutMs 50 -DriverTimeoutMs 1000 -StartTaskkill {
++                param($ignoredStartInfo)
++                $fakeKillerInfo = [System.Diagnostics.ProcessStartInfo]::new()
++                $fakeKillerInfo.FileName = $python
++                $fakeKillerInfo.Arguments = '-c "import time; time.sleep(10)"'
++                $fakeKillerInfo.UseShellExecute = $false
++                $fakeKillerInfo.CreateNoWindow = $true
++                return [System.Diagnostics.Process]::Start($fakeKillerInfo)
++            }
++        }
++        catch {
++            Assert-Equal 'ASSERTION FAILED: driver-tree cleanup timed out' $_.Exception.Message 'taskkill timeout must be reported only after the exact driver fallback'
++            $timeoutThrown = $true
++        }
++        Assert-True $timeoutThrown 'forced taskkill timeout must be reported'
++        Assert-True $driver.HasExited 'taskkill timeout fallback must terminate the exact driver before throwing'
++    }
++    finally {
++        if (-not $driver.HasExited) { $driver.Kill() }
++    }
+ }
+ finally {
+     if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }

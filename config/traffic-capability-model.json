@@ -1,0 +1,30 @@
+{
+  "schema_version": 1,
+  "absence_policy": "A missing optional capability produces SKIPPED_CAPABILITY. A missing mandatory readiness capability blocks the run before product start.",
+  "capabilities": [
+    { "id": "local_native_socket_worker", "scope": "local", "required_for_readiness": true, "probe": "exact_local_artifact", "evidence": "artifact path, SHA-256, architecture and launch identity" },
+    { "id": "local_protocol_runtime", "scope": "local", "required_for_readiness": false, "probe": "exact_local_artifact", "evidence": "bundled runtime manifest, dependency lock and self-test" },
+    { "id": "local_browser_runtime", "scope": "local", "required_for_readiness": false, "probe": "exact_local_artifact", "evidence": "browser executable identity, version, isolated-profile and self-test" },
+    { "id": "local_performance_worker", "scope": "local", "required_for_readiness": false, "probe": "exact_local_artifact", "evidence": "native worker manifest, architecture, calibration and self-test" },
+    { "id": "server_endpoint_core", "scope": "server", "required_for_readiness": true, "probe": "signed_server_receipt", "evidence": "artifact hash, systemd unit state, service identity and health" },
+    { "id": "server_python_protocols", "scope": "server", "required_for_readiness": false, "probe": "server_plugin_self_test", "evidence": "Python compatibility, locked wheels and plugin manifest hashes" },
+    { "id": "server_tls_pki", "scope": "server", "required_for_readiness": false, "probe": "server_plugin_self_test", "evidence": "TestLab CA identity, certificate SAN, validity and key permissions" },
+    { "id": "server_http2", "scope": "server", "required_for_readiness": false, "probe": "server_plugin_self_test", "evidence": "ALPN h2 negotiation and deterministic transaction" },
+    { "id": "server_quic", "scope": "server", "required_for_readiness": false, "probe": "server_plugin_self_test", "evidence": "QUIC/HTTP3 version, ALPN and deterministic transaction" },
+    { "id": "server_file_transfer", "scope": "server", "required_for_readiness": false, "probe": "server_plugin_self_test", "evidence": "ephemeral account, root confinement and content hash" },
+    { "id": "protocol_sftp", "scope": "server", "required_for_readiness": false, "probe": "server_plugin_self_test", "evidence": "pinned SSH host key, isolated SFTP subsystem and deterministic content hash" },
+    { "id": "server_mail", "scope": "server", "required_for_readiness": false, "probe": "server_plugin_self_test", "evidence": "ephemeral mailbox, protocol greeting and message hash" },
+    { "id": "server_messaging", "scope": "server", "required_for_readiness": false, "probe": "server_plugin_self_test", "evidence": "isolated namespace, publish/consume transaction and payload hash" },
+    { "id": "server_realtime", "scope": "server", "required_for_readiness": false, "probe": "server_plugin_self_test", "evidence": "ICE/STUN/TURN/DTLS/RTP transaction identities" },
+    { "id": "server_metrics", "scope": "server", "required_for_readiness": false, "probe": "signed_server_receipt", "evidence": "monotonic sample window, process identity and resource counters" },
+    { "id": "server_test_namespace", "scope": "server", "required_for_readiness": false, "probe": "privileged_server_plan", "evidence": "dedicated namespace, veth identity and rollback proof" },
+    { "id": "server_netem", "scope": "server", "required_for_readiness": false, "probe": "privileged_server_plan", "evidence": "namespace-local qdisc, exact impairment parameters and removal proof" },
+    { "id": "control_failure_injection", "scope": "control", "required_for_readiness": false, "probe": "signed_server_receipt", "evidence": "allowlisted TestLab-owned target and bounded rollback command" },
+    { "id": "topology_ipv4_external", "scope": "topology", "required_for_readiness": true, "probe": "network_readiness", "evidence": "exact endpoint IPv4 and bidirectional protocol readiness" },
+    { "id": "topology_ipv6_external", "scope": "topology", "required_for_readiness": false, "probe": "network_readiness", "evidence": "native IPv6 route, endpoint address and firewall readiness" },
+    { "id": "topology_lan_peer", "scope": "topology", "required_for_readiness": false, "probe": "signed_peer_receipt", "evidence": "separate peer identity, LAN route and agent health" },
+    { "id": "product_live_rule_update", "scope": "product", "required_for_readiness": false, "probe": "product_contract", "evidence": "verified atomic update command and exact readback" },
+    { "id": "product_profile_readback", "scope": "product", "required_for_readiness": false, "probe": "product_contract", "evidence": "verified post-start and post-restart active-rule readback" },
+    { "id": "isolated_proxy_negative_target", "scope": "server", "required_for_readiness": false, "probe": "server_plugin_self_test", "evidence": "dedicated unreachable/auth-reject proxy identity and no operator credential reuse" }
+  ]
+}

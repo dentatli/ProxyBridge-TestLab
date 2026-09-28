@@ -1,0 +1,49 @@
+{
+  "schema_version": 1,
+  "source_status": "DECLARATIVE_ONLY",
+  "entries": [
+    { "scenario_id": "canary-http", "target_milestone": 12, "target_family": "http1", "resolution": "PROTOCOL_TRAFFIC" },
+    { "scenario_id": "canary-https", "target_milestone": 12, "target_family": "tls", "resolution": "PROTOCOL_TRAFFIC" },
+    { "scenario_id": "canary-http2", "target_milestone": 13, "target_family": "http2", "resolution": "PROTOCOL_TRAFFIC" },
+    { "scenario_id": "canary-http3-quic", "target_milestone": 13, "target_family": "quic-http3", "resolution": "PROTOCOL_TRAFFIC" },
+    { "scenario_id": "canary-dns", "target_milestone": 12, "target_family": "dns-classic", "resolution": "PROTOCOL_TRAFFIC" },
+    { "scenario_id": "canary-stun", "target_milestone": 15, "target_family": "stun-turn", "resolution": "PROTOCOL_TRAFFIC" },
+    { "scenario_id": "canary-webrtc", "target_milestone": 15, "target_family": "webrtc", "resolution": "PROTOCOL_TRAFFIC" },
+    { "scenario_id": "canary-discord-voice", "target_milestone": 15, "target_family": "rtp-media", "resolution": "CONTROLLED_EQUIVALENCE", "note": "Automate the standards-based encrypted voice traffic class without storing or controlling a third-party account." },
+    { "scenario_id": "canary-screen-sharing", "target_milestone": 15, "target_family": "webrtc", "resolution": "CONTROLLED_EQUIVALENCE", "note": "Use an isolated browser and deterministic synthetic media source." },
+    { "scenario_id": "canary-browser-download", "target_milestone": 15, "target_family": "browser-web", "resolution": "PROTOCOL_TRAFFIC" },
+
+    { "scenario_id": "failure-backend-restart", "target_milestone": 16, "target_family": "endpoint-failure", "resolution": "FAILURE_INJECTION" },
+    { "scenario_id": "failure-client-process-exit", "target_milestone": 16, "target_family": "endpoint-failure", "resolution": "FAILURE_INJECTION" },
+    { "scenario_id": "failure-dns", "target_milestone": 16, "target_family": "dns-classic", "resolution": "FAILURE_INJECTION" },
+    { "scenario_id": "failure-proxy-auth", "target_milestone": 16, "target_family": "proxy-failure", "resolution": "FAILURE_INJECTION" },
+    { "scenario_id": "failure-proxy-unavailable", "target_milestone": 16, "target_family": "proxy-failure", "resolution": "FAILURE_INJECTION" },
+
+    { "scenario_id": "lifecycle-cli-readiness", "target_milestone": 19, "target_family": "native-tcp", "resolution": "SYSTEM_CHECK", "note": "Expose the existing lifecycle contract in the UI without inventing a separate traffic verdict." },
+    { "scenario_id": "lifecycle-forced-stop-fallback", "target_milestone": 19, "target_family": "native-tcp", "resolution": "SYSTEM_CHECK", "note": "Expose the existing lifecycle contract in the UI without inventing a separate traffic verdict." },
+    { "scenario_id": "lifecycle-graceful-stop", "target_milestone": 19, "target_family": "native-tcp", "resolution": "SYSTEM_CHECK", "note": "Expose the existing lifecycle contract in the UI without inventing a separate traffic verdict." },
+    { "scenario_id": "lifecycle-post-stop-verification", "target_milestone": 19, "target_family": "native-tcp", "resolution": "SYSTEM_CHECK", "note": "Expose the existing lifecycle contract in the UI without inventing a separate traffic verdict." },
+    { "scenario_id": "lifecycle-resume-boundary", "target_milestone": 19, "target_family": "native-tcp", "resolution": "SYSTEM_CHECK", "note": "Expose the existing run-control contract in the UI without inventing a product verdict." },
+
+    { "scenario_id": "performance-cpu", "target_milestone": 17, "target_family": "performance-resources", "resolution": "PERFORMANCE" },
+    { "scenario_id": "performance-datagrams-per-second", "target_milestone": 17, "target_family": "performance-throughput", "resolution": "PERFORMANCE" },
+    { "scenario_id": "performance-flow-rate", "target_milestone": 17, "target_family": "performance-throughput", "resolution": "PERFORMANCE" },
+    { "scenario_id": "performance-handles", "target_milestone": 17, "target_family": "performance-resources", "resolution": "PERFORMANCE" },
+    { "scenario_id": "performance-latency", "target_milestone": 17, "target_family": "performance-throughput", "resolution": "PERFORMANCE" },
+    { "scenario_id": "performance-memory", "target_milestone": 17, "target_family": "performance-resources", "resolution": "PERFORMANCE" },
+    { "scenario_id": "performance-threads", "target_milestone": 17, "target_family": "performance-resources", "resolution": "PERFORMANCE" },
+    { "scenario_id": "performance-throughput", "target_milestone": 17, "target_family": "performance-throughput", "resolution": "PERFORMANCE" },
+
+    { "scenario_id": "rule-hot-update", "target_milestone": 16, "target_family": "native-tcp", "resolution": "PRODUCT_CONTRACT_REQUIRED", "required_capabilities": ["product_live_rule_update"] },
+    { "scenario_id": "rule-persistence", "target_milestone": 16, "target_family": "native-tcp", "resolution": "PRODUCT_CONTRACT_REQUIRED", "required_capabilities": ["product_profile_readback"] },
+
+    { "scenario_id": "secondary-pairwise-002", "target_milestone": 18, "target_family": "lan-multipeer", "resolution": "CAPABILITY_GATED", "required_capabilities": ["topology_lan_peer"] },
+    { "scenario_id": "secondary-pairwise-003", "target_milestone": 18, "target_family": "lan-multipeer", "resolution": "CAPABILITY_GATED", "required_capabilities": ["topology_lan_peer"] },
+    { "scenario_id": "secondary-pairwise-006", "target_milestone": 18, "target_family": "lan-multipeer", "resolution": "CAPABILITY_GATED", "required_capabilities": ["topology_lan_peer"] },
+    { "scenario_id": "secondary-pairwise-007", "target_milestone": 18, "target_family": "lan-multipeer", "resolution": "CAPABILITY_GATED", "required_capabilities": ["topology_lan_peer"] },
+
+    { "scenario_id": "tcp-process-termination", "target_milestone": 16, "target_family": "endpoint-failure", "resolution": "FAILURE_INJECTION" },
+    { "scenario_id": "udp-backend-restart", "target_milestone": 16, "target_family": "endpoint-failure", "resolution": "FAILURE_INJECTION" },
+    { "scenario_id": "udp-receive-only", "target_milestone": 16, "target_family": "native-udp", "resolution": "PROTOCOL_TRAFFIC", "note": "Implement outbound registration followed by a server-initiated datagram on the established NAT mapping." }
+  ]
+}

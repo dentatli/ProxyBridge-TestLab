@@ -1,0 +1,8 @@
+{
+  "workload_id": "fixture-workload",
+  "window_id": "fixture-window",
+  "protocol": "tcp",
+  "warmup_ms": 2,
+  "sample_ms": 3,
+  "samples": 2
+}

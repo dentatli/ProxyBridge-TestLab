@@ -1,0 +1,291 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Local deterministic traffic testing and evidence review for ProxyBridge.">
+  <title>ProxyBridge TestLab</title>
+  <link rel="stylesheet" href="/styles.css">
+  <script src="/app.js" defer></script>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar">
+      <a class="brand" href="#dashboard" aria-label="ProxyBridge TestLab dashboard">
+        <span class="brand-mark">PB</span>
+        <span><strong>ProxyBridge</strong><small>TESTLAB</small></span>
+      </a>
+
+      <nav aria-label="Primary navigation">
+        <button class="nav-item active" data-view="dashboard"><span>01</span>Overview</button>
+        <button class="nav-item" data-view="catalog"><span>02</span>Test Catalog</button>
+        <button class="nav-item" data-view="run"><span>03</span>Run Tests</button>
+        <button class="nav-item" data-view="results"><span>04</span>Results</button>
+        <button class="nav-item" data-view="settings"><span>05</span>Environment Setup</button>
+        <button class="nav-item" data-view="server"><span>06</span>Server Setup</button>
+      </nav>
+
+      <div class="sidebar-note">
+        <span class="pulse"></span>
+        <div><strong>Guarded provisioning</strong><small>SSH runs only after an explicit action.</small></div>
+      </div>
+    </aside>
+
+    <main>
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Deterministic traffic validation</p>
+          <h1 id="page-title">System overview</h1>
+        </div>
+        <div class="top-actions">
+          <div class="health-pill"><span></span>Local controller</div>
+          <button class="button secondary" type="button" data-open-server>Configure Server</button>
+          <button class="button primary" type="button" data-open-run>Run Tests</button>
+        </div>
+      </header>
+
+      <section id="dashboard-view" class="view active" aria-labelledby="page-title">
+        <div class="notice warning">
+          <div class="notice-icon">!</div>
+          <div>
+            <strong id="dashboard-server-title">Test server is not configured</strong>
+            <p id="dashboard-server-message">Real traffic checks stay locked until the endpoint is provisioned and verified.</p>
+          </div>
+          <span class="notice-tag">SAFE LOCK</span>
+        </div>
+
+        <div class="metrics" aria-label="Catalog summary">
+          <article class="metric-card featured">
+            <span class="metric-label">Catalog entries</span>
+            <strong id="metric-declared">—</strong>
+            <small>Deterministic scenario inventory</small>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Executable</span>
+            <strong id="metric-executable">—</strong>
+            <small>Backed by an evidence contract</small>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Declarative</span>
+            <strong id="metric-declarative">—</strong>
+            <small>Coverage declared, runtime pending</small>
+          </article>
+          <article class="metric-card">
+            <span class="metric-label">Reports available</span>
+            <strong id="metric-reports">—</strong>
+            <small>Sanitized evidence summaries</small>
+          </article>
+        </div>
+
+        <div class="dashboard-grid">
+          <article class="panel readiness-panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">Readiness gates</p><h2>Environment status</h2></div>
+              <span class="status-badge neutral">NOT READY</span>
+            </div>
+            <ol class="gate-list">
+              <li class="ready"><span>1</span><div><strong>Repository catalog</strong><small>Loaded through the authoritative PowerShell catalog module</small></div></li>
+              <li id="gate-local" class="pending"><span>2</span><div><strong>Local environment</strong><small>Complete Environment Setup</small></div></li>
+              <li id="gate-server" class="pending"><span>3</span><div><strong>Linux endpoint</strong><small>Debian or Ubuntu with systemd must be provisioned</small></div></li>
+              <li id="gate-runtime" class="locked"><span>4</span><div><strong>Real execution</strong><small>Locked until every immutable preflight passes</small></div></li>
+            </ol>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading">
+              <div><p class="eyebrow">Safety boundary</p><h2>Runtime controls</h2></div>
+            </div>
+            <div class="safety-card">
+              <span class="shield">◇</span>
+              <div><strong>Every real run is explicitly gated</strong><p>Fixture previews are offline. Real traffic requires complete settings, a recently verified server, a fresh review, and a one-time confirmation.</p></div>
+            </div>
+            <div class="mode-row"><span>Controller mode</span><strong>SAFE JOB ORCHESTRATION</strong></div>
+            <div class="mode-row"><span>Product runtime</span><strong id="dashboard-runtime-state" class="muted">LOCKED</strong></div>
+            <div class="mode-row"><span>Server connection</span><strong id="dashboard-server-state" class="muted">UNCONFIGURED</strong></div>
+          </article>
+        </div>
+      </section>
+
+      <section id="catalog-view" class="view" aria-label="Test catalog">
+        <div class="catalog-toolbar panel">
+          <label class="search-field"><span>Search tests</span><input id="catalog-search" type="search" placeholder="Scenario ID, title, or tag"></label>
+          <label><span>Protocol</span><select id="filter-protocol"><option value="">All</option><option>TCP</option><option>UDP</option></select></label>
+          <label><span>IP family</span><select id="filter-family"><option value="">All</option><option value="4">IPv4</option><option value="6">IPv6</option></select></label>
+          <label><span>Action</span><select id="filter-action"><option value="">All</option><option>DIRECT</option><option>BLOCK</option><option>PROXY</option></select></label>
+          <label><span>Status</span><select id="filter-status"><option value="">All</option><option>EXECUTABLE</option><option>DECLARATIVE_ONLY</option><option>SYSTEM_CHECK</option><option>CAPABILITY_GATED</option><option>UNSUPPORTED_PRODUCT_SCOPE</option></select></label>
+        </div>
+        <div id="catalog-coverage-matrix" class="coverage-matrix" aria-label="Coverage readiness by group"></div>
+        <div class="section-heading"><div><p class="eyebrow">Authoritative inventory</p><h2 id="catalog-count">Loading catalog…</h2></div><span class="hint">Select a test to inspect its contract</span></div>
+        <div id="catalog-list" class="catalog-list" aria-live="polite"></div>
+      </section>
+
+      <section id="run-view" class="view" aria-label="Run tests">
+        <div class="notice secure">
+          <div class="notice-icon">◇</div>
+          <div>
+            <strong>Choose tests, review the exact run, then start</strong>
+            <p>Fixture preview never starts ProxyBridge or uses SSH/network. Real traffic stays locked until all readiness gates pass.</p>
+          </div>
+          <span class="notice-tag">ONE ACTIVE RUN</span>
+        </div>
+
+        <div class="run-builder-grid">
+          <article class="panel run-selection-panel">
+            <div class="panel-heading"><div><p class="eyebrow">Run builder</p><h2>Select test scenarios</h2></div><span id="run-selected-count" class="status-badge neutral">0 SELECTED</span></div>
+            <div class="run-mode-row">
+              <label><span>Execution mode</span><select id="run-mode"><option value="mock">Fixture preview — offline</option><option value="real">Real traffic — guarded</option></select></label>
+              <label><span>Suite</span><select id="run-suite"><option value="all">All catalog tests</option><option value="critical">Critical IPv4 matrix</option><option value="rules">Rule engine</option><option value="issue206">Issue 206 transitions</option><option value="issue209">Issue 209 protocol collisions</option><option value="security">Security controls</option></select></label>
+            </div>
+            <div class="run-filter-row">
+              <label><span>Protocol</span><select id="run-filter-protocol"><option value="">All</option><option>TCP</option><option>UDP</option></select></label>
+              <label><span>IP family</span><select id="run-filter-family"><option value="">All</option><option value="4">IPv4</option><option value="6">IPv6</option></select></label>
+              <label><span>Action</span><select id="run-filter-action"><option value="">All</option><option>DIRECT</option><option>BLOCK</option><option>PROXY</option></select></label>
+              <label><span>Socket</span><select id="run-filter-socket"><option value="">All</option><option value="connected">Connected</option><option value="unconnected">Unconnected</option></select></label>
+              <label><span>Known defect</span><select id="run-filter-defect"><option value="">All</option><option value="yes">Mapped</option><option value="no">Not mapped</option></select></label>
+            </div>
+            <div class="selection-actions"><button id="select-visible-tests" class="button secondary" type="button">Select visible</button><button id="clear-selected-tests" class="button secondary" type="button">Clear selection</button><span id="run-visible-count" class="hint"></span></div>
+            <div id="run-scenario-list" class="run-scenario-list"></div>
+          </article>
+
+          <aside class="panel run-review-panel">
+            <div class="panel-heading"><div><p class="eyebrow">Preflight review</p><h2>Safety gates</h2></div></div>
+            <p class="section-description">The browser sends only selected scenario IDs and the public mode. Paths, credentials, runner switches, and evidence locations stay controller-owned.</p>
+            <button id="review-run" class="button primary full-button" type="button">Review selected run</button>
+            <div id="run-preparation" hidden>
+              <div id="run-gates" class="run-gates"></div>
+              <div id="run-warnings"></div>
+              <label id="confirm-real-run-label" class="confirmation" hidden><input id="confirm-real-run" type="checkbox"> Immutable preflight passed. I reviewed the selected tests and authorize real product/network execution.</label>
+              <button id="start-run" class="button primary full-button" type="button" disabled>Start run</button>
+            </div>
+          </aside>
+        </div>
+
+        <article id="live-run-panel" class="panel live-run-panel" hidden>
+          <div class="panel-heading"><div><p class="eyebrow">Live run</p><h2 id="live-run-title">Queued run</h2></div><span id="live-run-state" class="status-badge neutral">QUEUED</span></div>
+          <div class="live-run-summary">
+            <div><span>Current test</span><strong id="live-current-scenario">Waiting for controller</strong></div>
+            <div><span>Phase</span><strong id="live-current-phase">QUEUED</strong></div>
+            <div><span>Progress</span><strong id="live-progress-text">0 / 0</strong></div>
+            <div><span>Recovery</span><strong id="live-recovery-count">0 / 1</strong></div>
+          </div>
+          <div class="progress-track"><span id="live-progress-bar"></span></div>
+          <p id="live-terminal-reason" class="section-description"></p>
+          <div class="live-run-columns"><div><h3>Scenario progress</h3><div id="live-scenarios" class="live-scenarios"></div></div><div><h3>State timeline</h3><div id="live-transitions" class="live-transitions"></div></div></div>
+          <div class="server-actions"><button id="cancel-run" class="button secondary" type="button">Cancel after cleanup</button><button id="open-run-results" class="button primary" type="button" hidden>Open results</button></div>
+        </article>
+      </section>
+
+      <section id="results-view" class="view" aria-label="Test results">
+        <div class="section-heading"><div><p class="eyebrow">Sanitized evidence</p><h2>Available runs</h2></div><span class="hint">Mock data never becomes a product claim</span></div>
+        <div id="runs-list" class="runs-list" aria-live="polite"></div>
+      </section>
+
+      <section id="settings-view" class="view" aria-label="Environment setup">
+        <div class="notice secure">
+          <div class="notice-icon">◇</div>
+          <div>
+            <strong>Configuration is managed here</strong>
+            <p>No manual environment file is required. Protected values are encrypted for the current Windows user and are never returned by the API.</p>
+          </div>
+          <span class="notice-tag">DPAPI</span>
+        </div>
+
+        <div class="settings-layout">
+          <aside class="settings-sections panel" aria-label="Configuration sections">
+            <p class="eyebrow">Configuration</p>
+            <div id="settings-section-list"></div>
+            <div class="settings-readiness">
+              <span id="settings-ready-dot"></span>
+              <div><strong id="settings-ready-label">Loading…</strong><small id="settings-ready-detail">Checking required fields</small></div>
+            </div>
+          </aside>
+
+          <form id="settings-form" class="panel settings-form" novalidate>
+            <div class="panel-heading settings-heading">
+              <div><p class="eyebrow" id="settings-section-eyebrow">Environment setup</p><h2 id="settings-section-title">Loading configuration…</h2><p id="settings-section-description" class="section-description"></p></div>
+              <span id="settings-save-state" class="status-badge neutral">NOT SAVED</span>
+            </div>
+            <div id="settings-validation" class="validation-summary" hidden></div>
+            <div id="settings-fields" class="settings-fields"></div>
+            <div class="settings-actions">
+              <p>Saving incomplete settings is allowed. Real execution remains locked until every readiness requirement passes.</p>
+              <div><button id="validate-settings" class="button secondary" type="button">Validate</button><button id="save-settings" class="button primary" type="submit">Save settings</button></div>
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <section id="server-view" class="view" aria-label="Server setup">
+        <div class="notice secure">
+          <div class="notice-icon">◇</div>
+          <div>
+            <strong>Supported servers: Debian or Ubuntu with systemd</strong>
+            <p>Authentication uses an SSH private key only. A Windows tester behind NAT needs outbound access; the server must still be routable.</p>
+          </div>
+          <span class="notice-tag">SSH KEY ONLY</span>
+        </div>
+
+        <div class="server-grid">
+          <article class="panel server-status-card">
+            <div class="panel-heading">
+              <div><p class="eyebrow">Current state</p><h2>Endpoint readiness</h2></div>
+              <span id="server-state" class="status-badge neutral">LOADING</span>
+            </div>
+            <p id="server-message" class="section-description">Reading local readiness state…</p>
+            <ul id="server-remediation" class="server-remediation"></ul>
+            <div class="server-actions">
+              <button id="validate-server" class="button primary" type="button">Validate connection</button>
+              <button id="protocol-smoke" class="button secondary" type="button" disabled>Test protocol endpoint</button>
+              <button id="refresh-metrics" class="button secondary" type="button" disabled>Refresh metrics</button>
+            </div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-heading"><div><p class="eyebrow">Safety workflow</p><h2>Four guarded stages</h2></div></div>
+            <ol class="compact-steps">
+              <li><span>1</span><div><strong>Read-only discovery</strong><small>Host key, OS, systemd, sudo, disk and existing service.</small></div></li>
+              <li><span>2</span><div><strong>Exact plan</strong><small>Packages, files, hashes, ports and rollback are shown before changes.</small></div></li>
+              <li><span>3</span><div><strong>Confirmed apply</strong><small>Only the unexpired plan ID can be applied.</small></div></li>
+              <li><span>4</span><div><strong>Independent verification</strong><small>Hashes, systemd state and all TCP/UDP listeners must match.</small></div></li>
+            </ol>
+          </article>
+        </div>
+
+        <article id="host-trust-panel" class="panel action-panel" hidden>
+          <div class="panel-heading"><div><p class="eyebrow">Host identity</p><h2>Confirm SSH fingerprint</h2></div><span class="status-badge warning">ACTION REQUIRED</span></div>
+          <p id="host-trust-message" class="section-description"></p>
+          <div id="host-fingerprints" class="fingerprints"></div>
+          <label id="replace-host-key-label" class="confirmation" hidden><input id="replace-host-key" type="checkbox"> I verified this server fingerprint through an independent server-console channel.</label>
+          <button id="trust-host" class="button primary" type="button">Trust this host key</button>
+        </article>
+
+        <article id="server-discovery-panel" class="panel action-panel" hidden>
+          <div class="panel-heading"><div><p class="eyebrow">Read-only discovery</p><h2>Observed server</h2></div><button id="create-server-plan" class="button secondary" type="button">Create exact plan</button></div>
+          <div id="server-discovery" class="discovery-grid"></div>
+        </article>
+
+        <article id="server-plan-panel" class="panel action-panel" hidden>
+          <div class="panel-heading"><div><p class="eyebrow">Unexpired plan</p><h2>Changes and rollback</h2></div><span id="server-plan-expiry" class="status-badge neutral"></span></div>
+          <div id="server-plan-summary"></div>
+          <div id="server-plan-steps" class="plan-steps"></div>
+          <label class="confirmation"><input id="confirm-server-plan" type="checkbox"> I reviewed this exact plan and authorize its server changes.</label>
+          <button id="apply-server-plan" class="button primary" type="button" disabled>Apply plan</button>
+        </article>
+
+        <article id="server-metrics-panel" class="panel action-panel" hidden>
+          <div class="panel-heading"><div><p class="eyebrow">SSH-collected metrics</p><h2>Endpoint health</h2></div><span class="status-badge saved">SANITIZED</span></div>
+          <div id="server-metrics" class="discovery-grid"></div>
+          <div id="server-log-messages" class="sanitized-messages"></div>
+        </article>
+
+        <article id="protocol-smoke-panel" class="panel action-panel" hidden>
+          <div class="panel-heading"><div><p class="eyebrow">No-product endpoint check</p><h2>Protocol smoke</h2></div><span id="protocol-smoke-state" class="status-badge neutral"></span></div>
+          <p id="protocol-smoke-message" class="section-description"></p>
+          <div id="protocol-smoke-results" class="discovery-grid"></div>
+        </article>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

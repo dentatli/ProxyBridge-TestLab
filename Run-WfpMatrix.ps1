@@ -9,10 +9,12 @@ param(
     [string]$ScenarioRoot,
     [string]$MockFixtureRoot,
     [string]$OutputRoot,
+    [string]$CancellationPath,
     [switch]$DryRun,
     [switch]$MockRuntime,
     [switch]$AllowProductRuntime,
     [switch]$PrepareRuntimeEnvironment,
+    [switch]$PreflightOnly,
     [string]$VpsEvidenceImportPath,
     [string]$ExpectedDirectEgressIpv4,
     [string]$ExpectedProxyEgressIpv4,
@@ -43,7 +45,7 @@ if ([string]::IsNullOrWhiteSpace($MockFixtureRoot)) { $MockFixtureRoot = Join-Pa
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) { $OutputRoot = Join-Path $PSScriptRoot 'evidence' }
 
 foreach ($module in @(
-    'Env','Config','ScenarioCatalog','ProfileAdapter','ProfileValidator','RulePlan','ProcessAdapter','ClientRunner',
+    'Env','Config','ScenarioCatalog','ProfileAdapter','ProfileValidator','RulePlan','ProcessAdapter','ClientRunner','ProtocolWorker','ProtocolRunner',
     'ProxyBridgeCli','HealthChecks','RuntimeEnvironment','DirectBaseline','ProxyBridgeEvidence','VpsEvidence','Assertions','MockRuntime','Report'
 )) { Import-Module (Join-Path $PSScriptRoot "modules/$module.psm1") -Force }
 
@@ -65,13 +67,31 @@ $report = New-RunReport -OutputRoot $OutputRoot
 $environment = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::OrdinalIgnoreCase)
 try {
     $rawEnvironment = Import-DotEnv -Path $EnvPath
-    $environment = $rawEnvironment
     $runtimeConfig = Import-RuntimeConfig -Path $RuntimeConfigPath
+    if ($runMode -ne 'real') {
+        $protocolPorts = Get-Content -LiteralPath (Join-Path $PSScriptRoot 'config/server-protocol-ports.json') -Raw -Encoding UTF8 | ConvertFrom-Json
+        foreach ($pair in @(
+            @('PB_PROTOCOL_DNS_PORT','dns'),@('PB_PROTOCOL_HTTP_PORT','http'),@('PB_PROTOCOL_TLS_PORT','tls'),@('PB_PROTOCOL_HTTPS_PORT','https')
+        )) { if (-not $rawEnvironment.ContainsKey($pair[0])) { $rawEnvironment[$pair[0]] = [string]$protocolPorts.ports.($pair[1]) } }
+        $planningArtifacts = @{
+            PB_PROTOCOL_PYTHON_EXE=(Join-Path $PSScriptRoot 'bin/protocol-worker/runtime/python/python.exe')
+            PB_PROTOCOL_WORKER_ENTRYPOINT=(Join-Path $PSScriptRoot 'src/protocol_worker/pb_protocol_worker.py')
+            PB_PROTOCOL_WORKER_MANIFEST=(Join-Path $PSScriptRoot 'src/protocol_worker/plugins/manifest.json')
+            PB_PROTOCOL_EVIDENCE_CONTRACT=(Join-Path $PSScriptRoot 'config/protocol-evidence-contract.json')
+            PB_PROTOCOL_CA_PEM=(Join-Path $PSScriptRoot 'config/protocol-ca-placeholder.pem')
+        }
+        foreach ($item in $planningArtifacts.GetEnumerator()) { if (-not $rawEnvironment.ContainsKey($item.Key)) { $rawEnvironment[$item.Key] = [string]$item.Value } }
+        foreach ($name in @('PB_EXPECTED_PROTOCOL_PYTHON_SHA256','PB_EXPECTED_PROTOCOL_WORKER_SHA256','PB_EXPECTED_PROTOCOL_MANIFEST_SHA256','PB_EXPECTED_PROTOCOL_EVIDENCE_CONTRACT_SHA256','PB_EXPECTED_PROTOCOL_CA_SHA256')) {
+            if (-not $rawEnvironment.ContainsKey($name)) { $rawEnvironment[$name] = ('0' * 64) -join '' }
+        }
+    }
+    $environment = $rawEnvironment
     $environment = Get-EffectiveRuntimeEnvironment -Environment $rawEnvironment -RuntimeConfig $runtimeConfig
     $capabilities = Import-CapabilitiesConfig -Path $CapabilitiesPath
     $suite = Import-SuiteConfig -Path $SuitePath
     $knownDefects = Import-KnownDefectsConfig -Path $KnownDefectsPath
     $clientContract = Import-ClientContract -Path $ClientContractPath
+    $protocolRuntimeContracts = Import-ProtocolWorkerRuntimeContract -RuntimeContractPath (Join-Path $PSScriptRoot 'config/protocol-worker-runtime.json') -PluginManifestPath $environment['PB_PROTOCOL_WORKER_MANIFEST']
     $scenarios = @(Import-ScenarioCatalog -ScenarioRoot $ScenarioRoot)
     if ([string]$suite.execution.runtime_mode -ne $runMode) { throw "SUITE_RUNTIME_MODE_MISMATCH expected=$runMode configured=$($suite.execution.runtime_mode)" }
 }
@@ -172,7 +192,18 @@ foreach ($scenario in $scenarios) {
     })
 }
 if (-not $resumeReached) { throw 'RESUME_SCENARIO_NOT_FOUND' }
-. $initializeRealRuntime
+$cancellationRequested = -not [string]::IsNullOrWhiteSpace($CancellationPath) -and (Test-Path -LiteralPath $CancellationPath -PathType Leaf)
+if (-not $cancellationRequested) { . $initializeRealRuntime }
+
+if ($PreflightOnly) {
+    if ($runMode -ne 'real') { throw 'PREFLIGHT_ONLY_REQUIRES_REAL_MODE' }
+    Write-RunSummary -Report $report -Records @() -AllScenarios $scenarios -Environment $environment -RunMode $runMode -ExecutionComplete $false
+    Write-SafeTranscript -Report $report -Environment $environment -Message "Immutable preflight completed for $selectedCount selected scenario(s); no scenario was started."
+    Complete-RunChecksums -Report $report
+    Write-Output "PREFLIGHT_COMPLETE run_id=$($report.run_id) selected=$selectedCount status=PASS"
+    Write-Output "EVIDENCE_PATH=$($report.run_root)"
+    return
+}
 
 $records = [System.Collections.Generic.List[object]]::new()
 $profileFailures = 0
@@ -185,6 +216,15 @@ foreach ($item in $decisions) {
     $decision = $item.decision
     if (-not $decision.selected) {
         $record = New-ResultRecord -Scenario $scenario -Status $decision.status -Reason $decision.reason -Attempt 0 -DurationMs 0 -Selected $false
+        $records.Add($record); Add-ResultRecord -Report $report -Record $record -Environment $environment
+        continue
+    }
+    if (-not $cancellationRequested -and -not [string]::IsNullOrWhiteSpace($CancellationPath) -and (Test-Path -LiteralPath $CancellationPath -PathType Leaf)) {
+        $cancellationRequested = $true
+        Write-SafeTranscript -Report $report -Environment $environment -Message 'Cooperative cancellation was requested; future scenarios will not run.'
+    }
+    if ($cancellationRequested) {
+        $record = New-ResultRecord -Scenario $scenario -Status 'SKIPPED_SELECTION' -Reason 'run cancellation requested before scenario execution' -Attempt 0 -DurationMs 0 -Selected $false
         $records.Add($record); Add-ResultRecord -Report $report -Record $record -Environment $environment
         continue
     }
@@ -237,6 +277,9 @@ foreach ($item in $decisions) {
                 implementation_status='DECLARATIVE_ONLY';implementation_reason=[string]$scenario.implementation_reason
             }
         }
+        elseif ([string]$resolvedScenario.executor_kind -eq 'protocol-worker') {
+            $clientPlan = New-ProtocolExecutionPlan -Scenario $resolvedScenario -Environment $environment -RunId $report.run_id -Attempt 1 -EvidenceDirectory $scenarioEvidence -RuntimeContracts $protocolRuntimeContracts -OperationTimeoutCapMs ([int]$suite.execution.timeout_ms) -ProcessExitGraceMs ([int]$runtimeConfig.client_process_exit_grace_ms) -ActualPathTimeoutMs ([int]$runtimeConfig.protocol_worker_actual_path_timeout_ms) -PlanningOnly:($runMode -ne 'real')
+        }
         else {
             $clientExecutable = $(if ($environment.ContainsKey('PB_CLIENT_EXE')) { $environment['PB_CLIENT_EXE'] } else { 'pb_net_client.exe' })
             $clientPlan = New-ClientPlan -Scenario $resolvedScenario -ExecutablePath $clientExecutable -RunId $report.run_id -JsonlPath $clientJsonlPath -Contract $clientContract -ExpectedSha256 $environment['PB_EXPECTED_CLIENT_SHA256'] -OperationTimeoutCapMs ([int]$suite.execution.timeout_ms) -ProcessExitGraceMs ([int]$runtimeConfig.client_process_exit_grace_ms)
@@ -261,6 +304,12 @@ foreach ($item in $decisions) {
         $attemptTimer = [System.Diagnostics.Stopwatch]::StartNew()
         $status = ''
         $reason = ''
+        $assertion = $null
+        $postCleanup = $null
+        if ($attempt -gt 1 -and [string]$resolvedScenario.executor_kind -eq 'protocol-worker') {
+            $clientPlan = New-ProtocolExecutionPlan -Scenario $resolvedScenario -Environment $environment -RunId $report.run_id -Attempt $attempt -EvidenceDirectory $scenarioEvidence -RuntimeContracts $protocolRuntimeContracts -OperationTimeoutCapMs ([int]$suite.execution.timeout_ms) -ProcessExitGraceMs ([int]$runtimeConfig.client_process_exit_grace_ms) -ActualPathTimeoutMs ([int]$runtimeConfig.protocol_worker_actual_path_timeout_ms) -PlanningOnly:($runMode -ne 'real')
+            Write-RedactedJsonReport -Value $clientPlan -Path (Join-Path $scenarioEvidence "client-plan-attempt-$attempt.json") -Environment $environment
+        }
         if ($suiteTimer.ElapsedMilliseconds -ge [long]$suite.execution.suite_timeout_ms) { $status='SKIPPED_SELECTION';$reason='suite timeout reached' }
         elseif (-not $profileValidation.may_write) {
             $disposition = Get-ExpectedProfileValidationDisposition -Validation $profileValidation -RunMode $runMode
@@ -277,11 +326,23 @@ foreach ($item in $decisions) {
         }
         elseif ($MockRuntime) {
             try {
-                $mock = Invoke-MockScenario -Scenario $resolvedScenario -ClientPlan $clientPlan -FixtureRoot $MockFixtureRoot -EvidenceDirectory $scenarioEvidence -Environment $environment
+                $isProtocolScenario = [string]$resolvedScenario.executor_kind -eq 'protocol-worker'
+                $mock = $(if ($isProtocolScenario) {
+                    Invoke-MockProtocolScenario -Scenario $resolvedScenario -ExecutionPlan $clientPlan -FixtureRoot $MockFixtureRoot
+                } else {
+                    Invoke-MockScenario -Scenario $resolvedScenario -ClientPlan $clientPlan -FixtureRoot $MockFixtureRoot -EvidenceDirectory $scenarioEvidence -Environment $environment
+                })
                 Write-RedactedJsonReport -Value $mock.client_result -Path (Join-Path $scenarioEvidence 'client-result.json') -Environment $environment
                 Write-RedactedJsonReport -Value $mock.proxybridge_records -Path (Join-Path $scenarioEvidence 'proxybridge-evidence.json') -Environment $environment
-                Write-RedactedJsonReport -Value $mock.vps_records -Path (Join-Path $scenarioEvidence 'vps-evidence.json') -Environment $environment
-                $assertion = Test-ScenarioAssertions -Scenario $resolvedScenario -ClientPlan $clientPlan -ClientResult $mock.client_result -VpsRecords $mock.vps_records -ProxyBridgeRecords $mock.proxybridge_records -EvidenceContext $mock.evidence_context -RunMode mock
+                $mockServerRecords = @()
+                if ($isProtocolScenario) { $mockServerRecords = @($mock.server_records) }
+                else { $mockServerRecords = @($mock.vps_records) }
+                Write-RedactedJsonReport -Value $mockServerRecords -Path (Join-Path $scenarioEvidence 'vps-evidence.json') -Environment $environment
+                $assertion = $(if ($isProtocolScenario) {
+                    Test-ProtocolScenarioAssertions -Scenario $resolvedScenario -ExecutionPlan $clientPlan -ClientResult $mock.client_result -ServerRecords $mockServerRecords -ProxyBridgeRecords $mock.proxybridge_records -EvidenceContext $mock.evidence_context -RunMode mock
+                } else {
+                    Test-ScenarioAssertions -Scenario $resolvedScenario -ClientPlan $clientPlan -ClientResult $mock.client_result -VpsRecords $mockServerRecords -ProxyBridgeRecords $mock.proxybridge_records -EvidenceContext $mock.evidence_context -RunMode mock
+                })
                 Write-RedactedJsonReport -Value $assertion -Path (Join-Path $scenarioEvidence 'assertions.json') -Environment $environment
                 $status = Get-ClassifiedStatus -AssertionResult $assertion -KnownDefect $decision.known_defect -RunMode mock -MockExpectation ([string]$scenario.mock.expected_status)
                 $reason = $(if ($assertion.passed) { 'fixture evidence satisfied orchestration contract' } else { @($assertion.errors) -join ', ' })
@@ -290,6 +351,21 @@ foreach ($item in $decisions) {
         }
         else {
             try {
+                $isProtocolScenario = [string]$resolvedScenario.executor_kind -eq 'protocol-worker'
+                $vpsCursor = $null
+                if ($isProtocolScenario) {
+                    if (-not [string]::IsNullOrWhiteSpace($VpsEvidenceImportPath)) { throw 'PROTOCOL_SERVER_IMPORT_NOT_SUPPORTED' }
+                    $vpsCursorPlan = New-ProtocolLogCursorPlan -Environment $environment
+                    Write-RedactedJsonReport -Value $vpsCursorPlan -Path (Join-Path $scenarioEvidence 'vps-cursor-plan.json') -Environment $environment
+                    $vpsCursor = Invoke-ProtocolLogCursorPlan -Plan $vpsCursorPlan -ProcessAdapter (New-SystemProcessAdapter) -AllowProductRuntime
+                    Write-RedactedJsonReport -Value $vpsCursor -Path (Join-Path $scenarioEvidence 'vps-cursor-result.json') -Environment $environment
+                }
+                elseif ([string]::IsNullOrWhiteSpace($VpsEvidenceImportPath)) {
+                    $vpsCursorPlan = New-VpsLogCursorPlan -Environment $environment
+                    Write-RedactedJsonReport -Value $vpsCursorPlan -Path (Join-Path $scenarioEvidence 'vps-cursor-plan.json') -Environment $environment
+                    $vpsCursor = Invoke-VpsLogCursorPlan -Plan $vpsCursorPlan -ProcessAdapter (New-SystemProcessAdapter) -AllowProductRuntime
+                    Write-RedactedJsonReport -Value $vpsCursor -Path (Join-Path $scenarioEvidence 'vps-cursor-result.json') -Environment $environment
+                }
                 $readyRegex = $(if ($environment.ContainsKey('PB_CLI_READY_REGEX')) { $environment['PB_CLI_READY_REGEX'] } else { [string]$runtimeConfig.cli_readiness.regex })
                 $readyStableMs = $(if ($environment.ContainsKey('PB_CLI_READY_STABLE_MS')) { [int]$environment['PB_CLI_READY_STABLE_MS'] } else { [int]$runtimeConfig.cli_readiness.stable_ms })
                 $readinessTimeoutMs = $(if ($environment.ContainsKey('PB_CLI_READINESS_TIMEOUT_MS')) { [int]$environment['PB_CLI_READINESS_TIMEOUT_MS'] } else { [int]$runtimeConfig.cli_readiness.readiness_timeout_ms })
@@ -297,7 +373,11 @@ foreach ($item in $decisions) {
                 $cliPlan = New-ProxyBridgeCliPlan -ExecutablePath $environment['PB_PROXYBRIDGE_CLI_EXE'] -ProfilePath $writtenProfile.path -ReadyRegex $readyRegex -ReadyStableMs $readyStableMs -ReadinessTimeoutMs $readinessTimeoutMs -StopTimeoutMs $stopTimeoutMs -ActualPathTimeoutMs ([int]$runtimeConfig.cli_actual_path_timeout_ms)
                 Write-RedactedJsonReport -Value $cliPlan -Path (Join-Path $scenarioEvidence 'cli-plan.json') -Environment $environment
                 $clientAdapter = New-SystemProcessAdapter
-                $workload = { Invoke-ClientPlan -Plan $clientPlan -ProcessAdapter $clientAdapter -AllowProductRuntime }.GetNewClosure()
+                $workload = $(if ($isProtocolScenario) {
+                    { Invoke-ProtocolExecutionPlan -Plan $clientPlan -RuntimeContracts $protocolRuntimeContracts -ProcessAdapter $clientAdapter -AllowProductRuntime }.GetNewClosure()
+                } else {
+                    { Invoke-ClientPlan -Plan $clientPlan -ProcessAdapter $clientAdapter -AllowProductRuntime }.GetNewClosure()
+                })
                 $sink = { param($evidence) Write-RedactedJsonReport -Value $evidence -Path (Join-Path $scenarioEvidence 'cli-lifecycle.json') -Environment $environment }.GetNewClosure()
                 $lifecycle = Invoke-ProxyBridgeCliLifecycle -Plan $cliPlan -ProcessAdapter (New-SystemProcessAdapter) -AllowProductRuntime -Workload $workload -EvidenceSink $sink
                 $clientResult = $lifecycle.workload_result
@@ -305,12 +385,19 @@ foreach ($item in $decisions) {
                 $lifecycleEnd = [datetime]::Parse([string]$lifecycle.completed_at_utc).ToUniversalTime()
                 $proxyBridgeLines = @(([string]$lifecycle.process_result.stdout) -split "`r?`n") + @(([string]$lifecycle.process_result.stderr) -split "`r?`n")
                 $proxyBridgeRecords = @(ConvertFrom-ProxyBridgeTextLines -Lines $proxyBridgeLines -DefaultTimestampUtc $lifecycleStart)
-                if (-not [string]::IsNullOrWhiteSpace($VpsEvidenceImportPath)) {
+                if ($isProtocolScenario) {
+                    $vpsPlan = New-ProtocolServerCollectionPlan -Environment $environment -ExecutionPlan $clientPlan -Cursor $vpsCursor
+                    Write-RedactedJsonReport -Value $vpsPlan -Path (Join-Path $scenarioEvidence 'vps-collection-plan.json') -Environment $environment
+                    $vpsCollection = Invoke-ProtocolServerCollectionPlan -Plan $vpsPlan -ExecutionPlan $clientPlan -RuntimeContracts $protocolRuntimeContracts -ProcessAdapter (New-SystemProcessAdapter) -AllowProductRuntime
+                    $vpsCollection | Add-Member -NotePropertyName complete_shas -NotePropertyValue @($clientResult.records | ForEach-Object { [string]$_.payload_sha256 } | Sort-Object -Unique)
+                    $vpsCollection | Add-Member -NotePropertyName query_results -NotePropertyValue @([pscustomobject]@{mode='protocol-log-cursor';success=$true;record_count=@($vpsCollection.records).Count})
+                }
+                elseif (-not [string]::IsNullOrWhiteSpace($VpsEvidenceImportPath)) {
                     $expectedShas = @($clientResult.canonical_records | ForEach-Object { [string]$_.payload_sha256 } | Sort-Object -Unique)
                     $vpsCollection = Invoke-VpsImportEvidencePlan -Plan (New-VpsEvidencePlan -ImportPath $VpsEvidenceImportPath) -ExpectedShas $expectedShas
                 }
                 else {
-                    $vpsPlan = New-VpsDynamicEvidencePlan -Environment $environment -CanonicalRecords @($clientResult.canonical_records) -EvidenceDirectory $scenarioEvidence
+                    $vpsPlan = New-VpsDynamicEvidencePlan -Environment $environment -CanonicalRecords @($clientResult.canonical_records) -EvidenceDirectory $scenarioEvidence -Cursor $vpsCursor
                     Write-RedactedJsonReport -Value $vpsPlan -Path (Join-Path $scenarioEvidence 'vps-collection-plan.json') -Environment $environment
                     $vpsCollection = Invoke-VpsDynamicEvidencePlan -Plan $vpsPlan -ProcessAdapter (New-SystemProcessAdapter) -Environment $environment -AllowProductRuntime
                 }
@@ -321,12 +408,16 @@ foreach ($item in $decisions) {
                 Write-RedactedJsonReport -Value $proxyBridgeRecords -Path (Join-Path $scenarioEvidence 'proxybridge-evidence.json') -Environment $environment
                 Write-RedactedJsonReport -Value $vpsRecords -Path (Join-Path $scenarioEvidence 'vps-evidence.json') -Environment $environment
                 $context = [pscustomobject]@{
-                    vps_capture_complete=$vpsCaptureComplete;vps_capture_complete_shas=$vpsCompleteShas
+                    vps_capture_complete=$vpsCaptureComplete;vps_capture_complete_shas=$vpsCompleteShas;server_capture_complete=$vpsCaptureComplete
                     channel_capture_completed=$true;records_found=(@($proxyBridgeRecords).Count -gt 0)
                     direct_egress_ip=[string]$directBaseline.direct_egress_ip;proxy_egress_ip=$ExpectedProxyEgressIpv4
-                    expected_process=[System.IO.Path]::GetFileName($environment['PB_CLIENT_EXE']);start_time_utc=$lifecycleStart;end_time_utc=$lifecycleEnd
+                    expected_process=$(if($isProtocolScenario){[string]$clientPlan.expected_process}else{[System.IO.Path]::GetFileName($environment['PB_CLIENT_EXE'])});start_time_utc=$lifecycleStart;end_time_utc=$lifecycleEnd
                 }
-                $assertion = Test-ScenarioAssertions -Scenario $resolvedScenario -ClientPlan $clientPlan -ClientResult $clientResult -VpsRecords $vpsRecords -ProxyBridgeRecords $proxyBridgeRecords -EvidenceContext $context -RunMode real
+                $assertion = $(if ($isProtocolScenario) {
+                    Test-ProtocolScenarioAssertions -Scenario $resolvedScenario -ExecutionPlan $clientPlan -ClientResult $clientResult -ServerRecords $vpsRecords -ProxyBridgeRecords $proxyBridgeRecords -EvidenceContext $context -RunMode real
+                } else {
+                    Test-ScenarioAssertions -Scenario $resolvedScenario -ClientPlan $clientPlan -ClientResult $clientResult -VpsRecords $vpsRecords -ProxyBridgeRecords $proxyBridgeRecords -EvidenceContext $context -RunMode real
+                })
                 Write-RedactedJsonReport -Value $assertion -Path (Join-Path $scenarioEvidence 'assertions.json') -Environment $environment
                 $status = Get-ClassifiedStatus -AssertionResult $assertion -KnownDefect $decision.known_defect -RunMode real
                 $reason = $(if ($assertion.passed) { "evidence passed: $($assertion.evidence_basis)" } else { @($assertion.errors) -join ', ' })
@@ -335,7 +426,8 @@ foreach ($item in $decisions) {
                 $safe = Get-SafeExceptionMessage -ErrorRecord $_ -Environment $environment
                 if ($safe -match 'CLI_CLEANUP_FAILED|POST_STOP_VERIFICATION') { $status='CONTAMINATED' }
                 elseif ($safe -match 'READINESS|ACTUAL_PATH|PATH_VERIFICATION|CLIENT_PRELAUNCH|START_FAILED|PROCESS_START') { $status='FAIL_INFRASTRUCTURE' }
-                elseif ($safe -match 'VPS_SSH_(COLLECTION_INCOMPLETE|TIMEOUT|FAILED|PROCESS_FAILED|HOST_INVALID|USER_INVALID|PORT_INVALID|EXECUTABLE_MISSING)|VPS_ENVIRONMENT_MISSING_') { $status='FAIL_INFRASTRUCTURE' }
+                elseif ($safe -match 'PROTOCOL_(PRELAUNCH|PATH_QUERY_TIMEOUT|PATH_VERIFICATION|SSH_|CURSOR_|SERVER_COLLECTION_|ENVIRONMENT_MISSING_)') { $status='FAIL_INFRASTRUCTURE' }
+                elseif ($safe -match 'VPS_(SSH_(COLLECTION_INCOMPLETE|TIMEOUT|FAILED|PROCESS_FAILED|HOST_INVALID|USER_INVALID|PORT_INVALID|EXECUTABLE_MISSING)|CURSOR_(TIMEOUT|FAILED|OUTPUT_INVALID|OFFSET_INVALID|INVALID))|VPS_ENVIRONMENT_MISSING_') { $status='FAIL_INFRASTRUCTURE' }
                 elseif ($safe -match 'VPS_EVIDENCE_IMPORT_NOT_FOUND') { $status='HOLD_AMBIGUOUS' }
                 else { $status='FAIL_HARNESS' }
                 $reason=$safe
@@ -348,6 +440,12 @@ foreach ($item in $decisions) {
             if (-not $postCleanup.passed) { $status='CONTAMINATED';$reason=[string]$postCleanup.reason }
         }
 
+        $completeness = New-EvidenceCompletenessMatrix -ScenarioEvidenceRoot $scenarioEvidence -RunRoot $report.run_root -RunMode $runMode -AssertionResult $assertion -PostCleanup $postCleanup
+        Write-RedactedJsonReport -Value $completeness -Path (Join-Path $scenarioEvidence 'evidence-completeness.json') -Environment $environment
+        if ($runMode -eq 'real' -and $null -ne $assertion -and $status -in @('PASS','FAIL_PRODUCT','EXPECTED_FAIL') -and -not [bool]$completeness.overall_complete) {
+            $status='HOLD_AMBIGUOUS';$reason="mandatory evidence incomplete: $(@($completeness.missing_mandatory) -join ', ')"
+        }
+
         $attemptTimer.Stop()
         $record = New-ResultRecord -Scenario $scenario -Status $status -Reason $reason -Attempt $attempt -DurationMs $attemptTimer.ElapsedMilliseconds -Selected $true -ProfileSha256 $profileSha
         $records.Add($record); Add-ResultRecord -Report $report -Record $record -Environment $environment
@@ -358,7 +456,7 @@ foreach ($item in $decisions) {
 }
 
 $suiteTimer.Stop()
-Write-RunSummary -Report $report -Records $records.ToArray() -AllScenarios $scenarios -Environment $environment -RunMode $runMode -ExecutionComplete (-not $stopRun)
+Write-RunSummary -Report $report -Records $records.ToArray() -AllScenarios $scenarios -Environment $environment -RunMode $runMode -ExecutionComplete (-not $stopRun -and -not $cancellationRequested)
 Write-SafeTranscript -Report $report -Environment $environment -Message "Run completed; selected=$selectedCount; profile_failures=$profileFailures; mode=$runMode."
 Complete-RunChecksums -Report $report
 "RUN_COMPLETE mode=$runMode run_id=$($report.run_id) scenarios=$($scenarios.Count) selected=$selectedCount status=$(if($profileFailures -gt 0){'FAIL_HARNESS'}else{'COMPLETE'})"

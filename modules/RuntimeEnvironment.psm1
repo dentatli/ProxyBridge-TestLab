@@ -85,6 +85,22 @@ function New-RuntimeEnvironmentPlan {
         @('proxybridge-cli', 'PB_PROXYBRIDGE_CLI_EXE', 'PB_EXPECTED_PROXYBRIDGE_CLI_SHA256', 'ProxyBridge_CLI.exe'),
         @('driver', 'PB_DRIVER_PATH', 'PB_EXPECTED_DRIVER_SHA256', '')
     )
+    $optionalProtocolDefinitions = @(
+        @('protocol-python', 'PB_PROTOCOL_PYTHON_EXE', 'PB_EXPECTED_PROTOCOL_PYTHON_SHA256', ''),
+        @('protocol-worker', 'PB_PROTOCOL_WORKER_ENTRYPOINT', 'PB_EXPECTED_PROTOCOL_WORKER_SHA256', ''),
+        @('protocol-manifest', 'PB_PROTOCOL_WORKER_MANIFEST', 'PB_EXPECTED_PROTOCOL_MANIFEST_SHA256', ''),
+        @('protocol-evidence-contract', 'PB_PROTOCOL_EVIDENCE_CONTRACT', 'PB_EXPECTED_PROTOCOL_EVIDENCE_CONTRACT_SHA256', ''),
+        @('protocol-ca', 'PB_PROTOCOL_CA_PEM', 'PB_EXPECTED_PROTOCOL_CA_SHA256', '')
+    )
+    $protocolRuntimeRequested = $false
+    foreach ($definition in $optionalProtocolDefinitions) {
+        if (($Environment.ContainsKey($definition[1]) -and -not [string]::IsNullOrWhiteSpace([string]$Environment[$definition[1]])) -or
+            ($Environment.ContainsKey($definition[2]) -and -not [string]::IsNullOrWhiteSpace([string]$Environment[$definition[2]]))) {
+            $protocolRuntimeRequested = $true
+            break
+        }
+    }
+    if ($protocolRuntimeRequested) { $binaryDefinitions += $optionalProtocolDefinitions }
     $binaries = [System.Collections.Generic.List[object]]::new()
     foreach ($definition in $binaryDefinitions) {
         $configuredPath = Get-RuntimeEnvironmentValue $Environment $definition[1]

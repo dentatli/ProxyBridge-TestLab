@@ -12,13 +12,15 @@
 
 #define MAX_TEXT 256
 #define MAX_PATH_TEXT 32768
-#define MAX_PAYLOAD 1024
+#define MAX_PAYLOAD 1048576
+#define MAX_UDP_PAYLOAD 65507
 #define SHA256_HEX 65
+#define MAX_PARALLEL 32
 
 typedef enum { MODE_NONE, MODE_SINGLE, MODE_ISSUE209, MODE_ISSUE206 } TEST_MODE;
 typedef enum { PROTO_NONE, PROTO_TCP, PROTO_UDP } NET_PROTOCOL;
 typedef enum { UDP_CONNECTED, UDP_UNCONNECTED } UDP_MODE;
-typedef enum { CLOSE_NONE, CLOSE_GRACEFUL, CLOSE_ABORTIVE } CLOSE_MODE;
+typedef enum { CLOSE_NONE, CLOSE_GRACEFUL, CLOSE_ABORTIVE, CLOSE_HALF } CLOSE_MODE;
 typedef enum { TCP_PEER_EXACT, TCP_PEER_RECORD_ONLY } TCP_PEER_POLICY;
 typedef enum { ACTION_DIRECT, ACTION_PROXY, ACTION_BLOCK } EXPECTED_ACTION;
 typedef enum { EXPECT_ECHO, EXPECT_NO_ECHO } EXPECT_OUTCOME;
@@ -42,6 +44,7 @@ typedef struct CONFIG {
     char local_ip[INET6_ADDRSTRLEN];
     unsigned short local_port;
     char remote_ip[INET6_ADDRSTRLEN];
+    char remote_host[MAX_TEXT];
     unsigned short tcp_remote_port;
     unsigned short udp_remote_port;
     char first_remote_ip[INET6_ADDRSTRLEN];
@@ -52,6 +55,15 @@ typedef struct CONFIG {
     DWORD timeout_ms;
     unsigned int bind_retry_count;
     DWORD bind_retry_delay_ms;
+    char endpoint_behavior[MAX_TEXT];
+    DWORD behavior_delay_ms;
+    unsigned long payload_size;
+    int payload_size_explicit;
+    unsigned int stream_count;
+    unsigned int parallel_count;
+    unsigned int process_index;
+    unsigned int reconnect_count;
+    DWORD stream_interval_ms;
     char test_id[MAX_TEXT];
     char run_id[MAX_TEXT];
     char jsonl_log[MAX_PATH_TEXT];
@@ -71,19 +83,34 @@ typedef struct FLOW_RECORD {
     unsigned short requested_local_port;
     char actual_local_ip[INET6_ADDRSTRLEN];
     unsigned short actual_local_port;
+    unsigned long socket_id;
     char requested_remote_ip[INET6_ADDRSTRLEN];
+    char requested_remote_host[MAX_TEXT];
     unsigned short requested_remote_port;
     char actual_remote_ip[INET6_ADDRSTRLEN];
     unsigned short actual_remote_port;
     int wsa_error;
     int bytes_sent;
     int bytes_received;
+    int response_count;
+    int response_order;
     char payload_sha256[SHA256_HEX];
     char response_sha256[SHA256_HEX];
     ULONGLONG timing_ms;
     const char *expected_result;
     char actual_result[MAX_TEXT];
 } FLOW_RECORD;
+
+typedef struct PARALLEL_FLOW_CONTEXT {
+    const CONFIG *config;
+    int sequence;
+    char phase[32];
+    FLOW_RECORD record;
+    int success;
+    HANDLE thread;
+} PARALLEL_FLOW_CONTEXT;
+
+static volatile LONG socket_id_counter = 0;
 
 static const char *mode_name(TEST_MODE value)
 {
@@ -104,6 +131,7 @@ static const char *close_name(CLOSE_MODE value)
 {
     if (value == CLOSE_GRACEFUL) return "graceful";
     if (value == CLOSE_ABORTIVE) return "abortive";
+    if (value == CLOSE_HALF) return "half-close";
     return "none";
 }
 
@@ -128,14 +156,21 @@ static void usage(const char *program)
 {
     fprintf(stderr,
         "Usage: %s --mode single|issue209|issue206 --family 4|6 "
-        "--local-ip IP --local-port PORT --remote-ip IP "
+        "--local-ip IP --local-port PORT --remote-ip IP [--remote-host NAME] "
         "--test-id ID --run-id ID --jsonl-log PATH [options]\n"
         "  single:   --protocol tcp|udp [--udp-mode connected|unconnected]\n"
         "  issue209: --first-protocol udp|tcp\n"
         "  issue206: --close-mode graceful|abortive [distinct remote options]\n"
         "Options: --tcp-remote-port 41002 --udp-remote-port 41001 "
         "--tcp-peer-policy exact|record-only --expected-action DIRECT|PROXY|BLOCK "
-        "--expect echo|no-echo --timeout-ms 3000 --bind-retry-count 10 "
+        "--expect echo|no-echo --timeout-ms 3000 --payload-size BYTES "
+        "--stream-count 1..64 --stream-interval-ms MS "
+        "--parallel-count 1..32 "
+        "--process-index 1..32 "
+        "--reconnect-count 1..32 "
+        "--endpoint-behavior normal|delay|server-close|reset|silent-timeout|drop|duplicate|out-of-order|late-response "
+        "--behavior-delay-ms MS "
+        "--bind-retry-count 10 "
         "--bind-retry-delay-ms 50 --first-remote-ip IP --first-remote-port PORT "
         "--second-remote-ip IP --second-remote-port PORT --inter-flow-wait-ms MS\n"
         "Per-flow overrides: --first-expected-action DIRECT|PROXY|BLOCK "
@@ -229,6 +264,9 @@ static int parse_arguments(int argc, char **argv, CONFIG *config)
     config->timeout_ms = 3000;
     config->bind_retry_count = 10;
     config->bind_retry_delay_ms = 50;
+    config->stream_count = 1;
+    config->parallel_count = 1;
+    config->reconnect_count = 1;
 
     for (index = 1; index < argc; index += 2) {
         const char *name = argv[index];
@@ -256,6 +294,7 @@ static int parse_arguments(int argc, char **argv, CONFIG *config)
         } else if (strcmp(name, "--close-mode") == 0) {
             if (_stricmp(value, "graceful") == 0) config->close_mode = CLOSE_GRACEFUL;
             else if (_stricmp(value, "abortive") == 0) config->close_mode = CLOSE_ABORTIVE;
+            else if (_stricmp(value, "half-close") == 0) config->close_mode = CLOSE_HALF;
             else return 0;
         } else if (strcmp(name, "--tcp-peer-policy") == 0) {
             if (!parse_tcp_peer_policy(value, &config->tcp_peer_policy)) return 0;
@@ -285,6 +324,8 @@ static int parse_arguments(int argc, char **argv, CONFIG *config)
             if (!copy_text(config->local_ip, sizeof(config->local_ip), value)) return 0;
         } else if (strcmp(name, "--remote-ip") == 0) {
             if (!copy_text(config->remote_ip, sizeof(config->remote_ip), value)) return 0;
+        } else if (strcmp(name, "--remote-host") == 0) {
+            if (!copy_text(config->remote_host, sizeof(config->remote_host), value)) return 0;
         } else if (strcmp(name, "--local-port") == 0) {
             if (!parse_ulong(value, 0, 65535, &number)) return 0;
             config->local_port = (unsigned short)number;
@@ -313,6 +354,35 @@ static int parse_arguments(int argc, char **argv, CONFIG *config)
         } else if (strcmp(name, "--timeout-ms") == 0) {
             if (!parse_ulong(value, 1, 60000, &number)) return 0;
             config->timeout_ms = (DWORD)number;
+        } else if (strcmp(name, "--payload-size") == 0) {
+            if (!parse_ulong(value, 0, MAX_PAYLOAD, &number)) return 0;
+            config->payload_size = number;
+            config->payload_size_explicit = 1;
+        } else if (strcmp(name, "--stream-count") == 0) {
+            if (!parse_ulong(value, 1, 64, &number)) return 0;
+            config->stream_count = (unsigned int)number;
+        } else if (strcmp(name, "--parallel-count") == 0) {
+            if (!parse_ulong(value, 1, MAX_PARALLEL, &number)) return 0;
+            config->parallel_count = (unsigned int)number;
+        } else if (strcmp(name, "--process-index") == 0) {
+            if (!parse_ulong(value, 1, MAX_PARALLEL, &number)) return 0;
+            config->process_index = (unsigned int)number;
+        } else if (strcmp(name, "--reconnect-count") == 0) {
+            if (!parse_ulong(value, 1, MAX_PARALLEL, &number)) return 0;
+            config->reconnect_count = (unsigned int)number;
+        } else if (strcmp(name, "--stream-interval-ms") == 0) {
+            if (!parse_ulong(value, 0, 60000, &number)) return 0;
+            config->stream_interval_ms = (DWORD)number;
+        } else if (strcmp(name, "--endpoint-behavior") == 0) {
+            if (_stricmp(value, "normal") != 0 && _stricmp(value, "delay") != 0 &&
+                _stricmp(value, "server-close") != 0 && _stricmp(value, "reset") != 0 &&
+                _stricmp(value, "silent-timeout") != 0 && _stricmp(value, "drop") != 0 &&
+                _stricmp(value, "duplicate") != 0 && _stricmp(value, "out-of-order") != 0 &&
+                _stricmp(value, "late-response") != 0) return 0;
+            if (!copy_text(config->endpoint_behavior, sizeof(config->endpoint_behavior), value)) return 0;
+        } else if (strcmp(name, "--behavior-delay-ms") == 0) {
+            if (!parse_ulong(value, 0, 60000, &number)) return 0;
+            config->behavior_delay_ms = (DWORD)number;
         } else if (strcmp(name, "--bind-retry-count") == 0) {
             if (!parse_ulong(value, 0, 1000, &number)) return 0;
             config->bind_retry_count = (unsigned int)number;
@@ -332,6 +402,32 @@ static int parse_arguments(int argc, char **argv, CONFIG *config)
         !config->local_ip[0] || !config->remote_ip[0] || !have_local_port ||
         !config->test_id[0] || !config->run_id[0] || !config->jsonl_log[0]) return 0;
     if (config->mode == MODE_SINGLE && config->protocol == PROTO_NONE) return 0;
+    if (config->mode == MODE_SINGLE && config->protocol == PROTO_UDP &&
+        config->payload_size_explicit && config->payload_size > MAX_UDP_PAYLOAD) return 0;
+    if (config->stream_count > 1 &&
+        (config->mode != MODE_SINGLE || !config->payload_size_explicit)) return 0;
+    if (config->parallel_count > 1 &&
+        (config->mode != MODE_SINGLE || config->stream_count > 1 ||
+         config->local_port != 0)) return 0;
+    if (config->process_index > 0 &&
+        (config->mode != MODE_SINGLE || config->stream_count > 1 ||
+         config->parallel_count > 1 || config->local_port != 0)) return 0;
+    if (config->reconnect_count > 1 &&
+        (config->mode != MODE_SINGLE || config->protocol != PROTO_UDP ||
+         config->stream_count > 1 || config->parallel_count > 1 ||
+         config->process_index > 0 || config->local_port != 0)) return 0;
+    if (config->stream_interval_ms > 0 && config->stream_count < 2) return 0;
+    if (config->endpoint_behavior[0] &&
+        (config->mode != MODE_SINGLE || !config->payload_size_explicit)) return 0;
+    if (_stricmp(config->endpoint_behavior, "out-of-order") == 0 &&
+        (config->protocol != PROTO_UDP || config->udp_mode != UDP_UNCONNECTED ||
+         config->stream_count != 2 || config->expect != EXPECT_ECHO)) return 0;
+    if (_stricmp(config->endpoint_behavior, "late-response") == 0 &&
+        (config->protocol != PROTO_UDP || config->udp_mode != UDP_UNCONNECTED ||
+         config->stream_count != 2 || config->expect != EXPECT_ECHO ||
+         config->behavior_delay_ms < 100)) return 0;
+    if (config->mode == MODE_SINGLE && config->protocol == PROTO_UDP &&
+        config->endpoint_behavior[0] && config->payload_size > MAX_UDP_PAYLOAD - 16) return 0;
     if (config->mode == MODE_ISSUE209 && config->first_protocol == PROTO_NONE) return 0;
     if (config->mode == MODE_ISSUE206 && config->close_mode == CLOSE_NONE) return 0;
     if (!have_first_tcp_peer_policy) config->first_tcp_peer_policy = config->tcp_peer_policy;
@@ -409,6 +505,42 @@ static int endpoints_equal(const SOCKADDR_STORAGE *left, const SOCKADDR_STORAGE 
     return 0;
 }
 
+static int resolve_remote_endpoint(int family, NET_PROTOCOL protocol,
+    const char *host, const char *expected_ip, unsigned short port,
+    SOCKADDR_STORAGE *storage, int *length)
+{
+    ADDRINFOA hints, *results = NULL, *entry;
+    SOCKADDR_STORAGE expected;
+    int expected_length;
+    char port_text[6];
+    if (!host || !host[0]) return make_endpoint(family, expected_ip, port, storage, length);
+    if (!make_endpoint(family, expected_ip, port, &expected, &expected_length)) return 0;
+    memset(&hints, 0, sizeof(hints));
+    hints.ai_family = family;
+    hints.ai_socktype = protocol == PROTO_TCP ? SOCK_STREAM : SOCK_DGRAM;
+    hints.ai_protocol = protocol == PROTO_TCP ? IPPROTO_TCP : IPPROTO_UDP;
+    snprintf(port_text, sizeof(port_text), "%u", (unsigned int)port);
+    {
+        int resolver_error = getaddrinfo(host, port_text, &hints, &results);
+        if (resolver_error != 0) { WSASetLastError(resolver_error); return 0; }
+    }
+    for (entry = results; entry; entry = entry->ai_next) {
+        SOCKADDR_STORAGE candidate;
+        if ((size_t)entry->ai_addrlen > sizeof(candidate)) continue;
+        memset(&candidate, 0, sizeof(candidate));
+        memcpy(&candidate, entry->ai_addr, (size_t)entry->ai_addrlen);
+        if (endpoints_equal(&expected, &candidate)) {
+            *storage = candidate;
+            *length = (int)entry->ai_addrlen;
+            freeaddrinfo(results);
+            return 1;
+        }
+    }
+    freeaddrinfo(results);
+    WSASetLastError(WSAHOST_NOT_FOUND);
+    return 0;
+}
+
 static int sha256_bytes(const unsigned char *data, ULONG length, char output[SHA256_HEX])
 {
     BCRYPT_ALG_HANDLE algorithm = NULL;
@@ -481,6 +613,7 @@ static int write_record(FILE *file, const FLOW_RECORD *record)
     json_pair(file, "test_id", record->config->test_id); fputc(',', file);
     json_pair(file, "run_id", record->config->run_id); fputc(',', file);
     json_pair(file, "mode", mode_name(record->config->mode));
+    fprintf(file, ",\"process_id\":%lu", (unsigned long)GetCurrentProcessId());
     fprintf(file, ",\"sequence\":%d,", record->sequence);
     json_pair(file, "phase", record->phase); fputc(',', file);
     json_pair(file, "expected_action", expected_action_name(record->expected_action)); fputc(',', file);
@@ -491,17 +624,23 @@ static int write_record(FILE *file, const FLOW_RECORD *record)
         tcp_peer_policy_name(record->tcp_peer_policy) : "n/a"); fputc(',', file);
     json_pair(file, "udp_mode", record->udp_mode); fputc(',', file);
     json_pair(file, "close_mode", record->close_mode); fputc(',', file);
+    json_pair(file, "endpoint_behavior", record->config->endpoint_behavior); fputc(',', file);
+    fprintf(file, "\"behavior_delay_ms\":%lu,", (unsigned long)record->config->behavior_delay_ms);
     json_pair(file, "requested_local_ip", record->requested_local_ip);
     fprintf(file, ",\"requested_local_port\":%u,", (unsigned int)record->requested_local_port);
     json_pair(file, "actual_local_ip", record->actual_local_ip);
     fprintf(file, ",\"actual_local_port\":%u,", (unsigned int)record->actual_local_port);
+    fprintf(file, "\"socket_id\":%lu,", record->socket_id);
     json_pair(file, "requested_remote_ip", record->requested_remote_ip);
+    fputc(',', file);
+    json_pair(file, "requested_remote_host", record->requested_remote_host);
     fprintf(file, ",\"requested_remote_port\":%u,", (unsigned int)record->requested_remote_port);
     json_pair(file, "actual_remote_ip", record->actual_remote_ip);
     fprintf(file, ",\"actual_remote_port\":%u,\"wsa_error\":%d,",
         (unsigned int)record->actual_remote_port, record->wsa_error);
-    fprintf(file, "\"bytes_sent\":%d,\"bytes_received\":%d,",
-        record->bytes_sent, record->bytes_received);
+    fprintf(file, "\"bytes_sent\":%d,\"bytes_received\":%d,\"response_count\":%d,",
+        record->bytes_sent, record->bytes_received, record->response_count);
+    fprintf(file, "\"response_order\":%d,", record->response_order);
     json_pair(file, "payload_sha256", record->payload_sha256); fputc(',', file);
     json_pair(file, "response_sha256", record->response_sha256);
     fprintf(file, ",\"timing_ms\":%llu,", (unsigned long long)record->timing_ms);
@@ -573,12 +712,23 @@ static SOCKET create_bound_socket(const CONFIG *config, NET_PROTOCOL protocol,
                 return INVALID_SOCKET;
             }
         }
+        if ((config->mode == MODE_ISSUE206 ||
+            _stricmp(config->endpoint_behavior, "late-response") == 0) &&
+            local_port != 0) {
+            BOOL reuse_address = TRUE;
+            if (setsockopt(socket_handle, SOL_SOCKET, SO_REUSEADDR,
+                (const char *)&reuse_address, sizeof(reuse_address)) == SOCKET_ERROR) {
+                record->wsa_error = WSAGetLastError(); closesocket(socket_handle);
+                return INVALID_SOCKET;
+            }
+        }
         if (!make_endpoint(config->family, config->local_ip, local_port,
             &local, &local_length)) {
             record->wsa_error = WSAEINVAL; closesocket(socket_handle);
             return INVALID_SOCKET;
         }
         if (bind(socket_handle, (const struct sockaddr *)&local, local_length) == 0) {
+            record->socket_id = (unsigned long)InterlockedIncrement(&socket_id_counter);
             actual_length = sizeof(actual);
             memset(&actual, 0, sizeof(actual));
             if (getsockname(socket_handle, (struct sockaddr *)&actual, &actual_length) == SOCKET_ERROR ||
@@ -608,6 +758,67 @@ static int send_all(SOCKET socket_handle, const char *payload, int length, int *
         total += sent;
     }
     return total;
+}
+
+static unsigned long endpoint_behavior_code(const char *behavior)
+{
+    if (!behavior || !behavior[0] || _stricmp(behavior, "normal") == 0) return 0;
+    if (_stricmp(behavior, "delay") == 0) return 1;
+    if (_stricmp(behavior, "server-close") == 0) return 2;
+    if (_stricmp(behavior, "reset") == 0) return 3;
+    if (_stricmp(behavior, "silent-timeout") == 0) return 4;
+    if (_stricmp(behavior, "drop") == 0) return 5;
+    if (_stricmp(behavior, "duplicate") == 0) return 6;
+    if (_stricmp(behavior, "out-of-order") == 0) return 7;
+    if (_stricmp(behavior, "late-response") == 0) return 8;
+    return 0xffffffffUL;
+}
+
+static int send_tcp_frame_header(SOCKET socket_handle, const CONFIG *config,
+    int payload_length, int *wsa_error)
+{
+    unsigned long behavior_code = endpoint_behavior_code(config->endpoint_behavior);
+    if (behavior_code == 0xffffffffUL) { *wsa_error = WSAEINVAL; return SOCKET_ERROR; }
+    if (behavior_code == 0) {
+        unsigned long framed_length = htonl((unsigned long)payload_length);
+        return send_all(socket_handle, (const char *)&framed_length,
+            (int)sizeof(framed_length), wsa_error);
+    }
+    {
+        unsigned long header[4];
+        header[0] = htonl(0x50424354UL);
+        header[1] = htonl(behavior_code);
+        header[2] = htonl((unsigned long)config->behavior_delay_ms);
+        header[3] = htonl((unsigned long)payload_length);
+        return send_all(socket_handle, (const char *)header, (int)sizeof(header), wsa_error);
+    }
+}
+
+static int build_udp_wire_payload(const CONFIG *config,
+    const unsigned char *payload, int payload_length,
+    unsigned char *wire_buffer,
+    const unsigned char **wire_payload, int *wire_length)
+{
+    unsigned long behavior_code = endpoint_behavior_code(config->endpoint_behavior);
+    if (behavior_code == 0xffffffffUL) return 0;
+    if (behavior_code == 0) {
+        *wire_payload = payload;
+        *wire_length = payload_length;
+        return 1;
+    }
+    if (payload_length > MAX_UDP_PAYLOAD - 16) return 0;
+    {
+        unsigned long header[4];
+        header[0] = htonl(0x50425544UL);
+        header[1] = htonl(behavior_code);
+        header[2] = htonl((unsigned long)config->behavior_delay_ms);
+        header[3] = htonl((unsigned long)payload_length);
+        memcpy(wire_buffer, header, sizeof(header));
+        memcpy(wire_buffer + sizeof(header), payload, (size_t)payload_length);
+        *wire_payload = wire_buffer;
+        *wire_length = payload_length + (int)sizeof(header);
+        return 1;
+    }
 }
 
 static int recv_exact(SOCKET socket_handle, char *buffer, int length, int *wsa_error)
@@ -648,9 +859,32 @@ static void initialize_record(FLOW_RECORD *record, const CONFIG *config,
     copy_text(record->requested_local_ip, sizeof(record->requested_local_ip), config->local_ip);
     record->requested_local_port = local_port;
     copy_text(record->requested_remote_ip, sizeof(record->requested_remote_ip), remote_ip);
+    if (config->remote_host[0]) {
+        copy_text(record->requested_remote_host,
+            sizeof(record->requested_remote_host), config->remote_host);
+    }
     record->requested_remote_port = remote_port;
     record->expected_result = expect_name(expect);
     copy_text(record->actual_result, sizeof(record->actual_result), "fail:not_started");
+}
+
+static int build_payload(const CONFIG *config, int sequence, const char *phase,
+    NET_PROTOCOL protocol, unsigned char *payload, int *payload_length)
+{
+    if (config->payload_size_explicit) {
+        unsigned long payload_index;
+        *payload_length = (int)config->payload_size;
+        for (payload_index = 0; payload_index < config->payload_size; payload_index++) {
+            payload[payload_index] = (unsigned char)((payload_index * 131UL +
+                (unsigned long)sequence * 17UL +
+                (unsigned char)config->test_id[0]) & 0xffUL);
+        }
+        return 1;
+    }
+    *payload_length = snprintf((char *)payload, MAX_PAYLOAD,
+        "PB_NET|test_id=%s|run_id=%s|sequence=%d|phase=%s|protocol=%s\n",
+        config->test_id, config->run_id, sequence, phase, protocol_name(protocol));
+    return *payload_length > 0 && *payload_length < MAX_PAYLOAD;
 }
 
 static int perform_flow(const CONFIG *config, int sequence, const char *phase,
@@ -663,17 +897,26 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
     SOCKADDR_STORAGE remote, actual_remote, response_source;
     int remote_length, actual_remote_length, response_source_length;
     int timeout_value = (int)config->timeout_ms;
-    char payload[MAX_PAYLOAD], response[MAX_PAYLOAD];
+    unsigned char *payload = NULL;
+    unsigned char *response = NULL;
+    unsigned char *udp_wire = NULL;
     int payload_length, result;
     ULONGLONG started = GetTickCount64();
     int success = 0;
 
     initialize_record(record, config, sequence, phase, protocol, local_port,
         remote_ip, remote_port, expected_action, expect, tcp_peer_policy);
-    payload_length = snprintf(payload, sizeof(payload),
-        "PB_NET|test_id=%s|run_id=%s|sequence=%d|phase=%s|protocol=%s\n",
-        config->test_id, config->run_id, sequence, phase, protocol_name(protocol));
-    if (payload_length <= 0 || payload_length >= (int)sizeof(payload)) {
+    payload = (unsigned char *)malloc(MAX_PAYLOAD);
+    response = (unsigned char *)malloc(MAX_PAYLOAD);
+    if (protocol == PROTO_UDP) {
+        udp_wire = (unsigned char *)malloc(MAX_UDP_PAYLOAD + 16);
+    }
+    if (!payload || !response || (protocol == PROTO_UDP && !udp_wire)) {
+        record->wsa_error = WSA_NOT_ENOUGH_MEMORY;
+        copy_text(record->actual_result, sizeof(record->actual_result), "fail:memory_allocation");
+        goto done;
+    }
+    if (!build_payload(config, sequence, phase, protocol, payload, &payload_length)) {
         record->wsa_error = WSAEMSGSIZE;
         copy_text(record->actual_result, sizeof(record->actual_result), "fail:payload_size");
         goto done;
@@ -684,10 +927,12 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
         copy_text(record->actual_result, sizeof(record->actual_result), "fail:BCrypt_SHA256");
         goto done;
     }
-    if (!make_endpoint(config->family, remote_ip,
+    if (!resolve_remote_endpoint(config->family, protocol,
+        config->mode == MODE_SINGLE ? config->remote_host : "", remote_ip,
         record->requested_remote_port, &remote, &remote_length)) {
-        record->wsa_error = WSAEINVAL;
-        copy_text(record->actual_result, sizeof(record->actual_result), "fail:remote_ip");
+        record->wsa_error = WSAGetLastError();
+        if (!record->wsa_error) record->wsa_error = WSAEINVAL;
+        copy_text(record->actual_result, sizeof(record->actual_result), "fail:remote_resolution");
         goto done;
     }
     socket_handle = create_bound_socket(config, protocol, local_port,
@@ -737,7 +982,20 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:tcp_peer_mismatch");
             goto done;
         }
-        result = send_all(socket_handle, payload, payload_length, &record->wsa_error);
+        if (config->payload_size_explicit) {
+            result = send_tcp_frame_header(socket_handle, config, payload_length,
+                &record->wsa_error);
+            if (result == SOCKET_ERROR) {
+                if (expect == EXPECT_NO_ECHO) {
+                    copy_text(record->actual_result, sizeof(record->actual_result), "pass:no_echo_send_failure");
+                    success = 1;
+                } else {
+                    copy_text(record->actual_result, sizeof(record->actual_result), "fail:send_frame");
+                }
+                goto done;
+            }
+        }
+        result = send_all(socket_handle, (const char *)payload, payload_length, &record->wsa_error);
         if (result == SOCKET_ERROR) {
             if (expect == EXPECT_NO_ECHO) {
                 copy_text(record->actual_result, sizeof(record->actual_result), "pass:no_echo_send_failure");
@@ -748,7 +1006,7 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
             goto done;
         }
         record->bytes_sent = result;
-        result = recv_exact(socket_handle, response, payload_length, &record->wsa_error);
+        result = recv_exact(socket_handle, (char *)response, payload_length, &record->wsa_error);
         if (result == SOCKET_ERROR) {
             if (expect == EXPECT_NO_ECHO) {
                 copy_text(record->actual_result, sizeof(record->actual_result), "pass:no_echo_observed");
@@ -759,7 +1017,16 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
             goto done;
         }
         record->bytes_received = result;
+        record->response_count = 1;
     } else {
+        const unsigned char *wire_payload;
+        int wire_length;
+        if (!build_udp_wire_payload(config, payload, payload_length, udp_wire,
+            &wire_payload, &wire_length)) {
+            record->wsa_error = WSAEMSGSIZE;
+            copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_control_payload");
+            goto done;
+        }
         if (config->udp_mode == UDP_CONNECTED) {
             if (connect(socket_handle, (const struct sockaddr *)&remote, remote_length) == SOCKET_ERROR) {
                 record->wsa_error = WSAGetLastError();
@@ -773,10 +1040,10 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
             }
         }
         result = config->udp_mode == UDP_CONNECTED ?
-            send(socket_handle, payload, payload_length, 0) :
-            sendto(socket_handle, payload, payload_length, 0,
+            send(socket_handle, (const char *)wire_payload, wire_length, 0) :
+            sendto(socket_handle, (const char *)wire_payload, wire_length, 0,
                 (const struct sockaddr *)&remote, remote_length);
-        if (result == SOCKET_ERROR || result != payload_length) {
+        if (result == SOCKET_ERROR || result != wire_length) {
             record->wsa_error = result == SOCKET_ERROR ? WSAGetLastError() : WSAEMSGSIZE;
             if (expect == EXPECT_NO_ECHO) {
                 copy_text(record->actual_result, sizeof(record->actual_result), "pass:no_echo_send_failure");
@@ -786,10 +1053,10 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
             }
             goto done;
         }
-        record->bytes_sent = result;
+        record->bytes_sent = payload_length;
         response_source_length = sizeof(response_source);
         memset(&response_source, 0, sizeof(response_source));
-        result = recvfrom(socket_handle, response, sizeof(response), 0,
+        result = recvfrom(socket_handle, (char *)response, MAX_PAYLOAD, 0,
             (struct sockaddr *)&response_source, &response_source_length);
         if (result == SOCKET_ERROR) {
             record->wsa_error = WSAGetLastError();
@@ -802,11 +1069,28 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
             goto done;
         }
         record->bytes_received = result;
+        record->response_count = 1;
         if (!endpoint_parts(&response_source, record->actual_remote_ip,
                 sizeof(record->actual_remote_ip), &record->actual_remote_port) ||
             !endpoints_equal(&remote, &response_source)) {
             record->wsa_error = WSAEINVAL;
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_response_source"); goto done;
+        }
+        if (_stricmp(config->endpoint_behavior, "duplicate") == 0) {
+            int duplicate_result;
+            response_source_length = sizeof(response_source);
+            memset(&response_source, 0, sizeof(response_source));
+            duplicate_result = recvfrom(socket_handle, (char *)response,
+                MAX_PAYLOAD, 0, (struct sockaddr *)&response_source,
+                &response_source_length);
+            if (duplicate_result != payload_length ||
+                memcmp(response, payload, (size_t)payload_length) != 0 ||
+                !endpoints_equal(&remote, &response_source)) {
+                record->wsa_error = duplicate_result == SOCKET_ERROR ? WSAGetLastError() : WSAEINVAL;
+                copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_duplicate_response");
+                goto done;
+            }
+            record->response_count = 2;
         }
     }
     if (!sha256_bytes((const unsigned char *)response,
@@ -825,6 +1109,45 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
         copy_text(record->actual_result, sizeof(record->actual_result), "fail:payload_mismatch");
         goto done;
     }
+    if (protocol == PROTO_TCP &&
+        _stricmp(config->endpoint_behavior, "server-close") == 0) {
+        char close_probe;
+        result = recv(socket_handle, &close_probe, 1, 0);
+        if (result != 0) {
+            record->wsa_error = result == SOCKET_ERROR ? WSAGetLastError() : WSAEINVAL;
+            copy_text(record->actual_result, sizeof(record->actual_result), "fail:server_close_not_observed");
+            goto done;
+        }
+    }
+    if (protocol == PROTO_TCP && config->mode == MODE_SINGLE &&
+        config->stream_count == 1 && config->close_mode != CLOSE_NONE) {
+        record->close_mode = close_name(config->close_mode);
+        if (config->close_mode == CLOSE_ABORTIVE) {
+            struct linger linger_option;
+            linger_option.l_onoff = 1;
+            linger_option.l_linger = 0;
+            if (setsockopt(socket_handle, SOL_SOCKET, SO_LINGER,
+                (const char *)&linger_option, sizeof(linger_option)) == SOCKET_ERROR) {
+                record->wsa_error = WSAGetLastError();
+                copy_text(record->actual_result, sizeof(record->actual_result), "fail:abortive_close_option");
+                goto done;
+            }
+        } else if (config->close_mode == CLOSE_HALF) {
+            char drain[32];
+            if (shutdown(socket_handle, SD_SEND) == SOCKET_ERROR) {
+                record->wsa_error = WSAGetLastError();
+                copy_text(record->actual_result, sizeof(record->actual_result), "fail:half_close_shutdown");
+                goto done;
+            }
+            do { result = recv(socket_handle, drain, sizeof(drain), 0); }
+            while (result > 0);
+            if (result == SOCKET_ERROR) {
+                record->wsa_error = WSAGetLastError();
+                copy_text(record->actual_result, sizeof(record->actual_result), "fail:half_close_drain");
+                goto done;
+            }
+        }
+    }
     record->wsa_error = 0;
     copy_text(record->actual_result, sizeof(record->actual_result), "pass");
     success = 1;
@@ -835,29 +1158,357 @@ done:
         socket_handle = INVALID_SOCKET;
     }
     if (socket_handle != INVALID_SOCKET) closesocket(socket_handle);
+    free(udp_wire);
+    free(response);
+    free(payload);
     return success;
 }
 
-static int perform_held_recheck(const CONFIG *config, SOCKET socket_handle,
-    NET_PROTOCOL protocol, unsigned short local_port, const char *remote_ip,
+static int receive_reordered_udp_response(SOCKET socket_handle,
+    const SOCKADDR_STORAGE *remote, const unsigned char *expected_payload,
+    int payload_length, unsigned char *response, int response_order,
+    FLOW_RECORD *record)
+{
+    SOCKADDR_STORAGE response_source;
+    int response_source_length = sizeof(response_source);
+    int result;
+    memset(&response_source, 0, sizeof(response_source));
+    result = recvfrom(socket_handle, (char *)response, MAX_PAYLOAD, 0,
+        (struct sockaddr *)&response_source, &response_source_length);
+    if (result == SOCKET_ERROR) {
+        record->wsa_error = WSAGetLastError();
+        copy_text(record->actual_result, sizeof(record->actual_result), "fail:recvfrom");
+        return 0;
+    }
+    record->bytes_received = result;
+    record->response_count = 1;
+    record->response_order = response_order;
+    if (!endpoint_parts(&response_source, record->actual_remote_ip,
+            sizeof(record->actual_remote_ip), &record->actual_remote_port) ||
+        !endpoints_equal(remote, &response_source)) {
+        record->wsa_error = WSAEINVAL;
+        copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_response_source");
+        return 0;
+    }
+    if (result != payload_length ||
+        memcmp(response, expected_payload, (size_t)payload_length) != 0) {
+        record->wsa_error = WSAEINVAL;
+        copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_response_order");
+        return 0;
+    }
+    if (!sha256_bytes(response, (ULONG)result, record->response_sha256)) {
+        record->wsa_error = WSAEINVAL;
+        copy_text(record->actual_result, sizeof(record->actual_result), "fail:BCrypt_response_SHA256");
+        return 0;
+    }
+    record->wsa_error = 0;
+    copy_text(record->actual_result, sizeof(record->actual_result), "pass");
+    return 1;
+}
+
+static int perform_udp_out_of_order(const CONFIG *config,
+    unsigned short remote_port, FLOW_RECORD *first, FLOW_RECORD *second)
+{
+    SOCKET socket_handle = INVALID_SOCKET;
+    SOCKADDR_STORAGE remote;
+    int remote_length;
+    int timeout_value = (int)config->timeout_ms;
+    unsigned char *first_payload = NULL;
+    unsigned char *second_payload = NULL;
+    unsigned char *first_wire = NULL;
+    unsigned char *second_wire = NULL;
+    unsigned char *response = NULL;
+    const unsigned char *wire_payload;
+    int first_length = 0, second_length = 0, wire_length = 0, result;
+    ULONGLONG started = GetTickCount64();
+    int success = 0;
+
+    initialize_record(first, config, 1, "stream_1", PROTO_UDP, 0,
+        config->remote_ip, remote_port, config->expected_action,
+        config->expect, config->tcp_peer_policy);
+    initialize_record(second, config, 2, "stream_2", PROTO_UDP, 0,
+        config->remote_ip, remote_port, config->expected_action,
+        config->expect, config->tcp_peer_policy);
+    first_payload = (unsigned char *)malloc(MAX_PAYLOAD);
+    second_payload = (unsigned char *)malloc(MAX_PAYLOAD);
+    first_wire = (unsigned char *)malloc(MAX_UDP_PAYLOAD + 16);
+    second_wire = (unsigned char *)malloc(MAX_UDP_PAYLOAD + 16);
+    response = (unsigned char *)malloc(MAX_PAYLOAD);
+    if (!first_payload || !second_payload || !first_wire || !second_wire || !response) {
+        first->wsa_error = second->wsa_error = WSA_NOT_ENOUGH_MEMORY;
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:memory_allocation");
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:memory_allocation");
+        goto done;
+    }
+    if (!build_payload(config, 1, "stream_1", PROTO_UDP,
+            first_payload, &first_length) ||
+        !build_payload(config, 2, "stream_2", PROTO_UDP,
+            second_payload, &second_length) ||
+        !sha256_bytes(first_payload, (ULONG)first_length, first->payload_sha256) ||
+        !sha256_bytes(second_payload, (ULONG)second_length, second->payload_sha256)) {
+        first->wsa_error = second->wsa_error = WSAEINVAL;
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:payload_identity");
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:payload_identity");
+        goto done;
+    }
+    if (!resolve_remote_endpoint(config->family, PROTO_UDP,
+        config->remote_host, config->remote_ip, remote_port,
+        &remote, &remote_length)) {
+        first->wsa_error = second->wsa_error = WSAGetLastError();
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:remote_resolution");
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:remote_resolution");
+        goto done;
+    }
+    socket_handle = create_bound_socket(config, PROTO_UDP, 0, 0, first);
+    if (socket_handle == INVALID_SOCKET) {
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:bind");
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:bind");
+        goto done;
+    }
+    copy_text(second->actual_local_ip, sizeof(second->actual_local_ip),
+        first->actual_local_ip);
+    second->actual_local_port = first->actual_local_port;
+    second->socket_id = first->socket_id;
+    if (setsockopt(socket_handle, SOL_SOCKET, SO_RCVTIMEO,
+            (const char *)&timeout_value, sizeof(timeout_value)) == SOCKET_ERROR ||
+        setsockopt(socket_handle, SOL_SOCKET, SO_SNDTIMEO,
+            (const char *)&timeout_value, sizeof(timeout_value)) == SOCKET_ERROR) {
+        first->wsa_error = second->wsa_error = WSAGetLastError();
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:timeout_option");
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:timeout_option");
+        goto done;
+    }
+    if (!build_udp_wire_payload(config, first_payload, first_length,
+        first_wire, &wire_payload, &wire_length)) goto control_failure;
+    result = sendto(socket_handle, (const char *)wire_payload, wire_length, 0,
+        (const struct sockaddr *)&remote, remote_length);
+    if (result != wire_length) {
+        first->wsa_error = result == SOCKET_ERROR ? WSAGetLastError() : WSAEMSGSIZE;
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:send");
+        goto done;
+    }
+    first->bytes_sent = first_length;
+    if (!build_udp_wire_payload(config, second_payload, second_length,
+        second_wire, &wire_payload, &wire_length)) goto control_failure;
+    result = sendto(socket_handle, (const char *)wire_payload, wire_length, 0,
+        (const struct sockaddr *)&remote, remote_length);
+    if (result != wire_length) {
+        second->wsa_error = result == SOCKET_ERROR ? WSAGetLastError() : WSAEMSGSIZE;
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:send");
+        goto done;
+    }
+    second->bytes_sent = second_length;
+    if (!receive_reordered_udp_response(socket_handle, &remote,
+        second_payload, second_length, response, 1, second)) goto done;
+    if (!receive_reordered_udp_response(socket_handle, &remote,
+        first_payload, first_length, response, 2, first)) goto done;
+    success = 1;
+    goto done;
+control_failure:
+    first->wsa_error = second->wsa_error = WSAEMSGSIZE;
+    copy_text(first->actual_result, sizeof(first->actual_result), "fail:udp_control_payload");
+    copy_text(second->actual_result, sizeof(second->actual_result), "fail:udp_control_payload");
+done:
+    first->timing_ms = second->timing_ms = GetTickCount64() - started;
+    if (socket_handle != INVALID_SOCKET) closesocket(socket_handle);
+    free(response); free(second_wire); free(first_wire);
+    free(second_payload); free(first_payload);
+    return success;
+}
+
+static int perform_udp_late_response_reuse(const CONFIG *config,
+    unsigned short remote_port, FLOW_RECORD *first, FLOW_RECORD *second)
+{
+    CONFIG normal_config = *config;
+    SOCKET socket_handle = INVALID_SOCKET;
+    SOCKADDR_STORAGE remote, response_source;
+    int remote_length, response_source_length;
+    int timeout_value = (int)config->timeout_ms;
+    int late_probe_timeout = (int)config->behavior_delay_ms + 250;
+    unsigned char *first_payload = NULL;
+    unsigned char *second_payload = NULL;
+    unsigned char *wire_buffer = NULL;
+    unsigned char *response = NULL;
+    const unsigned char *wire_payload;
+    int first_length = 0, second_length = 0, wire_length = 0, result;
+    ULONGLONG started = GetTickCount64();
+    int success = 0;
+
+    copy_text(normal_config.endpoint_behavior,
+        sizeof(normal_config.endpoint_behavior), "normal");
+    initialize_record(first, config, 1, "stream_1", PROTO_UDP, 0,
+        config->remote_ip, remote_port, config->expected_action,
+        EXPECT_NO_ECHO, config->tcp_peer_policy);
+    initialize_record(second, config, 2, "stream_2", PROTO_UDP, 0,
+        config->remote_ip, remote_port, config->expected_action,
+        EXPECT_ECHO, config->tcp_peer_policy);
+    first->close_mode = "closed_before_response";
+    second->close_mode = "normal";
+    first_payload = (unsigned char *)malloc(MAX_PAYLOAD);
+    second_payload = (unsigned char *)malloc(MAX_PAYLOAD);
+    wire_buffer = (unsigned char *)malloc(MAX_UDP_PAYLOAD + 16);
+    response = (unsigned char *)malloc(MAX_PAYLOAD);
+    if (!first_payload || !second_payload || !wire_buffer || !response) {
+        first->wsa_error = second->wsa_error = WSA_NOT_ENOUGH_MEMORY;
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:memory_allocation");
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:memory_allocation");
+        goto done;
+    }
+    if (!build_payload(config, 1, "stream_1", PROTO_UDP,
+            first_payload, &first_length) ||
+        !build_payload(config, 2, "stream_2", PROTO_UDP,
+            second_payload, &second_length) ||
+        !sha256_bytes(first_payload, (ULONG)first_length, first->payload_sha256) ||
+        !sha256_bytes(second_payload, (ULONG)second_length, second->payload_sha256)) {
+        first->wsa_error = second->wsa_error = WSAEINVAL;
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:payload_identity");
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:payload_identity");
+        goto done;
+    }
+    if (!resolve_remote_endpoint(config->family, PROTO_UDP,
+        config->remote_host, config->remote_ip, remote_port,
+        &remote, &remote_length)) {
+        first->wsa_error = second->wsa_error = WSAGetLastError();
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:remote_resolution");
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:remote_resolution");
+        goto done;
+    }
+    socket_handle = create_bound_socket(config, PROTO_UDP, 0, 0, first);
+    if (socket_handle == INVALID_SOCKET) {
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:first_bind");
+        goto done;
+    }
+    if (!build_udp_wire_payload(config, first_payload, first_length,
+        wire_buffer, &wire_payload, &wire_length)) {
+        first->wsa_error = WSAEMSGSIZE;
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:udp_control_payload");
+        goto done;
+    }
+    result = sendto(socket_handle, (const char *)wire_payload, wire_length, 0,
+        (const struct sockaddr *)&remote, remote_length);
+    if (result != wire_length) {
+        first->wsa_error = result == SOCKET_ERROR ? WSAGetLastError() : WSAEMSGSIZE;
+        copy_text(first->actual_result, sizeof(first->actual_result), "fail:first_send");
+        goto done;
+    }
+    first->bytes_sent = first_length;
+    first->wsa_error = 0;
+    copy_text(first->actual_result, sizeof(first->actual_result),
+        "pass:no_echo_socket_closed");
+    first->timing_ms = GetTickCount64() - started;
+    closesocket(socket_handle);
+    socket_handle = INVALID_SOCKET;
+    Sleep(25);
+
+    second->requested_local_port = first->actual_local_port;
+    socket_handle = create_bound_socket(config, PROTO_UDP,
+        first->actual_local_port, config->bind_retry_count, second);
+    if (socket_handle == INVALID_SOCKET) {
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:second_bind");
+        goto done;
+    }
+    if (setsockopt(socket_handle, SOL_SOCKET, SO_RCVTIMEO,
+            (const char *)&timeout_value, sizeof(timeout_value)) == SOCKET_ERROR ||
+        setsockopt(socket_handle, SOL_SOCKET, SO_SNDTIMEO,
+            (const char *)&timeout_value, sizeof(timeout_value)) == SOCKET_ERROR) {
+        second->wsa_error = WSAGetLastError();
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:timeout_option");
+        goto done;
+    }
+    if (!build_udp_wire_payload(&normal_config, second_payload, second_length,
+        wire_buffer, &wire_payload, &wire_length)) {
+        second->wsa_error = WSAEMSGSIZE;
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:udp_control_payload");
+        goto done;
+    }
+    result = sendto(socket_handle, (const char *)wire_payload, wire_length, 0,
+        (const struct sockaddr *)&remote, remote_length);
+    if (result != wire_length) {
+        second->wsa_error = result == SOCKET_ERROR ? WSAGetLastError() : WSAEMSGSIZE;
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:second_send");
+        goto done;
+    }
+    second->bytes_sent = second_length;
+    if (!receive_reordered_udp_response(socket_handle, &remote,
+        second_payload, second_length, response, 1, second)) goto done;
+    if (setsockopt(socket_handle, SOL_SOCKET, SO_RCVTIMEO,
+        (const char *)&late_probe_timeout, sizeof(late_probe_timeout)) == SOCKET_ERROR) {
+        second->wsa_error = WSAGetLastError();
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:late_probe_timeout_option");
+        goto done;
+    }
+    response_source_length = sizeof(response_source);
+    memset(&response_source, 0, sizeof(response_source));
+    result = recvfrom(socket_handle, (char *)response, MAX_PAYLOAD, 0,
+        (struct sockaddr *)&response_source, &response_source_length);
+    if (result != SOCKET_ERROR) {
+        second->wsa_error = WSAEINVAL;
+        copy_text(second->actual_result, sizeof(second->actual_result),
+            result == first_length &&
+            memcmp(response, first_payload, (size_t)first_length) == 0 ?
+            "fail:udp_late_response_delivered" : "fail:udp_unexpected_extra_response");
+        goto done;
+    }
+    if (WSAGetLastError() != WSAETIMEDOUT) {
+        second->wsa_error = WSAGetLastError();
+        copy_text(second->actual_result, sizeof(second->actual_result), "fail:late_probe_recvfrom");
+        goto done;
+    }
+    second->wsa_error = 0;
+    success = 1;
+done:
+    if (first->timing_ms == 0) first->timing_ms = GetTickCount64() - started;
+    second->timing_ms = GetTickCount64() - started;
+    if (socket_handle != INVALID_SOCKET) closesocket(socket_handle);
+    free(response); free(wire_buffer); free(second_payload); free(first_payload);
+    return success;
+}
+
+static DWORD WINAPI parallel_flow_thread(LPVOID parameter)
+{
+    PARALLEL_FLOW_CONTEXT *context = (PARALLEL_FLOW_CONTEXT *)parameter;
+    const CONFIG *config = context->config;
+    unsigned short remote_port = config->protocol == PROTO_TCP ?
+        config->tcp_remote_port : config->udp_remote_port;
+    context->success = perform_flow(config, context->sequence, context->phase,
+        config->protocol, 0, config->remote_ip, remote_port, 0,
+        config->expected_action, config->expect, config->tcp_peer_policy,
+        NULL, &context->record);
+    return 0;
+}
+
+static int perform_existing_socket_flow(const CONFIG *config, SOCKET socket_handle,
+    int sequence, const char *phase, NET_PROTOCOL protocol,
+    unsigned long socket_id,
+    unsigned short local_port, const char *remote_ip,
     unsigned short remote_port, EXPECTED_ACTION expected_action,
     EXPECT_OUTCOME expect, TCP_PEER_POLICY tcp_peer_policy, FLOW_RECORD *record)
 {
     SOCKADDR_STORAGE remote, actual_remote, actual_local, response_source;
     int remote_length, actual_remote_length, actual_local_length;
     int response_source_length;
-    char payload[MAX_PAYLOAD], response[MAX_PAYLOAD];
+    unsigned char *payload = NULL;
+    unsigned char *response = NULL;
+    unsigned char *udp_wire = NULL;
     int payload_length, result;
     ULONGLONG started = GetTickCount64();
     int success = 0;
 
-    initialize_record(record, config, 3, "held_recheck", protocol,
+    initialize_record(record, config, sequence, phase, protocol,
         local_port, remote_ip, remote_port, expected_action, expect, tcp_peer_policy);
+    record->socket_id = socket_id;
     record->close_mode = "held_active";
-    payload_length = snprintf(payload, sizeof(payload),
-        "PB_NET|test_id=%s|run_id=%s|sequence=3|phase=held_recheck|protocol=%s\n",
-        config->test_id, config->run_id, protocol_name(protocol));
-    if (payload_length <= 0 || payload_length >= (int)sizeof(payload)) {
+    payload = (unsigned char *)malloc(MAX_PAYLOAD);
+    response = (unsigned char *)malloc(MAX_PAYLOAD);
+    if (protocol == PROTO_UDP) {
+        udp_wire = (unsigned char *)malloc(MAX_UDP_PAYLOAD + 16);
+    }
+    if (!payload || !response || (protocol == PROTO_UDP && !udp_wire)) {
+        record->wsa_error = WSA_NOT_ENOUGH_MEMORY;
+        copy_text(record->actual_result, sizeof(record->actual_result), "fail:memory_allocation");
+        goto done;
+    }
+    if (!build_payload(config, sequence, phase, protocol, payload, &payload_length)) {
         record->wsa_error = WSAEMSGSIZE;
         copy_text(record->actual_result, sizeof(record->actual_result), "fail:payload_size");
         goto done;
@@ -908,32 +1559,51 @@ static int perform_held_recheck(const CONFIG *config, SOCKET socket_handle,
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:tcp_peer_mismatch");
             goto done;
         }
-        result = send_all(socket_handle, payload, payload_length, &record->wsa_error);
+        if (config->payload_size_explicit) {
+            result = send_tcp_frame_header(socket_handle, config, payload_length,
+                &record->wsa_error);
+            if (result == SOCKET_ERROR) {
+                copy_text(record->actual_result, sizeof(record->actual_result), "fail:send_frame");
+                goto done;
+            }
+        }
+        result = send_all(socket_handle, (const char *)payload, payload_length,
+            &record->wsa_error);
         if (result == SOCKET_ERROR) {
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:send");
             goto done;
         }
         record->bytes_sent = result;
-        result = recv_exact(socket_handle, response, payload_length, &record->wsa_error);
+        result = recv_exact(socket_handle, (char *)response, payload_length,
+            &record->wsa_error);
         if (result == SOCKET_ERROR) {
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:recv");
             goto done;
         }
         record->bytes_received = result;
+        record->response_count = 1;
     } else {
+        const unsigned char *wire_payload;
+        int wire_length;
+        if (!build_udp_wire_payload(config, payload, payload_length, udp_wire,
+            &wire_payload, &wire_length)) {
+            record->wsa_error = WSAEMSGSIZE;
+            copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_control_payload");
+            goto done;
+        }
         result = config->udp_mode == UDP_CONNECTED ?
-            send(socket_handle, payload, payload_length, 0) :
-            sendto(socket_handle, payload, payload_length, 0,
+            send(socket_handle, (const char *)wire_payload, wire_length, 0) :
+            sendto(socket_handle, (const char *)wire_payload, wire_length, 0,
                 (const struct sockaddr *)&remote, remote_length);
-        if (result == SOCKET_ERROR || result != payload_length) {
+        if (result == SOCKET_ERROR || result != wire_length) {
             record->wsa_error = result == SOCKET_ERROR ? WSAGetLastError() : WSAEMSGSIZE;
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:send");
             goto done;
         }
-        record->bytes_sent = result;
+        record->bytes_sent = payload_length;
         response_source_length = sizeof(response_source);
         memset(&response_source, 0, sizeof(response_source));
-        result = recvfrom(socket_handle, response, sizeof(response), 0,
+        result = recvfrom(socket_handle, (char *)response, MAX_PAYLOAD, 0,
             (struct sockaddr *)&response_source, &response_source_length);
         if (result == SOCKET_ERROR) {
             record->wsa_error = WSAGetLastError();
@@ -941,6 +1611,7 @@ static int perform_held_recheck(const CONFIG *config, SOCKET socket_handle,
             goto done;
         }
         record->bytes_received = result;
+        record->response_count = 1;
         if (!endpoint_parts(&response_source, record->actual_remote_ip,
                 sizeof(record->actual_remote_ip), &record->actual_remote_port) ||
             !endpoints_equal(&remote, &response_source)) {
@@ -966,6 +1637,9 @@ static int perform_held_recheck(const CONFIG *config, SOCKET socket_handle,
     success = 1;
 done:
     record->timing_ms = GetTickCount64() - started;
+    free(udp_wire);
+    free(response);
+    free(payload);
     return success;
 }
 
@@ -1026,10 +1700,117 @@ int main(int argc, char **argv)
     if (config.mode == MODE_SINGLE) {
         unsigned short remote_port = config.protocol == PROTO_TCP ?
             config.tcp_remote_port : config.udp_remote_port;
-        ok = perform_flow(&config, 1, "single", config.protocol,
-            config.local_port, config.remote_ip, remote_port, 0,
-            config.expected_action, config.expect, config.tcp_peer_policy, NULL, &first);
-        if (!write_record(log_file, &first)) { exit_code = 6; goto cleanup; }
+        if (config.reconnect_count > 1) {
+            unsigned int sequence;
+            ok = 1;
+            for (sequence = 1; sequence <= config.reconnect_count; sequence++) {
+                FLOW_RECORD reconnect_record;
+                char phase[32];
+                if (sequence > 1 && config.inter_flow_wait_ms > 0) {
+                    Sleep(config.inter_flow_wait_ms);
+                }
+                snprintf(phase, sizeof(phase), "reconnect_%u", sequence);
+                if (!perform_flow(&config, (int)sequence, phase,
+                    config.protocol, 0, config.remote_ip, remote_port, 0,
+                    config.expected_action, config.expect,
+                    config.tcp_peer_policy, NULL, &reconnect_record)) {
+                    ok = 0;
+                }
+                if (!write_record(log_file, &reconnect_record)) {
+                    exit_code = 6; goto cleanup;
+                }
+            }
+        } else if (config.parallel_count > 1) {
+            PARALLEL_FLOW_CONTEXT contexts[MAX_PARALLEL];
+            unsigned int index;
+            ok = 1;
+            memset(contexts, 0, sizeof(contexts));
+            for (index = 0; index < config.parallel_count; index++) {
+                PARALLEL_FLOW_CONTEXT *context = &contexts[index];
+                context->config = &config;
+                context->sequence = (int)index + 1;
+                snprintf(context->phase, sizeof(context->phase),
+                    "parallel_%u", index + 1);
+                context->thread = CreateThread(NULL, 0, parallel_flow_thread,
+                    context, 0, NULL);
+                if (!context->thread) {
+                    initialize_record(&context->record, &config,
+                        context->sequence, context->phase, config.protocol, 0,
+                        config.remote_ip, remote_port, config.expected_action,
+                        config.expect, config.tcp_peer_policy);
+                    context->record.wsa_error = (int)GetLastError();
+                    copy_text(context->record.actual_result,
+                        sizeof(context->record.actual_result), "fail:thread_create");
+                    ok = 0;
+                }
+            }
+            for (index = 0; index < config.parallel_count; index++) {
+                PARALLEL_FLOW_CONTEXT *context = &contexts[index];
+                if (context->thread) {
+                    DWORD wait_result = WaitForSingleObject(context->thread, INFINITE);
+                    if (wait_result != WAIT_OBJECT_0) {
+                        context->success = 0;
+                        context->record.wsa_error = (int)GetLastError();
+                        copy_text(context->record.actual_result,
+                            sizeof(context->record.actual_result), "fail:thread_wait");
+                    }
+                    CloseHandle(context->thread);
+                }
+                if (!context->success) ok = 0;
+                if (!write_record(log_file, &context->record)) {
+                    exit_code = 6; goto cleanup;
+                }
+            }
+        } else if (config.stream_count > 1) {
+            if (config.protocol == PROTO_UDP &&
+                _stricmp(config.endpoint_behavior, "late-response") == 0) {
+                ok = perform_udp_late_response_reuse(&config, remote_port,
+                    &first, &second);
+                if (!write_record(log_file, &first) ||
+                    !write_record(log_file, &second)) { exit_code = 6; goto cleanup; }
+            } else if (config.protocol == PROTO_UDP &&
+                _stricmp(config.endpoint_behavior, "out-of-order") == 0) {
+                ok = perform_udp_out_of_order(&config, remote_port, &first, &second);
+                if (!write_record(log_file, &first) ||
+                    !write_record(log_file, &second)) { exit_code = 6; goto cleanup; }
+            } else {
+                unsigned int sequence;
+                char phase[32];
+                snprintf(phase, sizeof(phase), "stream_1");
+                ok = perform_flow(&config, 1, phase, config.protocol,
+                    config.local_port, config.remote_ip, remote_port, 0,
+                    config.expected_action, config.expect, config.tcp_peer_policy,
+                    &held, &first);
+                first.close_mode = "held_active";
+                if (!write_record(log_file, &first)) { exit_code = 6; goto cleanup; }
+                for (sequence = 2; ok && sequence <= config.stream_count; sequence++) {
+                    unsigned short stream_remote_port = config.protocol == PROTO_UDP ?
+                        config.second_remote_port : remote_port;
+                    if (config.stream_interval_ms > 0) Sleep(config.stream_interval_ms);
+                    snprintf(phase, sizeof(phase), "stream_%u", sequence);
+                ok = perform_existing_socket_flow(&config, held, (int)sequence,
+                    phase, config.protocol, first.socket_id, first.actual_local_port,
+                        config.remote_ip, stream_remote_port, config.expected_action,
+                        config.expect, config.tcp_peer_policy, &recheck);
+                    if (!write_record(log_file, &recheck)) { exit_code = 6; goto cleanup; }
+                }
+            }
+        } else {
+            char process_phase[32];
+            int sequence = 1;
+            const char *phase = "single";
+            if (config.process_index > 0) {
+                sequence = (int)config.process_index;
+                snprintf(process_phase, sizeof(process_phase),
+                    "process_%u", config.process_index);
+                phase = process_phase;
+            }
+            ok = perform_flow(&config, sequence, phase, config.protocol,
+                config.local_port, config.remote_ip, remote_port, 0,
+                config.expected_action, config.expect, config.tcp_peer_policy,
+                NULL, &first);
+            if (!write_record(log_file, &first)) { exit_code = 6; goto cleanup; }
+        }
     } else if (config.mode == MODE_ISSUE209) {
         NET_PROTOCOL second_protocol = config.first_protocol == PROTO_UDP ? PROTO_TCP : PROTO_UDP;
         unsigned short first_remote_port = config.first_protocol == PROTO_TCP ?
@@ -1050,8 +1831,9 @@ int main(int argc, char **argv)
             if (!write_record(log_file, &second)) { exit_code = 6; goto cleanup; }
         }
         if (ok) {
-            ok = perform_held_recheck(&config, held, config.first_protocol,
-                first.actual_local_port, config.remote_ip, first_remote_port,
+            ok = perform_existing_socket_flow(&config, held, 3, "held_recheck",
+                config.first_protocol, first.socket_id, first.actual_local_port,
+                config.remote_ip, first_remote_port,
                 config.first_expected_action, config.first_expect,
                 config.first_tcp_peer_policy, &recheck);
             if (!write_record(log_file, &recheck)) { exit_code = 6; goto cleanup; }
@@ -1064,7 +1846,13 @@ int main(int argc, char **argv)
             config.first_tcp_peer_policy, &held, &first);
         first.close_mode = close_name(config.close_mode);
         if (ok) {
-            ok = close_first_issue206(held, config.close_mode, &close_error);
+            if (config.first_expected_action == ACTION_BLOCK) {
+                ok = closesocket(held) == 0;
+                if (!ok) close_error = WSAGetLastError();
+                first.close_mode = "unconnected";
+            } else {
+                ok = close_first_issue206(held, config.close_mode, &close_error);
+            }
             held = INVALID_SOCKET;
             if (!ok) {
                 first.wsa_error = close_error;

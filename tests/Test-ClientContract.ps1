@@ -57,6 +57,90 @@ $udpUnconnected = Resolve-JsonVariables -InputObject ($catalog | Where-Object sc
 $udpUnconnectedPlan = New-ClientPlan $udpUnconnected $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
 Assert-SequenceEqual (Get-ExpectedArguments 'base-single-udp-unconnected') @($udpUnconnectedPlan.arguments) 'base unconnected UDP exact argument array'
 
+$udpPayload = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'udp-payload-65507') -Variables $environment
+$udpPayloadPlan = New-ClientPlan $udpPayload $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal '65507' (Get-PlanArgumentValue $udpPayloadPlan '--payload-size') 'UDP maximum application payload argument'
+Assert-Equal 65507 $udpPayloadPlan.flows[0].payload_size 'UDP maximum application payload plan evidence'
+$tcpPayload = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'tcp-payload-1m') -Variables $environment
+$tcpPayloadPlan = New-ClientPlan $tcpPayload $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal '1048576' (Get-PlanArgumentValue $tcpPayloadPlan '--payload-size') 'TCP 1 MiB application payload argument'
+Assert-Equal 1048576 $tcpPayloadPlan.flows[0].payload_size 'TCP 1 MiB application payload plan evidence'
+$tcpStreaming = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'tcp-payload-streaming') -Variables $environment
+$tcpStreamingPlan = New-ClientPlan $tcpStreaming $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal '4' (Get-PlanArgumentValue $tcpStreamingPlan '--stream-count') 'TCP stream message-count argument'
+Assert-Equal 4 @($tcpStreamingPlan.flows).Count 'TCP stream plan must require four same-socket records'
+Assert-Equal 4 $tcpStreamingPlan.timeout_budget_components.operation_count 'TCP stream watchdog must budget every message operation'
+Assert-Equal ($tcpStreamingPlan.operation_timeout_ms * 4 + $tcpStreamingPlan.process_exit_grace_ms) $tcpStreamingPlan.process_timeout_ms 'TCP stream process budget'
+$tcpParallel = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'tcp-parallel-connections') -Variables $environment
+$tcpParallelPlan = New-ClientPlan $tcpParallel $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal '8' (Get-PlanArgumentValue $tcpParallelPlan '--parallel-count') 'TCP parallel flow-count argument'
+Assert-Equal 8 @($tcpParallelPlan.flows).Count 'TCP parallel plan must require eight independent records'
+Assert-Equal 8 $tcpParallelPlan.parallel_count 'TCP parallel count evidence'
+Assert-Equal 1 $tcpParallelPlan.timeout_budget_components.operation_count 'parallel flows share one bounded wall-clock operation budget'
+Assert-Equal ($tcpParallelPlan.operation_timeout_ms + $tcpParallelPlan.process_exit_grace_ms) $tcpParallelPlan.process_timeout_ms 'parallel process budget must not multiply simultaneous flow timeouts'
+$invalidParallel = $tcpParallel | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+$invalidParallel.client.local_port = 32000
+Assert-Throws { New-ClientPlan $invalidParallel $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract } 'CLIENT_PARALLEL_REQUIRES_EPHEMERAL_PORTS' 'parallel executor must require independent ephemeral local ports'
+$domainDirect = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'dns-domain-direct') -Variables $environment
+$domainDirectPlan = New-ClientPlan $domainDirect $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal $environment['PB_TEST_DOMAIN'] (Get-PlanArgumentValue $domainDirectPlan '--remote-host') 'domain scenario must pass the configured hostname'
+Assert-Equal $environment['PB_VPS_IPV4'] $domainDirectPlan.flows[0].remote_ip 'domain scenario must retain exact resolved-IP expectation'
+Assert-Equal $environment['PB_TEST_DOMAIN'] $domainDirectPlan.flows[0].remote_host 'domain evidence plan must retain the requested hostname'
+$halfClose = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'tcp-half-close') -Variables $environment
+$halfClosePlan = New-ClientPlan $halfClose $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal 'half-close' (Get-PlanArgumentValue $halfClosePlan '--close-mode') 'half-close argument'
+Assert-Equal 'half-close' $halfClosePlan.flows[0].close_mode 'half-close evidence expectation'
+$serverClose = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'tcp-server-close') -Variables $environment
+$serverClosePlan = New-ClientPlan $serverClose $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal 'server-close' (Get-PlanArgumentValue $serverClosePlan '--endpoint-behavior') 'server-close endpoint control argument'
+$refused = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'tcp-refused') -Variables $environment
+$refusedPlan = New-ClientPlan $refused $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal $environment['PB_ENDPOINT_ERROR_PORT'] (Get-PlanArgumentValue $refusedPlan '--tcp-remote-port') 'refused test must use reserved non-listener port'
+Assert-Equal 0 $refusedPlan.flows[0].expected_vps_received 'refused test endpoint expectation'
+$longLived = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'tcp-long-lived') -Variables $environment
+$longLivedPlan = New-ClientPlan $longLived $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal '250' (Get-PlanArgumentValue $longLivedPlan '--stream-interval-ms') 'long-lived inter-message interval'
+Assert-Equal 750 $longLivedPlan.timeout_budget_components.inter_flow_wait_ms 'long-lived watchdog must include three bounded waits'
+$udpMultiDestination = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'udp-one-socket-multiple-destinations') -Variables $environment
+$udpMultiDestinationPlan = New-ClientPlan $udpMultiDestination $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal 2 @($udpMultiDestinationPlan.flows).Count 'UDP multi-destination plan flow count'
+Assert-Equal $environment['PB_ENDPOINT_B_PORT'] (Get-PlanArgumentValue $udpMultiDestinationPlan '--second-remote-port') 'UDP second destination argument'
+Assert-Equal $environment['PB_ENDPOINT_B_PORT'] ([string]$udpMultiDestinationPlan.flows[1].remote_port) 'UDP second destination evidence'
+$udpDuplicate = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'udp-duplicate-response') -Variables $environment
+$udpDuplicatePlan = New-ClientPlan $udpDuplicate $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal 'duplicate' (Get-PlanArgumentValue $udpDuplicatePlan '--endpoint-behavior') 'UDP duplicate endpoint control'
+Assert-Equal 2 $udpDuplicatePlan.flows[0].expected_response_count 'UDP duplicate client response expectation'
+$udpMultipleSockets = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'udp-multiple-sockets-one-destination') -Variables $environment
+$udpMultipleSocketsPlan = New-ClientPlan $udpMultipleSockets $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal '8' (Get-PlanArgumentValue $udpMultipleSocketsPlan '--parallel-count') 'UDP multiple-socket parallel argument'
+Assert-Equal 8 @($udpMultipleSocketsPlan.flows).Count 'UDP multiple-socket plan flow count'
+$udpReconnect = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'udp-idle-reconnect') -Variables $environment
+$udpReconnectPlan = New-ClientPlan $udpReconnect $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal '2' (Get-PlanArgumentValue $udpReconnectPlan '--reconnect-count') 'UDP reconnect flow-count argument'
+Assert-Equal '1000' (Get-PlanArgumentValue $udpReconnectPlan '--inter-flow-wait-ms') 'UDP reconnect idle-wait argument'
+Assert-Equal 2 @($udpReconnectPlan.flows).Count 'UDP reconnect plan flow count'
+Assert-Equal ($udpReconnectPlan.operation_timeout_ms * 2 + 1000 + $udpReconnectPlan.process_exit_grace_ms) $udpReconnectPlan.process_timeout_ms 'UDP reconnect watchdog budget'
+$udpOutOfOrder = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'udp-out-of-order') -Variables $environment
+$udpOutOfOrderPlan = New-ClientPlan $udpOutOfOrder $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal 'out-of-order' (Get-PlanArgumentValue $udpOutOfOrderPlan '--endpoint-behavior') 'UDP reorder endpoint control'
+Assert-Equal 2 @($udpOutOfOrderPlan.flows).Count 'UDP reorder flow count'
+Assert-SequenceEqual @(2,1) @($udpOutOfOrderPlan.flows.expected_response_order) 'UDP reorder client response order'
+$udpLateReuse = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'udp-late-response-after-reuse') -Variables $environment
+$udpLateReusePlan = New-ClientPlan $udpLateReuse $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal 'late-response' (Get-PlanArgumentValue $udpLateReusePlan '--endpoint-behavior') 'UDP late-response endpoint control'
+Assert-Equal '20' (Get-PlanArgumentValue $udpLateReusePlan '--bind-retry-count') 'UDP late-response bounded bind retries'
+Assert-SequenceEqual @('no-echo','echo') @($udpLateReusePlan.flows.expected_outcome) 'UDP late-response per-generation outcomes'
+Assert-Equal ($udpLateReusePlan.operation_timeout_ms * 2 + 500 + $udpLateReusePlan.process_exit_grace_ms) $udpLateReusePlan.process_timeout_ms 'UDP late-response watchdog must include two operations, bind retry and grace'
+$crossProcess = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'security-no-cross-process-delivery') -Variables $environment
+$crossProcessPlan = New-ClientPlan $crossProcess $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
+Assert-Equal 2 $crossProcessPlan.process_count 'cross-process plan process count'
+Assert-Equal 2 @($crossProcessPlan.flows).Count 'cross-process plan flow count'
+Assert-Equal 2 @($crossProcessPlan.child_process_plans).Count 'cross-process child plan count'
+Assert-Equal '1' (Get-PlanArgumentValue $crossProcessPlan.child_process_plans[0] '--process-index') 'first child process index'
+Assert-Equal '2' (Get-PlanArgumentValue $crossProcessPlan.child_process_plans[1] '--process-index') 'second child process index'
+Assert-True ([string]$crossProcessPlan.child_process_plans[0].jsonl_path -ne [string]$crossProcessPlan.child_process_plans[1].jsonl_path) 'cross-process children must write separate JSONL files'
+Assert-Equal 1 $crossProcessPlan.timeout_budget_components.operation_count 'concurrent child processes share one bounded wall-clock operation budget'
+
 $issue209 = Resolve-JsonVariables -InputObject ($catalog | Where-Object scenario_id -eq 'issue209-tcp-to-udp') -Variables $environment
 $issue209Plan = New-ClientPlan $issue209 $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract
 Assert-SequenceEqual (Get-ExpectedArguments 'issue209-tcp-to-udp') @($issue209Plan.arguments) 'issue209 exact argument array'
@@ -73,8 +157,8 @@ $invalidIssue209 = $issue209 | ConvertTo-Json -Depth 100 | ConvertFrom-Json
 $invalidIssue209.client.first_expect = 'no-echo'
 Assert-Throws { New-ClientPlan $invalidIssue209 $environment['PB_CLIENT_EXE'] 'fixture-run' $jsonlPath $contract } 'CLIENT_ISSUE209_FIRST_EXPECT_MUST_BE_ECHO' 'issue209 first expectation must be echo'
 
-$unsupportedFlags = @('--socket-mode','--remote-port','--payload-size','--second-protocol','--hold-first','--recheck-first')
-foreach ($plan in @($basePlan, $baseProxyPlan, $udpConnectedPlan, $udpUnconnectedPlan, $issue209Plan)) {
+$unsupportedFlags = @('--socket-mode','--remote-port','--second-protocol','--hold-first','--recheck-first')
+foreach ($plan in @($basePlan, $baseProxyPlan, $udpConnectedPlan, $udpUnconnectedPlan, $udpReconnectPlan, $udpOutOfOrderPlan, $udpLateReusePlan, $issue209Plan, $crossProcessPlan)) {
     foreach ($flag in $unsupportedFlags) { Assert-True (@($plan.arguments) -notcontains $flag) "$($plan.executor) must not emit unsupported $flag" }
 }
 Assert-Equal 'single' $basePlan.arguments[1] 'base builder must use harness single mode'

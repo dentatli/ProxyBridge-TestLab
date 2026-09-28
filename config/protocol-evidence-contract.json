@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "common_required_fields": [
+    "schema_version", "run_id", "scenario_id", "attempt_id", "flow_id",
+    "phase", "sequence", "event", "timestamp_utc", "monotonic_ms",
+    "process_id", "socket_id", "protocol_family", "transport",
+    "local_ip", "local_port", "remote_ip", "remote_port",
+    "payload_sha256", "bytes", "result"
+  ],
+  "mandatory_channels": ["client", "server", "route", "lifecycle", "cleanup"],
+  "channel_completion_fields": ["capture_completed", "records_found", "parse_errors", "window_start_utc", "window_end_utc"],
+  "profiles": [
+    { "id": "raw-stream", "required_fields": ["expected_action", "observed_action", "send_count", "receive_count"] },
+    { "id": "dns-transaction", "required_fields": ["dns_transport", "query_id", "query_name", "query_type", "response_code", "answer_digest", "truncated", "dnssec_status"] },
+    { "id": "tls-session", "required_fields": ["tls_version", "cipher_suite", "server_name", "alpn", "peer_certificate_sha256", "resumed", "shutdown_status"] },
+    { "id": "http1-transaction", "required_fields": ["method", "authority", "path_digest", "request_body_sha256", "status_code", "response_body_sha256", "connection_reused"] },
+    { "id": "http2-transaction", "required_fields": ["alpn", "stream_id", "method", "status_code", "request_body_sha256", "response_body_sha256", "end_stream", "flow_control_complete"] },
+    { "id": "quic-http3-transaction", "required_fields": ["quic_version", "alpn", "connection_id_digest", "stream_id", "handshake_complete", "status_code", "response_body_sha256", "migration_status"] },
+    { "id": "websocket-transaction", "required_fields": ["upgrade_status", "subprotocol", "message_type", "message_sha256", "echo_sha256", "close_code"] },
+    { "id": "rpc-transaction", "required_fields": ["rpc_protocol", "service", "method", "request_sha256", "response_sha256", "application_status"] },
+    { "id": "file-transfer", "required_fields": ["file_protocol", "operation", "content_sha256", "transferred_bytes", "control_status", "data_channel_status"] },
+    { "id": "mail-transaction", "required_fields": ["mail_protocol", "session_id", "operation", "message_sha256", "protocol_status", "mailbox_state_digest"] },
+    { "id": "messaging-transaction", "required_fields": ["messaging_protocol", "namespace", "topic_digest", "delivery_mode", "message_sha256", "acknowledged"] },
+    { "id": "time-transaction", "required_fields": ["time_protocol", "request_id", "stratum", "server_receive_utc", "server_transmit_utc", "round_trip_ms"] },
+    { "id": "multi-peer-transaction", "required_fields": ["peer_id", "peer_count", "channel_id", "message_sha256", "delivery_set_digest"] },
+    { "id": "stun-turn-transaction", "required_fields": ["ice_protocol", "transaction_id", "method", "mapped_address_digest", "relay_address_digest", "integrity_verified"] },
+    { "id": "webrtc-session", "required_fields": ["peer_connection_id", "ice_state", "dtls_state", "selected_candidate_pair_digest", "data_channel_state", "media_kind", "frames_or_messages", "stats_digest"] },
+    { "id": "rtp-media-session", "required_fields": ["ssrc", "payload_type", "packet_count", "sequence_gap_count", "jitter_ms", "rtcp_status", "media_digest"] },
+    { "id": "udp-registration-session", "required_fields": ["registration_id", "registration_sent", "server_initiated", "message_sha256", "nat_mapping_digest"] },
+    { "id": "browser-session", "required_fields": ["browser_identity", "browser_version", "profile_id", "navigation_url_digest", "negotiated_protocol", "response_status", "content_sha256", "process_tree_cleaned"] },
+    { "id": "streaming-session", "required_fields": ["stream_protocol", "manifest_sha256", "segment_count", "segment_set_digest", "buffer_events", "content_sha256"] },
+    { "id": "failure-injection", "required_fields": ["injector_id", "target_identity", "injection_started_utc", "injection_verified", "expected_failure_signature", "rollback_verified"] },
+    { "id": "network-impairment", "required_fields": ["namespace_identity", "impairment_kind", "seed", "configured_value", "observed_counters", "rollback_verified"] },
+    { "id": "performance-throughput", "required_fields": ["generator_identity", "warmup_ms", "sample_window_ms", "bytes_sent", "bytes_received", "loss_count", "rate_per_second", "baseline_rate_per_second"] },
+    { "id": "performance-resources", "required_fields": ["sample_window_ms", "sample_count", "product_process_identity", "cpu_samples", "memory_samples", "handle_samples", "thread_samples", "post_recovery_status"] },
+    { "id": "lan-multipeer", "required_fields": ["peer_receipt_id", "peer_identity", "route_scope", "hop_evidence", "message_sha256", "peer_observation_digest"] }
+  ],
+  "classification_policy": {
+    "pass": "All mandatory channels and profile fields are complete and mutually consistent.",
+    "fail_product": "Complete evidence proves an incorrect product path or externally visible protocol outcome.",
+    "fail_harness": "A worker, endpoint, parser, control action or cleanup contract failed.",
+    "hold_ambiguous": "Mandatory evidence is missing, malformed, stale or contradictory.",
+    "expected_fail": "FAIL_PRODUCT plus an exact structured known-defect signature only."
+  }
+}

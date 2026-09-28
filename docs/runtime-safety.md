@@ -20,9 +20,11 @@ ends as infrastructure failure and cleans the bootstrap GUI.
 After the single selected record completes, the entrypoint emits
 `REAL_SMOKE_RESULT=PASS|FAIL|HOLD` and returns nonzero for FAIL or HOLD.
 
-Before a future real smoke, verify the private `.env`, exact binary hashes,
-capabilities, CLI/client argument contracts and an isolated recovery path. Do
-not run real smoke from automated tests or during audit-package generation.
+Before a future real smoke, verify the UI-managed protected configuration,
+exact binary hashes, capabilities, CLI/client argument contracts and an
+isolated recovery path. The controller may materialize a private temporary
+runner input, but the user never edits or exports it. Do not run real smoke from
+automated tests or during audit-package generation.
 
 Real process, process-observation and TCP reachability adapters are unreachable
 without `-AllowProductRuntime`. Dry-run and mock use adapters and fixture files

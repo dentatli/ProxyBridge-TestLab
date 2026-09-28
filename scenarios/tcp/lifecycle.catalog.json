@@ -3,16 +3,16 @@
   "catalog_id": "tcp-lifecycle",
   "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "lifecycle"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "The base executor does not encode this lifecycle behavior." },
   "scenarios": [
-    { "id": "tcp-graceful-close", "close_mode": "graceful" },
-    { "id": "tcp-abortive-close", "close_mode": "abortive" },
-    { "id": "tcp-half-close", "close_mode": "half-close" },
-    { "id": "tcp-server-close", "close_mode": "server-close" },
-    { "id": "tcp-reset", "close_mode": "reset", "expected_outcome": "no-echo" },
-    { "id": "tcp-refused", "tags": ["refused"], "expected_outcome": "no-echo" },
-    { "id": "tcp-timeout", "tags": ["timeout"], "expected_outcome": "no-echo" },
-    { "id": "tcp-long-lived", "tags": ["long-lived"] },
-    { "id": "tcp-sequential-reuse", "tags": ["sequential-reuse"] },
-    { "id": "tcp-parallel-connections", "tags": ["parallel"] },
-    { "id": "tcp-process-termination", "tags": ["process-termination"] }
+    { "id": "tcp-graceful-close", "close_mode": "graceful", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "tcp-graceful-close" },
+    { "id": "tcp-abortive-close", "close_mode": "abortive", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "tcp-abortive-close" },
+    { "id": "tcp-half-close", "close_mode": "half-close", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "tcp-half-close" },
+    { "id": "tcp-server-close", "payload_size": 64, "endpoint_behavior": "server-close", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "tcp-server-close" },
+    { "id": "tcp-reset", "payload_size": 64, "endpoint_behavior": "reset", "expected_outcome": "no-echo", "expected_vps_received": 1, "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "tcp-reset" },
+    { "id": "tcp-refused", "tags": ["refused"], "remote_port": "${PB_ENDPOINT_ERROR_PORT}", "port_expression": "${PB_ENDPOINT_ERROR_PORT}", "expected_outcome": "no-echo", "expected_vps_received": 0, "require_internal_route": true, "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "tcp-refused" },
+    { "id": "tcp-timeout", "tags": ["timeout"], "payload_size": 64, "endpoint_behavior": "silent-timeout", "expected_outcome": "no-echo", "expected_vps_received": 1, "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "tcp-timeout" },
+    { "id": "tcp-long-lived", "tags": ["long-lived"], "payload_size": 64, "stream_count": 4, "stream_interval_ms": 250, "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-streaming-direct" },
+    { "id": "tcp-sequential-reuse", "tags": ["sequential-reuse"], "transition": "DIRECT->DIRECT", "close_mode": "abortive", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "issue206-direct-direct" },
+    { "id": "tcp-parallel-connections", "tags": ["parallel"], "payload_size": 64, "parallel_count": 8, "require_internal_route": true, "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "generated-base-direct" },
+    { "id": "tcp-process-termination", "title": "TCP process termination cleanup", "tags": ["process-termination", "milestone-16"], "action": "DIRECT", "executor_kind": "protocol-worker", "implementation_status": "EXECUTABLE", "implementation_reason": "A supervised child worker is killed after establishing the TCP flow; endpoint disconnect and runner cleanup evidence are mandatory.", "requires": ["protocol_worker", "control_failure_injection"], "port_expression": "${PB_PROTOCOL_FAILURE_CONTROL_PORT}", "remote_port": "${PB_PROTOCOL_FAILURE_CONTROL_PORT}", "mock_fixture_id": "protocol-generated", "protocol_worker": { "plugin_id": "protocol-failure", "protocol_family": "process-failure", "transport": "TCP", "evidence_profile_id": "failure-injection", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_FAILURE_CONTROL_PORT}" }, "expected": { "expected_failure_signature": "CLIENT_PROCESS_TERMINATED" } } }
   ]
 }

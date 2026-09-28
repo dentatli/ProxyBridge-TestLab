@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "expected_action": "DIRECT",
+  "client_result": "PASS",
+  "server_egress": "direct",
+  "server_resources": ["page", "download"],
+  "route_decision_count": 2,
+  "route_text": "Direct"
+}

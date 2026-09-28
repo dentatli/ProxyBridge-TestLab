@@ -1,0 +1,32 @@
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix3/modules/ProtocolRunner.psm1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix4/modules/ProtocolRunner.psm1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix3/modules/ProxyBridgeEvidence.psm1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix4/modules/ProxyBridgeEvidence.psm1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix3/tests/Test-Catalog.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix4/tests/Test-Catalog.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix3/tests/Test-EvidenceAssertions.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix4/tests/Test-EvidenceAssertions.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix3/tests/Test-ProtocolRunner.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix4/tests/Test-ProtocolRunner.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix3/tests/Test-ProtocolWorker.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix4/tests/Test-ProtocolWorker.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix3/tests/Test-ProxyBridgeEvidence.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-2b-core-after-fix4/tests/Test-ProxyBridgeEvidence.ps1', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix3/tests/Test-ProtocolRunner.ps1" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix4/tests/Test-ProtocolRunner.ps1"
+index 4ac2fa0..813a545 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix3/tests/Test-ProtocolRunner.ps1"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after-fix4/tests/Test-ProtocolRunner.ps1"
+@@ -216,6 +216,13 @@ try {
+     $malformedServerRemotePort.server_records[0].remote_port='51001'
+     Add-FixRoundOutcomeMismatch $fixRound3Failures 'string browser origin client port' 'FAIL_HARNESS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $malformedServerRemotePort.client_result -ServerRecords @($malformedServerRemotePort.server_records) -ProxyBridgeRecords @($malformedServerRemotePort.proxybridge_records) -EvidenceContext $malformedServerRemotePort.evidence_context -RunMode mock).outcome
+ 
++    $missingServerRemotePort=Copy-TestObject $browserMock
++    $missingServerRemotePortPage=@($missingServerRemotePort.server_records | Where-Object resource -eq 'page')[0]
++    $missingServerRemotePortPage.PSObject.Properties.Remove('remote_port')
++    $missingServerRemotePortAssertion=Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $missingServerRemotePort.client_result -ServerRecords @($missingServerRemotePort.server_records) -ProxyBridgeRecords @($missingServerRemotePort.proxybridge_records) -EvidenceContext $missingServerRemotePort.evidence_context -RunMode mock
++    Assert-Equal 'FAIL_HARNESS' $missingServerRemotePortAssertion.outcome 'missing page browser origin client port is a harness failure'
++    Assert-Equal 0 @($missingServerRemotePortAssertion.product_errors).Count 'missing page browser origin client port cannot produce a product verdict'
++
+     $contradictoryRoute=Copy-TestObject $browserMock
+     $wrongRoute=Copy-TestObject @($contradictoryRoute.proxybridge_records)[0]
+     $wrongRoute.action='BLOCK'

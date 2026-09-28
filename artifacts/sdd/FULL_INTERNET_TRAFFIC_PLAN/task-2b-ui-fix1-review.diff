@@ -1,0 +1,850 @@
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/tests/Test-RunOrchestration.ps1" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/tests/Test-RunOrchestration.ps1"
+index 53433ba..5fc1a0a 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/tests/Test-RunOrchestration.ps1"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/tests/Test-RunOrchestration.ps1"
+@@ -15,6 +15,17 @@ try {
+     Assert-Equal 0 $LASTEXITCODE 'run orchestration probe exit code'
+     Assert-True (@($probeOutput) -contains 'PASS: offline safe run orchestration') 'run orchestration probe result'
+ 
++    Import-Module (Join-Path $repoRoot 'modules\ScenarioCatalog.psm1') -Force
++    $fixtureCapabilities = Get-Content -LiteralPath (Join-Path $probeRoot 'fixture-capabilities.json') -Raw | ConvertFrom-Json
++    $browserScenario = @(Import-ScenarioCatalog -ScenarioRoot (Join-Path $repoRoot 'scenarios') | Where-Object scenario_id -eq 'canary-browser-download')
++    Assert-Equal 1 $browserScenario.Count 'browser fixture catalog scenario count'
++    $fixtureSuite = [pscustomobject]@{ selection = [pscustomobject]@{
++        include_scenario_ids = @('canary-browser-download'); exclude_scenario_ids = @(); include_tags = @(); exclude_tags = @()
++    } }
++    $fixtureDecision = Test-ScenarioSelection -Scenario $browserScenario[0] -Capabilities $fixtureCapabilities -Suite $fixtureSuite -KnownDefects $null -RunMode mock
++    Assert-True ([bool]$fixtureDecision.selected) 'browser fixture must reach actual catalog selection'
++    Assert-Equal 'SELECTED' ([string]$fixtureDecision.status) 'browser fixture catalog selection status'
++
+     $program = Get-Content -LiteralPath (Join-Path $uiRoot 'Program.cs') -Raw
+     $models = Get-Content -LiteralPath (Join-Path $uiRoot 'Models\RunOrchestrationModels.cs') -Raw
+     $settingsModel = Get-Content -LiteralPath (Join-Path $uiRoot 'Models\SettingsModel.cs') -Raw
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Program.cs" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Program.cs"
+index f9b3a75..d40b074 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Program.cs"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Program.cs"
+@@ -17,12 +17,15 @@ builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize =
+ builder.Services.AddSingleton(paths);
+ builder.Services.AddSingleton(storagePaths);
+ builder.Services.AddSingleton<CatalogService>();
++builder.Services.AddSingleton<IRunCatalogProvider>(services => services.GetRequiredService<CatalogService>());
+ builder.Services.AddSingleton<RunReportService>();
+ builder.Services.AddSingleton<DpapiSecretProtector>();
+ builder.Services.AddSingleton<ProtocolCertificateStore>();
+ builder.Services.AddSingleton<ServerProtocolPortCatalog>();
+ builder.Services.AddSingleton<LocalArtifactService>();
++builder.Services.AddSingleton<ILocalRuntimeStatusProvider>(services => services.GetRequiredService<LocalArtifactService>());
+ builder.Services.AddSingleton<SettingsStore>();
++builder.Services.AddSingleton<IRunSettingsProvider>(services => services.GetRequiredService<SettingsStore>());
+ builder.Services.AddSingleton<RunnerEnvironmentService>();
+ builder.Services.AddSingleton<RequestTokenService>();
+ builder.Services.AddSingleton<ServerTrustStore>();
+@@ -31,6 +34,8 @@ builder.Services.AddSingleton<ServerArtifactBuilder>();
+ builder.Services.AddSingleton<IServerTransport, OpenSshServerTransport>();
+ builder.Services.AddSingleton<ServerProvisioningService>();
+ builder.Services.AddSingleton<RuntimeCapabilityService>();
++builder.Services.AddSingleton<IRuntimeCapabilityService>(services => services.GetRequiredService<RuntimeCapabilityService>());
++builder.Services.AddSingleton<RunCapabilityFileService>();
+ builder.Services.AddSingleton<ServerProtocolSmokeService>();
+ builder.Services.AddSignalR();
+ builder.Services.AddSingleton<RunConfirmationService>();
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/CatalogService.cs" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/CatalogService.cs"
+new file mode 100644
+index 0000000..469d037
+--- /dev/null
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/CatalogService.cs"
+@@ -0,0 +1,101 @@
++using System.Diagnostics;
++using System.Text;
++using System.Text.Json;
++using ProxyBridge.TestLab.Ui.Models;
++
++namespace ProxyBridge.TestLab.Ui.Services;
++
++public interface IRunCatalogProvider
++{
++    Task<IReadOnlyList<CatalogScenario>> GetAllAsync(CancellationToken cancellationToken);
++}
++
++public sealed class CatalogService(AppPaths paths) : IRunCatalogProvider
++{
++    private static readonly JsonSerializerOptions JsonOptions = new()
++    {
++        PropertyNameCaseInsensitive = true
++    };
++
++    private readonly SemaphoreSlim _gate = new(1, 1);
++    private IReadOnlyList<CatalogScenario>? _snapshot;
++    private DateTime _snapshotStampUtc;
++
++    public async Task<IReadOnlyList<CatalogScenario>> GetAllAsync(CancellationToken cancellationToken)
++    {
++        var currentStamp = GetCatalogStampUtc();
++        if (_snapshot is not null && currentStamp == _snapshotStampUtc)
++        {
++            return _snapshot;
++        }
++
++        await _gate.WaitAsync(cancellationToken);
++        try
++        {
++            currentStamp = GetCatalogStampUtc();
++            if (_snapshot is not null && currentStamp == _snapshotStampUtc)
++            {
++                return _snapshot;
++            }
++
++            _snapshot = await ExportCatalogAsync(cancellationToken);
++            _snapshotStampUtc = currentStamp;
++            return _snapshot;
++        }
++        finally
++        {
++            _gate.Release();
++        }
++    }
++
++    private DateTime GetCatalogStampUtc()
++    {
++        var files = Directory.EnumerateFiles(paths.ScenarioRoot, "*.json", SearchOption.AllDirectories)
++            .Append(paths.KnownDefectsPath);
++        return files.Select(File.GetLastWriteTimeUtc).DefaultIfEmpty(DateTime.MinValue).Max();
++    }
++
++    private async Task<IReadOnlyList<CatalogScenario>> ExportCatalogAsync(CancellationToken cancellationToken)
++    {
++        var startInfo = new ProcessStartInfo
++        {
++            FileName = "powershell.exe",
++            UseShellExecute = false,
++            RedirectStandardOutput = true,
++            RedirectStandardError = true,
++            CreateNoWindow = true,
++            StandardOutputEncoding = new UTF8Encoding(false),
++            StandardErrorEncoding = new UTF8Encoding(false)
++        };
++        startInfo.ArgumentList.Add("-NoProfile");
++        startInfo.ArgumentList.Add("-ExecutionPolicy");
++        startInfo.ArgumentList.Add("Bypass");
++        startInfo.ArgumentList.Add("-File");
++        startInfo.ArgumentList.Add(paths.CatalogExportScript);
++        startInfo.ArgumentList.Add("-ScenarioRoot");
++        startInfo.ArgumentList.Add(paths.ScenarioRoot);
++        startInfo.ArgumentList.Add("-KnownDefectsPath");
++        startInfo.ArgumentList.Add(paths.KnownDefectsPath);
++
++        using var process = Process.Start(startInfo) ?? throw new InvalidOperationException("CATALOG_EXPORT_START_FAILED");
++        var outputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
++        var errorTask = process.StandardError.ReadToEndAsync(cancellationToken);
++        await process.WaitForExitAsync(cancellationToken);
++        var output = await outputTask;
++        var error = await errorTask;
++
++        if (process.ExitCode != 0)
++        {
++            throw new InvalidOperationException($"CATALOG_EXPORT_FAILED: {error.Trim()}");
++        }
++
++        var catalog = JsonSerializer.Deserialize<List<CatalogScenario>>(output, JsonOptions)
++            ?? throw new InvalidOperationException("CATALOG_EXPORT_EMPTY");
++        if (catalog.Count == 0 || catalog.Any(item => string.IsNullOrWhiteSpace(item.ScenarioId)))
++        {
++            throw new InvalidOperationException("CATALOG_EXPORT_INVALID");
++        }
++
++        return catalog.OrderBy(item => item.ScenarioId, StringComparer.OrdinalIgnoreCase).ToArray();
++    }
++}
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Services/ImmutablePreflightService.cs" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/ImmutablePreflightService.cs"
+index 8590666..351cf01 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Services/ImmutablePreflightService.cs"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/ImmutablePreflightService.cs"
+@@ -55,7 +55,8 @@ public sealed class ImmutablePreflightReceiptAuthority
+ public sealed class PowerShellImmutablePreflightService(
+     AppPaths appPaths,
+     SettingsStore settingsStore,
+-    RunnerEnvironmentService runnerEnvironment) : IRunImmutablePreflightService
++    RunnerEnvironmentService runnerEnvironment,
++    RunCapabilityFileService capabilityFiles) : IRunImmutablePreflightService
+ {
+     private static readonly UTF8Encoding Utf8NoBom = new(false);
+     private readonly SemaphoreSlim _gate = new(1, 1);
+@@ -86,7 +87,7 @@ public sealed class PowerShellImmutablePreflightService(
+             var capabilitiesPath = Path.Combine(input.RootPath, "capabilities.json");
+             var evidenceRoot = Path.Combine(input.RootPath, "evidence");
+             await WriteSuiteAsync(scenarioIds, suitePath, cancellationToken);
+-            await WriteCapabilitiesAsync(snapshot.Settings.Capabilities, derivedCapabilities, capabilitiesPath, cancellationToken);
++            await capabilityFiles.WriteAsync(snapshot.Settings.Capabilities, derivedCapabilities, capabilitiesPath, cancellationToken);
+             Directory.CreateDirectory(evidenceRoot);
+             try
+             {
+@@ -201,19 +202,6 @@ public sealed class PowerShellImmutablePreflightService(
+         await File.WriteAllTextAsync(destination, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, Utf8NoBom, cancellationToken);
+     }
+ 
+-    private async Task WriteCapabilitiesAsync(
+-        CapabilitySettings settings,
+-        DerivedRunCapabilitySnapshot derivedCapabilities,
+-        string destination,
+-        CancellationToken cancellationToken)
+-    {
+-        var root = JsonNode.Parse(await File.ReadAllTextAsync(appPaths.CapabilitiesPath, cancellationToken))?.AsObject()
+-            ?? throw new InvalidOperationException("PREFLIGHT_CAPABILITIES_INVALID");
+-        var capabilities = root["capabilities"]?.AsObject() ?? throw new InvalidOperationException("PREFLIGHT_CAPABILITIES_SECTION_INVALID");
+-        RunCapabilityDocument.Apply(capabilities, settings, derivedCapabilities);
+-        await File.WriteAllTextAsync(destination, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, Utf8NoBom, cancellationToken);
+-    }
+-
+     private static bool ReadAllPassed(string path)
+     {
+         if (!File.Exists(path)) return false;
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Services/LocalArtifactService.cs" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/LocalArtifactService.cs"
+index 4809619..e7f5574 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Services/LocalArtifactService.cs"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/LocalArtifactService.cs"
+@@ -8,6 +8,7 @@ using ProxyBridge.TestLab.Ui.Models;
+ namespace ProxyBridge.TestLab.Ui.Services;
+ 
+ public sealed record LocalProtocolRuntimeStatus(bool Ready, string Status, string Detail);
++public sealed record BrowserFileVersionIdentity(string? ProductName, string? OriginalFilename, string? Version);
+ public sealed record LocalBrowserRuntimeStatus(
+     bool Ready,
+     string Status,
+@@ -17,11 +18,16 @@ public sealed record LocalBrowserRuntimeStatus(
+     string? Version,
+     string? Sha256);
+ 
++public interface ILocalRuntimeStatusProvider
++{
++    LocalProtocolRuntimeStatus GetProtocolRuntimeStatus();
++}
++
+ public sealed class LocalArtifactService(
+     AppPaths appPaths,
+     AppStoragePaths storagePaths,
+     ServerProtocolPortCatalog portCatalog,
+-    ProtocolCertificateStore certificateStore)
++    ProtocolCertificateStore certificateStore) : ILocalRuntimeStatusProvider
+ {
+     public string ClientExecutablePath => Path.Combine(appPaths.RepositoryRoot, "bin", "pb_net_client.exe");
+     public string ProtocolWorkerRoot => Path.Combine(appPaths.RepositoryRoot, "bin", "protocol-worker");
+@@ -32,14 +38,21 @@ public sealed class LocalArtifactService(
+ 
+     public LocalBrowserRuntimeStatus GetBrowserRuntimeStatus() => DiscoverBrowserFromAllowlistedCandidates(GetBrowserCandidates());
+ 
+-    public static LocalBrowserRuntimeStatus DiscoverBrowserFromAllowlistedCandidates(IEnumerable<string> candidates)
++    public static LocalBrowserRuntimeStatus DiscoverBrowserFromAllowlistedCandidates(
++        IEnumerable<string> candidates,
++        Func<string, BrowserFileVersionIdentity?>? readVersionIdentity = null)
+     {
+         ArgumentNullException.ThrowIfNull(candidates);
+-        var supported = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
++        readVersionIdentity ??= path =>
+         {
+-            ["msedge.exe"] = "Microsoft Edge",
+-            ["chrome.exe"] = "Google Chrome",
+-            ["chromium.exe"] = "Chromium"
++            var info = FileVersionInfo.GetVersionInfo(path);
++            return new BrowserFileVersionIdentity(info.ProductName, info.OriginalFilename, info.FileVersion);
++        };
++        var supported = new Dictionary<string, BrowserIdentityRule>(StringComparer.OrdinalIgnoreCase)
++        {
++            ["msedge.exe"] = new("Microsoft Edge", "Microsoft Edge", ["msedge.exe"]),
++            ["chrome.exe"] = new("Google Chrome", "Google Chrome", ["chrome.exe"]),
++            ["chromium.exe"] = new("Chromium", "Chromium", ["chromium.exe", "chrome.exe"])
+         };
+         var queryFailed = false;
+         foreach (var candidate in candidates.Where(path => !string.IsNullOrWhiteSpace(path)).Distinct(StringComparer.OrdinalIgnoreCase))
+@@ -48,17 +61,20 @@ public sealed class LocalArtifactService(
+             {
+                 var fullPath = Path.GetFullPath(candidate);
+                 var fileName = Path.GetFileName(fullPath);
+-                if (!supported.TryGetValue(fileName, out var identity) || !File.Exists(fullPath)) continue;
++                if (!supported.TryGetValue(fileName, out var rule) || !File.Exists(fullPath)) continue;
+                 if ((File.GetAttributes(fullPath) & FileAttributes.ReparsePoint) != 0) continue;
+-                var version = FileVersionInfo.GetVersionInfo(fullPath).FileVersion;
+-                if (string.IsNullOrWhiteSpace(version)) continue;
++                var identity = readVersionIdentity(fullPath);
++                var originalName = Path.GetFileName(identity?.OriginalFilename);
++                if (identity is null || string.IsNullOrWhiteSpace(identity.Version) ||
++                    !string.Equals(identity.ProductName, rule.ProductName, StringComparison.OrdinalIgnoreCase) ||
++                    !rule.OriginalFileNames.Contains(originalName, StringComparer.OrdinalIgnoreCase)) continue;
+                 return new LocalBrowserRuntimeStatus(
+                     true,
+                     "READY",
+-                    $"{identity} was discovered automatically and its image identity and integrity were verified.",
++                    $"{rule.DisplayName} was discovered automatically and its file-version identity and integrity were verified.",
+                     fullPath,
+-                    identity,
+-                    version,
++                    rule.DisplayName,
++                    identity.Version,
+                     ComputeSha256(fullPath));
+             }
+             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or CryptographicException)
+@@ -200,10 +216,12 @@ public sealed class LocalArtifactService(
+         var browserStatus = GetBrowserRuntimeStatus();
+         if (browserStatus.Ready)
+         {
+-            values["PB_BROWSER_EXE"] = browserStatus.ExecutablePath!;
++            var browserPath = browserStatus.ExecutablePath!;
++            values["PB_BROWSER_EXE"] = browserPath;
+             values["PB_EXPECTED_BROWSER_SHA256"] = browserStatus.Sha256!;
+-            values["PB_BROWSER_APPLICATION_BASENAME"] = Path.GetFileName(browserStatus.ExecutablePath);
+-            values["PB_BROWSER_APPLICATION_FULLPATH"] = browserStatus.ExecutablePath!;
++            values["PB_BROWSER_APPLICATION_BASENAME"] = Path.GetFileName(browserPath)
++                ?? throw new InvalidOperationException("AUTOMATIC_BROWSER_BASENAME_MISSING");
++            values["PB_BROWSER_APPLICATION_FULLPATH"] = browserPath;
+             values["PB_BROWSER_VERSION"] = browserStatus.Version!;
+         }
+     }
+@@ -300,4 +318,9 @@ public sealed class LocalArtifactService(
+         using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
+         return Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+     }
++
++    private sealed record BrowserIdentityRule(
++        string DisplayName,
++        string ProductName,
++        IReadOnlyList<string> OriginalFileNames);
+ }
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Services/RunExecutor.cs" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/RunExecutor.cs"
+index 196cbdb..12c10bd 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Services/RunExecutor.cs"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/RunExecutor.cs"
+@@ -21,7 +21,7 @@ public sealed class PowerShellRunExecutor(
+     AppStoragePaths storagePaths,
+     SettingsStore settingsStore,
+     RunnerEnvironmentService runnerEnvironment,
+-    RuntimeCapabilityService runtimeCapabilities) : IRunExecutor
++    RunCapabilityFileService capabilityFiles) : IRunExecutor
+ {
+     private static readonly UTF8Encoding Utf8NoBom = new(false);
+ 
+@@ -40,11 +40,8 @@ public sealed class PowerShellRunExecutor(
+         if (File.Exists(cancellationPath)) File.Delete(cancellationPath);
+ 
+         var settings = await settingsStore.LoadAsync(CancellationToken.None);
+-        var derivedCapabilities = context.Mode == "real"
+-            ? await runtimeCapabilities.GetAsync(CancellationToken.None)
+-            : DerivedRunCapabilitySnapshot.Unavailable;
+         await WriteSuiteAsync(context.Mode, context.ScenarioIds, suitePath);
+-        await WriteCapabilitiesAsync(settings.Settings.Capabilities, derivedCapabilities, capabilitiesPath);
++        await capabilityFiles.WriteForExecutionAsync(context.Mode, settings.Settings.Capabilities, capabilitiesPath, CancellationToken.None);
+ 
+         RunnerInputLease? inputLease = null;
+         try
+@@ -159,17 +156,6 @@ public sealed class PowerShellRunExecutor(
+         await File.WriteAllTextAsync(destination, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, Utf8NoBom);
+     }
+ 
+-    private async Task WriteCapabilitiesAsync(
+-        CapabilitySettings settings,
+-        DerivedRunCapabilitySnapshot derivedCapabilities,
+-        string destination)
+-    {
+-        var root = JsonNode.Parse(await File.ReadAllTextAsync(appPaths.CapabilitiesPath))?.AsObject() ?? throw new InvalidOperationException("RUN_CAPABILITIES_INVALID");
+-        var capabilities = root["capabilities"]?.AsObject() ?? throw new InvalidOperationException("RUN_CAPABILITIES_SECTION_INVALID");
+-        RunCapabilityDocument.Apply(capabilities, settings, derivedCapabilities);
+-        await File.WriteAllTextAsync(destination, root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine, Utf8NoBom);
+-    }
+-
+     private static async Task<IReadOnlyList<RunScenarioProgress>> ReadScenarioProgressAsync(string evidenceRoot, IReadOnlyList<string> requested)
+     {
+         var runRoot = FindNewestRunRoot(evidenceRoot);
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Services/RunReadinessService.cs" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/RunReadinessService.cs"
+index bbff465..ad9cbc2 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Services/RunReadinessService.cs"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/RunReadinessService.cs"
+@@ -8,10 +8,10 @@ public interface IRunReadinessService
+ }
+ 
+ public sealed class RunReadinessService(
+-    CatalogService catalogService,
+-    SettingsStore settingsStore,
+-    LocalArtifactService localArtifacts,
+-    RuntimeCapabilityService runtimeCapabilities,
++    IRunCatalogProvider catalogService,
++    IRunSettingsProvider settingsStore,
++    ILocalRuntimeStatusProvider localArtifacts,
++    IRuntimeCapabilityService runtimeCapabilities,
+     IRunImmutablePreflightService immutablePreflight,
+     RunConfirmationService confirmations) : IRunReadinessService
+ {
+@@ -92,7 +92,7 @@ public sealed class RunReadinessService(
+         var capabilityGates = RunCapabilityReadiness.Create(mode, selected, derivedCapabilities);
+         gates.AddRange(capabilityGates);
+         var selectedCapabilitiesReady = capabilityGates.All(gate => gate.Passed);
+-        var serverReady = derivedCapabilities.ServerBrowserOrigin;
++        var serverReady = derivedCapabilities.ServerReady;
+         gates.Add(new(
+             "server",
+             "Server Setup",
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Services/RuntimeCapabilityService.cs" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/RuntimeCapabilityService.cs"
+index a38bb4a..aa1aca6 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui/Services/RuntimeCapabilityService.cs"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/RuntimeCapabilityService.cs"
+@@ -1,3 +1,5 @@
++using System.Text;
++using System.Text.Json;
+ using System.Text.Json.Nodes;
+ using ProxyBridge.TestLab.Ui.Models;
+ 
+@@ -5,12 +7,16 @@ namespace ProxyBridge.TestLab.Ui.Services;
+ 
+ public sealed record DerivedRunCapabilitySnapshot(
+     bool LocalBrowserRuntime,
++    bool ServerReady,
+     bool ServerBrowserOrigin,
+     string LocalBrowserStatus,
+-    string ServerBrowserOriginStatus)
++    string ServerStatus)
+ {
+     public static DerivedRunCapabilitySnapshot Unavailable { get; } =
+-        new(false, false, "NOT_EVALUATED", "NOT_EVALUATED");
++        new(false, false, false, "NOT_EVALUATED", "NOT_EVALUATED");
++
++    public static DerivedRunCapabilitySnapshot FixtureSelection { get; } =
++        new(true, false, true, "FIXTURE", "FIXTURE");
+ 
+     public static DerivedRunCapabilitySnapshot Derive(
+         LocalBrowserRuntimeStatus browser,
+@@ -19,12 +25,13 @@ public sealed record DerivedRunCapabilitySnapshot(
+         ArgumentNullException.ThrowIfNull(browser);
+         ArgumentNullException.ThrowIfNull(server);
+         var browserReady = IsVerifiedAllowlistedBrowser(browser);
+-        var originReady = string.Equals(server.State, "READY", StringComparison.Ordinal);
++        var serverReady = string.Equals(server.State, "READY", StringComparison.Ordinal);
+         return new(
+             browserReady,
+-            originReady,
++            serverReady,
++            serverReady,
+             browserReady ? "READY" : browser.Status,
+-            originReady ? "READY" : server.State);
++            serverReady ? "READY" : server.State);
+     }
+ 
+     private static bool IsVerifiedAllowlistedBrowser(LocalBrowserRuntimeStatus browser)
+@@ -45,9 +52,14 @@ public sealed record DerivedRunCapabilitySnapshot(
+     }
+ }
+ 
++public interface IRuntimeCapabilityService
++{
++    Task<DerivedRunCapabilitySnapshot> GetAsync(CancellationToken cancellationToken);
++}
++
+ public sealed class RuntimeCapabilityService(
+     LocalArtifactService localArtifacts,
+-    ServerProvisioningService serverProvisioning)
++    ServerProvisioningService serverProvisioning) : IRuntimeCapabilityService
+ {
+     public async Task<DerivedRunCapabilitySnapshot> GetAsync(CancellationToken cancellationToken)
+     {
+@@ -57,6 +69,45 @@ public sealed class RuntimeCapabilityService(
+     }
+ }
+ 
++public sealed class RunCapabilityFileService(
++    AppPaths appPaths,
++    IRuntimeCapabilityService runtimeCapabilities)
++{
++    private static readonly UTF8Encoding Utf8NoBom = new(false);
++
++    public async Task WriteForExecutionAsync(
++        string mode,
++        CapabilitySettings settings,
++        string destination,
++        CancellationToken cancellationToken)
++    {
++        var derived = string.Equals(mode, "real", StringComparison.OrdinalIgnoreCase)
++            ? await runtimeCapabilities.GetAsync(cancellationToken)
++            : string.Equals(mode, "mock", StringComparison.OrdinalIgnoreCase)
++                ? DerivedRunCapabilitySnapshot.FixtureSelection
++                : throw new InvalidOperationException("RUN_CAPABILITY_MODE_INVALID");
++        await WriteAsync(settings, derived, destination, cancellationToken);
++    }
++
++    public async Task WriteAsync(
++        CapabilitySettings settings,
++        DerivedRunCapabilitySnapshot derived,
++        string destination,
++        CancellationToken cancellationToken)
++    {
++        var root = JsonNode.Parse(await File.ReadAllTextAsync(appPaths.CapabilitiesPath, cancellationToken))?.AsObject()
++            ?? throw new InvalidOperationException("RUN_CAPABILITIES_INVALID");
++        var capabilities = root["capabilities"]?.AsObject()
++            ?? throw new InvalidOperationException("RUN_CAPABILITIES_SECTION_INVALID");
++        RunCapabilityDocument.Apply(capabilities, settings, derived);
++        await File.WriteAllTextAsync(
++            destination,
++            root.ToJsonString(new JsonSerializerOptions { WriteIndented = true }) + Environment.NewLine,
++            Utf8NoBom,
++            cancellationToken);
++    }
++}
++
+ public static class RunCapabilityReadiness
+ {
+     public static IReadOnlyList<RunReadinessGate> Create(
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/SettingsStore.cs" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/SettingsStore.cs"
+new file mode 100644
+index 0000000..642c3a6
+--- /dev/null
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui/Services/SettingsStore.cs"
+@@ -0,0 +1,193 @@
++using System.Security.Cryptography;
++using System.Text;
++using System.Text.Json;
++using ProxyBridge.TestLab.Ui.Models;
++
++namespace ProxyBridge.TestLab.Ui.Services;
++
++public interface IRunSettingsProvider
++{
++    Task<SettingsView> GetViewAsync(CancellationToken cancellationToken);
++}
++
++public sealed class SettingsStore(AppStoragePaths paths, DpapiSecretProtector protector, LocalArtifactService localArtifacts) : IRunSettingsProvider
++{
++    private static readonly UTF8Encoding Utf8NoBom = new(false);
++    private static readonly JsonSerializerOptions JsonOptions = new()
++    {
++        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
++        WriteIndented = true
++    };
++    private readonly SemaphoreSlim _gate = new(1, 1);
++
++    public async Task<SettingsSnapshot> LoadAsync(CancellationToken cancellationToken)
++    {
++        await _gate.WaitAsync(cancellationToken);
++        try { return await LoadUnsafeAsync(cancellationToken); }
++        finally { _gate.Release(); }
++    }
++
++    public async Task<SettingsView> GetViewAsync(CancellationToken cancellationToken)
++    {
++        var snapshot = await LoadAsync(cancellationToken);
++        return ToView(snapshot);
++    }
++
++    public async Task<SettingsValidationResult> ValidateAsync(SettingsUpdateRequest request, CancellationToken cancellationToken)
++    {
++        await _gate.WaitAsync(cancellationToken);
++        try
++        {
++            var existing = await LoadUnsafeAsync(cancellationToken);
++            var protectedValues = MergeProtected(existing.ProtectedValues, request);
++            localArtifacts.ApplyDerivedDefaults(request.Settings, protectedValues);
++            return SettingsSchema.Validate(request.Settings, protectedValues, localArtifacts);
++        }
++        finally { _gate.Release(); }
++    }
++
++    public async Task<SettingsView> SaveAsync(SettingsUpdateRequest request, CancellationToken cancellationToken)
++    {
++        await _gate.WaitAsync(cancellationToken);
++        try
++        {
++            paths.EnsureSecureDirectories();
++            var existing = await LoadUnsafeAsync(cancellationToken);
++            var protectedValues = MergeProtected(existing.ProtectedValues, request);
++            localArtifacts.ApplyDerivedDefaults(request.Settings, protectedValues);
++            var validation = SettingsSchema.Validate(request.Settings, protectedValues, localArtifacts);
++            if (!validation.ValidForSave) throw new SettingsValidationException(validation);
++
++            var snapshotId = Guid.NewGuid().ToString("N");
++            var publicDocument = new SettingsDocument { SnapshotId = snapshotId, Settings = request.Settings };
++            var publicJson = JsonSerializer.Serialize(publicDocument, JsonOptions) + Environment.NewLine;
++            var secretJsonBytes = JsonSerializer.SerializeToUtf8Bytes(protectedValues, JsonOptions);
++            byte[] ciphertext;
++            try { ciphertext = protector.Protect(secretJsonBytes); }
++            finally { CryptographicOperations.ZeroMemory(secretJsonBytes); }
++
++            try
++            {
++                var envelope = JsonSerializer.Serialize(new SecretEnvelope(1, "DPAPI_CURRENT_USER", Convert.ToBase64String(ciphertext), snapshotId), JsonOptions) + Environment.NewLine;
++                await WriteAtomicAsync(paths.ProtectedSettingsPath, envelope, cancellationToken);
++                await WriteAtomicAsync(paths.PublicSettingsPath, publicJson, cancellationToken);
++            }
++            finally { CryptographicOperations.ZeroMemory(ciphertext); }
++
++            var updated = File.GetLastWriteTimeUtc(paths.PublicSettingsPath);
++            return ToView(new SettingsSnapshot(request.Settings, protectedValues, validation, updated));
++        }
++        finally { _gate.Release(); }
++    }
++
++    private async Task<SettingsSnapshot> LoadUnsafeAsync(CancellationToken cancellationToken)
++    {
++        paths.EnsureSecureDirectories();
++        var publicSettings = new PublicSettings();
++        var publicSnapshotId = "";
++        DateTimeOffset? updatedUtc = null;
++        if (File.Exists(paths.PublicSettingsPath))
++        {
++            await using var stream = File.OpenRead(paths.PublicSettingsPath);
++            var document = await JsonSerializer.DeserializeAsync<SettingsDocument>(stream, JsonOptions, cancellationToken)
++                ?? throw new InvalidOperationException("PUBLIC_SETTINGS_INVALID");
++            if (document.SchemaVersion != 1) throw new InvalidOperationException("PUBLIC_SETTINGS_SCHEMA_UNSUPPORTED");
++            publicSettings = document.Settings;
++            publicSnapshotId = document.SnapshotId;
++            updatedUtc = File.GetLastWriteTimeUtc(paths.PublicSettingsPath);
++        }
++
++        var protectedValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
++        if (File.Exists(paths.ProtectedSettingsPath))
++        {
++            var envelopeText = await File.ReadAllTextAsync(paths.ProtectedSettingsPath, cancellationToken);
++            var envelope = JsonSerializer.Deserialize<SecretEnvelope>(envelopeText, JsonOptions)
++                ?? throw new InvalidOperationException("PROTECTED_SETTINGS_INVALID");
++            if (envelope.SchemaVersion != 1 || envelope.Protection != "DPAPI_CURRENT_USER") throw new InvalidOperationException("PROTECTED_SETTINGS_SCHEMA_UNSUPPORTED");
++            if (!string.IsNullOrWhiteSpace(publicSnapshotId) || !string.IsNullOrWhiteSpace(envelope.SnapshotId))
++            {
++                if (!string.Equals(publicSnapshotId, envelope.SnapshotId, StringComparison.Ordinal)) throw new InvalidOperationException("SETTINGS_SNAPSHOT_MISMATCH");
++            }
++            var ciphertext = Convert.FromBase64String(envelope.Ciphertext);
++            byte[] plaintext;
++            try { plaintext = protector.Unprotect(ciphertext); }
++            finally { CryptographicOperations.ZeroMemory(ciphertext); }
++            try
++            {
++                var deserialized = JsonSerializer.Deserialize<Dictionary<string, string>>(plaintext, JsonOptions);
++                protectedValues = deserialized is null
++                    ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
++                    : new Dictionary<string, string>(deserialized, StringComparer.OrdinalIgnoreCase);
++            }
++            finally { CryptographicOperations.ZeroMemory(plaintext); }
++
++            if (string.IsNullOrWhiteSpace(publicSettings.ServerConnection.Username) &&
++                protectedValues.TryGetValue("server_connection.username", out var legacyUsername))
++            {
++                publicSettings.ServerConnection.Username = legacyUsername;
++            }
++            protectedValues.Remove("server_connection.username");
++            foreach (var key in protectedValues.Keys.ToArray())
++            {
++                if (!SettingsSchema.ProtectedFieldIds.Contains(key)) protectedValues.Remove(key);
++            }
++        }
++
++        foreach (var item in localArtifacts.GetProtectedDefaults())
++        {
++            if (!protectedValues.ContainsKey(item.Key)) protectedValues[item.Key] = item.Value;
++        }
++        localArtifacts.ApplyDerivedDefaults(publicSettings, protectedValues);
++
++        var validation = SettingsSchema.Validate(publicSettings, protectedValues, localArtifacts);
++        return new SettingsSnapshot(publicSettings, protectedValues, validation, updatedUtc);
++    }
++
++    private static Dictionary<string, string> MergeProtected(IReadOnlyDictionary<string, string> existing, SettingsUpdateRequest request)
++    {
++        var merged = new Dictionary<string, string>(existing, StringComparer.OrdinalIgnoreCase);
++        foreach (var key in request.ClearProtected)
++        {
++            if (!SettingsSchema.ProtectedFieldIds.Contains(key)) throw new InvalidOperationException("UNKNOWN_PROTECTED_FIELD");
++            merged.Remove(key);
++        }
++        foreach (var item in request.ProtectedValues)
++        {
++            if (!SettingsSchema.ProtectedFieldIds.Contains(item.Key)) throw new InvalidOperationException("UNKNOWN_PROTECTED_FIELD");
++            if (item.Value is not null) merged[item.Key] = item.Value;
++        }
++        return merged;
++    }
++
++    private static SettingsView ToView(SettingsSnapshot snapshot)
++    {
++        var presence = SettingsSchema.ProtectedFieldIds.ToDictionary(
++            field => field,
++            field => snapshot.ProtectedValues.TryGetValue(field, out var value) && !string.IsNullOrWhiteSpace(value),
++            StringComparer.OrdinalIgnoreCase);
++        return new SettingsView(1, snapshot.Settings, presence, snapshot.Validation, snapshot.UpdatedUtc);
++    }
++
++    private static async Task WriteAtomicAsync(string path, string content, CancellationToken cancellationToken)
++    {
++        var directory = Path.GetDirectoryName(path) ?? throw new InvalidOperationException("SETTINGS_DIRECTORY_INVALID");
++        Directory.CreateDirectory(directory);
++        var temporary = Path.Combine(directory, $".{Path.GetFileName(path)}.{Guid.NewGuid():N}.tmp");
++        try
++        {
++            await File.WriteAllTextAsync(temporary, content, Utf8NoBom, cancellationToken);
++            File.Move(temporary, path, overwrite: true);
++        }
++        finally
++        {
++            if (File.Exists(temporary)) File.Delete(temporary);
++        }
++    }
++
++    private sealed record SecretEnvelope(int SchemaVersion, string Protection, string Ciphertext, string SnapshotId = "");
++}
++
++public sealed class SettingsValidationException(SettingsValidationResult validation) : Exception("SETTINGS_VALIDATION_FAILED")
++{
++    public SettingsValidationResult Validation { get; } = validation;
++}
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui.RunProbe/Program.cs" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui.RunProbe/Program.cs"
+index 07ba0dc..c28a205 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after/ui/ProxyBridge.TestLab.Ui.RunProbe/Program.cs"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-ui-after-fix1/ui/ProxyBridge.TestLab.Ui.RunProbe/Program.cs"
+@@ -77,22 +77,21 @@ try
+     Directory.CreateDirectory(browserFixtureRoot);
+     var browserCandidate = Path.Combine(browserFixtureRoot, "msedge.exe");
+     File.Copy(Environment.ProcessPath ?? throw new InvalidOperationException("PROCESS_PATH_MISSING"), browserCandidate);
+-    var discoveredBrowser = LocalArtifactService.DiscoverBrowserFromAllowlistedCandidates([browserCandidate]);
++    var spoofedBrowser = LocalArtifactService.DiscoverBrowserFromAllowlistedCandidates([browserCandidate]);
++    Require(!spoofedBrowser.Ready && spoofedBrowser.Status == "NOT_FOUND", "RENAMED_NON_BROWSER_IMAGE_WAS_ACCEPTED");
++    var discoveredBrowser = LocalArtifactService.DiscoverBrowserFromAllowlistedCandidates(
++        [browserCandidate],
++        _ => new BrowserFileVersionIdentity("Microsoft Edge", "msedge.exe", "123.0.0.0"));
+     Require(discoveredBrowser.Ready && discoveredBrowser.Status == "READY", "AUTOMATIC_BROWSER_DISCOVERY_FAILED");
+     Require(discoveredBrowser.ExecutablePath == Path.GetFullPath(browserCandidate), "AUTOMATIC_BROWSER_PATH_NOT_NORMALIZED");
+     Require(discoveredBrowser.BrowserIdentity == "Microsoft Edge", "AUTOMATIC_BROWSER_IDENTITY_INVALID");
+     Require(discoveredBrowser.Sha256 is { Length: 64 }, "AUTOMATIC_BROWSER_HASH_MISSING");
+     var missingBrowser = LocalArtifactService.DiscoverBrowserFromAllowlistedCandidates([Path.Combine(browserFixtureRoot, "missing", "chrome.exe")]);
+     Require(!missingBrowser.Ready && missingBrowser.Status == "NOT_FOUND" && missingBrowser.ExecutablePath is null, "MISSING_BROWSER_NOT_GATED");
+-    var wrongName = Path.Combine(browserFixtureRoot, "arbitrary.exe");
+-    File.Copy(Environment.ProcessPath!, wrongName);
+-    var rejectedBrowser = LocalArtifactService.DiscoverBrowserFromAllowlistedCandidates([wrongName]);
+-    Require(!rejectedBrowser.Ready && rejectedBrowser.Status == "NOT_FOUND", "NON_BROWSER_IMAGE_WAS_ACCEPTED");
+-
+     var readyServer = new ServerStatusView("READY", "Ready fixture.", true, true, true, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddMinutes(5), []);
+     var staleServer = readyServer with { State = "STALE", Message = "Stale fixture." };
+     var readyCapabilities = DerivedRunCapabilitySnapshot.Derive(discoveredBrowser, readyServer);
+-    Require(readyCapabilities.LocalBrowserRuntime && readyCapabilities.ServerBrowserOrigin, "DERIVED_BROWSER_CAPABILITIES_NOT_ENABLED");
++    Require(readyCapabilities.LocalBrowserRuntime && readyCapabilities.ServerReady && readyCapabilities.ServerBrowserOrigin, "DERIVED_BROWSER_CAPABILITIES_NOT_ENABLED");
+     var missingBrowserCapabilities = DerivedRunCapabilitySnapshot.Derive(missingBrowser, readyServer);
+     Require(!missingBrowserCapabilities.LocalBrowserRuntime && missingBrowserCapabilities.ServerBrowserOrigin, "MISSING_BROWSER_DID_NOT_DISABLE_ONLY_LOCAL_CAPABILITY");
+     var staleServerCapabilities = DerivedRunCapabilitySnapshot.Derive(discoveredBrowser, staleServer);
+@@ -110,10 +109,49 @@ try
+     Require(!string.Join(' ', missingBrowserGates.Concat(staleServerGates).SelectMany(gate => new[] { gate.Detail, gate.Remediation ?? "" }))
+         .Contains(discoveredBrowser.Sha256!, StringComparison.OrdinalIgnoreCase), "PUBLIC_BROWSER_GATE_LEAKED_HASH");
+ 
+-    var nonBrowserGates = RunCapabilityReadiness.Create("real", [Scenario("native-tcp", ["ipv4", "tcp"])], DerivedRunCapabilitySnapshot.Unavailable);
++    var nonBrowserScenario = Scenario("native-tcp", ["ipv4", "tcp"]);
++    var nonBrowserGates = RunCapabilityReadiness.Create("real", [nonBrowserScenario], DerivedRunCapabilitySnapshot.Unavailable);
+     Require(nonBrowserGates.All(gate => gate.Passed), "NON_BROWSER_SELECTION_WAS_CAPABILITY_BLOCKED");
+     Require(RunCapabilityReadiness.Create("mock", [browserScenario], DerivedRunCapabilitySnapshot.Unavailable).Count == 0, "FIXTURE_MODE_WAS_BROWSER_CAPABILITY_GATED");
+ 
++    var readySettings = new SettingsView(
++        1,
++        new PublicSettings(),
++        new Dictionary<string, bool>(),
++        new SettingsValidationResult(true, true, [], [], []),
++        null);
++    var separatedServerCapabilities = new DerivedRunCapabilitySnapshot(false, true, false, "NOT_FOUND", "READY");
++    var integratedReadiness = new RunReadinessService(
++        new StubRunCatalog([nonBrowserScenario, browserScenario]),
++        new StubRunSettings(readySettings),
++        new StubLocalRuntimeStatus(new LocalProtocolRuntimeStatus(true, "READY", "Fixture protocol runtime.")),
++        new StubRuntimeCapabilities(separatedServerCapabilities),
++        new StubImmutablePreflight(new ImmutablePreflightResult(true, "READY", "Fixture preflight.", DateTimeOffset.UtcNow.AddMinutes(1), false)),
++        confirmations);
++    var nonBrowserPreparation = await integratedReadiness.PrepareAsync(
++        new RunCreateRequest("real", [nonBrowserScenario.ScenarioId]), false, CancellationToken.None);
++    Require(nonBrowserPreparation.CanStart, "NON_BROWSER_REAL_SELECTION_DID_NOT_START_WITH_GENERIC_SERVER_READY");
++    Require(nonBrowserPreparation.Gates.Single(gate => gate.Id == "server").Passed, "GENERIC_SERVER_GATE_DID_NOT_USE_SERVER_READY");
++    Require(nonBrowserPreparation.Gates.Single(gate => gate.Id == "server_browser_origin").Passed, "NON_BROWSER_SELECTION_WAS_INDEPENDENTLY_ORIGIN_BLOCKED");
++    var browserPreparation = await integratedReadiness.PrepareAsync(
++        new RunCreateRequest("real", [browserScenario.ScenarioId]), false, CancellationToken.None);
++    Require(!browserPreparation.CanStart &&
++            !browserPreparation.Gates.Single(gate => gate.Id == "local_browser_runtime").Passed &&
++            !browserPreparation.Gates.Single(gate => gate.Id == "server_browser_origin").Passed,
++        "BROWSER_REQUIREMENTS_DID_NOT_BLOCK_INTEGRATED_READINESS");
++
++    var mockSettings = new StubRunSettings(readySettings);
++    var mockLocalRuntime = new StubLocalRuntimeStatus(new LocalProtocolRuntimeStatus(false, "MISSING", "Unavailable fixture dependency."));
++    var mockRuntimeCapabilities = new StubRuntimeCapabilities(DerivedRunCapabilitySnapshot.Unavailable);
++    var mockPreflight = new StubImmutablePreflight(new ImmutablePreflightResult(false, "FAILED", "Must not be called.", null, false));
++    var mockReadiness = new RunReadinessService(
++        new StubRunCatalog([browserScenario]), mockSettings, mockLocalRuntime, mockRuntimeCapabilities, mockPreflight, confirmations);
++    var mockPreparation = await mockReadiness.PrepareAsync(
++        new RunCreateRequest("mock", [browserScenario.ScenarioId]), false, CancellationToken.None);
++    Require(mockPreparation.CanStart, "BROWSER_FIXTURE_PREVIEW_WAS_READINESS_BLOCKED");
++    Require(mockSettings.Calls == 0 && mockLocalRuntime.Calls == 0 && mockRuntimeCapabilities.Calls == 0 && mockPreflight.Calls == 0,
++        "BROWSER_FIXTURE_PREVIEW_TOUCHED_REAL_RUNTIME_READINESS");
++
+     var repositoryPaths = new AppPaths(AppPaths.Discover(null));
+     var capabilityDocument = JsonNode.Parse(await File.ReadAllTextAsync(repositoryPaths.CapabilitiesPath))?.AsObject()
+         ?? throw new InvalidOperationException("CAPABILITY_DOCUMENT_FIXTURE_INVALID");
+@@ -122,10 +160,18 @@ try
+     RunCapabilityDocument.Apply(capabilityEntries, new CapabilitySettings(), readyCapabilities);
+     Require(capabilityEntries["local_browser_runtime"]?["enabled"]?.GetValue<bool>() == true, "LOCAL_BROWSER_CAPABILITY_DOCUMENT_NOT_DERIVED");
+     Require(capabilityEntries["server_browser_origin"]?["enabled"]?.GetValue<bool>() == true, "SERVER_BROWSER_ORIGIN_DOCUMENT_NOT_DERIVED");
+-    RunCapabilityDocument.Apply(capabilityEntries, new CapabilitySettings(), DerivedRunCapabilitySnapshot.Unavailable);
+-    Require(capabilityEntries["local_browser_runtime"]?["enabled"]?.GetValue<bool>() == false &&
+-            capabilityEntries["server_browser_origin"]?["enabled"]?.GetValue<bool>() == false,
+-        "UNAVAILABLE_BROWSER_CAPABILITIES_NOT_WRITTEN_FAIL_CLOSED");
++    var fixtureCapabilitiesPath = Path.Combine(root, "fixture-capabilities.json");
++    var fixtureCapabilitySource = new StubRuntimeCapabilities(DerivedRunCapabilitySnapshot.Unavailable);
++    var capabilityFiles = new RunCapabilityFileService(repositoryPaths, fixtureCapabilitySource);
++    await capabilityFiles.WriteForExecutionAsync("mock", new CapabilitySettings(), fixtureCapabilitiesPath, CancellationToken.None);
++    var fixtureCapabilityDocument = JsonNode.Parse(await File.ReadAllTextAsync(fixtureCapabilitiesPath))?.AsObject()
++        ?? throw new InvalidOperationException("FIXTURE_CAPABILITY_DOCUMENT_INVALID");
++    var fixtureCapabilityEntries = fixtureCapabilityDocument["capabilities"]?.AsObject()
++        ?? throw new InvalidOperationException("FIXTURE_CAPABILITY_SECTION_MISSING");
++    Require(fixtureCapabilityEntries["local_browser_runtime"]?["enabled"]?.GetValue<bool>() == true &&
++            fixtureCapabilityEntries["server_browser_origin"]?["enabled"]?.GetValue<bool>() == true,
++        "BROWSER_FIXTURE_EXECUTION_CAPABILITIES_DISABLED");
++    Require(fixtureCapabilitySource.Calls == 0, "FIXTURE_CAPABILITY_FILE_QUERIED_REAL_RUNTIME_STATE");
+ 
+     var catalogService = new CatalogService(repositoryPaths);
+     var reportService = new RunReportService(repositoryPaths, paths, catalogService);
+@@ -260,3 +306,52 @@ sealed class FakePublisher : IRunEventPublisher
+         return Task.CompletedTask;
+     }
+ }
++
++sealed class StubRunCatalog(IReadOnlyList<CatalogScenario> scenarios) : IRunCatalogProvider
++{
++    public Task<IReadOnlyList<CatalogScenario>> GetAllAsync(CancellationToken cancellationToken) => Task.FromResult(scenarios);
++}
++
++sealed class StubRunSettings(SettingsView view) : IRunSettingsProvider
++{
++    public int Calls { get; private set; }
++    public Task<SettingsView> GetViewAsync(CancellationToken cancellationToken)
++    {
++        Calls++;
++        return Task.FromResult(view);
++    }
++}
++
++sealed class StubLocalRuntimeStatus(LocalProtocolRuntimeStatus status) : ILocalRuntimeStatusProvider
++{
++    public int Calls { get; private set; }
++    public LocalProtocolRuntimeStatus GetProtocolRuntimeStatus()
++    {
++        Calls++;
++        return status;
++    }
++}
++
++sealed class StubRuntimeCapabilities(DerivedRunCapabilitySnapshot snapshot) : IRuntimeCapabilityService
++{
++    public int Calls { get; private set; }
++    public Task<DerivedRunCapabilitySnapshot> GetAsync(CancellationToken cancellationToken)
++    {
++        Calls++;
++        return Task.FromResult(snapshot);
++    }
++}
++
++sealed class StubImmutablePreflight(ImmutablePreflightResult result) : IRunImmutablePreflightService
++{
++    public int Calls { get; private set; }
++    public Task<ImmutablePreflightResult> VerifyAsync(
++        IReadOnlyList<string> scenarioIds,
++        bool executeIfNeeded,
++        DerivedRunCapabilitySnapshot derivedCapabilities,
++        CancellationToken cancellationToken)
++    {
++        Calls++;
++        return Task.FromResult(result);
++    }
++}

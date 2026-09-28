@@ -1,0 +1,313 @@
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-1-after/tests/Test-BrowserPlugin.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-1-after-fix1/tests/Test-BrowserPlugin.ps1', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/src/protocol_worker/plugins/browser.py" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix1/src/protocol_worker/plugins/browser.py"
+index 90d0286..44dc028 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/src/protocol_worker/plugins/browser.py"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix1/src/protocol_worker/plugins/browser.py"
+@@ -28,6 +28,8 @@ _PROCESS_TERMINATE = 0x0001
+ _TH32CS_SNAPPROCESS = 0x00000002
+ _JOB_OBJECT_EXTENDED_LIMIT_INFORMATION = 9
+ _JOB_OBJECT_LIMIT_KILL_ON_JOB_CLOSE = 0x00002000
++_JOB_OBJECT_BASIC_PROCESS_ID_LIST = 3
++_ERROR_MORE_DATA = 234
+ 
+ 
+ class _BrowserJob:
+@@ -88,10 +90,32 @@ class _BrowserJob:
+         finally:
+             close_handle(process)
+ 
+-    def close(self) -> None:
++    def process_ids(self) -> list[int]:
++        query = self._kernel32.QueryInformationJobObject
++        query.argtypes = [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32, ctypes.POINTER(ctypes.c_uint32)]
++        query.restype = ctypes.c_bool
++        size = 4_096
++        while size <= 1_048_576:
++            buffer = ctypes.create_string_buffer(size)
++            returned = ctypes.c_uint32()
++            if query(self._handle, _JOB_OBJECT_BASIC_PROCESS_ID_LIST, buffer, size, ctypes.byref(returned)):
++                assigned = ctypes.c_uint32.from_buffer(buffer, 0).value
++                listed = ctypes.c_uint32.from_buffer(buffer, ctypes.sizeof(ctypes.c_uint32)).value
++                if assigned > 512 or listed > assigned or 8 + listed * ctypes.sizeof(ctypes.c_size_t) > size:
++                    raise WorkerContractError("BROWSER_JOB_QUERY_FAILED")
++                values = (ctypes.c_size_t * listed).from_buffer(buffer, 8)
++                return sorted({int(value) for value in values})
++            if ctypes.get_last_error() != _ERROR_MORE_DATA:
++                raise WorkerContractError("BROWSER_JOB_QUERY_FAILED")
++            size *= 2
++        raise WorkerContractError("BROWSER_JOB_QUERY_FAILED")
++
++    def close(self) -> bool:
+         if self._handle:
+-            self._kernel32.CloseHandle(self._handle)
++            handle = self._handle
+             self._handle = None
++            return bool(self._kernel32.CloseHandle(handle))
++        return True
+ 
+ 
+ def _required_string(plan: WorkerPlan, name: str) -> str:
+@@ -112,9 +136,9 @@ def _browser_arguments(plan: WorkerPlan) -> list[str]:
+     value = plan.raw["parameters"].get("browser_arguments", [])
+     if not isinstance(value, list) or any(not isinstance(item, str) or not item for item in value):
+         raise WorkerContractError("BROWSER_PARAMETER_INVALID:browser_arguments")
+-    if any(item.startswith("--testlab-") for item in value):
++    if value:
+         raise WorkerContractError("BROWSER_ARGUMENT_FORBIDDEN")
+-    return list(value)
++    return []
+ 
+ 
+ def _sha256_file(path: Path) -> str:
+@@ -247,12 +271,13 @@ def _process_running(pid: int) -> bool:
+ 
+ 
+ def _terminate_tree(root_pid: int, known_pids: list[int]) -> bool:
+-    if _process_running(root_pid):
+-        taskkill = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "taskkill.exe"
+-        try:
+-            subprocess.run([str(taskkill), "/PID", str(root_pid), "/T", "/F"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
+-        except (OSError, subprocess.TimeoutExpired):
+-            return False
++    taskkill = Path(os.environ.get("SystemRoot", r"C:\Windows")) / "System32" / "taskkill.exe"
++    try:
++        for pid in sorted(set(known_pids)):
++            if _process_running(pid):
++                subprocess.run([str(taskkill), "/PID", str(pid), "/T", "/F"], check=False, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5)
++    except (OSError, subprocess.TimeoutExpired):
++        return False
+     deadline = time.monotonic() + 2.0
+     while time.monotonic() < deadline and any(_process_running(pid) for pid in known_pids):
+         time.sleep(0.025)
+@@ -372,9 +397,8 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+     virtual_time_budget_ms = _positive_timeout_ms(plan, "virtual_time_budget_ms") if "virtual_time_budget_ms" in plan.raw["parameters"] else min(1_000, plan.raw["operation_timeout_ms"])
+     actual_path_timeout_ms = _positive_timeout_ms(plan, "actual_path_timeout_ms")
+ 
+-    profile.mkdir(parents=True, exist_ok=False)
+-    downloads.mkdir(parents=True, exist_ok=False)
+     process: subprocess.Popen[bytes] | None = None
++    job: _BrowserJob | None = None
+     tree_pids: list[int] = []
+     observed = ""
+     probe_status = ""
+@@ -387,6 +411,8 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+     failure: BaseException | None = None
+     cleanup_ok = True
+     try:
++        profile.mkdir(parents=True, exist_ok=False)
++        downloads.mkdir(parents=True, exist_ok=False)
+         command = [
+             str(requested), *_browser_arguments(plan), "--headless=new", "--disable-background-networking", "--disable-sync",
+             "--no-first-run", "--no-default-browser-check", "--dump-dom", f"--virtual-time-budget={virtual_time_budget_ms}",
+@@ -400,6 +426,8 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+             close_fds=True,
+             cwd=str(downloads),
+         )
++        job = _BrowserJob()
++        job.assign(process.pid)
+         stdout, stderr, output_overflow, readers = _start_output_capture(process)
+         observed, probe_status, probe_attempts, probe_elapsed_ms = _probe_actual_path(process, actual_path_timeout_ms)
+         if probe_status == "PROCESS_EXITED":
+@@ -412,6 +440,7 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+         if process.pid not in tree_pids:
+             raise WorkerContractError("BROWSER_PROCESS_TREE_INVALID")
+         _wait_for_browser_exit(process, started + plan.raw["operation_timeout_ms"] / 1000.0)
++        tree_pids = sorted(set(tree_pids) | set(job.process_ids()))
+         for reader in readers:
+             reader.join(timeout=2.0)
+         if any(reader.is_alive() for reader in readers):
+@@ -431,6 +460,12 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+     except BaseException as exc:
+         failure = exc
+     finally:
++        if job is not None:
++            try:
++                tree_pids = sorted(set(tree_pids) | set(job.process_ids()))
++            except WorkerContractError:
++                cleanup_ok = False
++            cleanup_ok = job.close() and cleanup_ok
+         if process is not None:
+             if not tree_pids:
+                 try:
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/tests/Test-BrowserPlugin.ps1" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix1/tests/Test-BrowserPlugin.ps1"
+index 5c6d2bd..a09080b 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/tests/Test-BrowserPlugin.ps1"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix1/tests/Test-BrowserPlugin.ps1"
+@@ -7,8 +7,50 @@ $root = Split-Path -Parent $PSScriptRoot
+ $python = (Get-Command python -ErrorAction Stop).Source
+ $fixture = Join-Path $PSScriptRoot 'fixtures/browser/fake_browser.py'
+ $temp = New-TestDirectory
++$fixtureBrowser = Join-Path $temp 'fixture-chromium.exe'
+ $expectedContentHash = '388845361f44c3de3ce6182455dc3ef7736448a68530cc0e9c43448560cd066c'
+-$expectedImageHash = (Get-FileHash -LiteralPath $python -Algorithm SHA256).Hash.ToLowerInvariant()
++$fixtureSource = @"
++using System;
++using System.Diagnostics;
++using System.IO;
++using System.Linq;
++using System.Threading;
++public static class FixtureChromium {
++    private static int Reject() { return 21; }
++    public static int Main(string[] args) {
++        if (args.Length == 1 && args[0] == "--fixture-child-sleep") { Thread.Sleep(1000); return 0; }
++        string mode = Environment.GetEnvironmentVariable("PB_BROWSER_FIXTURE_MODE") ?? "success";
++        string[] fixedArgs = { "--headless=new", "--disable-background-networking", "--disable-sync", "--no-first-run", "--no-default-browser-check", "--dump-dom" };
++        if (args.Length != fixedArgs.Length + 3 || fixedArgs.Any(value => args.Count(item => item == value) != 1)) return Reject();
++        string[] budget = args.Where(value => value.StartsWith("--virtual-time-budget=", StringComparison.Ordinal)).ToArray();
++        int budgetValue;
++        if (budget.Length != 1 || !Int32.TryParse(budget[0].Substring("--virtual-time-budget=".Length), out budgetValue) || budgetValue <= 0 || budgetValue > 1000) return Reject();
++        string[] profiles = args.Where(value => value.StartsWith("--user-data-dir=", StringComparison.Ordinal)).ToArray();
++        if (profiles.Length != 1) return Reject();
++        string profile = profiles[0].Substring("--user-data-dir=".Length);
++        if (!Directory.Exists(profile) || Directory.EnumerateFileSystemEntries(profile).Any()) return Reject();
++        if (new DirectoryInfo(Environment.CurrentDirectory).Name != "downloads-" + mode) return Reject();
++        if (args.Count(value => value.StartsWith("http://", StringComparison.Ordinal) || value.StartsWith("https://", StringComparison.Ordinal)) != 1 || !args.Last().StartsWith("https://", StringComparison.Ordinal)) return Reject();
++        if (args.Any(value => value.StartsWith("--testlab-", StringComparison.Ordinal))) return 20;
++        string markerJson = "{\"dom_marker\":\"PB_TESTLAB_BROWSER_READY\",\"negotiated_protocol\":\"h2\",\"response_status\":200,\"content_sha256\":\"388845361f44c3de3ce6182455dc3ef7736448a68530cc0e9c43448560cd066c\"}";
++        if (mode == "malformed-marker") markerJson = "not-json";
++        if (mode == "wrong-content-hash") markerJson = "{\"dom_marker\":\"PB_TESTLAB_BROWSER_READY\",\"negotiated_protocol\":\"h2\",\"response_status\":200,\"content_sha256\":\"0000000000000000000000000000000000000000000000000000000000000000\"}";
++        string script = "<script id=\"proxybridge-testlab-browser-result\" type=\"application/json\">" + markerJson + "</script>";
++        Console.WriteLine("<html><body>" + script + (mode == "multiple-markers" ? script : "") + "</body></html>");
++        Console.Out.Flush();
++        if (mode == "late-child") {
++            Thread.Sleep(200);
++            Process.Start(new ProcessStartInfo { FileName = Process.GetCurrentProcess().MainModule.FileName, Arguments = "--fixture-child-sleep", UseShellExecute = false, CreateNoWindow = true });
++            return 0;
++        }
++        if (mode == "exit-before-path") return 0;
++        Thread.Sleep(200);
++        return 0;
++    }
++}
++"@
++Add-Type -TypeDefinition $fixtureSource -OutputAssembly $fixtureBrowser -OutputType ConsoleApplication
++$expectedImageHash = (Get-FileHash -LiteralPath $fixtureBrowser -Algorithm SHA256).Hash.ToLowerInvariant()
+ 
+ function Invoke-BrowserFixtureCase {
+     param(
+@@ -19,7 +61,7 @@ function Invoke-BrowserFixtureCase {
+     $profile = Join-Path $temp ("profile-" + $Mode)
+     $downloads = Join-Path $temp ("downloads-" + $Mode)
+     $driver = Join-Path $temp ("run_browser_" + $Mode + '.py')
+-    $argumentsJson = ConvertTo-Json -InputObject (@($fixture) + @($BrowserArguments)) -Compress
++    $argumentsJson = ConvertTo-Json -InputObject @($BrowserArguments) -Compress
+     $driverText = @"
+ import json
+ import os
+@@ -31,7 +73,7 @@ plan = WorkerPlan(raw={
+     'run_id': 'm15-browser-run', 'scenario_id': 'canary-browser-download', 'attempt_id': 'attempt-1', 'flow_id': 'flow-1',
+     'plugin_id': 'browser-worker', 'protocol_family': 'browser-web', 'transport': 'TCP', 'operation_timeout_ms': 1000,
+     'parameters': {
+-        'browser_executable': r'$($python.Replace('\','\\'))',
++        'browser_executable': r'$($fixtureBrowser.Replace('\','\\'))',
+         'expected_browser_sha256': '$expectedImageHash',
+         'expected_browser_identity': 'Fixture Chromium', 'expected_browser_version': '123.0.0.0',
+         'browser_arguments': $argumentsJson,
+@@ -76,7 +118,7 @@ except WorkerContractError as exc:
+ }
+ 
+ try {
+-    $success = Invoke-BrowserFixtureCase -Mode 'success'
++    $success = Invoke-BrowserFixtureCase -Mode 'late-child'
+     $successError = if ($null -ne $success.PSObject.Properties['error']) { [string]$success.error } else { '' }
+     Assert-True ($null -ne $success.PSObject.Properties['record']) "supported Chromium-only fixture must produce evidence instead of rejecting fake-only switches: $successError"
+     $records = @($success.record)
+@@ -86,7 +128,7 @@ try {
+     Assert-Equal 'Fixture Chromium' ([string]$record.browser_identity) 'controller-provided browser identity must be recorded'
+     Assert-Equal '123.0.0.0' ([string]$record.browser_version) 'controller-provided browser version must be recorded'
+     Assert-Equal $expectedImageHash ([string]$record.browser_image_sha256) 'exact prelaunch browser image hash must be recorded'
+-    Assert-Equal ([System.IO.Path]::GetFullPath($python)) ([string]$record.browser_executable_observed) 'observed browser image must come from the process query'
++    Assert-Equal ([System.IO.Path]::GetFullPath($fixtureBrowser)) ([string]$record.browser_executable_observed) 'observed browser image must come from the process query'
+     Assert-Equal 'PATH_OBTAINED' ([string]$record.actual_path_probe_status) 'actual path probe must report success separately'
+     Assert-True ([int]$record.actual_path_probe_attempts -ge 1) 'actual path probe must retain attempt count'
+     Assert-True ([int]$record.actual_path_probe_elapsed_ms -ge 0) 'actual path probe must retain elapsed time'
+@@ -94,10 +136,14 @@ try {
+     Assert-Equal 200 ([int]$record.response_status) 'controlled navigation must record response status'
+     Assert-Equal $expectedContentHash ([string]$record.content_sha256) 'controlled navigation must record deterministic content hash'
+     Assert-True ([bool]$record.process_tree_cleaned) 'browser process tree must be verified clean before PASS'
+-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $temp 'profile-success'))) 'isolated browser profile must be removed after verified cleanup'
+-    Assert-True (-not (Test-Path -LiteralPath (Join-Path $temp 'downloads-success'))) 'isolated download directory must be removed after verified cleanup'
++    Assert-True (@($record.browser_process_tree_pids).Count -ge 2) 'late browser child must be contained, observed and cleaned before PASS'
++    Assert-True (-not (Test-Path -LiteralPath (Join-Path $temp 'profile-late-child'))) 'isolated browser profile must be removed after verified cleanup'
++    Assert-True (-not (Test-Path -LiteralPath (Join-Path $temp 'downloads-late-child'))) 'isolated download directory must be removed after verified cleanup'
+ 
+     Invoke-BrowserFixtureCase -Mode 'success' -BrowserArguments @('--testlab-unsupported') -ExpectedError 'BROWSER_ARGUMENT_FORBIDDEN' | Out-Null
++    Invoke-BrowserFixtureCase -Mode 'success' -BrowserArguments @('https://untrusted.invalid/') -ExpectedError 'BROWSER_ARGUMENT_FORBIDDEN' | Out-Null
++    Invoke-BrowserFixtureCase -Mode 'success' -BrowserArguments @('--headless=old') -ExpectedError 'BROWSER_ARGUMENT_FORBIDDEN' | Out-Null
++    Invoke-BrowserFixtureCase -Mode 'success' -BrowserArguments @('--user-data-dir=C:\\untrusted') -ExpectedError 'BROWSER_ARGUMENT_FORBIDDEN' | Out-Null
+     Invoke-BrowserFixtureCase -Mode 'malformed-marker' -ExpectedError 'BROWSER_DOM_MARKER_INVALID' | Out-Null
+     Invoke-BrowserFixtureCase -Mode 'multiple-markers' -ExpectedError 'BROWSER_DOM_MARKER_INVALID' | Out-Null
+     Invoke-BrowserFixtureCase -Mode 'wrong-content-hash' -ExpectedError 'BROWSER_CONTENT_HASH_MISMATCH' | Out-Null
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/tests/fixtures/browser/fake_browser.py" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix1/tests/fixtures/browser/fake_browser.py"
+index 735948b..3241b58 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after/tests/fixtures/browser/fake_browser.py"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix1/tests/fixtures/browser/fake_browser.py"
+@@ -3,12 +3,14 @@ from __future__ import annotations
+ import hashlib
+ import json
+ import os
++from pathlib import Path
++import subprocess
+ import sys
+ import time
+ 
+ 
+-def _argument_value(prefix: str) -> str:
+-    matches = [argument[len(prefix):] for argument in sys.argv[1:] if argument.startswith(prefix)]
++def _argument_value(arguments: list[str], prefix: str) -> str:
++    matches = [argument[len(prefix):] for argument in arguments if argument.startswith(prefix)]
+     if len(matches) != 1 or not matches[0]:
+         raise SystemExit(21)
+     return matches[0]
+@@ -16,15 +18,30 @@ def _argument_value(prefix: str) -> str:
+ 
+ def main() -> int:
+     arguments = sys.argv[1:]
+-    if any(argument.startswith("--testlab-") for argument in arguments):
+-        return 20
+-    _argument_value("--headless=")
+-    if "--dump-dom" not in arguments:
++    fixed = {
++        "--headless=new",
++        "--disable-background-networking",
++        "--disable-sync",
++        "--no-first-run",
++        "--no-default-browser-check",
++        "--dump-dom",
++    }
++    if len(arguments) != len(fixed) + 3 or set(argument for argument in arguments if argument in fixed) != fixed:
++        return 21
++    if arguments.count("--headless=new") != 1 or arguments.count("--dump-dom") != 1:
++        return 21
++    budget = _argument_value(arguments, "--virtual-time-budget=")
++    if not budget.isdecimal() or not 0 < int(budget) <= 1_000:
+         return 21
+-    _argument_value("--virtual-time-budget=")
+-    _argument_value("--user-data-dir=")
+-    if not arguments[-1].startswith(("http://", "https://")):
++    user_data_dir = Path(_argument_value(arguments, "--user-data-dir="))
++    if not user_data_dir.is_dir() or any(user_data_dir.iterdir()):
+         return 21
++    if Path.cwd().name != "downloads-" + os.environ.get("PB_BROWSER_FIXTURE_MODE", "success"):
++        return 21
++    if sum(argument.startswith(("http://", "https://")) for argument in arguments) != 1 or not arguments[-1].startswith(("http://", "https://")):
++        return 21
++    if any(argument.startswith("--testlab-") for argument in arguments):
++        return 20
+ 
+     mode = os.environ.get("PB_BROWSER_FIXTURE_MODE", "success")
+     if mode == "exit-before-path":
+@@ -48,6 +65,12 @@ def main() -> int:
+         script += script
+     print("<html><body>" + script + "</body></html>")
+     sys.stdout.flush()
++    if mode == "late-child":
++        time.sleep(0.2)
++        child_environment = dict(os.environ)
++        child_environment.pop("PYTHONPATH", None)
++        subprocess.Popen([sys.executable, "-c", "import time; time.sleep(1.0)"], stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, env=child_environment)
++        return 0
+     time.sleep(0.2)
+     return 0
+ 

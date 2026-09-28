@@ -26,6 +26,7 @@ function ConvertTo-CatalogScenario {
     param($Entry, $Defaults, [string]$CatalogId)
     if ($null -ne $Entry.PSObject.Properties['rule_set']) {
         if ($null -eq $Entry.PSObject.Properties['coverage_group']) { $Entry | Add-Member -NotePropertyName coverage_group -NotePropertyValue $CatalogId }
+        if ($null -eq $Entry.PSObject.Properties['executor_kind']) { $Entry | Add-Member -NotePropertyName executor_kind -NotePropertyValue 'native-client' }
         return $Entry
     }
 
@@ -34,6 +35,8 @@ function ConvertTo-CatalogScenario {
     $protocol = ([string](Get-OptionalValue $Entry 'protocol' (Get-OptionalValue $Defaults 'protocol' 'TCP'))).ToUpperInvariant()
     $family = [int](Get-OptionalValue $Entry 'family' (Get-OptionalValue $Defaults 'family' 4))
     $action = ([string](Get-OptionalValue $Entry 'action' (Get-OptionalValue $Defaults 'action' 'DIRECT'))).ToUpperInvariant()
+    $ruleAction = ([string](Get-OptionalValue $Entry 'rule_action' $action)).ToUpperInvariant()
+    if (@('DIRECT','BLOCK','PROXY') -notcontains $ruleAction) { throw "Scenario '$id' rule_action is invalid." }
     $socketMode = [string](Get-OptionalValue $Entry 'socket_mode' (Get-OptionalValue $Defaults 'socket_mode' 'connected'))
     $selector = [string](Get-OptionalValue $Entry 'selector' (Get-OptionalValue $Defaults 'selector' 'basename'))
     $transition = [string](Get-OptionalValue $Entry 'transition' '')
@@ -45,16 +48,25 @@ function ConvertTo-CatalogScenario {
     $implementationReason = [string](Get-OptionalValue $Entry 'implementation_reason' (Get-OptionalValue $Defaults 'implementation_reason' ''))
     $mockFixtureId = [string](Get-OptionalValue $Entry 'mock_fixture_id' (Get-OptionalValue $Defaults 'mock_fixture_id' ''))
     $profileExpectation = [string](Get-OptionalValue $Entry 'profile_expectation' (Get-OptionalValue $Defaults 'profile_expectation' 'valid'))
+    $executorKind = ([string](Get-OptionalValue $Entry 'executor_kind' (Get-OptionalValue $Defaults 'executor_kind' 'native-client'))).ToLowerInvariant()
+    if (@('native-client','protocol-worker') -notcontains $executorKind) { throw "Scenario '$id' executor_kind is invalid." }
+    $protocolWorker = Get-OptionalValue $Entry 'protocol_worker' (Get-OptionalValue $Defaults 'protocol_worker' $null)
+    if ($executorKind -eq 'protocol-worker' -and $null -eq $protocolWorker) { throw "Scenario '$id' requires protocol_worker configuration." }
 
     $protocolRequires = $(if ($protocol -eq 'BOTH') { @('tcp', 'udp') } else { @($protocol.ToLowerInvariant()) })
     $derivedRequires = @($(if ($family -eq 6) { 'ipv6' } else { 'ipv4' })) + @($protocolRequires)
     if ($protocol -eq 'UDP') { $derivedRequires += "${socketMode}_udp" }
     if ($action -eq 'PROXY' -or $transition -match 'PROXY') { $derivedRequires += 'socks5' }
+    if ($executorKind -eq 'protocol-worker') { $derivedRequires += 'protocol_worker' }
     $derivedRequires += $(if ($selector -eq 'full-path') { 'process_full_path_rules' } else { 'process_basename_rules' })
     $requires = Merge-UniqueStrings -Sets @((Get-OptionalValue $Defaults 'requires' @()), (Get-OptionalValue $Entry 'requires' @()), $derivedRequires)
     $tags = Merge-UniqueStrings -Sets @((Get-OptionalValue $Defaults 'tags' @()), (Get-OptionalValue $Entry 'tags' @()), @($coverageGroup, $protocol.ToLowerInvariant(), "ipv$family", $action.ToLowerInvariant(), $socketMode, "selector-$selector"))
 
-    $defaultApplication = $(if ($selector -eq 'full-path') { '${PB_RULE_APPLICATION_FULLPATH}' } else { '${PB_RULE_APPLICATION_BASENAME}' })
+    $defaultApplication = $(if ($executorKind -eq 'protocol-worker') {
+        if ($selector -eq 'full-path') { '${PB_PROTOCOL_WORKER_APPLICATION_FULLPATH}' } else { '${PB_PROTOCOL_WORKER_APPLICATION_BASENAME}' }
+    } else {
+        if ($selector -eq 'full-path') { '${PB_RULE_APPLICATION_FULLPATH}' } else { '${PB_RULE_APPLICATION_BASENAME}' }
+    })
     $application = [string](Get-OptionalValue $Entry 'application' (Get-OptionalValue $Defaults 'application' $defaultApplication))
     $host = $(if ($family -eq 6) { '${PB_VPS_IPV6}' } else { '${PB_VPS_IPV4}' })
     $localIp = $(if ($family -eq 6) { '${PB_VM_IPV6}' } else { '${PB_VM_IPV4}' })
@@ -69,20 +81,41 @@ function ConvertTo-CatalogScenario {
         if ($transitionParts.Count -ne 2) { throw "Scenario '$id' has invalid transition." }
         for ($index = 0; $index -lt 2; $index++) {
             $ruleAction = $transitionParts[$index].ToUpperInvariant()
+            $transitionProxyId = 0
+            if ($ruleAction -eq 'PROXY') {
+                $proxyIdProperty = $(if ($index -eq 0) { 'first_proxy_config_id' } else { 'second_proxy_config_id' })
+                $transitionProxyId = Get-OptionalValue $Entry $proxyIdProperty '${PB_SOCKS_PROXY_CONFIG_ID}'
+            }
             $rules.Add([pscustomobject][ordered]@{
                 rule_key=$(if ($index -eq 0) { 'first' } else { 'second' }); application=$application; host=$host
                 ports=@($(if ($index -eq 0) { '${PB_ENDPOINT_B_PORT}' } else { '${PB_ENDPOINT_A_PORT}' })); domains=@('*')
-                protocol=$protocol; action=$ruleAction; proxy_config_id=$(if ($ruleAction -eq 'PROXY') { '${PB_SOCKS_PROXY_CONFIG_ID}' } else { 0 }); enabled=$true
+                protocol=$protocol; action=$ruleAction; proxy_config_id=$transitionProxyId; enabled=$true
             })
         }
     }
     elseif ($implementationStatus -ne 'UNSUPPORTED_PRODUCT_SCOPE') {
-        $proxyConfigId = $(if ($action -eq 'PROXY') { '${PB_SOCKS_PROXY_CONFIG_ID}' } else { 0 })
+        $proxyConfigId = Get-OptionalValue $Entry 'proxy_config_id' $(if ($ruleAction -eq 'PROXY') { '${PB_SOCKS_PROXY_CONFIG_ID}' } else { 0 })
         if ($profileExpectation -eq 'invalid-missing-proxy-config') { $proxyConfigId = 999 }
         $rules.Add([pscustomobject][ordered]@{
             rule_key='primary'; application=$application; host=$ruleHost; ports=$rulePorts; domains=$ruleDomains
-            protocol=$protocol; action=$action; proxy_config_id=$proxyConfigId; enabled=[bool](Get-OptionalValue $Entry 'rule_enabled' $true)
+            protocol=$protocol; action=$ruleAction; proxy_config_id=$proxyConfigId; enabled=[bool](Get-OptionalValue $Entry 'rule_enabled' $true)
         })
+        $fallbackAction = ([string](Get-OptionalValue $Entry 'fallback_action' '')).ToUpperInvariant()
+        if (-not [string]::IsNullOrWhiteSpace($fallbackAction)) {
+            if (@('DIRECT','BLOCK','PROXY') -notcontains $fallbackAction) { throw "Scenario '$id' fallback_action is invalid." }
+            $rules.Add([pscustomobject][ordered]@{
+                rule_key='fallback'; application=$application; host=$host; ports=$rulePorts; domains=@('*')
+                protocol=$protocol; action=$fallbackAction; proxy_config_id=$(if ($fallbackAction -eq 'PROXY') { '${PB_SOCKS_PROXY_CONFIG_ID}' } else { 0 }); enabled=$true
+            })
+        }
+        $overlapAction = ([string](Get-OptionalValue $Entry 'overlap_action' '')).ToUpperInvariant()
+        if (-not [string]::IsNullOrWhiteSpace($overlapAction)) {
+            if (@('DIRECT','BLOCK','PROXY') -notcontains $overlapAction) { throw "Scenario '$id' overlap_action is invalid." }
+            $rules.Add([pscustomobject][ordered]@{
+                rule_key='overlap'; application=$application; host=$ruleHost; ports=$rulePorts; domains=$ruleDomains
+                protocol=$protocol; action=$overlapAction; proxy_config_id=$(if ($overlapAction -eq 'PROXY') { '${PB_SOCKS_PROXY_CONFIG_ID}' } else { 0 }); enabled=$true
+            })
+        }
         $watchEnableAction = ([string](Get-OptionalValue $Entry 'watch_enable_action' '')).ToUpperInvariant()
         if (-not [string]::IsNullOrWhiteSpace($watchEnableAction)) {
             if (@('BLOCK','PROXY') -notcontains $watchEnableAction) { throw "Scenario '$id' watch_enable_action must be BLOCK or PROXY." }
@@ -96,11 +129,12 @@ function ConvertTo-CatalogScenario {
     $clientMode = [string](Get-OptionalValue $Entry 'mode' (Get-OptionalValue $Defaults 'mode' $(if ($transition) { 'issue206' } else { 'base' })))
     $client = [pscustomobject][ordered]@{
         mode=$clientMode; family=$family; protocol=$protocol; socket_mode=$socketMode; local_ip=$localIp; local_port=0
-        remote_ip=$host; remote_port='${PB_ENDPOINT_A_PORT}'; close_mode=[string](Get-OptionalValue $Entry 'close_mode' 'graceful')
+        remote_ip=$host; remote_port=[string](Get-OptionalValue $Entry 'remote_port' '${PB_ENDPOINT_A_PORT}'); close_mode=[string](Get-OptionalValue $Entry 'close_mode' $(if ($transition) { 'graceful' } else { 'none' }))
         payload_size=[int](Get-OptionalValue $Entry 'payload_size' 64); expected_action=$action
         expected_outcome=[string](Get-OptionalValue $Entry 'expected_outcome' $(if ($action -eq 'BLOCK') { 'no-echo' } else { 'echo' }))
         tcp_peer_policy=[string](Get-OptionalValue $Entry 'tcp_peer_policy' $(if ($action -eq 'PROXY') { 'record-only' } else { 'exact' }))
     }
+    if ($targetKind -eq 'domain') { $client | Add-Member -NotePropertyName remote_host -NotePropertyValue '${PB_TEST_DOMAIN}' }
     if ($clientMode -eq 'issue206') {
         $firstAction = $(if ($transitionParts.Count -eq 2) { $transitionParts[0].ToUpperInvariant() } else { [string](Get-OptionalValue $Entry 'first_expected_action' 'DIRECT') })
         $secondAction = $(if ($transitionParts.Count -eq 2) { $transitionParts[1].ToUpperInvariant() } else { [string](Get-OptionalValue $Entry 'second_expected_action' 'DIRECT') })
@@ -131,7 +165,7 @@ function ConvertTo-CatalogScenario {
         reset_policy=[string](Get-OptionalValue $Entry 'reset_policy' (Get-OptionalValue $Defaults 'reset_policy' 'rules_only'))
         repeats=[int](Get-OptionalValue $Entry 'repeats' 1); timeout_ms=[int](Get-OptionalValue $Entry 'timeout_ms' 5000)
         independent=[bool](Get-OptionalValue $Entry 'independent' $true); unsupported_status=$unsupportedStatus
-        known_defect_id=[string](Get-OptionalValue $Entry 'known_defect_id' ''); parameters=$Entry
+        known_defect_id=[string](Get-OptionalValue $Entry 'known_defect_id' ''); parameters=$Entry; executor_kind=$executorKind; protocol_worker=$protocolWorker
         rule_set=@($rules.ToArray()); client=$client
         assertions=@('exit_code','flow_count','same_local_tuple','payload_response_sha','echo_no_echo','expected_action','destination','source_egress','leaks')
         mock=[pscustomobject]@{ expected_status=[string](Get-OptionalValue $Entry 'mock_status' (Get-OptionalValue $Defaults 'mock_status' 'PASS')) }
@@ -144,8 +178,11 @@ function Assert-ScenarioDefinition {
     if ($Scenario.schema_version -ne 1) { throw "Unsupported scenario schema_version in '$Source'." }
     if ([string]$Scenario.scenario_id -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') { throw "Invalid scenario_id in '$Source'." }
     if ($Scenario.enabled -isnot [bool]) { throw "Scenario '$($Scenario.scenario_id)' enabled must be boolean." }
-    if (@('EXECUTABLE','DECLARATIVE_ONLY','UNSUPPORTED_PRODUCT_SCOPE') -notcontains [string]$Scenario.implementation_status) { throw "Scenario '$($Scenario.scenario_id)' has invalid implementation_status." }
+    if (@('EXECUTABLE','DECLARATIVE_ONLY','SYSTEM_CHECK','CAPABILITY_GATED','UNSUPPORTED_PRODUCT_SCOPE') -notcontains [string]$Scenario.implementation_status) { throw "Scenario '$($Scenario.scenario_id)' has invalid implementation_status." }
     if ([string]$Scenario.implementation_status -eq 'DECLARATIVE_ONLY' -and [string]::IsNullOrWhiteSpace([string]$Scenario.implementation_reason)) { throw "Scenario '$($Scenario.scenario_id)' requires implementation_reason." }
+    $executorKind = [string](Get-OptionalValue $Scenario 'executor_kind' 'native-client')
+    if (@('native-client','protocol-worker') -notcontains $executorKind) { throw "Scenario '$($Scenario.scenario_id)' has invalid executor_kind." }
+    if ($executorKind -eq 'protocol-worker' -and $null -eq (Get-OptionalValue $Scenario 'protocol_worker' $null)) { throw "Scenario '$($Scenario.scenario_id)' requires protocol_worker configuration." }
     $tagSet = [System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::OrdinalIgnoreCase)
     foreach ($tag in @($Scenario.tags)) {
         if ([string]::IsNullOrWhiteSpace([string]$tag)) { throw "Scenario '$($Scenario.scenario_id)' has an empty tag." }
@@ -175,6 +212,32 @@ function Import-ScenarioCatalog {
                     $entry = ($document.pairwise.base | ConvertTo-Json -Depth 20 | ConvertFrom-Json)
                     $entry | Add-Member -NotePropertyName id -NotePropertyValue ('{0}-{1:d3}' -f $document.pairwise.id_prefix, $index) -Force
                     foreach ($property in $case.PSObject.Properties) { $entry | Add-Member -NotePropertyName $property.Name -NotePropertyValue $property.Value -Force }
+                    if ($null -ne $document.pairwise.PSObject.Properties['execution']) {
+                        $execution = $document.pairwise.execution
+                        $supported = $true
+                        foreach ($constraint in $execution.supported_values.PSObject.Properties) {
+                            $actual = [string](Get-OptionalValue $entry $constraint.Name '')
+                            if (@($constraint.Value | ForEach-Object { [string]$_ }) -notcontains $actual) { $supported = $false; break }
+                        }
+                        if ($supported) {
+                            $entry | Add-Member -NotePropertyName implementation_status -NotePropertyValue 'EXECUTABLE' -Force
+                            $entry | Add-Member -NotePropertyName implementation_reason -NotePropertyValue '' -Force
+                            $entry | Add-Member -NotePropertyName mock_fixture_id -NotePropertyValue ([string]$execution.mock_fixture_id) -Force
+                            $entry | Add-Member -NotePropertyName require_internal_route -NotePropertyValue ([bool]$execution.require_internal_route) -Force
+                            $endpointMode = [string](Get-OptionalValue $entry 'endpoint_mode' 'echo')
+                            $timingClass = [string](Get-OptionalValue $entry 'timing_class' 'immediate')
+                            if ($endpointMode -eq 'delayed' -or $timingClass -eq 'long-delay') {
+                                $delayMs = $(if ($timingClass -eq 'long-delay') { 1000 } else { 250 })
+                                $entry | Add-Member -NotePropertyName endpoint_behavior -NotePropertyValue 'delay' -Force
+                                $entry | Add-Member -NotePropertyName behavior_delay_ms -NotePropertyValue $delayMs -Force
+                                $entry | Add-Member -NotePropertyName expected_min_timing_ms -NotePropertyValue ([Math]::Max(1, $delayMs - 50)) -Force
+                            }
+                        } else {
+                            $gatedStatus = [string](Get-OptionalValue $execution 'gated_status' 'DECLARATIVE_ONLY')
+                            $entry | Add-Member -NotePropertyName implementation_status -NotePropertyValue $gatedStatus.ToUpperInvariant() -Force
+                            $entry | Add-Member -NotePropertyName implementation_reason -NotePropertyValue ([string]$execution.unsupported_reason) -Force
+                        }
+                    }
                     $expanded.Add((ConvertTo-CatalogScenario -Entry $entry -Defaults $defaults -CatalogId ([string]$document.catalog_id)))
                 }
             }
@@ -206,6 +269,8 @@ function Test-ScenarioSelection {
     param($Scenario, $Capabilities, $Suite, $KnownDefects, [ValidateSet('dry-run','mock','real')][string]$RunMode='dry-run')
     if (-not $Scenario.enabled) { return [pscustomobject]@{selected=$false;status='SKIPPED_SELECTION';reason='scenario disabled';known_defect=$null} }
     if ([string]$Scenario.implementation_status -eq 'UNSUPPORTED_PRODUCT_SCOPE') { return [pscustomobject]@{selected=$false;status='UNSUPPORTED_PRODUCT_SCOPE';reason='outside claimed product scope';known_defect=$null} }
+    if ([string]$Scenario.implementation_status -eq 'SYSTEM_CHECK') { return [pscustomobject]@{selected=$false;status='SYSTEM_CHECK';reason=[string]$Scenario.implementation_reason;known_defect=$null} }
+    if ([string]$Scenario.implementation_status -eq 'CAPABILITY_GATED') { return [pscustomobject]@{selected=$false;status='SKIPPED_CAPABILITY';reason=[string]$Scenario.implementation_reason;known_defect=$null} }
     if ($RunMode -eq 'real' -and [string]$Scenario.implementation_status -eq 'DECLARATIVE_ONLY') { return [pscustomobject]@{selected=$false;status='NOT_IMPLEMENTED';reason=[string]$Scenario.implementation_reason;known_defect=$null} }
     foreach ($requirement in @($Scenario.requires)) {
         $capability = $Capabilities.capabilities.PSObject.Properties[[string]$requirement]

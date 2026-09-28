@@ -1,0 +1,125 @@
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix5/src/protocol_worker/plugins/browser.py" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-adjudication/src/protocol_worker/plugins/browser.py"
+index ed5f563..f74dc95 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix5/src/protocol_worker/plugins/browser.py"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-adjudication/src/protocol_worker/plugins/browser.py"
+@@ -70,6 +70,7 @@ class _SuspendedBrowserProcess:
+         self._stderr_read_handle: int | None = None
+         self._stderr_write_handle: int | None = None
+         self._null_input_handle: int | None = None
++        self._reader_fds: list[int] = []
+         self.pid = 0
+         self.returncode: int | None = None
+         self.stdout: Any = None
+@@ -135,8 +136,19 @@ class _SuspendedBrowserProcess:
+             raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+         return int(handle)
+ 
+-    def _open_reader(self, handle: int) -> Any:
+-        return os.fdopen(msvcrt.open_osfhandle(handle, os.O_RDONLY), "rb", buffering=0)
++    def _open_reader(self, fd: int) -> Any:
++        return os.fdopen(fd, "rb", buffering=0)
++
++    def _open_output_reader(self, handle_name: str) -> Any:
++        handle = getattr(self, handle_name)
++        if not handle:
++            raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
++        fd = msvcrt.open_osfhandle(handle, os.O_RDONLY)
++        setattr(self, handle_name, None)
++        self._reader_fds.append(fd)
++        reader = self._open_reader(fd)
++        self._reader_fds.remove(fd)
++        return reader
+ 
+     def open_output_readers(self) -> None:
+         try:
+@@ -148,10 +160,8 @@ class _SuspendedBrowserProcess:
+                     setattr(self, handle_name, None)
+             if not self._stdout_read_handle or not self._stderr_read_handle:
+                 raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+-            self.stdout = self._open_reader(self._stdout_read_handle)
+-            self._stdout_read_handle = None
+-            self.stderr = self._open_reader(self._stderr_read_handle)
+-            self._stderr_read_handle = None
++            self.stdout = self._open_output_reader("_stdout_read_handle")
++            self.stderr = self._open_output_reader("_stderr_read_handle")
+         except BaseException as exc:
+             raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED") from exc
+ 
+@@ -227,6 +237,13 @@ class _SuspendedBrowserProcess:
+                     ok = False
+                 else:
+                     setattr(self, stream_name, None)
++        for fd in tuple(self._reader_fds):
++            try:
++                os.close(fd)
++            except BaseException:
++                ok = False
++            else:
++                self._reader_fds.remove(fd)
+         for handle_name in (
+             "_null_input_handle", "_stdout_write_handle", "_stderr_write_handle",
+             "_stdout_read_handle", "_stderr_read_handle", "_thread_handle", "_process_handle",
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix5/tests/Test-BrowserPlugin.ps1" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-adjudication/tests/Test-BrowserPlugin.ps1"
+index ab89757..511cc12 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix5/tests/Test-BrowserPlugin.ps1"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-adjudication/tests/Test-BrowserPlugin.ps1"
+@@ -266,6 +266,27 @@ elif '$Mode' in ('reader-open-failure', 'reader-job-containment', 'reader-stream
+             return CloseExceptionStream(original_open_reader(self, handle))
+         raise OSError('fixture reader open failure')
+     browser._SuspendedBrowserProcess._open_reader = reader_failure
++    if '$Mode' == 'reader-job-containment':
++        def verify_tree_without_termination(root_pid, known_pids):
++            retained = retained_process_handles[0] if retained_process_handles else 0
++            return bool(retained and exact_process_handle_state(retained))
++        browser._terminate_tree = verify_tree_without_termination
++elif '$Mode' == 'reader-fdopen-failure':
++    transferred_reader_fds = []
++    closed_reader_fds = []
++    original_fdopen = browser.os.fdopen
++    original_os_close = browser.os.close
++
++    def fail_fdopen(fd, *args, **kwargs):
++        transferred_reader_fds.append(fd)
++        raise OSError('fixture fdopen failure after handle transfer')
++
++    def tracked_os_close(fd):
++        closed_reader_fds.append(fd)
++        return original_os_close(fd)
++
++    browser.os.fdopen = fail_fdopen
++    browser.os.close = tracked_os_close
+ elif '$Mode' in ('stderr-pipe-failure', 'nul-input-failure'):
+     acquired_handles = []
+     closed_handles = []
+@@ -309,6 +330,14 @@ except BaseException as exc:
+         result['thread_close_attempted'] = bool(expected_thread_handles and expected_thread_handles[0] in close_attempts)
+         result['process_close_attempted'] = bool(expected_process_handles and expected_process_handles[0] in close_attempts)
+         result['failed_stream_retained'] = bool(failed_stream_retained and failed_stream_retained[-1])
++    if '$Mode' == 'reader-fdopen-failure':
++        result['reader_fd_close_attempted'] = bool(transferred_reader_fds) and all(fd in closed_reader_fds for fd in transferred_reader_fds)
++        for fd in transferred_reader_fds:
++            if fd not in closed_reader_fds:
++                try:
++                    original_os_close(fd)
++                except OSError:
++                    pass
+     if '$Mode' in ('stderr-pipe-failure', 'nul-input-failure'):
+         result['resource_handles_closed'] = bool(acquired_handles) and set(acquired_handles).issubset(closed_handles)
+     print(json.dumps(result, separators=(',', ':')))
+@@ -381,6 +410,7 @@ try {
+     $readerOpenFailure = Invoke-BrowserFixtureCase -Mode 'reader-open-failure'
+     $readerJobContainment = Invoke-BrowserFixtureCase -Mode 'reader-job-containment'
+     $readerStreamCloseFailure = Invoke-BrowserFixtureCase -Mode 'reader-stream-close-exception'
++    $readerFdopenFailure = Invoke-BrowserFixtureCase -Mode 'reader-fdopen-failure'
+     Assert-True ([int]$readerOpenFailure.created_pid -gt 0) 'reader-open regression must record the created suspended root PID'
+     Assert-True ([bool]$readerJobContainment.job_assigned_before_reader_failure) "persistent TerminateProcess/Wait failure must occur only after Job assignment; root_alive=$([bool]$readerJobContainment.created_root_alive_before_test_cleanup); later_thread_close=$([bool]$readerStreamCloseFailure.thread_close_attempted); later_process_close=$([bool]$readerStreamCloseFailure.process_close_attempted); cleanup_error=$([string]$readerStreamCloseFailure.error)"
+     Assert-True (-not [bool]$readerJobContainment.created_root_alive_before_test_cleanup) 'Job containment must remove the exact suspended root despite persistent old-path TerminateProcess/Wait failure'
+@@ -388,6 +418,8 @@ try {
+     Assert-True ([bool]$readerJobContainment.retained_process_handle_closed) 'persistent-failure regression must close its duplicate exact process handle'
+     Assert-Equal 'BROWSER_SUSPENDED_LAUNCH_FAILED' ([string]$readerJobContainment.error) 'post-assignment reader failure must preserve the stable launch error after verified containment'
+     Assert-True ($null -eq $readerJobContainment.PSObject.Properties['record']) 'persistent TerminateProcess/Wait failure must never emit PASS evidence'
++    Assert-Equal 'BROWSER_SUSPENDED_LAUNCH_FAILED' ([string]$readerFdopenFailure.error) 'partial reader conversion must fail closed with the stable launch error'
++    Assert-True ([bool]$readerFdopenFailure.reader_fd_close_attempted) 'partial reader conversion must close the transferred CRT descriptor instead of the original Win32 handle'
+     Assert-True (-not [bool]$readerOpenFailure.created_root_alive_before_test_cleanup) 'reader-open failure must terminate the created suspended root before returning control'
+     Assert-True ([bool]$readerOpenFailure.created_root_cleaned_by_test) 'reader-open regression cleanup must leave no fixture root behind'
+     Assert-True ([bool]$readerOpenFailure.retained_process_handle_closed) 'reader-open regression must close its duplicate exact process handle'

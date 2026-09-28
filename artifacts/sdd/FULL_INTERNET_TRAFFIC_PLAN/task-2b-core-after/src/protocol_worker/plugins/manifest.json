@@ -1,0 +1,185 @@
+{
+  "schema_version": 1,
+  "plugins": [
+    {
+      "id": "contract-selftest",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "native-tcp",
+      "transports": ["NONE"],
+      "network_access": false,
+      "evidence_profile_id": "raw-stream",
+      "required_evidence_fields": ["expected_action", "observed_action", "send_count", "receive_count"]
+    },
+    {
+      "id": "browser-worker",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "browser-web",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "browser-session",
+      "required_evidence_fields": ["browser_identity", "browser_version", "navigation_url_digest", "negotiated_protocol", "response_status", "content_sha256", "browser_executable_requested", "browser_executable_observed", "browser_image_sha256", "browser_image_sha256_verified", "browser_process_tree_pids", "profile_id", "actual_path_probe_status", "actual_path_probe_attempts", "actual_path_probe_elapsed_ms", "process_tree_cleaned"]
+    },
+    {
+      "id": "protocol-dns",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "dns-classic",
+      "transports": ["UDP", "TCP"],
+      "network_access": true,
+      "evidence_profile_id": "dns-transaction",
+      "required_evidence_fields": ["dns_transport", "query_id", "query_name", "query_type", "response_code", "answer_digest", "truncated", "dnssec_status"]
+    },
+    {
+      "id": "protocol-tls",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "tls",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "tls-session",
+      "required_evidence_fields": ["tls_version", "cipher_suite", "server_name", "alpn", "peer_certificate_sha256", "resumed", "shutdown_status"]
+    },
+    {
+      "id": "protocol-http",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "http1",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "http1-transaction",
+      "required_evidence_fields": ["method", "authority", "path_digest", "request_body_sha256", "status_code", "response_body_sha256", "connection_reused"]
+    },
+    {
+      "id": "protocol-http2",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "http2",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "http2-transaction",
+      "required_evidence_fields": ["alpn", "stream_id", "method", "status_code", "request_body_sha256", "response_body_sha256", "end_stream", "flow_control_complete"]
+    },
+    {
+      "id": "protocol-grpc",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "grpc",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "rpc-transaction",
+      "required_evidence_fields": ["rpc_protocol", "service", "method", "request_sha256", "response_sha256", "application_status"]
+    },
+    {
+      "id": "protocol-websocket",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "websocket",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "websocket-transaction",
+      "required_evidence_fields": ["upgrade_status", "subprotocol", "message_type", "message_sha256", "echo_sha256", "close_code"]
+    },
+    {
+      "id": "protocol-quic",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "quic-http3",
+      "transports": ["UDP"],
+      "network_access": true,
+      "evidence_profile_id": "quic-http3-transaction",
+      "required_evidence_fields": ["quic_version", "alpn", "connection_id_digest", "stream_id", "handshake_complete", "status_code", "response_body_sha256", "migration_status"]
+    },
+    {
+      "id": "protocol-webtransport",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "webtransport",
+      "transports": ["UDP"],
+      "network_access": true,
+      "evidence_profile_id": "quic-http3-transaction",
+      "required_evidence_fields": ["quic_version", "alpn", "connection_id_digest", "stream_id", "handshake_complete", "status_code", "response_body_sha256", "migration_status"]
+    },
+    {
+      "id": "protocol-ftp",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "ftp-ftps",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "file-transfer",
+      "required_evidence_fields": ["file_protocol", "operation", "content_sha256", "transferred_bytes", "control_status", "data_channel_status"]
+    },
+    {
+      "id": "protocol-mail",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "mail",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "mail-transaction",
+      "required_evidence_fields": ["mail_protocol", "session_id", "operation", "message_sha256", "protocol_status", "mailbox_state_digest"]
+    },
+    {
+      "id": "protocol-messaging",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "messaging",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "messaging-transaction",
+      "required_evidence_fields": ["messaging_protocol", "namespace", "topic_digest", "delivery_mode", "message_sha256", "acknowledged"]
+    },
+    {
+      "id": "protocol-ntp",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "ntp",
+      "transports": ["UDP"],
+      "network_access": true,
+      "evidence_profile_id": "time-transaction",
+      "required_evidence_fields": ["time_protocol", "request_id", "stratum", "server_receive_utc", "server_transmit_utc", "round_trip_ms"]
+    },
+    {
+      "id": "protocol-irc",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "irc",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "messaging-transaction",
+      "required_evidence_fields": ["messaging_protocol", "namespace", "topic_digest", "delivery_mode", "message_sha256", "acknowledged"]
+    },
+    {
+      "id": "protocol-multipeer",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "controlled-p2p",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "multi-peer-transaction",
+      "required_evidence_fields": ["peer_id", "peer_count", "channel_id", "message_sha256", "delivery_set_digest"]
+    },
+    {
+      "id": "protocol-realtime",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "stun-turn",
+      "transports": ["UDP"],
+      "network_access": true,
+      "evidence_profile_id": "stun-turn-transaction",
+      "required_evidence_fields": ["ice_protocol", "transaction_id", "method", "mapped_address_digest", "relay_address_digest", "integrity_verified"]
+    },
+    {
+      "id": "protocol-media",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "rtp-media",
+      "transports": ["UDP"],
+      "network_access": true,
+      "evidence_profile_id": "rtp-media-session",
+      "required_evidence_fields": ["ssrc", "payload_type", "packet_count", "sequence_gap_count", "jitter_ms", "rtcp_status", "media_digest"]
+    },
+    {
+      "id": "protocol-receive-only",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "udp-receive-only",
+      "transports": ["UDP"],
+      "network_access": true,
+      "evidence_profile_id": "udp-registration-session",
+      "required_evidence_fields": ["registration_id", "registration_sent", "server_initiated", "message_sha256", "nat_mapping_digest"]
+    },
+    {
+      "id": "protocol-failure",
+      "implementation_status": "IMPLEMENTED",
+      "protocol_family": "process-failure",
+      "transports": ["TCP"],
+      "network_access": true,
+      "evidence_profile_id": "failure-injection",
+      "required_evidence_fields": ["injector_id", "target_identity", "injection_started_utc", "injection_verified", "expected_failure_signature", "rollback_verified"]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "outcome": "FAIL_PRODUCT",
+  "evidence_basis": "CONTRADICTORY_EVIDENCE",
+  "product_errors": [
+    "wrong response source",
+    "fail:udp_response_source"
+  ],
+  "harness_errors": [],
+  "missing_evidence": [],
+  "external_route_proof_complete": true
+}

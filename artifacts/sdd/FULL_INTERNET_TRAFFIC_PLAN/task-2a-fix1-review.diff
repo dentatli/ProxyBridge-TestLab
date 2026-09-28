@@ -1,0 +1,185 @@
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/src/server_agent/browser_origin.py" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after-fix1/src/server_agent/browser_origin.py"
+index b1199bf..9d42418 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/src/server_agent/browser_origin.py"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after-fix1/src/server_agent/browser_origin.py"
+@@ -14,7 +14,7 @@ _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+ _PATH_LABELS = ("browser-origin", "v1", "runs", "scenarios", "attempts", "flows")
+ _RESOURCES = {"page": ("text/html; charset=utf-8", "BROWSER_ORIGIN_PAGE_SERVED"), "download": ("application/octet-stream", "BROWSER_ORIGIN_DOWNLOAD_SERVED")}
+ _MARKER_ID = "proxybridge-testlab-browser-result"
+-_MARKER_VALUE = "PROXYBRIDGE_TESTLAB_BROWSER_RESULT_V1"
++_MARKER_VALUE = "PB_TESTLAB_BROWSER_READY"
+ 
+ 
+ class BrowserOriginError(ValueError):
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/src/server_agent/pb_protocol_server.py" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after-fix1/src/server_agent/pb_protocol_server.py"
+index ffb607b..55a0203 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/src/server_agent/pb_protocol_server.py"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after-fix1/src/server_agent/pb_protocol_server.py"
+@@ -89,12 +89,13 @@ def _load_config(path: Path) -> dict[str, Any]:
+     return value
+ 
+ 
+-def _ssl_context(config: dict[str, Any]) -> ssl.SSLContext:
++def _ssl_context(config: dict[str, Any], alpn_protocols: tuple[str, ...]) -> ssl.SSLContext:
+     root = Path(config["_root"])
+     context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+     context.minimum_version = ssl.TLSVersion.TLSv1_2
+     context.load_cert_chain(root / config["tls"]["certificate"], root / config["tls"]["private_key"])
+-    context.set_alpn_protocols(["h2", "http/1.1", "pb-test/1"])
++    if alpn_protocols:
++        context.set_alpn_protocols(list(alpn_protocols))
+     return context
+ 
+ 
+@@ -323,6 +324,8 @@ async def _read_http_request(reader: asyncio.StreamReader) -> tuple[str, str, di
+             raise ProtocolServerError("HTTP_HEADER_INVALID")
+         name, value = line.split(":", 1)
+         headers[name.strip().lower()] = value.strip()
++    if "transfer-encoding" in headers:
++        raise ProtocolServerError("HTTP_TRANSFER_ENCODING_UNSUPPORTED")
+     content_length = int(headers.get("content-length", "0"))
+     if content_length < 0 or content_length > 1024 * 1024:
+         raise ProtocolServerError("HTTP_BODY_TOO_LARGE")
+@@ -333,7 +336,7 @@ async def _read_http_request(reader: asyncio.StreamReader) -> tuple[str, str, di
+ async def _http(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, evidence: EvidenceLog, secure: bool) -> None:
+     try:
+         method, path, headers, body = await _read_http_request(reader)
+-        if path.startswith("/browser-origin/"):
++        if path == "/browser-origin" or path.startswith(("/browser-origin/", "/browser-origin?", "/browser-origin#", "/browser-origin%")):
+             if method != "GET" or body:
+                 raise ProtocolServerError("BROWSER_ORIGIN_REQUEST_INVALID")
+             try:
+@@ -700,7 +703,10 @@ def _http3_protocol_factory(evidence: EvidenceLog, mode: str, local_address: tup
+ 
+ async def _serve(config: dict[str, Any]) -> None:
+     evidence = EvidenceLog(str(config["jsonl_log"]))
+-    ssl_context = _ssl_context(config)
++    tls_echo_context = _ssl_context(config, ("pb-test/1",))
++    http1_context = _ssl_context(config, ("http/1.1",))
++    http2_context = _ssl_context(config, ("h2",))
++    standard_tls_context = _ssl_context(config, ())
+     loop = asyncio.get_running_loop()
+     servers: list[asyncio.AbstractServer] = []
+     transports: list[asyncio.DatagramTransport] = []
+@@ -719,11 +725,11 @@ async def _serve(config: dict[str, Any]) -> None:
+         servers.append(await asyncio.start_server(lambda r, w: _dns_tcp(r, w, config, evidence), bind, dns_actual))
+         for name, handler, ssl_value in (
+             ("http", lambda r, w: _http(r, w, evidence, False), None),
+-            ("tls", lambda r, w: _tls_echo(r, w, evidence, str(config["tls"]["certificate_sha256"])), ssl_context),
+-            ("https", lambda r, w: _http(r, w, evidence, True), ssl_context),
+-            ("http2", lambda r, w: _http2(r, w, evidence, False), ssl_context),
+-            ("websocket", lambda r, w: _websocket(r, w, evidence), ssl_context),
+-            ("grpc", lambda r, w: _http2(r, w, evidence, True), ssl_context),
++            ("tls", lambda r, w: _tls_echo(r, w, evidence, str(config["tls"]["certificate_sha256"])), tls_echo_context),
++            ("https", lambda r, w: _http(r, w, evidence, True), http1_context),
++            ("http2", lambda r, w: _http2(r, w, evidence, False), http2_context),
++            ("websocket", lambda r, w: _websocket(r, w, evidence), http1_context),
++            ("grpc", lambda r, w: _http2(r, w, evidence, True), http2_context),
+         ):
+             requested = bound_ports.get(name, int(config[name]["port"]))
+             server = await asyncio.start_server(handler, bind, requested, ssl=ssl_value)
+@@ -753,7 +759,7 @@ async def _serve(config: dict[str, Any]) -> None:
+             from standard_protocols import start_standard_protocols
+         except ImportError as exc:
+             raise ProtocolServerError("STANDARD_PROTOCOL_MODULE_UNAVAILABLE") from exc
+-        standard_servers, standard_transports, standard_ports = await start_standard_protocols(bind, config, evidence.append, ssl_context, bound_ports)
++        standard_servers, standard_transports, standard_ports = await start_standard_protocols(bind, config, evidence.append, standard_tls_context, bound_ports)
+         servers.extend(standard_servers)
+         transports.extend(standard_transports)
+         if address_index == 0:
+@@ -799,7 +805,7 @@ def main() -> int:
+         return 40
+     try:
+         config = _load_config(Path(arguments.config))
+-        _ssl_context(config)
++        _ssl_context(config, ())
+         _quic_configuration(config)
+         if arguments.self_test:
+             print("PROTOCOL_SERVER_SELF_TEST_OK services=29")
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/tests/fixtures/browser-origin/contract_test.py" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after-fix1/tests/fixtures/browser-origin/contract_test.py"
+index 0827e1f..fb58d9b 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/tests/fixtures/browser-origin/contract_test.py"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after-fix1/tests/fixtures/browser-origin/contract_test.py"
+@@ -1,6 +1,7 @@
+ import asyncio
+ import hashlib
+ import json
++import re
+ import sys
+ import tempfile
+ from pathlib import Path
+@@ -9,7 +10,8 @@ root = Path(sys.argv[1]).resolve()
+ sys.path.insert(0, str(root / "src" / "server_agent"))
+ 
+ from browser_origin import BrowserOriginError, build_browser_origin_response
+-from pb_protocol_server import EvidenceLog, _http
++import pb_protocol_server as protocol_server
++from pb_protocol_server import EvidenceLog, _http, _ssl_context
+ 
+ 
+ PATH_ROOT = "/browser-origin/v1/runs/run-001/scenarios/canary-browser-download/attempts/attempt-001/flows/flow-001"
+@@ -145,6 +147,9 @@ assert json.loads(page_body[marker_start:marker_end].decode("utf-8")) == {
+     "response_status": 0,
+     "negotiated_protocol": "",
+ }
++completed_markers = re.findall(rb'emit\(\{dom_marker:"([^"]+)"', page_body)
++assert completed_markers == [b"PB_TESTLAB_BROWSER_READY", b"PB_TESTLAB_BROWSER_READY"]
++assert b"PROXYBRIDGE_TESTLAB_BROWSER_RESULT_V1" not in page_body
+ assert len(page_records) == 1
+ assert page_records[0]["resource"] == "page"
+ assert page_records[0]["sequence"] == 1
+@@ -170,6 +175,54 @@ bad_wire, bad_records, _ = asyncio.run(invoke_http(b"GET " + (PATH_ROOT + "/page
+ assert bad_wire == b""
+ assert bad_records == []
+ 
++chunked_wire, chunked_records, _ = asyncio.run(invoke_http(
++    b"GET " + (PATH_ROOT + "/page").encode("ascii") + b" HTTP/1.1\r\n"
++    b"Host: origin.test\r\nTransfer-Encoding: chunked\r\n\r\n0\r\n\r\n"
++))
++assert chunked_wire == b""
++assert chunked_records == []
++
++identity_headers = (
++    b"Host: origin.test\r\nX-TestLab-Run: run-001\r\nX-TestLab-Scenario: generic\r\n"
++    b"X-TestLab-Attempt: attempt-001\r\nX-TestLab-Flow: flow-001\r\n\r\n"
++)
++for reserved_path in (b"/browser-origin", b"/browser-origin?generic=1"):
++    reserved_wire, reserved_records, _ = asyncio.run(invoke_http(
++        b"GET " + reserved_path + b" HTTP/1.1\r\n" + identity_headers
++    ))
++    assert reserved_wire == b""
++    assert reserved_records == []
++
++
++class FakeTlsContext:
++    def __init__(self, protocol):
++        self.protocol = protocol
++        self.minimum_version = None
++        self.alpn_protocols = None
++
++    def load_cert_chain(self, certificate, private_key):
++        self.certificate = certificate
++        self.private_key = private_key
++
++    def set_alpn_protocols(self, protocols):
++        self.alpn_protocols = tuple(protocols)
++
++
++real_ssl_context = protocol_server.ssl.SSLContext
++try:
++    protocol_server.ssl.SSLContext = FakeTlsContext
++    tls_config = {
++        "_root": str(root),
++        "tls": {"certificate": "server.pem", "private_key": "server.key"},
++    }
++    http1_context = _ssl_context(tls_config, ("http/1.1",))
++    http2_context = _ssl_context(tls_config, ("h2",))
++finally:
++    protocol_server.ssl.SSLContext = real_ssl_context
++assert http1_context.alpn_protocols == ("http/1.1",)
++assert "h2" not in http1_context.alpn_protocols
++assert http2_context.alpn_protocols == ("h2",)
++
+ # The generic HTTP contract remains header-bound and unchanged.
+ generic_wire, generic_records, _ = asyncio.run(invoke_http(
+     b"POST /generic HTTP/1.1\r\nHost: origin.test\r\nX-TestLab-Run: run-001\r\n"

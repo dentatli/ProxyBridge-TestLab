@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "profiles": [
+    { "id": "quick", "title": "Quick", "max_duration_minutes": 30, "repeat_count": 1, "resume_enabled": true, "includes": ["readiness", "critical-matrix", "protocol-smoke"] },
+    { "id": "full-correctness", "title": "Full correctness", "max_duration_minutes": 360, "repeat_count": 1, "resume_enabled": true, "includes": ["all-correctness", "protocol-positive", "protocol-negative", "cleanup"] },
+    { "id": "extended", "title": "Extended", "max_duration_minutes": 960, "repeat_count": 3, "resume_enabled": true, "includes": ["all-correctness", "failure-injection", "network-impairment", "concurrency"] },
+    { "id": "soak-24h", "title": "24-hour soak", "max_duration_minutes": 1440, "repeat_count": 0, "resume_enabled": true, "includes": ["performance", "resource-sampling", "periodic-correctness"] },
+    { "id": "soak-48h", "title": "48-hour soak", "max_duration_minutes": 2880, "repeat_count": 0, "resume_enabled": true, "includes": ["performance", "resource-sampling", "periodic-correctness"] },
+    { "id": "soak-72h", "title": "72-hour soak", "max_duration_minutes": 4320, "repeat_count": 0, "resume_enabled": true, "includes": ["performance", "resource-sampling", "periodic-correctness"] }
+  ],
+  "continuation_policy": "Scenario-local outcomes continue after cleanup and health proof. Contamination, artifact drift, failed cleanup, lost server identity or unhealthy shared runtime cause a safety stop.",
+  "resume_policy": "Resume revalidates artifacts, server identity, readiness receipt and shared health before scheduling remaining scenarios. Completed evidence is immutable and never reused as a new attempt."
+}

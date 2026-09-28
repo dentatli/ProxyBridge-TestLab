@@ -1,15 +1,15 @@
 {
   "schema_version": 1,
   "catalog_id": "performance",
-  "defaults": { "enabled": false, "tags": ["performance", "not-implemented"], "requires": ["performance"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "No performance executor or metric collector is implemented." },
+  "defaults": { "enabled": false, "tags": ["performance", "capability-gated"], "requires": ["performance", "local_performance_worker", "server_performance_origin", "server_metrics"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "CAPABILITY_GATED", "implementation_reason": "Performance execution remains disabled until the native worker and synchronized endpoint metric window pass their readiness receipts." },
   "scenarios": [
-    { "id": "performance-latency", "tags": ["p50", "p95", "p99"] },
-    { "id": "performance-throughput", "tags": ["throughput"] },
-    { "id": "performance-cpu", "tags": ["cpu"] },
-    { "id": "performance-memory", "tags": ["memory"] },
-    { "id": "performance-handles", "tags": ["handles"] },
-    { "id": "performance-threads", "tags": ["threads"] },
-    { "id": "performance-flow-rate", "tags": ["flow-rate"] },
-    { "id": "performance-datagrams-per-second", "protocol": "UDP", "tags": ["datagrams-per-second"] }
+    { "id": "performance-latency", "tags": ["p50", "p95", "p99"], "implementation_reason": "Requires a calibrated repeated-sample runner, warm-up policy and baseline comparison; correctness timing_ms is not a performance percentile." },
+    { "id": "performance-throughput", "tags": ["throughput"], "implementation_reason": "Requires a sustained bounded transfer generator and endpoint byte-rate counters; the correctness client sends only finite validation payloads." },
+    { "id": "performance-cpu", "tags": ["cpu"], "implementation_reason": "Requires synchronized local ProxyBridge/driver CPU sampling around an isolated workload; server endpoint CPU metrics alone cannot attribute product cost." },
+    { "id": "performance-memory", "tags": ["memory"], "implementation_reason": "Requires synchronized product working-set/private-byte sampling and a baseline window; current server metrics cover only the remote endpoint service." },
+    { "id": "performance-handles", "tags": ["handles"], "implementation_reason": "Requires privileged local process handle counters before, during and after a workload with leak thresholds; no such product sampler is implemented." },
+    { "id": "performance-threads", "tags": ["threads"], "implementation_reason": "Requires synchronized product thread-count sampling and post-run recovery thresholds; endpoint service metrics cannot substitute for product evidence." },
+    { "id": "performance-flow-rate", "tags": ["flow-rate"], "implementation_reason": "Requires a rate-controlled connection generator and accepted-flow counter over a fixed interval; bounded correctness concurrency is not a flow-rate benchmark." },
+    { "id": "performance-datagrams-per-second", "protocol": "UDP", "tags": ["datagrams-per-second"], "implementation_reason": "Requires a rate-controlled UDP generator, loss accounting and endpoint interval counters; finite datagram semantics tests do not measure datagrams per second." }
   ]
 }

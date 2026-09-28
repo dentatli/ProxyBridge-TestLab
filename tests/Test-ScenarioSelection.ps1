@@ -16,6 +16,12 @@ $declarative = $scenario | ConvertTo-Json -Depth 100 | ConvertFrom-Json
 $declarative.implementation_status = 'DECLARATIVE_ONLY'; $declarative.implementation_reason = 'fixture executor absent'
 Assert-True (Test-ScenarioSelection $declarative $caps $suite $defects -RunMode dry-run).selected 'dry-run must retain declarative inventory'
 Assert-Equal 'NOT_IMPLEMENTED' (Test-ScenarioSelection $declarative $caps $suite $defects -RunMode real).status 'real selection must reject declarative scenarios'
+$systemCheck = $scenario | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+$systemCheck.implementation_status = 'SYSTEM_CHECK'; $systemCheck.implementation_reason = 'enforced globally'
+Assert-Equal 'SYSTEM_CHECK' (Test-ScenarioSelection $systemCheck $caps $suite $defects -RunMode real).status 'system checks must never become standalone traffic verdicts'
+$capabilityGated = $scenario | ConvertTo-Json -Depth 100 | ConvertFrom-Json
+$capabilityGated.implementation_status = 'CAPABILITY_GATED'; $capabilityGated.implementation_reason = 'separate adapter required'
+Assert-Equal 'SKIPPED_CAPABILITY' (Test-ScenarioSelection $capabilityGated $caps $suite $defects -RunMode real).status 'capability-gated inventory must not fall through to the native client'
 $catalog = Import-ScenarioCatalog (Join-Path $root 'scenarios')
 $issue209 = $catalog | Where-Object scenario_id -eq 'issue209-tcp-to-udp'; Assert-Equal 'BLOCKED_BY_KNOWN_DEFECT' (Test-ScenarioSelection $issue209 $caps ([pscustomobject]@{ selection = [pscustomobject]@{ include_tags=@();exclude_tags=@();include_scenario_ids=@();exclude_scenario_ids=@() } }) $defects).status 'do-not-run defect must block'
 $temp = New-TestDirectory

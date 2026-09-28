@@ -6,15 +6,15 @@
     { "id": "rule-selector-basename", "selector": "basename", "action": "BLOCK", "tags": ["basename-rule"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-block" },
     { "id": "rule-selector-full-path", "selector": "full-path", "action": "BLOCK", "tags": ["full-path-rule", "full-path-regression"], "known_defect_id": "full-path-watchlist-mismatch", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-block-leak", "mock_status": "EXPECTED_FAIL" },
     { "id": "rule-destination-ip", "action": "BLOCK", "tags": ["destination-ip"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-block" },
-    { "id": "rule-destination-domain", "tags": ["destination-domain"], "target_kind": "domain", "requires": ["domain_rules"] },
+    { "id": "rule-destination-domain", "tags": ["destination-domain"], "target_kind": "domain", "requires": ["domain_rules"], "fallback_action": "BLOCK", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-direct" },
     { "id": "rule-single-port", "action": "BLOCK", "tags": ["single-port"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-block" },
     { "id": "rule-port-range", "action": "BLOCK", "tags": ["port-range"], "port_expression": "${PB_RULE_PORT_RANGE}", "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-block" },
-    { "id": "rule-protocol-both", "protocol": "BOTH", "tags": ["protocol-both"] },
-    { "id": "rule-disabled", "rule_enabled": false, "tags": ["disabled-rule"] },
-    { "id": "rule-priority-overlap", "tags": ["priority", "overlap"] },
-    { "id": "rule-hot-update", "tags": ["hot-update"], "requires": ["hot_update"] },
-    { "id": "rule-persistence", "tags": ["persistence"], "requires": ["profile_persistence"] },
-    { "id": "rule-multiple-proxy-configs", "action": "PROXY", "tags": ["multiple-proxy-configs"] },
+    { "id": "rule-protocol-both", "protocol": "BOTH", "mode": "issue209", "tags": ["protocol-both"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "issue209-direct" },
+    { "id": "rule-disabled", "action": "DIRECT", "rule_action": "BLOCK", "rule_enabled": false, "tags": ["disabled-rule"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-direct" },
+    { "id": "rule-priority-overlap", "action": "DIRECT", "overlap_action": "BLOCK", "require_internal_route": true, "tags": ["priority", "overlap"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-direct" },
+    { "id": "rule-hot-update", "tags": ["hot-update"], "requires": ["product_live_rule_update"], "implementation_status": "CAPABILITY_GATED", "implementation_reason": "Requires a published and independently verifiable atomic live-rule update/readback contract. The current product CLI only loads a profile at process start." },
+    { "id": "rule-persistence", "tags": ["persistence"], "requires": ["product_profile_readback"], "implementation_status": "CAPABILITY_GATED", "implementation_reason": "Requires an independently verifiable active-rule readback after two product lifecycles; the current CLI exposes no such contract." },
+    { "id": "rule-multiple-proxy-configs", "action": "PROXY", "proxy_config_id": 2, "additional_proxy_config_id": 2, "require_internal_route": true, "require_proxy_config_evidence": true, "tags": ["multiple-proxy-configs"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "mock_fixture_id": "base-proxy-config2" },
     { "id": "rule-missing-proxy-config", "action": "PROXY", "tags": ["invalid-proxy-config", "negative-plan"], "implementation_status": "EXECUTABLE", "implementation_reason": "", "profile_expectation": "invalid-missing-proxy-config", "mock_status": "PASS" }
   ]
 }

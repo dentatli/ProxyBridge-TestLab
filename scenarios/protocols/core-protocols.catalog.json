@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "catalog_id": "protocol-core",
+  "defaults": {
+    "enabled": true,
+    "executor_kind": "protocol-worker",
+    "implementation_status": "EXECUTABLE",
+    "implementation_reason": "A protocol-aware local worker and controlled TestLab server endpoint provide independent evidence.",
+    "family": 4,
+    "selector": "basename",
+    "socket_mode": "connected",
+    "tags": ["synthetic", "correctness", "protocol-aware", "milestone-12"],
+    "requires": ["protocol_worker", "server_python_protocols"],
+    "mock_fixture_id": "protocol-generated"
+  },
+  "scenarios": [
+    {
+      "id": "protocol-dns-udp-direct", "title": "DNS over UDP follows DIRECT", "protocol": "UDP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_DNS_PORT}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "tags": ["dns", "dns-udp"],
+      "protocol_worker": { "plugin_id": "protocol-dns", "protocol_family": "dns-classic", "transport": "UDP", "evidence_profile_id": "dns-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "dns_transport": "UDP", "query_name": "a.probe.test.", "query_type": "A" }, "expected": { "response_code": 0, "answers": ["192.0.2.123"] } }
+    },
+    {
+      "id": "protocol-dns-udp-block", "title": "DNS over UDP follows BLOCK", "protocol": "UDP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_DNS_PORT}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "tags": ["dns", "dns-udp"],
+      "protocol_worker": { "plugin_id": "protocol-dns", "protocol_family": "dns-classic", "transport": "UDP", "evidence_profile_id": "dns-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "dns_transport": "UDP", "query_name": "blocked.probe.test.", "query_type": "A" }, "expected": {} }
+    },
+    {
+      "id": "protocol-dns-udp-proxy", "title": "DNS over UDP follows PROXY", "protocol": "UDP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_DNS_PORT}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "tags": ["dns", "dns-udp"],
+      "protocol_worker": { "plugin_id": "protocol-dns", "protocol_family": "dns-classic", "transport": "UDP", "evidence_profile_id": "dns-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "dns_transport": "UDP", "query_name": "a.probe.test.", "query_type": "A" }, "expected": { "response_code": 0, "answers": ["192.0.2.123"] } }
+    },
+    {
+      "id": "protocol-dns-tcp-direct", "title": "DNS over TCP follows DIRECT", "protocol": "TCP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_DNS_PORT}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "tags": ["dns", "dns-tcp"],
+      "protocol_worker": { "plugin_id": "protocol-dns", "protocol_family": "dns-classic", "transport": "TCP", "evidence_profile_id": "dns-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "dns_transport": "TCP", "query_name": "aaaa.probe.test.", "query_type": "AAAA" }, "expected": { "response_code": 0, "answers": ["2001:db8::123"] } }
+    },
+    {
+      "id": "protocol-dns-tcp-block", "title": "DNS over TCP follows BLOCK", "protocol": "TCP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_DNS_PORT}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "tags": ["dns", "dns-tcp"],
+      "protocol_worker": { "plugin_id": "protocol-dns", "protocol_family": "dns-classic", "transport": "TCP", "evidence_profile_id": "dns-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "dns_transport": "TCP", "query_name": "blocked.probe.test.", "query_type": "AAAA" }, "expected": {} }
+    },
+    {
+      "id": "protocol-dns-tcp-proxy", "title": "DNS over TCP follows PROXY", "protocol": "TCP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_DNS_PORT}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "tags": ["dns", "dns-tcp"],
+      "protocol_worker": { "plugin_id": "protocol-dns", "protocol_family": "dns-classic", "transport": "TCP", "evidence_profile_id": "dns-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_DNS_PORT}", "dns_transport": "TCP", "query_name": "aaaa.probe.test.", "query_type": "AAAA" }, "expected": { "response_code": 0, "answers": ["2001:db8::123"] } }
+    },
+    {
+      "id": "protocol-tls-direct", "title": "TLS session follows DIRECT", "protocol": "TCP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_TLS_PORT}", "remote_port": "${PB_PROTOCOL_TLS_PORT}", "tags": ["tls"], "requires": ["server_tls_pki"],
+      "protocol_worker": { "plugin_id": "protocol-tls", "protocol_family": "tls", "transport": "TCP", "evidence_profile_id": "tls-session", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_TLS_PORT}", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "result": "PASS" } }
+    },
+    {
+      "id": "protocol-tls-block", "title": "TLS session follows BLOCK", "protocol": "TCP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_TLS_PORT}", "remote_port": "${PB_PROTOCOL_TLS_PORT}", "tags": ["tls"], "requires": ["server_tls_pki"],
+      "protocol_worker": { "plugin_id": "protocol-tls", "protocol_family": "tls", "transport": "TCP", "evidence_profile_id": "tls-session", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_TLS_PORT}", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": {} }
+    },
+    {
+      "id": "protocol-tls-proxy", "title": "TLS session follows PROXY", "protocol": "TCP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_TLS_PORT}", "remote_port": "${PB_PROTOCOL_TLS_PORT}", "tags": ["tls"], "requires": ["server_tls_pki"],
+      "protocol_worker": { "plugin_id": "protocol-tls", "protocol_family": "tls", "transport": "TCP", "evidence_profile_id": "tls-session", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_TLS_PORT}", "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "result": "PASS" } }
+    },
+    {
+      "id": "protocol-http-direct", "title": "HTTP/1.1 follows DIRECT", "protocol": "TCP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_HTTP_PORT}", "remote_port": "${PB_PROTOCOL_HTTP_PORT}", "tags": ["http", "http1"],
+      "protocol_worker": { "plugin_id": "protocol-http", "protocol_family": "http1", "transport": "TCP", "evidence_profile_id": "http1-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_HTTP_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "use_tls": false }, "expected": { "status_code": 200 } }
+    },
+    {
+      "id": "protocol-http-block", "title": "HTTP/1.1 follows BLOCK", "protocol": "TCP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_HTTP_PORT}", "remote_port": "${PB_PROTOCOL_HTTP_PORT}", "tags": ["http", "http1"],
+      "protocol_worker": { "plugin_id": "protocol-http", "protocol_family": "http1", "transport": "TCP", "evidence_profile_id": "http1-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_HTTP_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "use_tls": false }, "expected": {} }
+    },
+    {
+      "id": "protocol-http-proxy", "title": "HTTP/1.1 follows PROXY", "protocol": "TCP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_HTTP_PORT}", "remote_port": "${PB_PROTOCOL_HTTP_PORT}", "tags": ["http", "http1"],
+      "protocol_worker": { "plugin_id": "protocol-http", "protocol_family": "http1", "transport": "TCP", "evidence_profile_id": "http1-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_HTTP_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "use_tls": false }, "expected": { "status_code": 200 } }
+    },
+    {
+      "id": "protocol-https-direct", "title": "HTTPS over HTTP/1.1 follows DIRECT", "protocol": "TCP", "action": "DIRECT", "port_expression": "${PB_PROTOCOL_HTTPS_PORT}", "remote_port": "${PB_PROTOCOL_HTTPS_PORT}", "tags": ["https", "http1", "tls"], "requires": ["server_tls_pki"],
+      "protocol_worker": { "plugin_id": "protocol-http", "protocol_family": "http1", "transport": "TCP", "evidence_profile_id": "http1-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_HTTPS_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "use_tls": true, "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "status_code": 200 } }
+    },
+    {
+      "id": "protocol-https-block", "title": "HTTPS over HTTP/1.1 follows BLOCK", "protocol": "TCP", "action": "BLOCK", "port_expression": "${PB_PROTOCOL_HTTPS_PORT}", "remote_port": "${PB_PROTOCOL_HTTPS_PORT}", "tags": ["https", "http1", "tls"], "requires": ["server_tls_pki"],
+      "protocol_worker": { "plugin_id": "protocol-http", "protocol_family": "http1", "transport": "TCP", "evidence_profile_id": "http1-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_HTTPS_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "use_tls": true, "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": {} }
+    },
+    {
+      "id": "protocol-https-proxy", "title": "HTTPS over HTTP/1.1 follows PROXY", "protocol": "TCP", "action": "PROXY", "port_expression": "${PB_PROTOCOL_HTTPS_PORT}", "remote_port": "${PB_PROTOCOL_HTTPS_PORT}", "tags": ["https", "http1", "tls"], "requires": ["server_tls_pki"],
+      "protocol_worker": { "plugin_id": "protocol-http", "protocol_family": "http1", "transport": "TCP", "evidence_profile_id": "http1-transaction", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_HTTPS_PORT}", "authority": "proxybridge-testlab.test", "path": "/probe", "use_tls": true, "server_name": "proxybridge-testlab.test", "ca_path": "${PB_PROTOCOL_CA_PEM}" }, "expected": { "status_code": 200 } }
+    }
+  ]
+}

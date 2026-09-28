@@ -1,0 +1,16 @@
+{
+  "request": {
+    "schema_version": 1,
+    "workload_id": "fixture-workload",
+    "window_id": "fixture-window",
+    "protocol": "TCP",
+    "expected_sample_count": 2,
+    "peer_identity": { "address": "198.51.100.30", "port": 41001 },
+    "process_identity": { "pid": 41, "identity": "fixture-endpoint-v1" }
+  },
+  "snapshots": [
+    { "monotonic_ns": 100, "peer_identity": { "address": "198.51.100.30", "port": 41001 }, "process_identity": { "pid": 41, "identity": "fixture-endpoint-v1" }, "tcp_bytes": 1000, "udp_bytes": 0, "udp_datagrams": 0, "failures": 0, "loss": 0 },
+    { "monotonic_ns": 200, "peer_identity": { "address": "198.51.100.30", "port": 41001 }, "process_identity": { "pid": 41, "identity": "fixture-endpoint-v1" }, "tcp_bytes": 1400, "udp_bytes": 0, "udp_datagrams": 0, "failures": 0, "loss": 0 },
+    { "monotonic_ns": 300, "peer_identity": { "address": "198.51.100.30", "port": 41001 }, "process_identity": { "pid": 41, "identity": "fixture-endpoint-v1" }, "tcp_bytes": 2000, "udp_bytes": 0, "udp_datagrams": 0, "failures": 0, "loss": 0 }
+  ]
+}

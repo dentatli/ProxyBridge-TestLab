@@ -68,6 +68,7 @@ try {
     Assert-Equal 'pb_net_client.exe' $environment['PB_RULE_APPLICATION_BASENAME'] 'rule basename must derive from PB_CLIENT_EXE'
     Assert-Equal 'C:\Fixture\bin\pb_net_client.exe' $environment['PB_RULE_APPLICATION_FULLPATH'] 'rule full path must derive from normalized PB_CLIENT_EXE'
     Assert-Equal 2000 ([int]$runtimeConfig.cli_actual_path_timeout_ms) 'CLI actual path timeout default'
+    Assert-Equal 2000 ([int]$runtimeConfig.protocol_worker_actual_path_timeout_ms) 'protocol worker actual path timeout default'
     Assert-Equal 2000 ([int]$runtimeConfig.client_process_exit_grace_ms) 'client process exit grace default'
     Assert-Equal '' ([string]$runtimeConfig.cli_readiness.regex) 'beta CLI readiness regex default must be empty'
     Assert-Equal 2000 ([int]$runtimeConfig.cli_readiness.stable_ms) 'beta CLI stable readiness default'
@@ -102,6 +103,12 @@ try {
     Assert-True ($profile.ProxyRules[0].TargetPorts -is [string]) 'ProxyRules[].TargetPorts must be string'
     Assert-True ($profile.ProxyRules[0].ProxyConfigId -is [int]) 'ProxyConfigId must be integer'
     Assert-True ($profile.ProxyRules[0].IsEnabled -is [bool]) 'IsEnabled must be boolean'
+    $catalog = @(Import-ScenarioCatalog (Join-Path $repoRoot 'scenarios'))
+    $multipleConfigScenario = $catalog | Where-Object scenario_id -eq 'rule-multiple-proxy-configs'
+    $multipleConfigProfile = New-ResolvedProfile -Scenario $multipleConfigScenario -Environment $environment -TemplatePath (Join-Path $repoRoot 'templates/profile.pbprofile.template')
+    Assert-Equal 2 @($multipleConfigProfile.ProxyConfigs).Count 'multiple-proxy profile must contain two proxy configs'
+    Assert-Equal 2 ([int]$multipleConfigProfile.ProxyRules[0].ProxyConfigId) 'multiple-proxy rule must select config 2'
+    Assert-True (@($multipleConfigProfile.ProxyConfigs | Where-Object { [int]$_.Id -eq 2 }).Count -eq 1) 'proxy config 2 must exist exactly once'
 
     $unresolvedRejected = $false
     $unresolvedObject = [pscustomobject]@{

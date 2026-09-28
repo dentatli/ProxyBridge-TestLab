@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "catalog_id": "orchestrator-lifecycle",
-  "defaults": { "enabled": true, "tags": ["synthetic", "correctness", "orchestrator-lifecycle"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "DECLARATIVE_ONLY", "implementation_reason": "Lifecycle behavior is covered by adapter unit tests, not by this network scenario executor." },
+  "defaults": { "enabled": true, "tags": ["system-check", "orchestrator-lifecycle"], "protocol": "TCP", "family": 4, "action": "DIRECT", "implementation_status": "SYSTEM_CHECK", "implementation_reason": "This is a cross-cutting controller check enforced for traffic runs, not an independent product-traffic verdict." },
   "scenarios": [
-    { "id": "lifecycle-cli-readiness", "tags": ["readiness"] },
-    { "id": "lifecycle-graceful-stop", "tags": ["graceful-stop"] },
-    { "id": "lifecycle-forced-stop-fallback", "tags": ["forced-stop"] },
-    { "id": "lifecycle-post-stop-verification", "tags": ["post-stop"] },
-    { "id": "lifecycle-resume-boundary", "tags": ["resume"] }
+    { "id": "lifecycle-cli-readiness", "tags": ["readiness"], "implementation_reason": "Covered offline by Test-ProcessLifecycle.ps1; a catalog traffic scenario cannot isolate readiness from the product lifecycle shared by every real attempt." },
+    { "id": "lifecycle-graceful-stop", "tags": ["graceful-stop"], "implementation_reason": "Covered offline by Test-ProcessLifecycle.ps1; the real runner records graceful-stop evidence for every executable traffic attempt rather than launching a redundant flow." },
+    { "id": "lifecycle-forced-stop-fallback", "tags": ["forced-stop"], "implementation_reason": "Covered offline by Test-ProcessLifecycle.ps1; intentionally forcing the real product to ignore graceful stop is not a safe standalone traffic scenario." },
+    { "id": "lifecycle-post-stop-verification", "tags": ["post-stop"], "implementation_reason": "Covered offline by Test-ProcessLifecycle.ps1 and enforced as the cleanup gate after every real attempt, not as a separate network flow." },
+    { "id": "lifecycle-resume-boundary", "tags": ["resume"], "implementation_reason": "Covered offline by Test-RunControl.ps1; resume is a controller state transition and has no independent product traffic verdict." }
   ]
 }

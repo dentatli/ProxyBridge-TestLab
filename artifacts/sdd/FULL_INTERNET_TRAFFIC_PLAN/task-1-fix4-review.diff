@@ -1,0 +1,357 @@
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-1-after-fix3/tests/Test-BrowserPlugin.ps1', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'D:\ProxyBridge-Lab\ProxyBridge-TestLab\artifacts\sdd\FULL_INTERNET_TRAFFIC_PLAN\task-1-after-fix4/tests/Test-BrowserPlugin.ps1', LF will be replaced by CRLF the next time Git touches it
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix3/src/protocol_worker/plugins/browser.py" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix4/src/protocol_worker/plugins/browser.py"
+index 0de2ea1..668b769 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix3/src/protocol_worker/plugins/browser.py"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix4/src/protocol_worker/plugins/browser.py"
+@@ -94,42 +94,74 @@ class _SuspendedBrowserProcess:
+             self._process_handle = int(info.hProcess)
+             self._thread_handle = int(info.hThread)
+             self.pid = int(info.dwProcessId)
+-            self._close_handle(null_input)
++            if not self._close_handle(null_input):
++                raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+             null_input = None
+-            self._close_handle(stdout_write)
++            if not self._close_handle(stdout_write):
++                raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+             stdout_write = None
+-            self._close_handle(stderr_write)
++            if not self._close_handle(stderr_write):
++                raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+             stderr_write = None
+             self.stdout = self._open_reader(stdout_read)
+             stdout_read = None
+             self.stderr = self._open_reader(stderr_read)
+             stderr_read = None
+         except BaseException as exc:
+-            self._terminate_created_process()
+-            self.close()
++            cleanup_ok = True
++            termination_verified = False
++            termination_failed = False
++            for _ in range(2):
++                try:
++                    termination_verified = self._terminate_created_process()
++                except BaseException:
++                    termination_verified = False
++                if termination_verified:
++                    break
++                termination_failed = True
++            cleanup_ok = termination_verified and not termination_failed and cleanup_ok
++            for handle in (null_input, stdout_write, stderr_write, stdout_read, stderr_read):
++                try:
++                    cleanup_ok = self._close_handle(handle) and cleanup_ok
++                except BaseException:
++                    cleanup_ok = False
++            try:
++                cleanup_ok = self.close() and cleanup_ok
++            except BaseException:
++                cleanup_ok = False
++            if not cleanup_ok:
++                cleanup_failure = WorkerContractError("BROWSER_SUSPENDED_PROCESS_CLEANUP_FAILED")
++                raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED") from cleanup_failure
+             raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED") from exc
+-        finally:
+-            self._close_handle(null_input)
+-            self._close_handle(stdout_write)
+-            self._close_handle(stderr_write)
+-            self._close_handle(stdout_read)
+-            self._close_handle(stderr_read)
+ 
+-    def _terminate_created_process(self) -> None:
++    def _terminate_created_process(self) -> bool:
+         if not self._process_handle:
+-            return
+-        try:
+-            terminate = self._kernel32.TerminateProcess
+-            terminate.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+-            terminate.restype = ctypes.c_bool
+-            if not terminate(self._process_handle, 1):
+-                return
+-            wait = self._kernel32.WaitForSingleObject
+-            wait.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+-            wait.restype = ctypes.c_uint32
+-            wait(self._process_handle, 2_000)
+-        except (AttributeError, OSError):
+-            return
++            return True
++        terminate = self._kernel32.TerminateProcess
++        terminate.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
++        terminate.restype = ctypes.c_bool
++        wait = self._kernel32.WaitForSingleObject
++        wait.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
++        wait.restype = ctypes.c_uint32
++        get_exit_code = self._kernel32.GetExitCodeProcess
++        get_exit_code.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
++        get_exit_code.restype = ctypes.c_bool
++
++        def verified_exited(timeout_ms: int) -> bool:
++            state = wait(self._process_handle, timeout_ms)
++            if state != _WAIT_OBJECT_0:
++                return False
++            exit_code = ctypes.c_uint32()
++            return bool(get_exit_code(self._process_handle, ctypes.byref(exit_code)) and exit_code.value != _WINDOWS_STILL_ACTIVE)
++
++        state = wait(self._process_handle, 0)
++        if state == _WAIT_OBJECT_0:
++            return verified_exited(0)
++        if state != _WAIT_TIMEOUT:
++            return False
++        if not terminate(self._process_handle, 1):
++            return verified_exited(0)
++        return verified_exited(2_000)
+ 
+     def _create_pipe(self) -> tuple[int, int]:
+         create_pipe = self._kernel32.CreatePipe
+diff --git "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix3/tests/Test-BrowserPlugin.ps1" "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix4/tests/Test-BrowserPlugin.ps1"
+index a56c4e8..5ad2f32 100644
+--- "a/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix3/tests/Test-BrowserPlugin.ps1"
++++ "b/D:\\ProxyBridge-Lab\\ProxyBridge-TestLab\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix4/tests/Test-BrowserPlugin.ps1"
+@@ -59,26 +59,57 @@ function Stop-TestDriverTree {
+         [int]$DriverTimeoutMs = 5000,
+         [scriptblock]$StartTaskkill = $null
+     )
+-    if ($Process.HasExited) { return }
++    $cleanupErrors = [System.Collections.Generic.List[string]]::new()
++    $driverInitiallyExited = $false
++    try { $driverInitiallyExited = $Process.HasExited } catch { $cleanupErrors.Add('driver initial status') }
++    if ($driverInitiallyExited) { return }
+     $taskkill = Join-Path $env:SystemRoot 'System32\taskkill.exe'
+     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
+     $startInfo.FileName = $taskkill
+     $startInfo.Arguments = "/PID $($Process.Id) /T /F"
+     $startInfo.UseShellExecute = $false
+     $startInfo.CreateNoWindow = $true
+-    $killer = if ($null -ne $StartTaskkill) { & $StartTaskkill $startInfo } else { [System.Diagnostics.Process]::Start($startInfo) }
++    $killer = $null
+     $taskkillTimedOut = $false
+     try {
+-        if (-not $killer.WaitForExit($TaskkillTimeoutMs)) {
+-            $taskkillTimedOut = $true
++        $killer = if ($null -ne $StartTaskkill) { & $StartTaskkill $startInfo } else { [System.Diagnostics.Process]::Start($startInfo) }
++    }
++    catch {
++        $cleanupErrors.Add('taskkill start')
++    }
++    if ($null -ne $killer) {
++        try {
++            if (-not $killer.WaitForExit($TaskkillTimeoutMs)) { $taskkillTimedOut = $true }
++        }
++        catch {
++            $cleanupErrors.Add('taskkill wait')
++        }
++        $killerExited = $false
++        try { $killerExited = $killer.HasExited } catch { $cleanupErrors.Add('taskkill status') }
++        if (-not $killerExited) {
++            try { $killer.Kill() } catch { $cleanupErrors.Add('taskkill kill') }
+         }
+     }
+-    finally {
+-        if (-not $killer.HasExited) { $killer.Kill() }
+-        if ($taskkillTimedOut -and -not $Process.HasExited) { $Process.Kill() }
++
++    $driverExitedBeforeFallback = $false
++    try { $driverExitedBeforeFallback = $Process.HasExited } catch { $cleanupErrors.Add('driver fallback status') }
++    if (-not $driverExitedBeforeFallback) {
++        try { $Process.Kill() } catch { $cleanupErrors.Add('driver fallback kill') }
++    }
++
++    $driverVerifiedExited = $false
++    try { $driverVerifiedExited = $Process.WaitForExit($DriverTimeoutMs) } catch { $cleanupErrors.Add('driver final wait') }
++    try {
++        if (-not $Process.HasExited) { $driverVerifiedExited = $false }
+     }
+-    if (-not $Process.WaitForExit($DriverTimeoutMs)) {
+-        try { $Process.Kill() } finally { throw 'ASSERTION FAILED: driver-tree cleanup did not terminate the driver' }
++    catch {
++        $cleanupErrors.Add('driver final status')
++    }
++    if (-not $driverVerifiedExited) {
++        throw 'ASSERTION FAILED: driver-tree cleanup did not terminate the driver'
++    }
++    if ($cleanupErrors.Count -gt 0) {
++        throw 'ASSERTION FAILED: driver-tree cleanup operation failed'
+     }
+     if ($taskkillTimedOut) {
+         throw 'ASSERTION FAILED: driver-tree cleanup timed out'
+@@ -96,12 +127,51 @@ function Invoke-BrowserFixtureCase {
+     $driver = Join-Path $temp ("run_browser_" + $Mode + '.py')
+     $argumentsJson = ConvertTo-Json -InputObject @($BrowserArguments) -Compress
+     $driverText = @"
++import ctypes
+ import json
+ import os
+ import sys
+ sys.path.insert(0, r'$($root.Replace('\','\\'))\\src\\protocol_worker')
+ from model import WorkerContractError, WorkerPlan
+ import plugins.browser as browser
++
++def duplicate_process_handle(handle):
++    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
++    get_current_process = kernel32.GetCurrentProcess
++    get_current_process.restype = ctypes.c_void_p
++    duplicate_handle = kernel32.DuplicateHandle
++    duplicate_handle.argtypes = [ctypes.c_void_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.POINTER(ctypes.c_void_p), ctypes.c_uint32, ctypes.c_bool, ctypes.c_uint32]
++    duplicate_handle.restype = ctypes.c_bool
++    current = get_current_process()
++    duplicate = ctypes.c_void_p()
++    if not duplicate_handle(current, handle, current, ctypes.byref(duplicate), 0, False, 2):
++        raise OSError('fixture DuplicateHandle failure')
++    return int(duplicate.value)
++
++def exact_process_handle_state(handle, terminate=False):
++    kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
++    terminate_process = kernel32.TerminateProcess
++    terminate_process.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
++    terminate_process.restype = ctypes.c_bool
++    wait_for_single_object = kernel32.WaitForSingleObject
++    wait_for_single_object.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
++    wait_for_single_object.restype = ctypes.c_uint32
++    get_exit_code = kernel32.GetExitCodeProcess
++    get_exit_code.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
++    get_exit_code.restype = ctypes.c_bool
++    if terminate:
++        terminate_process(handle, 1)
++    wait_state = wait_for_single_object(handle, 2000 if terminate else 0)
++    exit_code = ctypes.c_uint32()
++    exited = wait_state == 0 and bool(get_exit_code(handle, ctypes.byref(exit_code))) and exit_code.value != 259
++    return exited
++
++def close_exact_handle(handle):
++    close_handle = ctypes.WinDLL('kernel32', use_last_error=True).CloseHandle
++    close_handle.argtypes = [ctypes.c_void_p]
++    close_handle.restype = ctypes.c_bool
++    return bool(close_handle(handle))
++
+ plan = WorkerPlan(raw={
+     'run_id': 'm15-browser-run', 'scenario_id': 'canary-browser-download', 'attempt_id': 'attempt-1', 'flow_id': 'flow-1',
+     'plugin_id': 'browser-worker', 'protocol_family': 'browser-web', 'transport': 'TCP', 'operation_timeout_ms': 1000,
+@@ -138,10 +208,54 @@ elif '$Mode' == 'ownership-race':
+         profile.mkdir(parents=True, exist_ok=False)
+         return original_create(profile, downloads)
+     browser._create_isolated_directories = ownership_race
+-elif '$Mode' == 'reader-open-failure':
++elif '$Mode' in ('reader-open-failure', 'reader-cleanup-terminate-failure', 'reader-cleanup-wait-timeout', 'reader-cleanup-exit-code-failure', 'reader-cleanup-close-failure', 'reader-cleanup-exception'):
+     created_pids = []
++    retained_process_handles = []
++    original_close_handle = browser._SuspendedBrowserProcess._close_handle
+     def reader_failure(self, handle):
+         created_pids.append(self.pid)
++        retained_process_handles.append(duplicate_process_handle(self._process_handle))
++        if '$Mode' == 'reader-cleanup-terminate-failure':
++            original_terminate = self._kernel32.TerminateProcess
++            cleanup_terminate_calls = [0]
++            def fail_first_cleanup_terminate(process_handle, exit_code):
++                cleanup_terminate_calls[0] += 1
++                if cleanup_terminate_calls[0] == 1:
++                    return False
++                return original_terminate(process_handle, exit_code)
++            self._kernel32.TerminateProcess = fail_first_cleanup_terminate
++        elif '$Mode' == 'reader-cleanup-wait-timeout':
++            original_wait = self._kernel32.WaitForSingleObject
++            def timeout_cleanup_wait(process_handle, timeout_ms):
++                if int(process_handle) == self._process_handle and timeout_ms == 2000:
++                    return 258
++                return original_wait(process_handle, timeout_ms)
++            self._kernel32.WaitForSingleObject = timeout_cleanup_wait
++        elif '$Mode' == 'reader-cleanup-exception':
++            original_wait = self._kernel32.WaitForSingleObject
++            cleanup_wait_calls = [0]
++            def raise_once_during_cleanup(process_handle, timeout_ms):
++                if int(process_handle) == self._process_handle and timeout_ms == 0 and cleanup_wait_calls[0] == 0:
++                    cleanup_wait_calls[0] += 1
++                    raise RuntimeError('fixture cleanup exception')
++                return original_wait(process_handle, timeout_ms)
++            self._kernel32.WaitForSingleObject = raise_once_during_cleanup
++        elif '$Mode' == 'reader-cleanup-exit-code-failure':
++            original_get_exit_code = self._kernel32.GetExitCodeProcess
++            cleanup_exit_code_calls = [0]
++            def fail_first_cleanup_exit_code(process_handle, exit_code):
++                cleanup_exit_code_calls[0] += 1
++                if cleanup_exit_code_calls[0] == 1:
++                    return False
++                return original_get_exit_code(process_handle, exit_code)
++            self._kernel32.GetExitCodeProcess = fail_first_cleanup_exit_code
++        elif '$Mode' == 'reader-cleanup-close-failure':
++            def report_process_close_failure(close_handle):
++                closed = original_close_handle(self, close_handle)
++                if close_handle == self._process_handle:
++                    return False
++                return closed
++            self._close_handle = report_process_close_failure
+         raise OSError('fixture reader open failure')
+     browser._SuspendedBrowserProcess._open_reader = reader_failure
+ elif '$Mode' in ('stderr-pipe-failure', 'nul-input-failure'):
+@@ -173,14 +287,16 @@ elif '$Mode' in ('stderr-pipe-failure', 'nul-input-failure'):
+         browser._SuspendedBrowserProcess._open_null_input = fail_null_input
+ try:
+     print(json.dumps({'record': browser.run_browser(plan)}, separators=(',', ':')))
+-except WorkerContractError as exc:
+-    result = {'error': str(exc)}
++except BaseException as exc:
++    result = {'error': str(exc), 'error_type': type(exc).__name__, 'error_cause': str(exc.__cause__) if exc.__cause__ else ''}
+     if '$Mode' == 'ownership-race':
+         result['ownership_race_preserved'] = os.path.isdir(r'$($profile.Replace('\','\\'))')
+-    if '$Mode' == 'reader-open-failure':
++    if '$Mode' in ('reader-open-failure', 'reader-cleanup-terminate-failure', 'reader-cleanup-wait-timeout', 'reader-cleanup-exit-code-failure', 'reader-cleanup-close-failure', 'reader-cleanup-exception'):
+         result['created_pid'] = created_pids[0] if created_pids else 0
+-        result['created_root_alive_before_test_cleanup'] = bool(created_pids and browser._process_running(created_pids[0]))
+-        result['created_root_cleaned_by_test'] = bool(created_pids and browser._terminate_tree(created_pids[0], [created_pids[0]]))
++        retained = retained_process_handles[0] if retained_process_handles else 0
++        result['created_root_alive_before_test_cleanup'] = bool(retained and not exact_process_handle_state(retained))
++        result['created_root_cleaned_by_test'] = bool(retained and (exact_process_handle_state(retained) or exact_process_handle_state(retained, terminate=True)))
++        result['retained_process_handle_closed'] = bool(retained and close_exact_handle(retained))
+     if '$Mode' in ('stderr-pipe-failure', 'nul-input-failure'):
+         result['resource_handles_closed'] = bool(acquired_handles) and set(acquired_handles).issubset(closed_handles)
+     print(json.dumps(result, separators=(',', ':')))
+@@ -254,12 +370,22 @@ try {
+     Assert-True ([int]$readerOpenFailure.created_pid -gt 0) 'reader-open regression must record the created suspended root PID'
+     Assert-True (-not [bool]$readerOpenFailure.created_root_alive_before_test_cleanup) 'reader-open failure must terminate the created suspended root before returning control'
+     Assert-True ([bool]$readerOpenFailure.created_root_cleaned_by_test) 'reader-open regression cleanup must leave no fixture root behind'
++    Assert-True ([bool]$readerOpenFailure.retained_process_handle_closed) 'reader-open regression must close its duplicate exact process handle'
+     Assert-Equal 'BROWSER_SUSPENDED_LAUNCH_FAILED' ([string]$readerOpenFailure.error) 'reader-open failure must use the stable launch error'
+     Assert-True ($null -eq $readerOpenFailure.PSObject.Properties['record']) 'reader-open failure must never emit PASS evidence'
+     $stderrPipeFailure = Invoke-BrowserFixtureCase -Mode 'stderr-pipe-failure' -ExpectedError 'BROWSER_SUSPENDED_LAUNCH_FAILED'
+     Assert-True ([bool]$stderrPipeFailure.resource_handles_closed) 'stderr-pipe acquisition failure must close every previously acquired pipe handle'
+     $nulInputFailure = Invoke-BrowserFixtureCase -Mode 'nul-input-failure' -ExpectedError 'BROWSER_SUSPENDED_LAUNCH_FAILED'
+     Assert-True ([bool]$nulInputFailure.resource_handles_closed) 'NUL-input acquisition failure must close every previously acquired pipe handle'
++    foreach ($cleanupMode in @('reader-cleanup-terminate-failure', 'reader-cleanup-wait-timeout', 'reader-cleanup-exit-code-failure', 'reader-cleanup-close-failure', 'reader-cleanup-exception')) {
++        $cleanupFailure = Invoke-BrowserFixtureCase -Mode $cleanupMode
++        Assert-Equal 'WorkerContractError' ([string]$cleanupFailure.error_type) "constructor cleanup failure $cleanupMode must not bypass the stable worker wrapper"
++        Assert-Equal 'BROWSER_SUSPENDED_LAUNCH_FAILED' ([string]$cleanupFailure.error) "constructor cleanup failure $cleanupMode must preserve the stable launch error"
++        Assert-Equal 'BROWSER_SUSPENDED_PROCESS_CLEANUP_FAILED' ([string]$cleanupFailure.error_cause) "constructor cleanup failure $cleanupMode must be propagated through the stable wrapper"
++        Assert-True (-not [bool]$cleanupFailure.created_root_alive_before_test_cleanup) "constructor cleanup failure $cleanupMode must not return while the exact root remains active"
++        Assert-True ([bool]$cleanupFailure.created_root_cleaned_by_test) "constructor cleanup failure $cleanupMode exact-handle regression cleanup must verify exit"
++        Assert-True ([bool]$cleanupFailure.retained_process_handle_closed) "constructor cleanup failure $cleanupMode must close the duplicate exact process handle"
++    }
+     $driverInfo = [System.Diagnostics.ProcessStartInfo]::new()
+     $driverInfo.FileName = $python
+     $driverInfo.Arguments = '-c "import time; time.sleep(10)"'
+@@ -289,6 +415,26 @@ try {
+     finally {
+         if (-not $driver.HasExited) { $driver.Kill() }
+     }
++    $exceptionDriver = [System.Diagnostics.Process]::Start($driverInfo)
++    try {
++        $throwingKiller = [pscustomobject]@{}
++        $throwingKiller | Add-Member -MemberType ScriptMethod -Name WaitForExit -Value { param($timeoutMs) throw 'fixture taskkill WaitForExit exception' }
++        $throwingKiller | Add-Member -MemberType ScriptProperty -Name HasExited -Value { throw 'fixture taskkill HasExited exception' }
++        $throwingKiller | Add-Member -MemberType ScriptMethod -Name Kill -Value { throw 'fixture taskkill Kill exception' }
++        $cleanupExceptionThrown = $false
++        try {
++            Stop-TestDriverTree -Process $exceptionDriver -DriverTimeoutMs 1000 -StartTaskkill { param($ignoredStartInfo) return $throwingKiller }
++        }
++        catch {
++            Assert-Equal 'ASSERTION FAILED: driver-tree cleanup operation failed' $_.Exception.Message 'taskkill exceptions must be reported only after exact-driver fallback and final verification'
++            $cleanupExceptionThrown = $true
++        }
++        Assert-True $cleanupExceptionThrown 'forced taskkill exception must be reported'
++        Assert-True $exceptionDriver.HasExited 'taskkill exception fallback must terminate and verify the exact driver before throwing'
++    }
++    finally {
++        if (-not $exceptionDriver.HasExited) { $exceptionDriver.Kill() }
++    }
+ }
+ finally {
+     if (Test-Path -LiteralPath $temp) { Remove-Item -LiteralPath $temp -Recurse -Force }

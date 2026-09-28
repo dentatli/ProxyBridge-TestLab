@@ -1,0 +1,10 @@
+{
+  "outcome": "HOLD_AMBIGUOUS",
+  "evidence_basis": "HOLD_MISSING_ROUTE_PROOF",
+  "product_errors": [],
+  "harness_errors": [],
+  "missing_evidence": [
+    "held_recheck route proof"
+  ],
+  "external_route_proof_complete": false
+}

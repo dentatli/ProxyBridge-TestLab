@@ -8,8 +8,10 @@ import datetime as dt
 import hashlib
 import ipaddress
 import json
+import re
 import signal
 import socket
+import struct
 import threading
 import time
 from pathlib import Path
@@ -18,14 +20,35 @@ from typing import Any
 
 ENDPOINT_A_PORT = 41001
 ENDPOINT_B_PORT = 41002
-MAX_PAYLOAD = 4096
+MAX_PAYLOAD = 1_048_576
+MAX_UDP_PAYLOAD = 65_507
 POLL_SECONDS = 0.20
+PAYLOAD_IDENTITY = re.compile(
+    rb"^PB_NET\|test_id=([A-Za-z0-9._-]{1,128})"
+    rb"\|run_id=([A-Za-z0-9._-]{1,128})"
+    rb"\|sequence=([1-9][0-9]{0,8})"
+    rb"\|phase=([A-Za-z0-9_-]{1,64})"
+    rb"\|protocol=(TCP|UDP)\n$"
+)
 
 
 def endpoint_fields(endpoint: tuple[Any, ...] | None) -> tuple[str, int]:
     if endpoint is None:
         return "", 0
     return str(endpoint[0]), int(endpoint[1])
+
+
+def payload_identity(payload: bytes) -> dict[str, Any]:
+    """Return only identities encoded by the deterministic client payload."""
+    match = PAYLOAD_IDENTITY.fullmatch(payload)
+    if match is None:
+        return {"test_id": "", "run_id": "", "sequence": 0, "phase": ""}
+    return {
+        "test_id": match.group(1).decode("ascii"),
+        "run_id": match.group(2).decode("ascii"),
+        "sequence": int(match.group(3)),
+        "phase": match.group(4).decode("ascii"),
+    }
 
 
 class JsonlLogger:
@@ -46,6 +69,7 @@ class JsonlLogger:
     ) -> None:
         local_ip, local_port = endpoint_fields(local)
         remote_ip, remote_port = endpoint_fields(remote)
+        identity = payload_identity(payload)
         record = {
             "timestamp_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
             "monotonic_ns": time.monotonic_ns(),
@@ -57,8 +81,13 @@ class JsonlLogger:
             "remote_ip": remote_ip,
             "remote_port": remote_port,
             "bytes": len(payload),
-            "sha256": hashlib.sha256(payload).hexdigest() if payload else "",
+            "sha256": (
+                hashlib.sha256(payload).hexdigest()
+                if event in {"RECEIVED", "MESSAGE_RECEIVED", "ECHOED", "REJECTED", "SEND_ERROR", "CLOSED", "SERVER_CLOSED", "RESET", "RESET_BY_PEER", "CLIENT_ERROR"}
+                else ""
+            ),
             "error": error,
+            **identity,
         }
         line = json.dumps(record, ensure_ascii=True, separators=(",", ":"))
         with self._lock:
@@ -102,6 +131,28 @@ def configure_listener(sock: socket.socket, family: int) -> None:
     sock.settimeout(POLL_SECONDS)
 
 
+def delayed_udp_echo(
+    sock: socket.socket,
+    logger: JsonlLogger,
+    family: str,
+    local: tuple[Any, ...],
+    remote: tuple[Any, ...],
+    payload: bytes,
+    delay_ms: int,
+) -> None:
+    time.sleep(delay_ms / 1000.0)
+    try:
+        sent = sock.sendto(payload, remote)
+        if sent != len(payload):
+            raise OSError(f"partial delayed UDP echo {sent}/{len(payload)}")
+        logger.write(event="ECHOED", family=family, protocol="UDP",
+                     local=local, remote=remote, payload=payload)
+    except OSError as exc:
+        logger.write(event="SEND_ERROR", family=family, protocol="UDP",
+                     local=local, remote=remote, payload=payload,
+                     error=str(exc))
+
+
 def udp_loop(
     sock: socket.socket,
     stop: threading.Event,
@@ -109,9 +160,10 @@ def udp_loop(
 ) -> None:
     local = sock.getsockname()
     family = family_name(sock.family)
+    pending_reorder: dict[tuple[Any, ...], bytes] = {}
     while not stop.is_set():
         try:
-            payload, remote = sock.recvfrom(MAX_PAYLOAD + 1)
+            payload, remote = sock.recvfrom(MAX_UDP_PAYLOAD + 1)
         except socket.timeout:
             continue
         except OSError as exc:
@@ -119,19 +171,68 @@ def udp_loop(
                 logger.write(event="RECV_ERROR", family=family, protocol="UDP",
                              local=local, error=str(exc))
             return
-        if len(payload) > MAX_PAYLOAD:
+        if len(payload) > MAX_UDP_PAYLOAD:
             logger.write(event="REJECTED", family=family, protocol="UDP",
-                         local=local, remote=remote, payload=payload[:MAX_PAYLOAD],
+                         local=local, remote=remote, payload=payload[:MAX_UDP_PAYLOAD],
                          error="payload_too_large")
             continue
+        behavior = 0
+        delay_ms = 0
+        if payload.startswith(b"PBUD"):
+            if len(payload) < 16:
+                logger.write(event="REJECTED", family=family, protocol="UDP",
+                             local=local, remote=remote, error="control_header_short")
+                continue
+            behavior = int.from_bytes(payload[4:8], "big")
+            delay_ms = int.from_bytes(payload[8:12], "big")
+            application_size = int.from_bytes(payload[12:16], "big")
+            if application_size != len(payload) - 16:
+                logger.write(event="REJECTED", family=family, protocol="UDP",
+                             local=local, remote=remote, error="control_size_mismatch")
+                continue
+            payload = payload[16:]
         logger.write(event="RECEIVED", family=family, protocol="UDP",
                      local=local, remote=remote, payload=payload)
+        if behavior == 7:
+            first_payload = pending_reorder.pop(remote, None)
+            if first_payload is None:
+                pending_reorder[remote] = payload
+                continue
+            try:
+                for reordered_payload in (payload, first_payload):
+                    sent = sock.sendto(reordered_payload, remote)
+                    if sent != len(reordered_payload):
+                        raise OSError(
+                            f"partial reordered UDP echo {sent}/{len(reordered_payload)}"
+                        )
+                    logger.write(event="ECHOED", family=family, protocol="UDP",
+                                 local=local, remote=remote,
+                                 payload=reordered_payload)
+            except OSError as exc:
+                logger.write(event="SEND_ERROR", family=family, protocol="UDP",
+                             local=local, remote=remote, payload=payload,
+                             error=str(exc))
+            continue
+        if behavior == 8:
+            threading.Thread(
+                target=delayed_udp_echo,
+                args=(sock, logger, family, local, remote, payload, delay_ms),
+                name=f"udp-delayed-{family}-{remote[0]}-{remote[1]}",
+                daemon=True,
+            ).start()
+            continue
+        if behavior == 1 and delay_ms > 0:
+            time.sleep(delay_ms / 1000.0)
+        if behavior in {4, 5}:
+            continue
         try:
-            sent = sock.sendto(payload, remote)
-            if sent != len(payload):
-                raise OSError(f"partial UDP echo {sent}/{len(payload)}")
-            logger.write(event="ECHOED", family=family, protocol="UDP",
-                         local=local, remote=remote, payload=payload)
+            echo_count = 2 if behavior == 6 else 1
+            for _ in range(echo_count):
+                sent = sock.sendto(payload, remote)
+                if sent != len(payload):
+                    raise OSError(f"partial UDP echo {sent}/{len(payload)}")
+                logger.write(event="ECHOED", family=family, protocol="UDP",
+                             local=local, remote=remote, payload=payload)
         except OSError as exc:
             logger.write(event="SEND_ERROR", family=family, protocol="UDP",
                          local=local, remote=remote, payload=payload, error=str(exc))
@@ -146,40 +247,112 @@ def tcp_client_loop(
     client.settimeout(POLL_SECONDS)
     local = client.getsockname()
     family = family_name(client.family)
-    total = 0
     message_buffer = bytearray()
+    frame_mode: str | None = None
+    expected_frame_size: int | None = None
+    frame_behavior = 0
+    frame_delay_ms = 0
+    last_message = b""
     logger.write(event="ACCEPTED", family=family, protocol="TCP",
                  local=local, remote=remote)
     try:
         while not stop.is_set():
             try:
-                payload = client.recv(min(1024, MAX_PAYLOAD - total + 1))
+                payload = client.recv(65_536)
             except socket.timeout:
                 continue
             if not payload:
                 logger.write(event="CLOSED", family=family, protocol="TCP",
-                             local=local, remote=remote)
-                return
-            total += len(payload)
-            if total > MAX_PAYLOAD:
-                logger.write(event="REJECTED", family=family, protocol="TCP",
-                             local=local, remote=remote, payload=payload,
-                             error="connection_payload_too_large")
+                             local=local, remote=remote, payload=last_message)
                 return
             message_buffer.extend(payload)
-            while b"\n" in message_buffer:
-                boundary = message_buffer.index(b"\n") + 1
-                message = bytes(message_buffer[:boundary])
-                del message_buffer[:boundary]
-                logger.write(event="MESSAGE_RECEIVED", family=family,
-                             protocol="TCP", local=local, remote=remote,
-                             payload=message)
-            client.sendall(payload)
-            logger.write(event="ECHOED", family=family, protocol="TCP",
-                         local=local, remote=remote, payload=payload)
+            if frame_mode is None and len(message_buffer) >= 4:
+                if message_buffer.startswith(b"PB_N"):
+                    frame_mode = "legacy"
+                elif message_buffer.startswith(b"PBCT"):
+                    frame_mode = "control"
+                else:
+                    frame_mode = "framed"
+            if frame_mode == "legacy":
+                while b"\n" in message_buffer:
+                    boundary = message_buffer.index(b"\n") + 1
+                    message = bytes(message_buffer[:boundary])
+                    del message_buffer[:boundary]
+                    if len(message) > MAX_PAYLOAD:
+                        logger.write(event="REJECTED", family=family,
+                                     protocol="TCP", local=local, remote=remote,
+                                     payload=message[:MAX_PAYLOAD],
+                                     error="legacy_payload_too_large")
+                        return
+                    logger.write(event="MESSAGE_RECEIVED", family=family,
+                                 protocol="TCP", local=local, remote=remote,
+                                 payload=message)
+                    last_message = message
+                    client.sendall(message)
+                    logger.write(event="ECHOED", family=family, protocol="TCP",
+                                 local=local, remote=remote, payload=message)
+            elif frame_mode in {"framed", "control"}:
+                while True:
+                    if expected_frame_size is None:
+                        if frame_mode == "control":
+                            if len(message_buffer) < 16:
+                                break
+                            if not message_buffer.startswith(b"PBCT"):
+                                logger.write(event="REJECTED", family=family,
+                                             protocol="TCP", local=local,
+                                             remote=remote, error="control_magic_invalid")
+                                return
+                            frame_behavior = int.from_bytes(message_buffer[4:8], "big")
+                            frame_delay_ms = int.from_bytes(message_buffer[8:12], "big")
+                            expected_frame_size = int.from_bytes(message_buffer[12:16], "big")
+                            del message_buffer[:16]
+                        else:
+                            if len(message_buffer) < 4:
+                                break
+                            frame_behavior = 0
+                            frame_delay_ms = 0
+                            expected_frame_size = int.from_bytes(message_buffer[:4], "big")
+                            del message_buffer[:4]
+                        if expected_frame_size > MAX_PAYLOAD:
+                            logger.write(event="REJECTED", family=family,
+                                         protocol="TCP", local=local, remote=remote,
+                                         error="frame_payload_too_large")
+                            return
+                    if len(message_buffer) < expected_frame_size:
+                        break
+                    message = bytes(message_buffer[:expected_frame_size])
+                    del message_buffer[:expected_frame_size]
+                    expected_frame_size = None
+                    last_message = message
+                    logger.write(event="MESSAGE_RECEIVED", family=family,
+                                 protocol="TCP", local=local, remote=remote,
+                                 payload=message)
+                    if frame_behavior == 1 and frame_delay_ms > 0:
+                        time.sleep(frame_delay_ms / 1000.0)
+                    if frame_behavior == 3:
+                        logger.write(event="RESET", family=family, protocol="TCP",
+                                     local=local, remote=remote, payload=message)
+                        client.setsockopt(socket.SOL_SOCKET, socket.SO_LINGER,
+                                          struct.pack("ii", 1, 0))
+                        return
+                    if frame_behavior == 4:
+                        continue
+                    client.sendall(message)
+                    logger.write(event="ECHOED", family=family, protocol="TCP",
+                                 local=local, remote=remote, payload=message)
+                    if frame_behavior == 2:
+                        logger.write(event="SERVER_CLOSED", family=family,
+                                     protocol="TCP", local=local, remote=remote,
+                                     payload=message)
+                        return
+    except ConnectionResetError as exc:
+        logger.write(event="RESET_BY_PEER", family=family, protocol="TCP",
+                     local=local, remote=remote, payload=last_message,
+                     error=str(exc))
     except OSError as exc:
         logger.write(event="CLIENT_ERROR", family=family, protocol="TCP",
-                     local=local, remote=remote, error=str(exc))
+                     local=local, remote=remote, payload=last_message,
+                     error=str(exc))
     finally:
         client.close()
 

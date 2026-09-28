@@ -5,6 +5,13 @@
   "pairwise": {
     "id_prefix": "secondary-pairwise",
     "base": { "tags": ["secondary-dimensions"] },
+    "execution": {
+      "supported_values": { "topology": ["external"] },
+      "mock_fixture_id": "generated-base-direct",
+      "require_internal_route": true,
+      "gated_status": "CAPABILITY_GATED",
+      "unsupported_reason": "LAN topology is not configured by the current remote endpoint contract and cannot be inferred from an external server address."
+    },
     "dimensions": {
       "payload_size": [64, 1200, 8192],
       "close_mode": ["graceful", "abortive"],

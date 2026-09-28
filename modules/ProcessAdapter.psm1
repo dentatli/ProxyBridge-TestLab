@@ -308,6 +308,42 @@ function New-SystemProcessAdapter {
             if ($null -ne $process) { & $adapter.DisposeProcess $process }
         }
     }.GetNewClosure())
+    $adapter | Add-Member -NotePropertyName InvokeConcurrent -NotePropertyValue ({
+        param($plans)
+        $sessions = [System.Collections.Generic.List[object]]::new()
+        $results = [System.Collections.Generic.List[object]]::new()
+        $watchdog = [System.Diagnostics.Stopwatch]::StartNew()
+        try {
+            foreach ($plan in @($plans)) {
+                $sessions.Add([pscustomobject]@{ plan=$plan; process=(& $adapter.StartProcess $plan) })
+            }
+            foreach ($item in $sessions) {
+                $probeTimeoutMs = $(if ($null -ne $item.plan.PSObject.Properties['actual_path_timeout_ms']) { [int]$item.plan.actual_path_timeout_ms } else { 2000 })
+                $pathProbe = & $adapter.ProbeActualPath $item.process $probeTimeoutMs 25
+                $item.process.actual_path = [string]$pathProbe.actual_path
+                $item.process.actual_path_probe_status = [string]$pathProbe.status
+                $item.process.actual_path_probe_attempts = [int]$pathProbe.attempts
+                $item.process.actual_path_probe_elapsed_ms = [int]$pathProbe.elapsed_ms
+            }
+            $deadlineMs = [int](($sessions | ForEach-Object { [int](& $adapter.GetWatchdogTimeout $_.plan) } | Measure-Object -Maximum).Maximum)
+            foreach ($item in $sessions) {
+                $remainingMs = [int]$deadlineMs - [int]$watchdog.ElapsedMilliseconds
+                $completed = $(if (-not $item.process.session.IsRunning) { $item.process.session.WaitForExit(1) } elseif ($remainingMs -gt 0) { $item.process.session.WaitForExit($remainingMs) } else { $false })
+                if (-not $completed) {
+                    $item.process.timed_out = $true
+                    & $adapter.KillProcess $item.process
+                }
+                $results.Add((& $adapter.GetProcessResult $item.process))
+            }
+            return $results.ToArray()
+        }
+        finally {
+            foreach ($item in $sessions) {
+                try { if (& $adapter.IsRunning $item.process) { & $adapter.KillProcess $item.process } } catch {}
+                & $adapter.DisposeProcess $item.process
+            }
+        }
+    }.GetNewClosure())
     return $adapter
 }
 
@@ -459,7 +495,38 @@ function New-MockProcessAdapter {
         }
         return $result
     }.GetNewClosure())
+    $adapter | Add-Member -NotePropertyName InvokeConcurrent -NotePropertyValue ({
+        param($plans)
+        $results = [System.Collections.Generic.List[object]]::new()
+        foreach ($plan in @($plans)) { $results.Add((& $adapter.Invoke $plan)) }
+        return $results.ToArray()
+    }.GetNewClosure())
     return $adapter
+}
+
+function Invoke-ConcurrentProcessPlans {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][object[]]$Plans,
+        [Parameter(Mandatory)]$ProcessAdapter,
+        [switch]$AllowProductRuntime
+    )
+    if ($Plans.Count -lt 2 -or $Plans.Count -gt 8) { throw 'PROCESS_CONCURRENT_COUNT_INVALID' }
+    if (-not [bool]$ProcessAdapter.is_mock -and -not $AllowProductRuntime) { throw 'PROCESS_RUNTIME_NOT_ALLOWED' }
+    if ($null -eq $ProcessAdapter.PSObject.Properties['InvokeConcurrent']) { throw 'PROCESS_ADAPTER_MISSING_INVOKE_CONCURRENT' }
+    $results = @(& $ProcessAdapter.InvokeConcurrent $Plans)
+    if ($results.Count -ne $Plans.Count) { throw 'PROCESS_CONCURRENT_RESULT_COUNT_MISMATCH' }
+    foreach ($result in $results) {
+        foreach ($field in @('exit_code', 'timed_out', 'pid', 'actual_path', 'stdout', 'stderr')) {
+            if ($null -eq $result.PSObject.Properties[$field]) { throw "PROCESS_RESULT_MISSING_$field" }
+        }
+        if ($null -eq $result.PSObject.Properties['actual_path_probe_status']) {
+            $result | Add-Member -NotePropertyName actual_path_probe_status -NotePropertyValue $(if ([string]::IsNullOrWhiteSpace([string]$result.actual_path)) { 'PROCESS_EXITED' } else { 'PATH_OBTAINED' })
+        }
+        if ($null -eq $result.PSObject.Properties['actual_path_probe_attempts']) { $result | Add-Member -NotePropertyName actual_path_probe_attempts -NotePropertyValue 1 }
+        if ($null -eq $result.PSObject.Properties['actual_path_probe_elapsed_ms']) { $result | Add-Member -NotePropertyName actual_path_probe_elapsed_ms -NotePropertyValue 0 }
+    }
+    return $results
 }
 
 function Invoke-ProcessPlan {
@@ -484,4 +551,4 @@ function Invoke-ProcessPlan {
     return $result
 }
 
-Export-ModuleMember -Function Join-ProcessArguments, New-SystemProcessAdapter, New-MockProcessAdapter, Invoke-ProcessPlan
+Export-ModuleMember -Function Join-ProcessArguments, New-SystemProcessAdapter, New-MockProcessAdapter, Invoke-ProcessPlan, Invoke-ConcurrentProcessPlans

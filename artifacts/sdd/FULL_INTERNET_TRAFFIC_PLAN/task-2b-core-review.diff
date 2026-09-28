@@ -1,0 +1,637 @@
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/modules/ProtocolRunner.psm1" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/modules/ProtocolRunner.psm1"
+index 3223642..cbd34c3 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/modules/ProtocolRunner.psm1"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/modules/ProtocolRunner.psm1"
+@@ -56,19 +56,58 @@ function New-ProtocolExecutionPlan {
+ 
+     $attemptId = "attempt-$Attempt"
+     $flowId = 'flow-1'
++    $suffix = $(if ($Attempt -eq 1) { '' } else { "-attempt-$Attempt" })
+     $parameters = Copy-ProtocolObject (Get-ProtocolProperty $worker 'parameters' $null -Required)
+     $normalizedRemotePort = 0
+     if (-not [int]::TryParse([string](Get-ProtocolProperty $parameters 'remote_port' ''), [ref]$normalizedRemotePort) -or $normalizedRemotePort -lt 1 -or $normalizedRemotePort -gt 65535) { throw 'PROTOCOL_REMOTE_PORT_INVALID' }
+     $parameters.remote_port = $normalizedRemotePort
++    $pluginId = [string](Get-ProtocolProperty $worker 'plugin_id' $null -Required)
++    $isBrowser = $pluginId -eq 'browser-worker'
++    $browserBasename = ''
++    if ($isBrowser) {
++        if ([string](Get-ProtocolProperty $worker 'protocol_family' '') -ne 'browser-web' -or $transport -ne 'TCP' -or [string](Get-ProtocolProperty $worker 'evidence_profile_id' '') -ne 'browser-session') { throw 'BROWSER_PROTOCOL_CONTRACT_INVALID' }
++        if ($action -ne 'DIRECT') { throw 'BROWSER_ACTION_INVALID' }
++        foreach ($identity in @($RunId,[string]$Scenario.scenario_id,$attemptId,$flowId)) {
++            if ($identity -notmatch '^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$') { throw 'BROWSER_ORIGIN_IDENTITY_INVALID' }
++        }
++        $browserExecutable = Get-ProtocolEnvironmentValue $Environment 'PB_BROWSER_EXE'
++        $browserImageHash = (Get-ProtocolEnvironmentValue $Environment 'PB_EXPECTED_BROWSER_SHA256').ToLowerInvariant()
++        $browserBasename = Get-ProtocolEnvironmentValue $Environment 'PB_BROWSER_APPLICATION_BASENAME'
++        $browserIdentity = Get-ProtocolEnvironmentValue $Environment 'PB_BROWSER_APPLICATION_FULLPATH'
++        $browserVersion = Get-ProtocolEnvironmentValue $Environment 'PB_BROWSER_VERSION'
++        if ($browserImageHash -notmatch '^[0-9a-f]{64}$') { throw 'BROWSER_IMAGE_HASH_INVALID' }
++        try {
++            $browserExecutable = [System.IO.Path]::GetFullPath($browserExecutable)
++            $browserIdentity = [System.IO.Path]::GetFullPath($browserIdentity)
++        }
++        catch { throw 'BROWSER_AUTOMATIC_IDENTITY_INVALID' }
++        if (-not [string]::Equals($browserExecutable,$browserIdentity,[System.StringComparison]::OrdinalIgnoreCase)) { throw 'BROWSER_AUTOMATIC_IDENTITY_MISMATCH' }
++        if (-not [string]::Equals([System.IO.Path]::GetFileName($browserExecutable),$browserBasename,[System.StringComparison]::OrdinalIgnoreCase) -or $browserBasename -ne [System.IO.Path]::GetFileName($browserBasename)) { throw 'BROWSER_AUTOMATIC_BASENAME_MISMATCH' }
++        $remoteHost = [string](Get-ProtocolProperty $parameters 'remote_host' $null -Required)
++        $urlHost = $(if ($remoteHost.Contains(':')) { "[$remoteHost]" } else { $remoteHost })
++        $originRoot = "/browser-origin/v1/runs/$RunId/scenarios/$([string]$Scenario.scenario_id)/attempts/$attemptId/flows/$flowId"
++        $identityJson = '{"attempt_id":"' + $attemptId + '","flow_id":"' + $flowId + '","run_id":"' + $RunId + '","scenario_id":"' + [string]$Scenario.scenario_id + '"}'
++        $downloadBody = "proxybridge-testlab-browser-download-v1`n$identityJson`n"
++        $evidenceRoot = [System.IO.Path]::GetFullPath($EvidenceDirectory)
++        $parameters = [pscustomobject][ordered]@{
++            remote_host=$remoteHost;remote_port=$normalizedRemotePort
++            browser_executable=$browserExecutable;expected_browser_sha256=$browserImageHash
++            expected_browser_identity=$browserIdentity;expected_browser_version=$browserVersion;browser_arguments=@()
++            target_url="http://$urlHost`:$normalizedRemotePort$originRoot/page"
++            profile_dir=[System.IO.Path]::GetFullPath((Join-Path $evidenceRoot "browser-profile$suffix"))
++            download_dir=[System.IO.Path]::GetFullPath((Join-Path $evidenceRoot "browser-downloads$suffix"))
++            expected_content_sha256=(Get-ProtocolMockSha256 $downloadBody)
++            expected_response_status=200;expected_negotiated_protocol='http/1.1';actual_path_timeout_ms=$ActualPathTimeoutMs
++        }
++    }
+     $expected = Copy-ProtocolObject (Get-ProtocolProperty $worker 'expected' ([pscustomobject]@{}))
+     $expected | Add-Member -NotePropertyName outcome -NotePropertyValue $(if ($action -eq 'BLOCK') { 'no-response' } else { 'response' }) -Force
+     $workerPlan = New-ProtocolWorkerPlan -RunId $RunId -ScenarioId ([string]$Scenario.scenario_id) -AttemptId $attemptId -FlowId $flowId `
+-        -PluginId ([string](Get-ProtocolProperty $worker 'plugin_id' $null -Required)) -ProtocolFamily ([string](Get-ProtocolProperty $worker 'protocol_family' $null -Required)) `
++        -PluginId $pluginId -ProtocolFamily ([string](Get-ProtocolProperty $worker 'protocol_family' $null -Required)) `
+         -Transport $transport -OperationTimeoutMs $operationTimeoutMs -Parameters $parameters -Expected $expected `
+         -Capabilities @($Scenario.requires | ForEach-Object { [string]$_ }) -RuntimeContracts $RuntimeContracts
+ 
+     if (-not (Test-Path -LiteralPath $EvidenceDirectory -PathType Container)) { $null = New-Item -ItemType Directory -Path $EvidenceDirectory -Force }
+-    $suffix = $(if ($Attempt -eq 1) { '' } else { "-attempt-$Attempt" })
+     $planPath = Join-Path $EvidenceDirectory ("protocol-worker-plan$suffix.json")
+     $clientJsonlPath = Join-Path $EvidenceDirectory ("client$suffix.jsonl")
+     $serverJsonlPath = Join-Path $EvidenceDirectory ("protocol-server$suffix.jsonl")
+@@ -102,7 +141,7 @@ function New-ProtocolExecutionPlan {
+         schema_version=1; executor='protocol-worker'; scenario_id=[string]$Scenario.scenario_id; run_id=$RunId; attempt_id=$attemptId
+         flow_id=$flowId; expected_action=$action; expected_outcome=$(if($action -eq 'BLOCK'){'no-response'}else{'response'})
+         evidence_profile_id=[string](Get-ProtocolProperty $worker 'evidence_profile_id' $null -Required)
+-        expected_process=$(if($PlanningOnly){'python.exe'}else{[System.IO.Path]::GetFileName([string]$byId.python.path)})
++        expected_process=$(if($isBrowser){$browserBasename}elseif($PlanningOnly){'python.exe'}else{[System.IO.Path]::GetFileName([string]$byId.python.path)})
+         remote_host=$remoteHost; remote_port=$remotePort; operation_timeout_ms=$operationTimeoutMs; process_timeout_ms=[int]$processTimeoutMs
+         process_exit_grace_ms=$ProcessExitGraceMs; actual_path_timeout_ms=$ActualPathTimeoutMs
+         timeout_budget_components=[pscustomobject][ordered]@{operation_count=1;operation_timeout_ms=$operationTimeoutMs;operation_budget_ms=$operationTimeoutMs;process_exit_grace_ms=$ProcessExitGraceMs;total_ms=[int]$processTimeoutMs;maximum_ms=$script:MaxProtocolProcessTimeoutMs}
+@@ -214,16 +253,183 @@ function New-ProtocolServerCollectionPlan {
+     return [pscustomobject][ordered]@{mode='protocol-log-collection';output_path=[string]$ExecutionPlan.server_jsonl_path;process_plan=[pscustomobject][ordered]@{executable=$SshExecutablePath;arguments=@(Get-ProtocolSshBaseArguments $Environment)+@($command);timeout_ms=$TimeoutMs}}
+ }
+ 
++function Read-BrowserServerEvidenceSet {
++    param([Parameter(Mandatory)][string]$Path,[Parameter(Mandatory)]$ExecutionPlan)
++    if(-not(Test-Path -LiteralPath $Path -PathType Leaf)){throw 'PROTOCOL_SERVER_EVIDENCE_MISSING'}
++    $bytes=[System.IO.File]::ReadAllBytes($Path)
++    if($bytes.Length-ge 3-and$bytes[0]-eq 0xEF-and$bytes[1]-eq 0xBB-and$bytes[2]-eq 0xBF){throw 'PROTOCOL_SERVER_EVIDENCE_BOM_FORBIDDEN'}
++    $required=@('schema_version','run_id','scenario_id','attempt_id','flow_id','phase','sequence','event','resource','browser_session_id','request_path','content_sha256','content_length','result','timestamp_utc','monotonic_ms','process_id','socket_id','protocol_family','transport','local_ip','local_port','remote_ip','remote_port','negotiated_protocol','status_code')
++    $records=[System.Collections.Generic.List[object]]::new()
++    foreach($line in [System.IO.File]::ReadAllLines($Path,[System.Text.Encoding]::UTF8)){
++        if([string]::IsNullOrWhiteSpace($line)){continue}
++        try{$record=$line|ConvertFrom-Json}catch{throw 'PROTOCOL_SERVER_EVIDENCE_JSON_INVALID'}
++        $identityMatches=$true
++        foreach($field in @('run_id','scenario_id','attempt_id','flow_id')){
++            if($null-eq$record.PSObject.Properties[$field]-or[string]$record.$field-ne[string]$ExecutionPlan.worker_plan.$field){$identityMatches=$false;break}
++        }
++        if(-not$identityMatches){continue}
++        foreach($field in $required){if($null-eq$record.PSObject.Properties[$field]){throw "BROWSER_SERVER_EVIDENCE_FIELD_MISSING: $field"}}
++        if([int]$record.schema_version-ne 1-or[string]$record.phase-ne'server'-or[string]$record.protocol_family-ne'browser-origin'-or[string]$record.transport-ne'TCP'){throw 'BROWSER_SERVER_EVIDENCE_CONTRACT_INVALID'}
++        if([string]$record.content_sha256-notmatch'^[0-9a-fA-F]{64}$'){throw 'BROWSER_SERVER_EVIDENCE_HASH_INVALID'}
++        $records.Add($record)
++    }
++    return $records.ToArray()
++}
++
+ function Invoke-ProtocolServerCollectionPlan {
+     [CmdletBinding()]
+     param([Parameter(Mandatory)]$Plan,[Parameter(Mandatory)]$ExecutionPlan,[Parameter(Mandatory)]$RuntimeContracts,[Parameter(Mandatory)]$ProcessAdapter,[switch]$AllowProductRuntime)
+     $result=Invoke-ProcessPlan -Plan $Plan.process_plan -ProcessAdapter $ProcessAdapter -AllowProductRuntime:$AllowProductRuntime
+     if([bool]$result.timed_out){throw 'PROTOCOL_SERVER_COLLECTION_TIMEOUT'};if([int]$result.exit_code-ne 0){throw 'PROTOCOL_SERVER_COLLECTION_FAILED'}
+     [System.IO.File]::WriteAllText([string]$Plan.output_path,[string]$result.stdout,$script:ProtocolUtf8NoBom)
+-    $records=@(Read-ProtocolServerEvidenceSet -Path ([string]$Plan.output_path) -Plan $ExecutionPlan.worker_plan -RuntimeContracts $RuntimeContracts -EvidenceContractPath ([string]$ExecutionPlan.evidence_contract_path))
++    $records=$(if([string]$ExecutionPlan.evidence_profile_id-eq'browser-session'){
++        @(Read-BrowserServerEvidenceSet -Path ([string]$Plan.output_path) -ExecutionPlan $ExecutionPlan)
++    }else{
++        @(Read-ProtocolServerEvidenceSet -Path ([string]$Plan.output_path) -Plan $ExecutionPlan.worker_plan -RuntimeContracts $RuntimeContracts -EvidenceContractPath ([string]$ExecutionPlan.evidence_contract_path))
++    })
+     return [pscustomobject][ordered]@{capture_complete=$true;records=$records;record_count=$records.Count;output_path=[string]$Plan.output_path;timed_out=$false;exit_code=[int]$result.exit_code}
+ }
+ 
++function Test-BrowserProtocolScenarioAssertions {
++    param($Scenario,$ExecutionPlan,$ClientResult,[object[]]$ServerRecords,[object[]]$ProxyBridgeRecords,$EvidenceContext,[string]$RunMode)
++    $product=[System.Collections.Generic.List[string]]::new()
++    $harness=[System.Collections.Generic.List[string]]::new()
++    $missing=[System.Collections.Generic.List[string]]::new()
++    $contamination=[System.Collections.Generic.List[string]]::new()
++    if([bool]$ClientResult.timed_out){$harness.Add('browser worker timeout')}
++    if(-not[bool]$ClientResult.prelaunch_verified){$harness.Add('browser controller prelaunch verification incomplete')}
++    if(-not[bool]$ClientResult.stdout_status_valid){$harness.Add('browser worker status output invalid')}
++    if(-not[bool]$ClientResult.stderr_empty){$harness.Add('browser worker stderr is not empty')}
++    if([string]$ExecutionPlan.expected_action-ne'DIRECT'){$harness.Add('browser scenario action is not DIRECT')}
++
++    $clientRecords=@($ClientResult.records)
++    if($clientRecords.Count-ne 1){$harness.Add("browser client completion count actual=$($clientRecords.Count) expected=1")}
++    $client=$(if($clientRecords.Count-eq 1){$clientRecords[0]}else{$null})
++    $verifiedPids=[System.Collections.Generic.HashSet[int]]::new()
++    $clientContractValid=$null-ne$client
++    if($null-ne$client){
++        $requiredClient=@('run_id','scenario_id','attempt_id','flow_id','phase','sequence','event','process_id','protocol_family','transport','payload_sha256','result','browser_identity','browser_version','navigation_url_digest','negotiated_protocol','response_status','content_sha256','browser_executable_requested','browser_executable_observed','browser_image_sha256','browser_image_sha256_verified','browser_process_tree_pids','profile_id','actual_path_probe_status','actual_path_probe_attempts','actual_path_probe_elapsed_ms','process_tree_cleaned')
++        foreach($field in $requiredClient){if($null-eq$client.PSObject.Properties[$field]){$harness.Add("browser client evidence field missing: $field");$clientContractValid=$false}}
++    }
++    if($clientContractValid){
++        foreach($field in @('run_id','scenario_id','attempt_id','flow_id')){if([string]$client.$field-ne[string]$ExecutionPlan.worker_plan.$field){$contamination.Add("browser client identity mismatch: $field")}}
++        if([string]$client.phase-ne'client'-or[int]$client.sequence-ne 1-or[string]$client.event-ne'BROWSER_CANARY_COMPLETED'-or[string]$client.protocol_family-ne'browser-web'-or[string]$client.transport-ne'TCP'){$harness.Add('browser client canonical completion invalid')}
++        $parameters=$ExecutionPlan.worker_plan.parameters
++        if([string]$client.browser_executable_requested-ne[string]$parameters.browser_executable){$contamination.Add('browser requested image evidence mismatch')}
++        if([string]::IsNullOrWhiteSpace([string]$client.browser_executable_observed)){$harness.Add('browser observed image evidence missing')}
++        else{
++            try{
++                $observed=[System.IO.Path]::GetFullPath([string]$client.browser_executable_observed)
++                $requested=[System.IO.Path]::GetFullPath([string]$parameters.browser_executable)
++                if(-not[string]::Equals($observed,$requested,[System.StringComparison]::OrdinalIgnoreCase)){$contamination.Add('browser observed image does not match requested image')}
++                if(-not[string]::Equals([System.IO.Path]::GetFileName($observed),[string]$ExecutionPlan.expected_process,[System.StringComparison]::OrdinalIgnoreCase)){$contamination.Add('browser observed image basename does not match route rule')}
++            }catch{$harness.Add('browser observed image path invalid')}
++        }
++        if([string]$client.browser_image_sha256-ne[string]$parameters.expected_browser_sha256){$contamination.Add('browser image hash identity mismatch')}
++        if(-not[bool]$client.browser_image_sha256_verified){$harness.Add('browser image hash verification incomplete')}
++        if([string]$client.browser_identity-ne[string]$parameters.expected_browser_identity){$contamination.Add('browser image identity mismatch')}
++        if([string]$client.browser_version-ne[string]$parameters.expected_browser_version){$contamination.Add('browser version identity mismatch')}
++        if([string]$client.content_sha256-ne[string]$parameters.expected_content_sha256-or[string]$client.payload_sha256-ne[string]$parameters.expected_content_sha256){$product.Add('browser download content mismatch')}
++        if([int]$client.response_status-ne[int]$parameters.expected_response_status){$product.Add('browser response status mismatch')}
++        if([string]$client.negotiated_protocol-ne[string]$parameters.expected_negotiated_protocol){$product.Add('browser negotiated protocol mismatch')}
++        if([string]$client.result-ne'PASS'){$product.Add('browser client outcome mismatch')}
++        if(-not[bool]$client.process_tree_cleaned){$harness.Add('browser process tree cleanup incomplete')}
++        $rootPid=0
++        if(-not[int]::TryParse([string]$client.process_id,[ref]$rootPid)-or$rootPid-lt 1){$harness.Add('browser root process id invalid')}
++        foreach($value in @($client.browser_process_tree_pids)){
++            $pidValue=0
++            if(-not[int]::TryParse([string]$value,[ref]$pidValue)-or$pidValue-lt 1){$harness.Add('browser process tree pid invalid');continue}
++            if(-not$verifiedPids.Add($pidValue)){$contamination.Add('duplicate browser process tree pid')}
++        }
++        if($verifiedPids.Count-eq 0-or($rootPid-gt 0-and-not$verifiedPids.Contains($rootPid))){$harness.Add('browser process tree does not contain its observed root')}
++    }
++
++    $serverCapture=[bool](Get-ProtocolProperty $EvidenceContext 'server_capture_complete' $false)
++    $routeCapture=[bool](Get-ProtocolProperty $EvidenceContext 'channel_capture_completed' $false)
++    if(-not$serverCapture){$missing.Add('complete browser origin capture')}
++    if(-not$routeCapture){$missing.Add('complete browser route capture')}
++    $requiredServer=@('run_id','scenario_id','attempt_id','flow_id','phase','sequence','event','resource','browser_session_id','request_path','content_sha256','content_length','result','timestamp_utc','process_id','protocol_family','transport','local_ip','local_port','remote_ip','remote_port','negotiated_protocol','status_code')
++    $allServerContractsValid=$true
++    foreach($server in @($ServerRecords)){
++        $serverValid=$true
++        foreach($field in $requiredServer){if($null-eq$server.PSObject.Properties[$field]){$harness.Add("browser server evidence field missing: $field");$serverValid=$false;$allServerContractsValid=$false}}
++        if(-not$serverValid){continue}
++        foreach($field in @('run_id','scenario_id','attempt_id','flow_id')){if([string]$server.$field-ne[string]$ExecutionPlan.worker_plan.$field){$contamination.Add("browser server identity mismatch: $field")}}
++        if([string]$server.phase-ne'server'-or[string]$server.protocol_family-ne'browser-origin'-or[string]$server.transport-ne'TCP'-or[string]$server.result-ne'PASS'){$harness.Add('browser server canonical record invalid')}
++        if([string]$server.content_sha256-notmatch'^[0-9a-f]{64}$'-or[string]$server.browser_session_id-notmatch'^[0-9a-f]{64}$'){$harness.Add('browser server digest invalid')}
++        if([string]$server.local_ip-ne[string]$ExecutionPlan.remote_host-or[int]$server.local_port-ne[int]$ExecutionPlan.remote_port){$contamination.Add('browser server destination identity mismatch')}
++    }
++    $pages=@($ServerRecords|Where-Object{$null-ne$_.PSObject.Properties['resource']-and[string]$_.resource-eq'page'})
++    $downloads=@($ServerRecords|Where-Object{$null-ne$_.PSObject.Properties['resource']-and[string]$_.resource-eq'download'})
++    if($pages.Count-eq 0){$missing.Add('browser origin page record')}elseif($pages.Count-gt 1){$contamination.Add('duplicate browser origin page records')}
++    if($downloads.Count-eq 0){$missing.Add('browser origin download record')}elseif($downloads.Count-gt 1){$contamination.Add('duplicate browser origin download records')}
++    if($ServerRecords.Count-gt 2-and($pages.Count-le 1-and$downloads.Count-le 1)){$contamination.Add('unexpected browser origin records')}
++    $serverResourcesValid=$pages.Count-eq 1-and$downloads.Count-eq 1-and$allServerContractsValid
++    if($serverResourcesValid){
++        $page=$pages[0];$download=$downloads[0]
++        $pagePath=[string]$ExecutionPlan.worker_plan.parameters.target_url
++        $pagePath=([uri]$pagePath).AbsolutePath
++        $downloadPath=$pagePath.Substring(0,$pagePath.LastIndexOf('/'))+'/download'
++        if([int]$page.sequence-ne 1-or[int]$download.sequence-ne 2){$contamination.Add('browser origin deterministic sequences invalid')}
++        if([string]$page.event-ne'BROWSER_ORIGIN_PAGE_SERVED'-or[string]$download.event-ne'BROWSER_ORIGIN_DOWNLOAD_SERVED'){$harness.Add('browser origin resource event invalid')}
++        if([string]$page.request_path-ne$pagePath-or[string]$download.request_path-ne$downloadPath){$contamination.Add('browser origin request path identity mismatch')}
++        if([string]$page.browser_session_id-ne[string]$download.browser_session_id){$contamination.Add('browser origin session identity mismatch')}
++        if($clientContractValid){
++            if([string]$download.content_sha256-ne[string]$client.content_sha256){$product.Add('browser download server content mismatch')}
++            foreach($server in @($page,$download)){
++                if([int]$server.status_code-ne[int]$client.response_status){$product.Add('browser origin response status mismatch')}
++                if([string]$server.negotiated_protocol-ne[string]$client.negotiated_protocol){$product.Add('browser origin negotiated protocol mismatch')}
++            }
++        }
++        $direct=[string](Get-ProtocolProperty $EvidenceContext 'direct_egress_ip' '')
++        if([string]::IsNullOrWhiteSpace($direct)){$missing.Add('direct egress baseline')}
++        else{foreach($server in @($page,$download)){if([string]$server.remote_ip-ne$direct){$product.Add('browser wrong direct egress')}}}
++    }
++
++    $start=Get-ProtocolProperty $EvidenceContext 'start_time_utc' ([datetime]::MinValue)
++    $end=Get-ProtocolProperty $EvidenceContext 'end_time_utc' ([datetime]::MaxValue)
++    $insideRoutes=[System.Collections.Generic.List[object]]::new()
++    $outsideRoutes=[System.Collections.Generic.List[object]]::new()
++    foreach($route in @($ProxyBridgeRecords)){
++        if([string](Get-ProtocolProperty $route 'event' '')-notin @('ROUTE_DECISION','RELAY_ACCEPTED_REDIRECT')){continue}
++        if(-not[string]::Equals([string](Get-ProtocolProperty $route 'process' ''),[string]$ExecutionPlan.expected_process,[System.StringComparison]::OrdinalIgnoreCase)){continue}
++        if(-not[string]::Equals([string](Get-ProtocolProperty $route 'destination_ip' ''),[string]$ExecutionPlan.remote_host,[System.StringComparison]::OrdinalIgnoreCase)-or[int](Get-ProtocolProperty $route 'destination_port' 0)-ne[int]$ExecutionPlan.remote_port){continue}
++        $observedText=[string](Get-ProtocolProperty $route 'observed_at_utc' '')
++        if([string]::IsNullOrWhiteSpace($observedText)){$harness.Add('browser route timestamp missing');continue}
++        try{$observed=[datetime]::Parse($observedText).ToUniversalTime()}catch{$harness.Add('browser route timestamp invalid');continue}
++        if($observed-lt$start.ToUniversalTime()-or$observed-gt$end.ToUniversalTime()){continue}
++        $routePid=0
++        if(-not[int]::TryParse([string](Get-ProtocolProperty $route 'pid' 0),[ref]$routePid)-or$routePid-lt 1){$harness.Add('browser route pid invalid');continue}
++        if($verifiedPids.Contains($routePid)){$insideRoutes.Add($route)}else{$outsideRoutes.Add($route)}
++    }
++    if($outsideRoutes.Count-gt 0){$contamination.Add('browser route pid is outside verified process tree')}
++    $expectedSignatures=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
++    $wrongSignatures=[System.Collections.Generic.HashSet[string]]::new([System.StringComparer]::Ordinal)
++    foreach($route in $insideRoutes){
++        $signature="$(Get-ProtocolProperty $route 'pid' 0)|$(Get-ProtocolProperty $route 'observed_at_utc' '')|$(Get-ProtocolProperty $route 'raw_line' '')"
++        if([string](Get-ProtocolProperty $route 'action' '')-eq[string]$ExecutionPlan.expected_action){$null=$expectedSignatures.Add($signature)}else{$null=$wrongSignatures.Add($signature)}
++    }
++    $routeValid=$expectedSignatures.Count-ge 2-and$wrongSignatures.Count-eq 0-and$outsideRoutes.Count-eq 0
++    if($expectedSignatures.Count-gt 0-and$wrongSignatures.Count-gt 0){$contamination.Add('contradictory browser route records')}
++    elseif($wrongSignatures.Count-gt 0){$product.Add('browser flow wrong ProxyBridge action')}
++    elseif($expectedSignatures.Count-lt 2){$missing.Add('two distinct browser TCP route decisions')}
++
++    if(-not[bool]$ClientResult.timed_out-and[int]$ClientResult.exit_code-ne 0-and$product.Count-eq 0){$harness.Add("browser worker exit code $($ClientResult.exit_code)")}
++    $outcome='PASS'
++    if($contamination.Count-gt 0){$outcome='CONTAMINATED'}elseif($harness.Count-gt 0){$outcome='FAIL_HARNESS'}elseif($product.Count-gt 0){$outcome='FAIL_PRODUCT'}elseif($missing.Count-gt 0){$outcome='HOLD_AMBIGUOUS'}
++    $errors=@($product)+@($harness)+@($missing)+@($contamination)
++    $completeness=@(
++        [pscustomobject][ordered]@{channel='client_plan';mandatory=$true;requested=$true;captured=$true;parsed=$true;validated=$true},
++        [pscustomobject][ordered]@{channel='client_jsonl';mandatory=$true;requested=$true;captured=($clientRecords.Count-gt 0);parsed=($clientRecords.Count-gt 0);validated=($clientRecords.Count-eq 1-and$clientContractValid)},
++        [pscustomobject][ordered]@{channel='endpoint_query';mandatory=$true;requested=$true;captured=$serverCapture;parsed=$serverCapture;validated=$serverCapture},
++        [pscustomobject][ordered]@{channel='endpoint_jsonl';mandatory=$true;requested=$true;captured=($ServerRecords.Count-gt 0);parsed=$serverCapture;validated=$serverResourcesValid},
++        [pscustomobject][ordered]@{channel='proxybridge_records';mandatory=$true;requested=$routeCapture;captured=($insideRoutes.Count-gt 0);parsed=$routeCapture;validated=$routeValid},
++        [pscustomobject][ordered]@{channel='cleanup';mandatory=$true;requested=$true;captured=$clientContractValid;parsed=$clientContractValid;validated=($clientContractValid-and[bool]$client.process_tree_cleaned)},
++        [pscustomobject][ordered]@{channel='assertion_result';mandatory=$true;requested=$true;captured=$true;parsed=$true;validated=($contamination.Count-eq 0-and$harness.Count-eq 0)}
++    )
++    return [pscustomobject][ordered]@{passed=($outcome-eq'PASS');outcome=$outcome;product_errors=@($product|Sort-Object -Unique);harness_errors=@($harness|Sort-Object -Unique);missing_evidence=@($missing|Sort-Object -Unique);contamination=@($contamination|Sort-Object -Unique);errors=@($errors|Sort-Object -Unique);channel_capture_completed=$routeCapture;records_found=($insideRoutes.Count-gt 0);route_evidence_required=$true;external_route_proof_complete=($serverCapture-and$serverResourcesValid-and$routeValid);evidence_basis='BROWSER_CLIENT+ORIGIN_PAGE_DOWNLOAD+VERIFIED_PROCESS_TREE_ROUTES';run_mode=$RunMode;evidence_completeness=$completeness}
++}
++
+ function Test-ProtocolScenarioAssertions {
+     [CmdletBinding()]
+     param(
+@@ -231,6 +437,9 @@ function Test-ProtocolScenarioAssertions {
+         [Parameter(Mandatory)][AllowEmptyCollection()][object[]]$ServerRecords,[Parameter(Mandatory)][AllowEmptyCollection()][object[]]$ProxyBridgeRecords,
+         $EvidenceContext,[ValidateSet('mock','real')][string]$RunMode='mock'
+     )
++    if([string]$ExecutionPlan.evidence_profile_id-eq'browser-session'){
++        return Test-BrowserProtocolScenarioAssertions -Scenario $Scenario -ExecutionPlan $ExecutionPlan -ClientResult $ClientResult -ServerRecords $ServerRecords -ProxyBridgeRecords $ProxyBridgeRecords -EvidenceContext $EvidenceContext -RunMode $RunMode
++    }
+     $product=[System.Collections.Generic.List[string]]::new();$harness=[System.Collections.Generic.List[string]]::new()
+     $missing=[System.Collections.Generic.List[string]]::new();$contamination=[System.Collections.Generic.List[string]]::new()
+     if([bool]$ClientResult.timed_out){$harness.Add('protocol worker timeout')}
+@@ -399,9 +608,68 @@ function Add-ProtocolMockProfileFields {
+     }
+ }
+ 
++function Invoke-MockBrowserProtocolScenario {
++    param($Scenario,$ExecutionPlan,[string]$FixtureRoot)
++    $fixturePath=Join-Path (Join-Path $FixtureRoot 'protocol') 'browser-direct.json'
++    if(-not(Test-Path -LiteralPath $fixturePath -PathType Leaf)){throw 'PROTOCOL_MOCK_FIXTURE_MISSING'}
++    try{$fixture=Get-Content -LiteralPath $fixturePath -Raw -Encoding UTF8|ConvertFrom-Json}catch{throw 'PROTOCOL_MOCK_FIXTURE_INVALID'}
++    if([int]$fixture.schema_version-ne 1-or[string]$fixture.expected_action-ne'DIRECT'-or[string]$ExecutionPlan.expected_action-ne'DIRECT'){throw 'PROTOCOL_MOCK_FIXTURE_CONTRACT_MISMATCH'}
++    if([int]$fixture.route_decision_count-ne 2-or(@($fixture.server_resources)-join ',')-ne'page,download'){throw 'PROTOCOL_MOCK_FIXTURE_CONTRACT_MISMATCH'}
++    $parameters=$ExecutionPlan.worker_plan.parameters
++    $rootPid=6100;$childPid=6101
++    $contentHash=[string]$parameters.expected_content_sha256
++    $targetUrl=[string]$parameters.target_url
++    $client=[pscustomobject][ordered]@{
++        schema_version=1;run_id=[string]$ExecutionPlan.run_id;scenario_id=[string]$ExecutionPlan.scenario_id;attempt_id=[string]$ExecutionPlan.attempt_id;flow_id=[string]$ExecutionPlan.flow_id
++        phase='client';sequence=1;event='BROWSER_CANARY_COMPLETED';timestamp_utc='2030-01-01T00:00:03.000Z';monotonic_ms=30
++        process_id=$rootPid;socket_id=0;protocol_family='browser-web';transport='TCP';local_ip='';local_port=0;remote_ip='';remote_port=0
++        payload_sha256=$contentHash;bytes=64;result=[string]$fixture.client_result
++        browser_identity=[string]$parameters.expected_browser_identity;browser_version=[string]$parameters.expected_browser_version
++        navigation_url_digest=(Get-ProtocolMockSha256 $targetUrl);negotiated_protocol=[string]$parameters.expected_negotiated_protocol
++        response_status=[int]$parameters.expected_response_status;content_sha256=$contentHash
++        browser_executable_requested=[string]$parameters.browser_executable;browser_executable_observed=[string]$parameters.browser_executable
++        browser_image_sha256=[string]$parameters.expected_browser_sha256;browser_image_sha256_verified=$true
++        browser_process_tree_pids=@($rootPid,$childPid);profile_id=(Get-ProtocolMockSha256 ([string]$parameters.profile_dir))
++        actual_path_probe_status='PATH_OBTAINED';actual_path_probe_attempts=1;actual_path_probe_elapsed_ms=1;process_tree_cleaned=$true
++    }
++    $pagePath=([uri]$targetUrl).AbsolutePath
++    $downloadPath=$pagePath.Substring(0,$pagePath.LastIndexOf('/'))+'/download'
++    $separator=[string][char]31
++    $sessionId=Get-ProtocolMockSha256 (([string]$ExecutionPlan.run_id)+$separator+([string]$ExecutionPlan.scenario_id)+$separator+([string]$ExecutionPlan.attempt_id)+$separator+([string]$ExecutionPlan.flow_id))
++    $egress=$(if([string]$fixture.server_egress-eq'direct'){'192.0.2.50'}elseif([string]$fixture.server_egress-eq'proxy'){'198.51.100.50'}else{throw 'PROTOCOL_MOCK_EGRESS_INVALID'})
++    $serverRecords=[System.Collections.Generic.List[object]]::new()
++    foreach($resource in @('page','download')){
++        $sequence=$(if($resource-eq'page'){1}else{2})
++        $requestPath=$(if($resource-eq'page'){$pagePath}else{$downloadPath})
++        $hash=$(if($resource-eq'download'){$contentHash}else{Get-ProtocolMockSha256 ("browser-page|$sessionId")})
++        $serverRecords.Add([pscustomobject][ordered]@{
++            schema_version=1;run_id=[string]$ExecutionPlan.run_id;scenario_id=[string]$ExecutionPlan.scenario_id;attempt_id=[string]$ExecutionPlan.attempt_id;flow_id=[string]$ExecutionPlan.flow_id
++            phase='server';sequence=$sequence;event=$(if($resource-eq'page'){'BROWSER_ORIGIN_PAGE_SERVED'}else{'BROWSER_ORIGIN_DOWNLOAD_SERVED'})
++            resource=$resource;browser_session_id=$sessionId;request_path=$requestPath;content_sha256=$hash;content_length=128;result='PASS'
++            timestamp_utc="2030-01-01T00:00:0$sequence.000Z";monotonic_ms=$sequence;process_id=5000;socket_id=0;protocol_family='browser-origin';transport='TCP'
++            local_ip=[string]$ExecutionPlan.remote_host;local_port=[int]$ExecutionPlan.remote_port;remote_ip=$egress;remote_port=(51000+$sequence)
++            secure=$false;negotiated_protocol=[string]$parameters.expected_negotiated_protocol;status_code=[int]$parameters.expected_response_status
++        })
++    }
++    $routeLines=@(
++        "2030-01-01T00:00:01Z $($ExecutionPlan.expected_process) ($rootPid) -> $($ExecutionPlan.remote_host):$($ExecutionPlan.remote_port) via $($fixture.route_text)",
++        "2030-01-01T00:00:02Z $($ExecutionPlan.expected_process) ($childPid) -> $($ExecutionPlan.remote_host):$($ExecutionPlan.remote_port) via $($fixture.route_text)"
++    )
++    $routes=@(ConvertFrom-ProxyBridgeTextLines -Lines $routeLines -DefaultTimestampUtc ([datetime]'2030-01-01T00:00:00Z'))
++    [System.IO.File]::WriteAllText([string]$ExecutionPlan.client_jsonl_path,(($client|ConvertTo-Json -Compress -Depth 20)+[Environment]::NewLine),$script:ProtocolUtf8NoBom)
++    $serverText=(@($serverRecords|ForEach-Object{$_|ConvertTo-Json -Compress -Depth 20})-join[Environment]::NewLine)+[Environment]::NewLine
++    [System.IO.File]::WriteAllText([string]$ExecutionPlan.server_jsonl_path,$serverText,$script:ProtocolUtf8NoBom)
++    $result=[pscustomobject][ordered]@{exit_code=0;timed_out=$false;pid=4242;actual_path=[string]$ExecutionPlan.process_plan.executable;actual_path_probe_status='PATH_OBTAINED';actual_path_probe_attempts=1;actual_path_probe_elapsed_ms=1;actual_path_required=$true;prelaunch_verified=$true;artifact_verification=@();stdout_status_valid=$true;stderr_empty=$true;records=@($client);raw_records=@($client);canonical_records=@($client);jsonl_path=[string]$ExecutionPlan.client_jsonl_path;run_mode='mock'}
++    $context=[pscustomobject]@{server_capture_complete=$true;channel_capture_completed=$true;direct_egress_ip='192.0.2.50';proxy_egress_ip='198.51.100.50';start_time_utc=[datetime]'2029-12-31T23:59:00Z';end_time_utc=[datetime]'2030-01-01T00:01:00Z'}
++    return [pscustomobject][ordered]@{client_result=$result;server_records=@($serverRecords.ToArray());proxybridge_records=$routes;evidence_context=$context}
++}
++
+ function Invoke-MockProtocolScenario {
+     [CmdletBinding()]
+     param([Parameter(Mandatory)]$Scenario,[Parameter(Mandatory)]$ExecutionPlan,[Parameter(Mandatory)][string]$FixtureRoot)
++    if([string]$ExecutionPlan.evidence_profile_id-eq'browser-session'){
++        return Invoke-MockBrowserProtocolScenario -Scenario $Scenario -ExecutionPlan $ExecutionPlan -FixtureRoot $FixtureRoot
++    }
+     $fixturePath=Join-Path (Join-Path $FixtureRoot 'protocol') (([string]$ExecutionPlan.expected_action).ToLowerInvariant()+'.json')
+     if(-not(Test-Path -LiteralPath $fixturePath -PathType Leaf)){throw 'PROTOCOL_MOCK_FIXTURE_MISSING'}
+     try{$fixture=Get-Content -LiteralPath $fixturePath -Raw -Encoding UTF8|ConvertFrom-Json}catch{throw 'PROTOCOL_MOCK_FIXTURE_INVALID'}
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/scenarios/application-canaries/canaries.catalog.json" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/scenarios/application-canaries/canaries.catalog.json"
+index 424f267..f7214d0 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/scenarios/application-canaries/canaries.catalog.json"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/scenarios/application-canaries/canaries.catalog.json"
+@@ -27,6 +27,6 @@
+     { "id": "canary-webrtc", "protocol": "UDP", "tags": ["webrtc", "dtls", "rtp"], "implementation_status": "CAPABILITY_GATED", "requires": ["local_browser_runtime", "server_webrtc_peer"], "implementation_reason": "A real isolated browser and a receipt-verified remote RTCPeerConnection peer are mandatory; synthetic UDP is never accepted as WebRTC evidence." },
+     { "id": "canary-discord-voice", "title": "Controlled encrypted voice-equivalent canary", "protocol": "UDP", "action": "DIRECT", "tags": ["discord-voice", "controlled-equivalence", "srtp", "milestone-15"], "executor_kind": "protocol-worker", "implementation_status": "EXECUTABLE", "implementation_reason": "A standards-based AEAD-SRTP/RTCP transaction covers the encrypted realtime voice traffic class without storing a Discord account.", "requires": ["protocol_worker", "server_realtime"], "port_expression": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "remote_port": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "mock_fixture_id": "protocol-generated", "protocol_worker": { "plugin_id": "protocol-media", "protocol_family": "rtp-media", "transport": "UDP", "evidence_profile_id": "rtp-media-session", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_RTP_MEDIA_PORT}", "packet_count": 24 }, "expected": { "rtcp_status": "RECEIVER_REPORT", "sequence_gap_count": 0 } } },
+     { "id": "canary-screen-sharing", "tags": ["screen-sharing", "synthetic-screen-equivalence"], "implementation_status": "CAPABILITY_GATED", "requires": ["local_browser_runtime", "server_webrtc_peer", "synthetic_media_capture"], "implementation_reason": "Coverage requires a real browser peer carrying a deterministic synthetic media track; it does not claim interactive OS desktop capture." },
+-    { "id": "canary-browser-download", "tags": ["browser-download"], "implementation_status": "CAPABILITY_GATED", "requires": ["local_browser_runtime", "server_browser_origin"], "implementation_reason": "Execution is enabled only after automatic browser discovery and a receipt-verified controlled origin provide process-tree, route and content-hash evidence." }
++    { "id": "canary-browser-download", "title": "Controlled real-browser download canary", "tags": ["browser-download", "milestone-15"], "executor_kind": "protocol-worker", "implementation_status": "EXECUTABLE", "requires": ["local_browser_runtime", "server_browser_origin", "protocol_worker"], "implementation_reason": "The isolated browser worker and controlled HTTP origin provide identity-bound page/download, process-tree, route and content-hash evidence.", "application": "${PB_BROWSER_APPLICATION_BASENAME}", "port_expression": "${PB_PROTOCOL_HTTP_PORT}", "remote_port": "${PB_PROTOCOL_HTTP_PORT}", "mock_fixture_id": "protocol-generated", "protocol_worker": { "plugin_id": "browser-worker", "protocol_family": "browser-web", "transport": "TCP", "evidence_profile_id": "browser-session", "parameters": { "remote_host": "${PB_VPS_IPV4}", "remote_port": "${PB_PROTOCOL_HTTP_PORT}" }, "expected": {} } }
+   ]
+ }
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/src/protocol_worker/plugins/manifest.json" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/src/protocol_worker/plugins/manifest.json"
+index 9a17c50..648c254 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/src/protocol_worker/plugins/manifest.json"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/src/protocol_worker/plugins/manifest.json"
+@@ -10,6 +10,15 @@
+       "evidence_profile_id": "raw-stream",
+       "required_evidence_fields": ["expected_action", "observed_action", "send_count", "receive_count"]
+     },
++    {
++      "id": "browser-worker",
++      "implementation_status": "IMPLEMENTED",
++      "protocol_family": "browser-web",
++      "transports": ["TCP"],
++      "network_access": true,
++      "evidence_profile_id": "browser-session",
++      "required_evidence_fields": ["browser_identity", "browser_version", "navigation_url_digest", "negotiated_protocol", "response_status", "content_sha256", "browser_executable_requested", "browser_executable_observed", "browser_image_sha256", "browser_image_sha256_verified", "browser_process_tree_pids", "profile_id", "actual_path_probe_status", "actual_path_probe_attempts", "actual_path_probe_elapsed_ms", "process_tree_cleaned"]
++    },
+     {
+       "id": "protocol-dns",
+       "implementation_status": "IMPLEMENTED",
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/src/protocol_worker/registry.py" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/src/protocol_worker/registry.py"
+index e0be491..5e31d8f 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/src/protocol_worker/registry.py"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/src/protocol_worker/registry.py"
+@@ -33,6 +33,7 @@ STATIC_RUNNERS: dict[str, PluginRunner] = {
+ }
+ 
+ LAZY_RUNNERS: dict[str, tuple[str, str]] = {
++    "browser-worker": ("plugins.browser", "run_browser"),
+     "protocol-http2": ("plugins.http2", "run_http2"),
+     "protocol-grpc": ("plugins.http2", "run_grpc"),
+     "protocol-websocket": ("plugins.websocket", "run_websocket"),
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/tests/Test-Catalog.ps1" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/Test-Catalog.ps1"
+index 6bf0450..efec774 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/tests/Test-Catalog.ps1"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/Test-Catalog.ps1"
+@@ -12,10 +12,10 @@ Assert-True ($groups.Count -ge 12) 'catalog must cover at least 12 groups'
+ Assert-Equal 18 @($catalog | Where-Object { $_.coverage_group -eq 'base-policy' }).Count 'critical protocol/family/action matrix must remain exhaustive'
+ Assert-True (@($catalog | Where-Object { $_.coverage_group -eq 'issue206' }).Count -ge 9) 'all issue206 transitions plus legacy regression must exist'
+ Assert-Equal 7 @($catalog | Where-Object implementation_status -eq 'UNSUPPORTED_PRODUCT_SCOPE').Count 'unsupported product scope declarations must exist'
+-Assert-Equal 171 @($catalog | Where-Object implementation_status -eq 'EXECUTABLE').Count 'completed native, protocol-aware and controlled canary waves must be executable'
++Assert-Equal 172 @($catalog | Where-Object implementation_status -eq 'EXECUTABLE').Count 'completed native, protocol-aware and controlled canary waves must be executable'
+ Assert-Equal 0 @($catalog | Where-Object implementation_status -eq 'DECLARATIVE_ONLY').Count 'approved roadmap items must resolve to an executable contract or an honest capability gate'
+ Assert-Equal 5 @($catalog | Where-Object implementation_status -eq 'SYSTEM_CHECK').Count 'cross-cutting lifecycle coverage must be represented as system checks'
+-Assert-Equal 22 @($catalog | Where-Object implementation_status -eq 'CAPABILITY_GATED').Count 'unavailable browser, failure-control, performance, LAN and product contracts must be capability gated'
++Assert-Equal 21 @($catalog | Where-Object implementation_status -eq 'CAPABILITY_GATED').Count 'unavailable browser, failure-control, performance, LAN and product contracts must be capability gated'
+ Assert-Equal 15 @($catalog | Where-Object coverage_group -eq 'protocol-core').Count 'DNS, TLS, HTTP and HTTPS must cover DIRECT, BLOCK and PROXY'
+ Assert-Equal 15 @($catalog | Where-Object coverage_group -eq 'protocol-advanced').Count 'HTTP/2, gRPC, WebSocket, HTTP/3 and WebTransport must cover DIRECT, BLOCK and PROXY'
+ Assert-Equal 31 @($catalog | Where-Object coverage_group -eq 'protocol-standard').Count 'standard protocol coverage plus the explicit SFTP gate'
+@@ -67,11 +67,22 @@ Assert-True ([string]($catalog|Where-Object scenario_id -eq 'udp-receive-only').
+ $receiveOnly = $catalog | Where-Object scenario_id -eq 'udp-receive-only'
+ Assert-Equal 'EXECUTABLE' $receiveOnly.implementation_status 'registered receive-only UDP must use the controlled endpoint contract'
+ Assert-Equal 'udp-registration-session' $receiveOnly.protocol_worker.evidence_profile_id 'receive-only UDP evidence profile'
+-foreach ($id in @('canary-webrtc','canary-screen-sharing','canary-browser-download')) {
++foreach ($id in @('canary-webrtc','canary-screen-sharing')) {
+     $browserScenario = $catalog | Where-Object scenario_id -eq $id
+     Assert-Equal 'CAPABILITY_GATED' $browserScenario.implementation_status "$id must not claim synthetic browser or WebRTC execution"
+     Assert-True (@($browserScenario.requires) -contains 'local_browser_runtime') "$id must name the automatic local browser gate"
+ }
++$browserDownload = $catalog | Where-Object scenario_id -eq 'canary-browser-download'
++Assert-Equal 'EXECUTABLE' $browserDownload.implementation_status 'controlled browser download must use the reviewed browser worker and origin contract'
++Assert-Equal 'protocol-worker' $browserDownload.executor_kind 'browser controller remains the protocol worker runtime'
++Assert-Equal 'browser-worker' $browserDownload.protocol_worker.plugin_id 'browser download worker plugin'
++Assert-Equal 'browser-web' $browserDownload.protocol_worker.protocol_family 'browser download protocol family'
++Assert-Equal 'browser-session' $browserDownload.protocol_worker.evidence_profile_id 'browser download evidence profile'
++Assert-SequenceEqual @('local_browser_runtime','server_browser_origin','protocol_worker','ipv4','tcp','process_basename_rules') @($browserDownload.requires) 'browser download must preserve only its automatic runtime/origin and derived execution gates'
++Assert-Equal '${PB_BROWSER_APPLICATION_BASENAME}' $browserDownload.rule_set[0].application 'browser DIRECT rule must use the automatically derived browser basename'
++Assert-SequenceEqual @('${PB_PROTOCOL_HTTP_PORT}') @($browserDownload.rule_set[0].ports) 'browser DIRECT rule must discriminate the controlled HTTP origin port'
++Assert-Equal 'TCP' $browserDownload.rule_set[0].protocol 'browser download rule transport'
++Assert-Equal 'DIRECT' $browserDownload.rule_set[0].action 'browser download rule action'
+ foreach ($id in @('failure-proxy-unavailable','failure-proxy-auth','failure-backend-restart','udp-backend-restart')) {
+     $failureGate = $catalog | Where-Object scenario_id -eq $id
+     Assert-Equal 'CAPABILITY_GATED' $failureGate.implementation_status "$id must not run without an isolated failure-control contract"
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/tests/Test-ProtocolRunner.ps1" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/Test-ProtocolRunner.ps1"
+index de3f4e5..41be45d 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/tests/Test-ProtocolRunner.ps1"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/Test-ProtocolRunner.ps1"
+@@ -23,6 +23,33 @@ function New-Scenario([string]$Action) {
+     }
+ }
+ 
++function New-BrowserScenario {
++    return [pscustomobject][ordered]@{
++        scenario_id='canary-browser-download';executor_kind='protocol-worker';timeout_ms=5000
++        requires=@('local_browser_runtime','server_browser_origin','protocol_worker','ipv4','tcp','process_basename_rules')
++        client=[pscustomobject]@{expected_action='DIRECT';protocol='TCP'}
++        protocol_worker=[pscustomobject]@{
++            plugin_id='browser-worker';protocol_family='browser-web';transport='TCP';evidence_profile_id='browser-session'
++            parameters=[pscustomobject]@{
++                remote_host='198.51.100.10';remote_port=42080
++                browser_executable='C:\manual\browser.exe';target_url='https://manual.invalid/';expected_content_sha256=('f'*64)
++            }
++            expected=[pscustomobject]@{}
++        }
++    }
++}
++
++function Get-TestUtf8Sha256([string]$Value) {
++    $bytes=[System.Text.Encoding]::UTF8.GetBytes($Value)
++    $hasher=[System.Security.Cryptography.SHA256]::Create()
++    try{return ([System.BitConverter]::ToString($hasher.ComputeHash($bytes))).Replace('-','').ToLowerInvariant()}
++    finally{$hasher.Dispose();[array]::Clear($bytes,0,$bytes.Length)}
++}
++
++function Copy-TestObject($Value) {
++    return ($Value | ConvertTo-Json -Depth 30 | ConvertFrom-Json)
++}
++
+ function New-DnsRecord($Plan,[string]$Phase,[string]$Result,[string]$RemoteIp,[bool]$NoResponse=$false) {
+     $record=[pscustomobject][ordered]@{
+         schema_version=1;run_id=[string]$Plan.worker_plan.run_id;scenario_id=[string]$Plan.worker_plan.scenario_id;attempt_id=[string]$Plan.worker_plan.attempt_id;flow_id=[string]$Plan.worker_plan.flow_id
+@@ -67,6 +94,14 @@ try {
+         @('PB_EXPECTED_PROTOCOL_PYTHON_SHA256','PB_PROTOCOL_PYTHON_EXE'),@('PB_EXPECTED_PROTOCOL_WORKER_SHA256','PB_PROTOCOL_WORKER_ENTRYPOINT'),
+         @('PB_EXPECTED_PROTOCOL_MANIFEST_SHA256','PB_PROTOCOL_WORKER_MANIFEST'),@('PB_EXPECTED_PROTOCOL_EVIDENCE_CONTRACT_SHA256','PB_PROTOCOL_EVIDENCE_CONTRACT'),@('PB_EXPECTED_PROTOCOL_CA_SHA256','PB_PROTOCOL_CA_PEM')
+     )){$environment[$pair[0]]=(Get-FileHash -LiteralPath $environment[$pair[1]] -Algorithm SHA256).Hash.ToLowerInvariant()}
++    $fixtureBrowser = Join-Path $temp 'browser/fixture-browser.exe'
++    $null = New-Item -ItemType Directory -Path (Split-Path -Parent $fixtureBrowser) -Force
++    Write-TestUtf8NoBom $fixtureBrowser 'fixture-browser-image'
++    $environment['PB_BROWSER_EXE']=[System.IO.Path]::GetFullPath($fixtureBrowser)
++    $environment['PB_EXPECTED_BROWSER_SHA256']=(Get-FileHash -LiteralPath $fixtureBrowser -Algorithm SHA256).Hash.ToLowerInvariant()
++    $environment['PB_BROWSER_APPLICATION_BASENAME']='fixture-browser.exe'
++    $environment['PB_BROWSER_APPLICATION_FULLPATH']=[System.IO.Path]::GetFullPath($fixtureBrowser)
++    $environment['PB_BROWSER_VERSION']='123.0.0.0'
+ 
+     $scenario=New-Scenario 'DIRECT'
+     $cursorPlan=New-ProtocolLogCursorPlan -Environment $environment
+@@ -101,6 +136,81 @@ try {
+     $generatedAssertion=Test-ProtocolScenarioAssertions -Scenario $scenario -ExecutionPlan $plan -ClientResult $generatedMock.client_result -ServerRecords @($generatedMock.server_records) -ProxyBridgeRecords @($generatedMock.proxybridge_records) -EvidenceContext $generatedMock.evidence_context -RunMode mock
+     Assert-Equal 'PASS' $generatedAssertion.outcome 'deterministic DIRECT protocol fixture must pass'
+ 
++    $browserScenario=New-BrowserScenario
++    $browserEvidence=Join-Path $temp 'browser-runner-evidence'
++    $browserPlan=New-ProtocolExecutionPlan -Scenario $browserScenario -Environment $environment -RunId 'browser-run' -Attempt 1 -EvidenceDirectory $browserEvidence -RuntimeContracts $runtimeContracts -OperationTimeoutCapMs 5000 -ProcessExitGraceMs 2000
++    $expectedBrowserUrl='http://198.51.100.10:42080/browser-origin/v1/runs/browser-run/scenarios/canary-browser-download/attempts/attempt-1/flows/flow-1/page'
++    $expectedDownloadBody="proxybridge-testlab-browser-download-v1`n{`"attempt_id`":`"attempt-1`",`"flow_id`":`"flow-1`",`"run_id`":`"browser-run`",`"scenario_id`":`"canary-browser-download`"}`n"
++    Assert-Equal $artifactPaths.PB_PROTOCOL_PYTHON_EXE ([string]$browserPlan.process_plan.executable) 'Python protocol runtime remains the browser controller process'
++    Assert-Equal 'fixture-browser.exe' ([string]$browserPlan.expected_process) 'browser route correlation must use the automatic browser basename'
++    Assert-Equal $environment.PB_BROWSER_EXE ([string]$browserPlan.worker_plan.parameters.browser_executable) 'browser executable must come from automatic environment materialization'
++    Assert-Equal $environment.PB_EXPECTED_BROWSER_SHA256 ([string]$browserPlan.worker_plan.parameters.expected_browser_sha256) 'browser image hash must come from automatic environment materialization'
++    Assert-Equal $environment.PB_BROWSER_APPLICATION_FULLPATH ([string]$browserPlan.worker_plan.parameters.expected_browser_identity) 'browser identity must come from automatic environment materialization'
++    Assert-Equal $environment.PB_BROWSER_VERSION ([string]$browserPlan.worker_plan.parameters.expected_browser_version) 'browser version must come from automatic environment materialization'
++    Assert-Equal $expectedBrowserUrl ([string]$browserPlan.worker_plan.parameters.target_url) 'browser page URL must be identity-bound and controller-derived'
++    Assert-Equal (Get-TestUtf8Sha256 $expectedDownloadBody) ([string]$browserPlan.worker_plan.parameters.expected_content_sha256) 'browser download hash must match browser_origin.py identity-bound bytes'
++    Assert-Equal 200 ([int]$browserPlan.worker_plan.parameters.expected_response_status) 'browser expected response status'
++    Assert-Equal 'http/1.1' ([string]$browserPlan.worker_plan.parameters.expected_negotiated_protocol) 'browser protocol claim must match the HTTP/1.1 origin'
++    Assert-Equal ([System.IO.Path]::GetFullPath((Join-Path $browserEvidence 'browser-profile'))) ([string]$browserPlan.worker_plan.parameters.profile_dir) 'browser profile must be run-owned below scenario evidence'
++    Assert-Equal ([System.IO.Path]::GetFullPath((Join-Path $browserEvidence 'browser-downloads'))) ([string]$browserPlan.worker_plan.parameters.download_dir) 'browser downloads must be run-owned below scenario evidence'
++    Assert-True (-not (Test-Path -LiteralPath ([string]$browserPlan.worker_plan.parameters.profile_dir))) 'browser runner must leave profile creation to the browser worker'
++    Assert-True (-not (Test-Path -LiteralPath ([string]$browserPlan.worker_plan.parameters.download_dir))) 'browser runner must leave download directory creation to the browser worker'
++    Assert-SequenceEqual @() @($browserPlan.worker_plan.parameters.browser_arguments) 'browser UI/scenario cannot inject launch arguments'
++
++    $browserMock=Invoke-MockProtocolScenario -Scenario $browserScenario -ExecutionPlan $browserPlan -FixtureRoot (Join-Path $root 'tests/fixtures/mock')
++    $browserPass=Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $browserMock.client_result -ServerRecords @($browserMock.server_records) -ProxyBridgeRecords @($browserMock.proxybridge_records) -EvidenceContext $browserMock.evidence_context -RunMode mock
++    Assert-Equal 'PASS' $browserPass.outcome 'truthful generated browser fixture must pass'
++    Assert-Equal 1 @($browserMock.client_result.records).Count 'browser mock must emit exactly one canonical client completion'
++    Assert-SequenceEqual @('page','download') @($browserMock.server_records | Sort-Object sequence | ForEach-Object resource) 'browser mock must emit exact page/download server resources'
++    Assert-Equal 2 @($browserMock.proxybridge_records).Count 'browser mock must emit two response-connection route decisions'
++
++    $browserCollectionPlan=New-ProtocolServerCollectionPlan -Environment $environment -ExecutionPlan $browserPlan -Cursor ([pscustomobject]@{inode='123';offset=0})
++    $browserServerJson=(@($browserMock.server_records | ForEach-Object { $_ | ConvertTo-Json -Compress -Depth 20 }) -join [Environment]::NewLine)+[Environment]::NewLine
++    $browserCollectionAdapter=New-MockProcessAdapter -InvokeResults @((New-ProcessResult '' 'PROCESS_EXITED' 0 $false $browserServerJson ''))
++    $browserCollection=Invoke-ProtocolServerCollectionPlan -Plan $browserCollectionPlan -ExecutionPlan $browserPlan -RuntimeContracts $runtimeContracts -ProcessAdapter $browserCollectionAdapter
++    Assert-Equal 2 @($browserCollection.records).Count 'browser server collection must parse the asymmetric page/download evidence contract'
++
++    $wrongContent=Copy-TestObject $browserMock
++    ($wrongContent.server_records | Where-Object resource -eq 'download').content_sha256=('e'*64)
++    Assert-Equal 'FAIL_PRODUCT' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $wrongContent.client_result -ServerRecords @($wrongContent.server_records) -ProxyBridgeRecords @($wrongContent.proxybridge_records) -EvidenceContext $wrongContent.evidence_context -RunMode mock).outcome 'complete wrong browser download content is a product failure'
++
++    foreach($resource in @('page','download')) {
++        $missingResource=Copy-TestObject $browserMock
++        $missingResource.server_records=@($missingResource.server_records | Where-Object resource -ne $resource)
++        Assert-Equal 'HOLD_AMBIGUOUS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $missingResource.client_result -ServerRecords @($missingResource.server_records) -ProxyBridgeRecords @($missingResource.proxybridge_records) -EvidenceContext $missingResource.evidence_context -RunMode mock).outcome "missing browser $resource evidence must hold"
++
++        $duplicateResource=Copy-TestObject $browserMock
++        $duplicate=Copy-TestObject @($duplicateResource.server_records | Where-Object resource -eq $resource)[0]
++        $duplicateResource.server_records=@($duplicateResource.server_records)+@($duplicate)
++        Assert-Equal 'CONTAMINATED' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $duplicateResource.client_result -ServerRecords @($duplicateResource.server_records) -ProxyBridgeRecords @($duplicateResource.proxybridge_records) -EvidenceContext $duplicateResource.evidence_context -RunMode mock).outcome "duplicate browser $resource evidence must be contamination"
++    }
++
++    $outsideTree=Copy-TestObject $browserMock
++    foreach($route in @($outsideTree.proxybridge_records)){$route.pid=9999}
++    Assert-Equal 'CONTAMINATED' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $outsideTree.client_result -ServerRecords @($outsideTree.server_records) -ProxyBridgeRecords @($outsideTree.proxybridge_records) -EvidenceContext $outsideTree.evidence_context -RunMode mock).outcome 'browser route from outside verified process tree must be contamination'
++
++    $oneRoute=Copy-TestObject $browserMock
++    $oneRoute.proxybridge_records=@($oneRoute.proxybridge_records | Select-Object -First 1)
++    Assert-Equal 'HOLD_AMBIGUOUS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $oneRoute.client_result -ServerRecords @($oneRoute.server_records) -ProxyBridgeRecords @($oneRoute.proxybridge_records) -EvidenceContext $oneRoute.evidence_context -RunMode mock).outcome 'one browser route decision cannot prove two closed HTTP responses'
++
++    $contradictoryRoute=Copy-TestObject $browserMock
++    $wrongRoute=Copy-TestObject @($contradictoryRoute.proxybridge_records)[0]
++    $wrongRoute.action='BLOCK'
++    $contradictoryRoute.proxybridge_records=@($contradictoryRoute.proxybridge_records)+@($wrongRoute)
++    Assert-Equal 'CONTAMINATED' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $contradictoryRoute.client_result -ServerRecords @($contradictoryRoute.server_records) -ProxyBridgeRecords @($contradictoryRoute.proxybridge_records) -EvidenceContext $contradictoryRoute.evidence_context -RunMode mock).outcome 'contradictory browser route action must be rejected above product classification'
++
++    $wrongAction=Copy-TestObject $browserMock
++    foreach($route in @($wrongAction.proxybridge_records)){$route.action='BLOCK'}
++    Assert-Equal 'FAIL_PRODUCT' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $wrongAction.client_result -ServerRecords @($wrongAction.server_records) -ProxyBridgeRecords @($wrongAction.proxybridge_records) -EvidenceContext $wrongAction.evidence_context -RunMode mock).outcome 'externally complete wrong browser route action is a product failure'
++
++    $uncleanTree=Copy-TestObject $browserMock
++    $uncleanTree.client_result.records[0].process_tree_cleaned=$false
++    Assert-Equal 'FAIL_HARNESS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $uncleanTree.client_result -ServerRecords @($uncleanTree.server_records) -ProxyBridgeRecords @($uncleanTree.proxybridge_records) -EvidenceContext $uncleanTree.evidence_context -RunMode mock).outcome 'unclean browser process tree is a harness failure'
++
++    $malformedServer=Copy-TestObject $browserMock
++    $malformedServer.server_records[0]=$malformedServer.server_records[0] | Select-Object * -ExcludeProperty negotiated_protocol
++    Assert-Equal 'FAIL_HARNESS' (Test-ProtocolScenarioAssertions -Scenario $browserScenario -ExecutionPlan $browserPlan -ClientResult $malformedServer.client_result -ServerRecords @($malformedServer.server_records) -ProxyBridgeRecords @($malformedServer.proxybridge_records) -EvidenceContext $malformedServer.evidence_context -RunMode mock).outcome 'malformed browser server evidence cannot pass'
++
+     $blockScenario=New-Scenario 'BLOCK'
+     $blockPlan=New-ProtocolExecutionPlan -Scenario $blockScenario -Environment $environment -RunId 'protocol-block-run' -Attempt 1 -EvidenceDirectory (Join-Path $temp 'block') -RuntimeContracts $runtimeContracts -OperationTimeoutCapMs 5000 -ProcessExitGraceMs 2000
+     $blockClientRecord=New-DnsRecord $blockPlan 'client' 'PASS' '' $true
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/tests/Test-ProtocolWorker.ps1" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/Test-ProtocolWorker.ps1"
+index a3105d2..3aae601 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-before/tests/Test-ProtocolWorker.ps1"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/Test-ProtocolWorker.ps1"
+@@ -11,7 +11,16 @@ $evidenceContractPath = Join-Path $root 'config/protocol-evidence-contract.json'
+ $entrypointPath = Join-Path $root 'src/protocol_worker/pb_protocol_worker.py'
+ $bundleBuilderPath = Join-Path $root 'scripts/Build-ProtocolWorkerBundle.ps1'
+ $contracts = Import-ProtocolWorkerRuntimeContract -RuntimeContractPath $runtimePath -PluginManifestPath $manifestPath
+-Assert-Equal 19 @($contracts.manifest.plugins | Where-Object implementation_status -eq 'IMPLEMENTED').Count 'Milestones 12-16 worker plugins plus offline self-test'
++Assert-Equal 20 @($contracts.manifest.plugins | Where-Object implementation_status -eq 'IMPLEMENTED').Count 'Milestones 12-16 worker plugins, browser worker and offline self-test'
++$browserPlugin = @($contracts.manifest.plugins | Where-Object id -eq 'browser-worker')
++Assert-Equal 1 $browserPlugin.Count 'browser worker must be declared exactly once'
++Assert-Equal 'IMPLEMENTED' ([string]$browserPlugin[0].implementation_status) 'browser worker must be implemented'
++Assert-Equal 'browser-web' ([string]$browserPlugin[0].protocol_family) 'browser worker protocol family'
++Assert-SequenceEqual @('TCP') @($browserPlugin[0].transports) 'browser worker transport'
++Assert-Equal 'browser-session' ([string]$browserPlugin[0].evidence_profile_id) 'browser worker evidence profile'
++foreach ($field in @('browser_identity','browser_version','navigation_url_digest','negotiated_protocol','response_status','content_sha256','browser_executable_requested','browser_executable_observed','browser_image_sha256','browser_image_sha256_verified','browser_process_tree_pids','profile_id','actual_path_probe_status','actual_path_probe_attempts','actual_path_probe_elapsed_ms','process_tree_cleaned')) {
++    Assert-True (@($browserPlugin[0].required_evidence_fields) -contains $field) "browser worker manifest must require $field"
++}
+ 
+ $plan = New-ProtocolWorkerPlan -RunId 'run-worker-001' -ScenarioId 'protocol-worker-selftest' -AttemptId 'attempt-1' -FlowId 'flow-1' -PluginId 'contract-selftest' -ProtocolFamily 'native-tcp' -Transport NONE -OperationTimeoutMs 5000 -Parameters ([pscustomobject]@{mode='offline'}) -Expected ([pscustomobject]@{result='PASS'}) -RuntimeContracts $contracts
+ Assert-True (Test-ProtocolWorkerPlan -Plan $plan -RuntimeContracts $contracts) 'valid worker plan'
+@@ -22,6 +31,11 @@ $pythonCommand = Get-Command python -ErrorAction SilentlyContinue
+ if ($null -eq $pythonCommand) { throw 'TEST_PYTHON_NOT_FOUND' }
+ $temp = New-TestDirectory
+ try {
++    $registryFixture = Join-Path $PSScriptRoot 'fixtures\browser-runner\registry_contract.py'
++    $registryOutput = @(& $pythonCommand.Source -I -B $registryFixture $manifestPath 2>&1)
++    Assert-Equal 0 $LASTEXITCODE 'browser worker source registry contract exit code'
++    Assert-SequenceEqual @('PASS: browser worker lazy registry') @($registryOutput) 'browser worker source registry contract result'
++
+     $planPath = Join-Path $temp 'plan.json'
+     $outputPath = Join-Path $temp 'evidence.jsonl'
+     Write-ProtocolWorkerPlan -Plan $plan -Path $planPath -RuntimeContracts $contracts
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/fixtures/browser-runner/registry_contract.py" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/fixtures/browser-runner/registry_contract.py"
+new file mode 100644
+index 0000000..5a1a638
+--- /dev/null
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/fixtures/browser-runner/registry_contract.py"
+@@ -0,0 +1,24 @@
++from __future__ import annotations
++
++from pathlib import Path
++import sys
++
++
++repository_root = Path(__file__).resolve().parents[3]
++worker_root = repository_root / "src" / "protocol_worker"
++sys.path.insert(0, str(worker_root))
++
++from registry import LAZY_RUNNERS, load_registry  # noqa: E402
++
++
++manifest_path = Path(sys.argv[1]).resolve()
++registrations = load_registry(manifest_path)
++registration = registrations.get("browser-worker")
++
++assert LAZY_RUNNERS.get("browser-worker") == ("plugins.browser", "run_browser")
++assert registration is not None
++assert registration.evidence_profile_id == "browser-session"
++assert registration.network_access is True
++assert callable(registration.runner)
++
++print("PASS: browser worker lazy registry")
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/fixtures/mock/protocol/browser-direct.json" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/fixtures/mock/protocol/browser-direct.json"
+new file mode 100644
+index 0000000..db52920
+--- /dev/null
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2b-core-after/tests/fixtures/mock/protocol/browser-direct.json"
+@@ -0,0 +1,9 @@
++{
++  "schema_version": 1,
++  "expected_action": "DIRECT",
++  "client_result": "PASS",
++  "server_egress": "direct",
++  "server_resources": ["page", "download"],
++  "route_decision_count": 2,
++  "route_text": "Direct"
++}

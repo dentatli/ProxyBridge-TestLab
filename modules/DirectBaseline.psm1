@@ -23,10 +23,12 @@ function New-DirectBaselinePlan {
     if (-not [System.Net.IPAddress]::TryParse([string]$Environment['PB_VPS_IPV4'], [ref]$address) -or $address.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) { throw 'DIRECT_BASELINE_DESTINATION_IPV4_INVALID' }
     $port = 0
     if (-not [int]::TryParse([string]$Environment['PB_ENDPOINT_A_PORT'], [ref]$port) -or $port -lt 1 -or $port -gt 65535) { throw 'DIRECT_BASELINE_PORT_INVALID' }
-    $payload = [System.Text.Encoding]::UTF8.GetBytes(('proxybridge-direct-baseline-' + [guid]::NewGuid().ToString('N') + "`n"))
+    $baselineRunId = 'baseline-' + [guid]::NewGuid().ToString('N')
+    $payload = [System.Text.Encoding]::UTF8.GetBytes("PB_NET|test_id=direct-baseline|run_id=$baselineRunId|sequence=1|phase=direct_baseline|protocol=TCP`n")
     return [pscustomobject][ordered]@{
         executor='powershell-dotnet-tcp-control'; watched_application=[System.IO.Path]::GetFileName([string]$Environment['PB_CLIENT_EXE'])
         remote_ip=[string]$Environment['PB_VPS_IPV4']; remote_port=$port; timeout_ms=$TimeoutMs
+        test_id='direct-baseline';run_id=$baselineRunId;sequence=1;phase='direct_baseline';family='IPv4';protocol='TCP'
         payload_sha256=(Get-Sha256Hex $payload); payload_base64=[Convert]::ToBase64String($payload); payload_bytes=$payload.Length
     }
 }
@@ -81,7 +83,7 @@ function Invoke-DirectBaselineDiscovery {
         bytes_sent=[int]$flow.bytes_sent;bytes_received=[int]$flow.bytes_received;timed_out=[bool]$flow.timed_out;success=[bool]$flow.success;error=[string]$flow.error
     }
     if(-not [bool]$flow.success -or [bool]$flow.timed_out -or [string]$flow.response_sha256 -ne [string]$Plan.payload_sha256){return [pscustomobject][ordered]@{passed=$false;status='FAIL_INFRASTRUCTURE';reason='DIRECT_BASELINE_CLIENT_FAILED';direct_egress_ip='';client_result=$clientEvidence;vps_collection=$null;vps_records=@()}}
-    $canonical=[pscustomobject][ordered]@{record_kind='flow';sequence=0;phase='direct-baseline';protocol='TCP';payload_sha256=[string]$Plan.payload_sha256;expected_action='DIRECT';remote_ip=[string]$Plan.remote_ip;remote_port=[int]$Plan.remote_port}
+    $canonical=[pscustomobject][ordered]@{record_kind='flow';sequence=[int]$Plan.sequence;phase=[string]$Plan.phase;protocol='TCP';payload_sha256=[string]$Plan.payload_sha256;expected_action='DIRECT';remote_ip=[string]$Plan.remote_ip;remote_port=[int]$Plan.remote_port}
     try{$collection=& $VpsCollector $canonical}catch{return [pscustomobject][ordered]@{passed=$false;status='FAIL_INFRASTRUCTURE';reason=('DIRECT_BASELINE_QUERY_FAILED: '+$_.Exception.Message);direct_egress_ip='';client_result=$clientEvidence;vps_collection=$null;vps_records=@()}}
     $complete=[bool]$collection.capture_complete
     if(@($collection.complete_shas).Count -gt 0){$complete=@($collection.complete_shas|ForEach-Object{([string]$_).ToLowerInvariant()}) -contains ([string]$Plan.payload_sha256).ToLowerInvariant()}

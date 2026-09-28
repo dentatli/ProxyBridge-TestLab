@@ -11,14 +11,14 @@
     "--close-mode", "--tcp-peer-policy", "--first-tcp-peer-policy",
     "--second-tcp-peer-policy", "--expected-action", "--first-expected-action",
     "--second-expected-action", "--expect", "--first-expect", "--second-expect",
-    "--local-ip", "--remote-ip", "--local-port", "--tcp-remote-port",
+    "--local-ip", "--remote-ip", "--remote-host", "--local-port", "--tcp-remote-port",
     "--udp-remote-port", "--first-remote-ip", "--first-remote-port",
     "--second-remote-ip", "--second-remote-port", "--inter-flow-wait-ms",
     "--timeout-ms", "--bind-retry-count", "--bind-retry-delay-ms",
-    "--test-id", "--run-id", "--jsonl-log"
+    "--payload-size", "--stream-count", "--parallel-count", "--process-index", "--reconnect-count", "--stream-interval-ms", "--endpoint-behavior", "--behavior-delay-ms", "--test-id", "--run-id", "--jsonl-log"
   ],
   "forbidden_arguments": [
-    "--mode base", "--socket-mode", "--remote-port", "--payload-size",
+    "--mode base", "--socket-mode", "--remote-port",
     "--second-protocol", "--hold-first", "--recheck-first"
   ],
   "modes": {
@@ -27,12 +27,14 @@
       "harness_mode": "single",
       "argument_order": [
         "--mode", "--family", "--protocol", "--udp-mode-if-udp",
-        "--tcp-peer-policy-if-tcp", "--local-ip", "--local-port",
-        "--remote-ip", "--tcp-remote-port-or-udp-remote-port",
+        "--tcp-peer-policy-if-tcp", "--close-mode-if-declared", "--local-ip", "--local-port",
+        "--remote-ip", "--remote-host-if-declared", "--tcp-remote-port-or-udp-remote-port",
         "--expected-action", "--expect", "--timeout-ms",
+        "--payload-size-if-declared", "--stream-count-if-declared", "--parallel-count-if-declared", "--reconnect-count-if-declared", "--inter-flow-wait-ms-if-reconnect", "--stream-interval-ms-if-declared",
+        "--endpoint-behavior-if-declared", "--behavior-delay-ms-if-declared", "--bind-retry-if-reuse", "--process-index-if-multi-process",
         "--test-id", "--run-id", "--jsonl-log"
       ],
-      "unsupported_arguments": ["--socket-mode", "--remote-port", "--payload-size"]
+      "unsupported_arguments": ["--socket-mode", "--remote-port"]
     },
     "issue206": {
       "acceptance": "accepted-stage-3.4a-3.4b",

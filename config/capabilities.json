@@ -75,17 +75,101 @@
       "enabled": false,
       "reason": "65507-byte UDP requires an explicitly prepared fragmentation path"
     },
-    "hot_update": {
-      "enabled": true,
-      "reason": ""
+    "product_live_rule_update": {
+      "enabled": false,
+      "reason": "The current product CLI publishes no atomic live-rule update and exact readback contract"
     },
-    "profile_persistence": {
-      "enabled": true,
-      "reason": ""
+    "product_profile_readback": {
+      "enabled": false,
+      "reason": "The current product CLI publishes no active-rule readback contract"
     },
     "failure_injection": {
       "enabled": true,
-      "reason": "Mock and declarative plans only by default"
+      "reason": "Controlled TestLab-owned DNS, receive-only and client-process termination injectors are available"
+    },
+    "control_failure_injection": {
+      "enabled": true,
+      "reason": "Only allowlisted TestLab-owned bounded injectors with cleanup proof are enabled"
+    },
+    "protocol_worker": {
+      "enabled": true,
+      "reason": "Selected real runs additionally require the verified bundled runtime readiness gate"
+    },
+    "server_python_protocols": {
+      "enabled": true,
+      "reason": "Installed and verified by the TestLab server provisioning receipt"
+    },
+    "server_tls_pki": {
+      "enabled": true,
+      "reason": "Generated and provisioned automatically by TestLab; no manual certificate field is required"
+    },
+    "server_http2": {
+      "enabled": true,
+      "reason": "Installed and verified by the TestLab endpoint receipt"
+    },
+    "server_quic": {
+      "enabled": true,
+      "reason": "Installed from the pinned offline QUIC dependency bundle and verified by the endpoint receipt"
+    },
+    "server_file_transfer": {
+      "enabled": true,
+      "reason": "Installed and verified by the TestLab endpoint receipt"
+    },
+    "server_mail": {
+      "enabled": true,
+      "reason": "Installed and verified by the TestLab endpoint receipt"
+    },
+    "server_messaging": {
+      "enabled": true,
+      "reason": "Installed and verified by the TestLab endpoint receipt"
+    },
+    "protocol_sftp": {
+      "enabled": false,
+      "reason": "SFTP remains gated until a pinned SSH host-key and SFTP subsystem test contract is implemented"
+    },
+    "server_realtime": {
+      "enabled": true,
+      "reason": "Controlled STUN, TURN and SRTP endpoint transactions are installed and verified by the endpoint receipt"
+    },
+    "local_browser_runtime": {
+      "enabled": false,
+      "reason": "Derived automatically per run after an allowlisted browser image, version and integrity check; no manual browser path is accepted"
+    },
+    "server_browser_origin": {
+      "enabled": false,
+      "reason": "Requires a fresh server provisioning receipt for the controlled browser origin"
+    },
+    "server_webrtc_peer": {
+      "enabled": false,
+      "reason": "No receipt-verified remote RTCPeerConnection peer is installed"
+    },
+    "synthetic_media_capture": {
+      "enabled": false,
+      "reason": "Requires the real-browser deterministic media-track contract; this does not represent interactive desktop capture"
+    },
+    "isolated_proxy_negative_target": {
+      "enabled": false,
+      "reason": "Requires a run-owned negative SOCKS endpoint and principal receipt; operator proxy settings are never reused"
+    },
+    "endpoint_restart_control": {
+      "enabled": false,
+      "reason": "Requires a receipt-bound allowlisted endpoint restart helper with invocation and rollback proof"
+    },
+    "local_performance_worker": {
+      "enabled": false,
+      "reason": "Requires the bundled native performance worker to pass integrity, architecture and calibration self-tests"
+    },
+    "server_performance_origin": {
+      "enabled": false,
+      "reason": "Requires a fresh endpoint receipt for workload-correlated performance interval evidence"
+    },
+    "server_metrics": {
+      "enabled": false,
+      "reason": "Point-in-time SSH diagnostics are not a workload-correlated monotonic metric window"
+    },
+    "local_product_metrics": {
+      "enabled": false,
+      "reason": "Requires exact local ProxyBridge process identity and synchronized resource sampling privileges"
     }
   }
 }

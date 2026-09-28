@@ -1,0 +1,409 @@
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/src/server_agent/browser_origin.py" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/src/server_agent/browser_origin.py"
+index 9e5b9ad..b1199bf 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/src/server_agent/browser_origin.py"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/src/server_agent/browser_origin.py"
+@@ -13,6 +13,8 @@ _MAX_PATH_LENGTH = 512
+ _IDENTIFIER = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$")
+ _PATH_LABELS = ("browser-origin", "v1", "runs", "scenarios", "attempts", "flows")
+ _RESOURCES = {"page": ("text/html; charset=utf-8", "BROWSER_ORIGIN_PAGE_SERVED"), "download": ("application/octet-stream", "BROWSER_ORIGIN_DOWNLOAD_SERVED")}
++_MARKER_ID = "proxybridge-testlab-browser-result"
++_MARKER_VALUE = "PROXYBRIDGE_TESTLAB_BROWSER_RESULT_V1"
+ 
+ 
+ class BrowserOriginError(ValueError):
+@@ -62,10 +64,21 @@ def _session_id(run_id: str, scenario_id: str, attempt_id: str, flow_id: str) ->
+ 
+ def _body(resource: str, path: str, session_id: str, identities: dict[str, str]) -> bytes:
+     if resource == "page":
++        download_path = path.rsplit("/", 1)[0] + "/download"
+         return (
+             "<!doctype html><html><head><meta charset=\"utf-8\"><title>ProxyBridge TestLab Browser Origin</title>"
+             "</head><body data-browser-session=\"" + session_id + "\"><h1>ProxyBridge TestLab Browser Origin</h1>"
+-            "<a id=\"download\" href=\"" + path.rsplit("/", 1)[0] + "/download\">Download</a></body></html>"
++            "<a id=\"download\" href=\"" + download_path + "\">Download</a>"
++            "<script id=\"" + _MARKER_ID + "\" type=\"application/json\">{\"dom_marker\":\"\",\"content_sha256\":\"\",\"response_status\":0,\"negotiated_protocol\":\"\"}</script>"
++            "<script>(()=>{const target=\"" + download_path + "\";const marker=document.getElementById(\"" + _MARKER_ID + "\");"
++            "const emit=value=>{marker.textContent=JSON.stringify(value)};fetch(target,{cache:\"no-store\"}).then(async response=>{"
++            "const bytes=await response.arrayBuffer();const digest=await crypto.subtle.digest(\"SHA-256\",bytes);"
++            "const hash=Array.from(new Uint8Array(digest),item=>item.toString(16).padStart(2,\"0\")).join(\"\");"
++            "const entry=performance.getEntriesByName(new URL(target,location.href).href).slice(-1)[0];"
++            "emit({dom_marker:\"" + _MARKER_VALUE + "\",content_sha256:hash,response_status:response.status,"
++            "negotiated_protocol:entry&&typeof entry.nextHopProtocol===\"string\"?entry.nextHopProtocol:\"\"})"
++            "}).catch(()=>emit({dom_marker:\"" + _MARKER_VALUE + "\",content_sha256:\"\",response_status:0,negotiated_protocol:\"\"}))})()</script>"
++            "</body></html>"
+         ).encode("utf-8")
+     return (
+         b"proxybridge-testlab-browser-download-v1\n"
+@@ -86,7 +99,7 @@ def build_browser_origin_response(path: str) -> BrowserOriginResponse:
+         "schema_version": 1,
+         **identities,
+         "phase": "server",
+-        "sequence": 1,
++        "sequence": 1 if resource == "page" else 2,
+         "event": event,
+         "resource": resource,
+         "browser_session_id": session_id,
+@@ -95,5 +108,10 @@ def build_browser_origin_response(path: str) -> BrowserOriginResponse:
+         "content_length": len(body),
+         "result": "PASS",
+     }
+-    headers = {"Content-Disposition": "attachment; filename=proxybridge-testlab-download.bin"} if resource == "download" else {}
++    headers = {
++        "Cache-Control": "no-store",
++        "X-Content-Type-Options": "nosniff",
++    }
++    if resource == "download":
++        headers["Content-Disposition"] = "attachment; filename=proxybridge-testlab-download.bin"
+     return BrowserOriginResponse(200, content_type, headers, body, evidence)
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/src/server_agent/pb_protocol_server.py" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/src/server_agent/pb_protocol_server.py"
+index ed414dd..ffb607b 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/src/server_agent/pb_protocol_server.py"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/src/server_agent/pb_protocol_server.py"
+@@ -22,6 +22,8 @@ if str(SERVER_ROOT) not in sys.path:
+ if VENDOR_ROOT.is_dir() and str(VENDOR_ROOT) not in sys.path:
+     sys.path.insert(0, str(VENDOR_ROOT))
+ 
++from browser_origin import BrowserOriginError, build_browser_origin_response
++
+ 
+ class ProtocolServerError(ValueError):
+     pass
+@@ -331,6 +333,43 @@ async def _read_http_request(reader: asyncio.StreamReader) -> tuple[str, str, di
+ async def _http(reader: asyncio.StreamReader, writer: asyncio.StreamWriter, evidence: EvidenceLog, secure: bool) -> None:
+     try:
+         method, path, headers, body = await _read_http_request(reader)
++        if path.startswith("/browser-origin/"):
++            if method != "GET" or body:
++                raise ProtocolServerError("BROWSER_ORIGIN_REQUEST_INVALID")
++            try:
++                origin = build_browser_origin_response(path)
++            except BrowserOriginError as exc:
++                raise ProtocolServerError(exc.code) from exc
++            response_headers = [
++                b"HTTP/1.1 200 OK",
++                b"Content-Type: " + origin.content_type.encode("ascii"),
++                b"Connection: close",
++                b"Content-Length: " + str(len(origin.body)).encode("ascii"),
++            ]
++            for name, value in sorted(origin.headers.items()):
++                response_headers.append(name.encode("ascii") + b": " + value.encode("ascii"))
++            writer.write(b"\r\n".join(response_headers) + b"\r\n\r\n" + origin.body)
++            await writer.drain()
++            ssl_object = writer.get_extra_info("ssl_object")
++            negotiated_protocol = ssl_object.selected_alpn_protocol() if ssl_object is not None else None
++            record = dict(origin.evidence)
++            record.update({
++                "timestamp_utc": _utc(),
++                "monotonic_ms": 0,
++                "process_id": os.getpid(),
++                "socket_id": 0,
++                "protocol_family": "browser-origin",
++                "transport": "TCP",
++                "local_ip": str(writer.get_extra_info("sockname")[0]),
++                "local_port": int(writer.get_extra_info("sockname")[1]),
++                "remote_ip": str(writer.get_extra_info("peername")[0]),
++                "remote_port": int(writer.get_extra_info("peername")[1]),
++                "secure": secure,
++                "negotiated_protocol": negotiated_protocol or "http/1.1",
++                "status_code": origin.status_code,
++            })
++            evidence.append(record)
++            return
+         metadata = {
+             "run_id": headers.get("x-testlab-run", ""),
+             "scenario_id": headers.get("x-testlab-scenario", ""),
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/src/server_agent/plugins/catalog.json" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/src/server_agent/plugins/catalog.json"
+index e7584b8..1272566 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/src/server_agent/plugins/catalog.json"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/src/server_agent/plugins/catalog.json"
+@@ -18,7 +18,7 @@
+     { "id": "irc-origin", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_python_protocols", "server_tls_pki"] },
+     { "id": "multipeer-origin", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json"], "capabilities": ["server_python_protocols"] },
+     { "id": "realtime-suite", "implementation_status": "IMPLEMENTED", "milestone": 15, "artifacts": ["pb_protocol_server.py", "realtime_protocols.py", "protocol-server-config.json", "vendor/cryptography/__init__.py"], "capabilities": ["server_realtime"] },
+-    { "id": "browser-origin", "implementation_status": "PLANNED", "milestone": 15, "artifacts": [], "capabilities": ["server_python_protocols", "server_tls_pki"] },
++    { "id": "browser-origin", "implementation_status": "IMPLEMENTED", "milestone": 15, "artifacts": ["pb_protocol_server.py", "browser_origin.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_python_protocols", "server_tls_pki"] },
+     { "id": "negative-proxy", "implementation_status": "PLANNED", "milestone": 16, "artifacts": [], "capabilities": ["isolated_proxy_negative_target"] },
+     { "id": "failure-control", "implementation_status": "IMPLEMENTED", "milestone": 16, "artifacts": ["pb_protocol_server.py", "failure_protocols.py", "protocol-server-config.json"], "capabilities": ["control_failure_injection"] },
+     { "id": "network-impairment", "implementation_status": "PLANNED", "milestone": 16, "artifacts": [], "capabilities": ["server_test_namespace", "server_netem"] },
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/tests/Test-ServerProvisioning.ps1" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/tests/Test-ServerProvisioning.ps1"
+index 5f7b88d..a162dca 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/tests/Test-ServerProvisioning.ps1"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/tests/Test-ServerProvisioning.ps1"
+@@ -54,7 +54,11 @@ try {
+     $expectedPluginIds = @($families.families | Where-Object delivery_status -ne 'UNSUPPORTED_PRODUCT_SCOPE' | Select-Object -ExpandProperty server_plugin_id | Sort-Object -Unique)
+     $catalogPluginIds = @($pluginCatalog.plugins | Select-Object -ExpandProperty id | Sort-Object -Unique)
+     Assert-SequenceEqual $expectedPluginIds $catalogPluginIds 'server plugin catalog must cover every supported protocol family'
+-    Assert-Equal 17 @($pluginCatalog.plugins | Where-Object implementation_status -eq 'IMPLEMENTED').Count 'Milestone 16 endpoint plugins'
++    Assert-Equal 18 @($pluginCatalog.plugins | Where-Object implementation_status -eq 'IMPLEMENTED').Count 'browser-origin endpoint plugin must be implemented'
++    $browserOrigin = @($pluginCatalog.plugins | Where-Object id -eq 'browser-origin')
++    Assert-Equal 1 $browserOrigin.Count 'browser-origin plugin must be declared exactly once'
++    Assert-True ($browserOrigin[0].implementation_status -eq 'IMPLEMENTED' -and $browserOrigin[0].artifacts -contains 'browser_origin.py') 'browser-origin plugin must have an immutable artifact declaration'
++    Assert-True ($artifactBuilder -match '\["browser_origin\.py"\]') 'server artifact builder must include browser-origin in the immutable runtime bundle'
+ 
+     $python = Get-Command python -ErrorAction SilentlyContinue
+     Assert-True ($null -ne $python) 'Python is required for the offline server-agent contract test'
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/tests/fixtures/browser-origin/contract_test.py" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/tests/fixtures/browser-origin/contract_test.py"
+new file mode 100644
+index 0000000..0827e1f
+--- /dev/null
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/tests/fixtures/browser-origin/contract_test.py"
+@@ -0,0 +1,182 @@
++import asyncio
++import hashlib
++import json
++import sys
++import tempfile
++from pathlib import Path
++
++root = Path(sys.argv[1]).resolve()
++sys.path.insert(0, str(root / "src" / "server_agent"))
++
++from browser_origin import BrowserOriginError, build_browser_origin_response
++from pb_protocol_server import EvidenceLog, _http
++
++
++PATH_ROOT = "/browser-origin/v1/runs/run-001/scenarios/canary-browser-download/attempts/attempt-001/flows/flow-001"
++
++
++def expect_error(path, code):
++    try:
++        build_browser_origin_response(path)
++    except BrowserOriginError as error:
++        assert error.code == code, (error.code, code)
++        return
++    raise AssertionError(f"expected {code}")
++
++
++class MemoryWriter:
++    """A minimal in-memory HTTP boundary; it opens no listener or network socket."""
++
++    def __init__(self):
++        self.payload = bytearray()
++        self.closed = False
++
++    def write(self, value):
++        self.payload.extend(value)
++
++    async def drain(self):
++        return None
++
++    def close(self):
++        self.closed = True
++
++    async def wait_closed(self):
++        return None
++
++    def get_extra_info(self, name):
++        if name == "sockname":
++            return ("192.0.2.10", 443)
++        if name == "peername":
++            return ("198.51.100.20", 50000)
++        if name == "ssl_object":
++            return None
++        return None
++
++
++async def invoke_http(request):
++    reader = asyncio.StreamReader()
++    reader.feed_data(request)
++    reader.feed_eof()
++    writer = MemoryWriter()
++    with tempfile.TemporaryDirectory() as directory:
++        evidence_path = Path(directory) / "evidence.jsonl"
++        await _http(reader, writer, EvidenceLog(str(evidence_path)), True)
++        records = [json.loads(line) for line in evidence_path.read_text("utf-8").splitlines()] if evidence_path.exists() else []
++    return bytes(writer.payload), records, writer.closed
++
++
++def parse_response(value):
++    head, body = value.split(b"\r\n\r\n", 1)
++    lines = head.decode("iso-8859-1").split("\r\n")
++    headers = {}
++    for line in lines[1:]:
++        name, item = line.split(":", 1)
++        headers[name.lower()] = item.strip()
++    return lines[0], headers, body
++
++
++page = build_browser_origin_response(PATH_ROOT + "/page")
++page_repeat = build_browser_origin_response(PATH_ROOT + "/page")
++assert page.status_code == 200
++assert page.content_type == "text/html; charset=utf-8"
++assert page.body == page_repeat.body
++assert b"ProxyBridge TestLab Browser Origin" in page.body
++assert b"/download" in page.body
++assert page.evidence == page_repeat.evidence
++assert page.evidence == {
++    "schema_version": 1,
++    "run_id": "run-001",
++    "scenario_id": "canary-browser-download",
++    "attempt_id": "attempt-001",
++    "flow_id": "flow-001",
++    "phase": "server",
++    "sequence": 1,
++    "event": "BROWSER_ORIGIN_PAGE_SERVED",
++    "resource": "page",
++    "browser_session_id": page.evidence["browser_session_id"],
++    "request_path": PATH_ROOT + "/page",
++    "content_sha256": hashlib.sha256(page.body).hexdigest(),
++    "content_length": len(page.body),
++    "result": "PASS",
++}
++
++download = build_browser_origin_response(PATH_ROOT + "/download")
++assert download.status_code == 200
++assert download.content_type == "application/octet-stream"
++assert download.body == build_browser_origin_response(PATH_ROOT + "/download").body
++assert download.headers == {
++    "Cache-Control": "no-store",
++    "X-Content-Type-Options": "nosniff",
++    "Content-Disposition": "attachment; filename=proxybridge-testlab-download.bin",
++}
++assert download.evidence["event"] == "BROWSER_ORIGIN_DOWNLOAD_SERVED"
++assert download.evidence["browser_session_id"] == page.evidence["browser_session_id"]
++assert download.evidence["content_sha256"] == hashlib.sha256(download.body).hexdigest()
++assert download.evidence["content_length"] == len(download.body)
++
++expect_error(PATH_ROOT + "/page?run_id=other", "BROWSER_ORIGIN_QUERY_FORBIDDEN")
++expect_error(PATH_ROOT + "/runs/second/page", "BROWSER_ORIGIN_PATH_INVALID")
++expect_error("/browser-origin/v1/runs/../scenarios/x/attempts/y/flows/z/page", "BROWSER_ORIGIN_TRAVERSAL_FORBIDDEN")
++expect_error("/" + ("x" * 513), "BROWSER_ORIGIN_PATH_TOO_LONG")
++expect_error("/browser-origin/v1/runs/run-001/scenarios/x/attempts/y/flows/z/unknown", "BROWSER_ORIGIN_RESOURCE_INVALID")
++
++# Regression: a real browser cannot attach TestLab-only headers.  The versioned
++# path must be handled before the generic header-bound HTTP route.
++page_request = (
++    b"GET " + (PATH_ROOT + "/page").encode("ascii") + b" HTTP/1.1\r\n"
++    b"Host: origin.test\r\n"
++    b"Connection: close\r\n\r\n"
++)
++page_wire, page_records, page_closed = asyncio.run(invoke_http(page_request))
++page_status, page_headers, page_body = parse_response(page_wire)
++assert page_status == "HTTP/1.1 200 OK"
++assert page_headers["cache-control"] == "no-store"
++assert page_headers["x-content-type-options"] == "nosniff"
++assert page_closed
++assert page_body.count(b'id="proxybridge-testlab-browser-result"') == 1
++assert b"crypto.subtle.digest" in page_body
++assert b"fetch(" in page_body
++marker_start = page_body.index(b' id="proxybridge-testlab-browser-result"')
++marker_start = page_body.index(b">", marker_start) + 1
++marker_end = page_body.index(b"</script>", marker_start)
++assert json.loads(page_body[marker_start:marker_end].decode("utf-8")) == {
++    "dom_marker": "",
++    "content_sha256": "",
++    "response_status": 0,
++    "negotiated_protocol": "",
++}
++assert len(page_records) == 1
++assert page_records[0]["resource"] == "page"
++assert page_records[0]["sequence"] == 1
++assert page_records[0]["transport"] == "TCP"
++assert page_records[0]["negotiated_protocol"] == "http/1.1"
++
++download_request = (
++    b"GET " + (PATH_ROOT + "/download").encode("ascii") + b" HTTP/1.1\r\n"
++    b"Host: origin.test\r\n"
++    b"Connection: close\r\n\r\n"
++)
++download_wire, download_records, _ = asyncio.run(invoke_http(download_request))
++download_status, download_headers, download_body = parse_response(download_wire)
++assert download_status == "HTTP/1.1 200 OK"
++assert download_headers["cache-control"] == "no-store"
++assert download_headers["x-content-type-options"] == "nosniff"
++assert hashlib.sha256(download_body).hexdigest() == download_records[0]["content_sha256"]
++assert download_records[0]["resource"] == "download"
++assert download_records[0]["sequence"] == 2
++
++# Malformed browser-origin requests must not create a successful evidence item.
++bad_wire, bad_records, _ = asyncio.run(invoke_http(b"GET " + (PATH_ROOT + "/page?bad=1").encode("ascii") + b" HTTP/1.1\r\nHost: origin.test\r\n\r\n"))
++assert bad_wire == b""
++assert bad_records == []
++
++# The generic HTTP contract remains header-bound and unchanged.
++generic_wire, generic_records, _ = asyncio.run(invoke_http(
++    b"POST /generic HTTP/1.1\r\nHost: origin.test\r\nX-TestLab-Run: run-001\r\n"
++    b"X-TestLab-Scenario: generic\r\nX-TestLab-Attempt: attempt-001\r\nX-TestLab-Flow: flow-001\r\nContent-Length: 2\r\n\r\nok"
++))
++generic_status, _, _ = parse_response(generic_wire)
++assert generic_status == "HTTP/1.1 200 OK"
++assert generic_records[0]["protocol_family"] == "http1"
++
++print("PASS: offline browser-origin contract")
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/ui/ProxyBridge.TestLab.Ui/Services/ServerArtifactBuilder.cs" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/ui/ProxyBridge.TestLab.Ui/Services/ServerArtifactBuilder.cs"
+index 6813f1f..96e6ffa 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/ui/ProxyBridge.TestLab.Ui/Services/ServerArtifactBuilder.cs"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/ui/ProxyBridge.TestLab.Ui/Services/ServerArtifactBuilder.cs"
+@@ -76,6 +76,7 @@ public sealed class ServerArtifactBuilder(
+             ["pb_net_endpoint.py"] = ReadPublicFile("src", "pb_net_endpoint.py"),
+             ["pb_server_agent.py"] = ReadPublicFile("src", "server_agent", "pb_server_agent.py"),
+             ["pb_protocol_server.py"] = ReadPublicFile("src", "server_agent", "pb_protocol_server.py"),
++            ["browser_origin.py"] = ReadPublicFile("src", "server_agent", "browser_origin.py"),
+             ["standard_protocols.py"] = ReadPublicFile("src", "server_agent", "standard_protocols.py"),
+             ["realtime_protocols.py"] = ReadPublicFile("src", "server_agent", "realtime_protocols.py"),
+             ["failure_protocols.py"] = ReadPublicFile("src", "server_agent", "failure_protocols.py"),
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/ui/ProxyBridge.TestLab.Ui.ServerProbe/Program.cs" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/ui/ProxyBridge.TestLab.Ui.ServerProbe/Program.cs"
+index b3b082c..64871ad 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-before/ui/ProxyBridge.TestLab.Ui.ServerProbe/Program.cs"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-2a-after/ui/ProxyBridge.TestLab.Ui.ServerProbe/Program.cs"
+@@ -23,6 +23,7 @@ await File.WriteAllTextAsync(Path.Combine(root, "src", "pb_net_endpoint.py"), "#
+ Directory.CreateDirectory(Path.Combine(root, "src", "server_agent", "plugins"));
+ await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "pb_server_agent.py"), "#!/usr/bin/env python3\nprint('fixture-agent')\n");
+ await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "pb_protocol_server.py"), "#!/usr/bin/env python3\nprint('fixture-protocol-server')\n");
++await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "browser_origin.py"), "# fixture browser origin\n");
+ await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "standard_protocols.py"), "# fixture standard protocols\n");
+ await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "realtime_protocols.py"), "# fixture realtime protocols\n");
+ await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "failure_protocols.py"), "# fixture failure protocols\n");
+@@ -46,6 +47,7 @@ await File.WriteAllTextAsync(Path.Combine(root, "src", "server_agent", "plugins"
+         ,{ "id": "irc-origin", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json"], "capabilities": ["server_python_protocols"] }
+         ,{ "id": "multipeer-origin", "implementation_status": "IMPLEMENTED", "milestone": 14, "artifacts": ["pb_protocol_server.py", "standard_protocols.py", "protocol-server-config.json"], "capabilities": ["server_python_protocols"] }
+         ,{ "id": "realtime-suite", "implementation_status": "IMPLEMENTED", "milestone": 15, "artifacts": ["pb_protocol_server.py", "realtime_protocols.py", "protocol-server-config.json", "vendor/cryptography/__init__.py"], "capabilities": ["server_realtime"] }
++        ,{ "id": "browser-origin", "implementation_status": "IMPLEMENTED", "milestone": 15, "artifacts": ["pb_protocol_server.py", "browser_origin.py", "protocol-server-config.json", "tls/ca.pem", "tls/server-chain.pem", "tls/server.key.pem"], "capabilities": ["server_python_protocols", "server_tls_pki"] }
+         ,{ "id": "failure-control", "implementation_status": "IMPLEMENTED", "milestone": 16, "artifacts": ["pb_protocol_server.py", "failure_protocols.py", "protocol-server-config.json"], "capabilities": ["control_failure_injection"] }
+       ]
+     }
+@@ -150,7 +152,7 @@ Require(fake.DiscoverCount == 1, "DISCOVERY_COUNT_AFTER_TRUST");
+ var plan = await service.CreatePlanAsync(CancellationToken.None);
+ Require(plan.State == "PLAN_READY", "INSTALL_PLAN_STATE");
+ Require(plan.ArtifactSha256.Count > 10 && plan.ArtifactSha256.ContainsKey("vendor/aioquic/__init__.py") && plan.ArtifactSha256.ContainsKey("vendor/h2/__init__.py") && plan.Steps.Count == 5, "INSTALL_PLAN_INCOMPLETE");
+-Require(plan.ArtifactBundleId.Length == 64 && plan.ProtocolPlugins.Count == 17 && plan.ProtocolPlugins.Contains("quic-origin", StringComparer.Ordinal) && plan.ProtocolPlugins.Contains("multipeer-origin", StringComparer.Ordinal) && plan.ProtocolPlugins.Contains("realtime-suite", StringComparer.Ordinal) && plan.ProtocolPlugins.Contains("failure-control", StringComparer.Ordinal), "PLUGIN_BUNDLE_PLAN_INCOMPLETE");
++Require(plan.ArtifactBundleId.Length == 64 && plan.ProtocolPlugins.Count == 18 && plan.ProtocolPlugins.Contains("quic-origin", StringComparer.Ordinal) && plan.ProtocolPlugins.Contains("multipeer-origin", StringComparer.Ordinal) && plan.ProtocolPlugins.Contains("realtime-suite", StringComparer.Ordinal) && plan.ProtocolPlugins.Contains("browser-origin", StringComparer.Ordinal) && plan.ProtocolPlugins.Contains("failure-control", StringComparer.Ordinal), "PLUGIN_BUNDLE_PLAN_INCOMPLETE");
+ var planJson = JsonSerializer.Serialize(plan);
+ Require(!planJson.Contains("fixture-host.invalid", StringComparison.Ordinal) && !planJson.Contains("fixture_ed25519", StringComparison.Ordinal), "PLAN_EXPOSES_PRIVATE_VALUE");
+ Require(!planJson.Contains("server.key.pem", StringComparison.Ordinal) && !planJson.Contains("PRIVATE KEY", StringComparison.Ordinal), "PLAN_EXPOSES_PROTOCOL_PRIVATE_KEY");
+@@ -162,7 +164,7 @@ Require(fake.ObservedUnitText.Contains("IPAddressDeny=any", StringComparison.Ord
+     fake.ObservedUnitText.Contains("IPAddressAllow=203.0.113.30", StringComparison.Ordinal), "ENDPOINT_SOURCE_SCOPE_MISSING");
+ Require(fake.ObservedUnitText.Contains("pb_server_agent.py --self-test", StringComparison.Ordinal), "PLUGIN_SELF_TEST_NOT_IN_SERVICE_GATE");
+ Require(fake.ObservedUnitText.Contains("pb_protocol_server.py --self-test", StringComparison.Ordinal) && fake.ObservedUnitText.Contains("pb_server_agent.py --serve", StringComparison.Ordinal), "PROTOCOL_SERVICE_LIFECYCLE_NOT_GATED");
+-Require(fake.ObservedRuntimeFiles.Contains("pb_server_agent.py") && fake.ObservedRuntimeFiles.Contains("pb_protocol_server.py") && fake.ObservedRuntimeFiles.Contains("realtime_protocols.py") && fake.ObservedRuntimeFiles.Contains("failure_protocols.py") && fake.ObservedRuntimeFiles.Contains("server-plugin-manifest.json") && fake.ObservedRuntimeFiles.Contains("vendor/aioquic/__init__.py"), "PLUGIN_RUNTIME_FILES_NOT_APPLIED");
++Require(fake.ObservedRuntimeFiles.Contains("pb_server_agent.py") && fake.ObservedRuntimeFiles.Contains("pb_protocol_server.py") && fake.ObservedRuntimeFiles.Contains("browser_origin.py") && fake.ObservedRuntimeFiles.Contains("realtime_protocols.py") && fake.ObservedRuntimeFiles.Contains("failure_protocols.py") && fake.ObservedRuntimeFiles.Contains("server-plugin-manifest.json") && fake.ObservedRuntimeFiles.Contains("vendor/aioquic/__init__.py"), "PLUGIN_RUNTIME_FILES_NOT_APPLIED");
+ Require((await service.GetStatusAsync(CancellationToken.None)).State == "READY", "SIGNED_RECEIPT_NOT_READY");
+ Require((await service.GetMetricsAsync(CancellationToken.None)).State == "COLLECTED", "METRICS_NOT_COLLECTED");
+ 
+@@ -220,7 +222,7 @@ static void ExportProtocolFixture(string repositoryRoot, string outputRoot)
+     };
+     var bundle = builder.Build(settings, ["127.0.0.1"]);
+     foreach (var relative in bundle.RuntimeFiles.Keys.Where(relative =>
+-        relative is "pb_protocol_server.py" or "standard_protocols.py" or "realtime_protocols.py" or "failure_protocols.py" or "protocol-server-config.json" or "tls/ca.pem" or "tls/server-chain.pem" or "tls/server.key.pem"))
++        relative is "pb_protocol_server.py" or "browser_origin.py" or "standard_protocols.py" or "realtime_protocols.py" or "failure_protocols.py" or "protocol-server-config.json" or "tls/ca.pem" or "tls/server-chain.pem" or "tls/server.key.pem"))
+     {
+         var target = Path.Combine(outputRoot, relative.Replace('/', Path.DirectorySeparatorChar));
+         Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+@@ -297,7 +299,7 @@ public sealed class FakeServerTransport : IServerTransport
+             UnitSha256 = _activeHashes["proxybridge-testlab-endpoint.service"],
+             PluginManifestSha256 = _activeHashes["server-plugin-manifest.json"],
+             PluginSelfTestPassed = true,
+-            PluginCount = 17
++            PluginCount = 18
+         };
+         return Task.FromResult(current);
+     }
+@@ -319,7 +321,7 @@ public sealed class FakeServerTransport : IServerTransport
+             ready ? _activeHashes["pb_net_endpoint.py"] : "",
+             ready ? _activeHashes["proxybridge-testlab-endpoint.service"] : "",
+             ready ? _activeHashes["server-plugin-manifest.json"] : "",
+-            ready, ready ? 17 : 0, ready, ready, ready, ready ? "" : "NOT_INSTALLED"));
++            ready, ready ? 18 : 0, ready, ready, ready, ready ? "" : "NOT_INSTALLED"));
+     }
+ 
+     public Task<ServerMetricsView> GetMetricsAsync(ServerTarget target, CancellationToken cancellationToken) => Task.FromResult(

@@ -128,6 +128,17 @@ function New-ResolvedProfile {
         $proxyConfig.Port = [string]$proxyConfig.Port
         $proxyConfig.Id = ConvertTo-RequiredInteger -Value $proxyConfig.Id -FieldName 'ProxyConfigs[].Id'
     }
+    if ($null -ne $resolvedScenario.PSObject.Properties['parameters'] -and
+        $null -ne $resolvedScenario.parameters.PSObject.Properties['additional_proxy_config_id']) {
+        $additionalId = ConvertTo-RequiredInteger -Value $resolvedScenario.parameters.additional_proxy_config_id -FieldName 'parameters.additional_proxy_config_id'
+        if ($additionalId -lt 1) { throw 'parameters.additional_proxy_config_id must be positive.' }
+        if (@($profile.ProxyConfigs | Where-Object { [int]$_.Id -eq $additionalId }).Count -gt 0) { throw 'parameters.additional_proxy_config_id duplicates an existing proxy config.' }
+        $sourceProxy = @($profile.ProxyConfigs) | Select-Object -First 1
+        if ($null -eq $sourceProxy) { throw 'Cannot add a proxy config without a template proxy config.' }
+        $additionalProxy = $sourceProxy | ConvertTo-Json -Depth 20 | ConvertFrom-Json
+        $additionalProxy.Id = $additionalId
+        $profile.ProxyConfigs = @($profile.ProxyConfigs) + @($additionalProxy)
+    }
 
     $rules = foreach ($rule in @($resolvedScenario.rule_set)) {
         foreach ($required in @('rule_key', 'application', 'host', 'ports', 'domains', 'protocol', 'action', 'proxy_config_id', 'enabled')) {

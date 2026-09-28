@@ -1,397 +1,142 @@
-# End-to-end environment setup
+# Environment setup
 
-This guide deploys the complete ProxyBridge-TestLab topology:
+ProxyBridge-TestLab configuration is managed only through the local English web
+UI. Do not create or edit a repository `.env` file and do not copy credentials,
+addresses or private paths into public configuration files.
 
-```text
-Windows test VM
-  pb_net_client.exe
-        |
-        v
-  ProxyBridge WFP beta
-     |          |
-   DIRECT     SOCKS5
-     |          |
-     +------> Linux VPS deterministic endpoint
-                    TCP/UDP :41001 and :41002
-```
-
-The repository does not include ProxyBridge product binaries, proxy credentials,
-SSH keys, or runtime evidence. Supply those locally and keep them outside Git.
-
-## 1. Safety requirements
-
-Use an isolated Windows VM or a dedicated test host. Real suites may start and
-stop verified ProxyBridge processes, load generated profiles, and generate TCP
-and UDP traffic. Do not run driver, destructive lifecycle, or routing tests on a
-production workstation.
-
-Before every real run:
-
-- verify the exact ProxyBridge, CLI, driver and test-client SHA-256 values;
-- verify that `.env` is ignored by Git;
-- verify the VPS endpoint and SOCKS5 backend independently;
-- preserve the resulting evidence directory before changing the environment.
-
-## 2. Build the Windows deterministic client
+## 1. Start the local UI
 
 Requirements:
 
 - Windows 10 or Windows 11 x64;
-- Windows PowerShell 5.1 or PowerShell 7;
-- either an x64 MSVC command prompt with `cl.exe`, or MinGW-w64 `gcc.exe`;
-- the Windows SDK/Winsock libraries supplied by the selected toolchain.
+- .NET 10 SDK or the future self-contained application package;
+- an isolated VM or dedicated test host for real WFP execution.
 
 From the repository root:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File '.\scripts\Build-Harness.ps1'
+& 'C:\Program Files\dotnet\dotnet.exe' run `
+    --project '.\ui\ProxyBridge.TestLab.Ui\ProxyBridge.TestLab.Ui.csproj'
 ```
 
-When the compiler is not in `PATH`, pass it explicitly:
+Open `http://127.0.0.1:5178` and select `Environment Setup`. The controller
+listens on loopback only and rejects unexpected host names and cross-origin
+mutation requests.
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File '.\scripts\Build-Harness.ps1' `
-    -CompilerPath 'C:\msys64\ucrt64\bin\gcc.exe'
-```
+## 2. Configure the Windows environment
 
-The build script rejects non-x64 output. The resulting file is:
+The UI divides settings into these sections:
+
+- `ProxyBridge`: GUI, CLI and driver paths plus the service name. Standard
+  installation paths are preconfigured and binary integrity values are
+  calculated internally;
+- the deterministic traffic client is discovered automatically at
+  `bin\pb_net_client.exe` and is not a user setting;
+- `SOCKS proxy`: endpoint and existing ProxyBridge proxy configuration ID;
+- `SSH connection`: server host, port, user and private-key path;
+- `Traffic endpoint`: Windows/server addresses, evidence path and ports;
+- `Capabilities`: protocol and address-family availability;
+- `Timeouts`: bounded client and process lifecycle budgets;
+- `Evidence retention`: private local evidence location and retention limits.
+
+Sensitive values are write-only in the UI. After saving, the interface reports
+only `SAVED` or `MISSING`; it never returns the value. Replacing a value requires
+typing a new one. Removing it requires selecting the explicit clear action.
+
+## 3. Storage and validation
+
+Non-secret settings are stored under:
 
 ```text
-bin\pb_net_client.exe
+%LOCALAPPDATA%\ProxyBridge-TestLab\config\settings.json
 ```
 
-Record its exact hash:
-
-```powershell
-Get-FileHash '.\bin\pb_net_client.exe' -Algorithm SHA256
-```
-
-The executable is intentionally not committed. Different compilers may produce
-valid binaries with different hashes; configure the hash of the binary actually
-used for the run.
-
-## 3. Deploy the deterministic endpoint on Linux
-
-### 3.1 Requirements
-
-- Debian or Ubuntu VPS;
-- Python 3.10 or newer;
-- public IPv4 for IPv4 testing;
-- optional public IPv6 and route for IPv6 testing;
-- inbound TCP and UDP access to ports `41001` and `41002`;
-- SSH access from the Windows test host for evidence collection.
-
-The endpoint is an unauthenticated echo service. Restrict firewall access to the
-known DIRECT and proxy egress addresses whenever possible, and remove the rules
-when testing is complete.
-
-### 3.2 Install the repository and service account
-
-After the repository is public, or with authenticated Git access:
-
-```bash
-sudo useradd --system --home /nonexistent --shell /usr/sbin/nologin proxybridge-testlab || true
-sudo git clone https://github.com/dentatli/ProxyBridge-TestLab.git /opt/ProxyBridge-TestLab
-sudo install -d -o proxybridge-testlab -g proxybridge-testlab /var/log/proxybridge-testlab
-```
-
-For an existing checkout:
-
-```bash
-cd /opt/ProxyBridge-TestLab
-sudo git pull --ff-only
-```
-
-### 3.3 Manual endpoint launch
-
-IPv4 public, IPv6 loopback only:
-
-```bash
-sudo -u proxybridge-testlab python3 /opt/ProxyBridge-TestLab/src/pb_net_endpoint.py \
-  --jsonl-log /var/log/proxybridge-testlab/server.jsonl \
-  --bind-ipv4 0.0.0.0 \
-  --endpoint-a-port 41001 \
-  --endpoint-b-port 41002
-```
-
-For public IPv4 and IPv6 add:
+Sensitive paths and host/IP values are stored in:
 
 ```text
---bind-ipv6 ::
+%LOCALAPPDATA%\ProxyBridge-TestLab\config\secrets.dpapi
 ```
 
-Expected startup output:
+`secrets.dpapi` contains a DPAPI CurrentUser ciphertext envelope. It can be
+decrypted only in the same Windows user context. Neither file belongs in Git.
+The SSH user is a normal non-secret setting, so it has no saved-secret removal
+checkbox.
 
-```text
-READY 8 listeners A=41001 B=41002
-```
+The UI separates two outcomes:
 
-The endpoint creates TCP and UDP listeners for both endpoint ports and writes
-one JSON object per line. Important events are:
+- `valid for save`: values are syntactically safe and may be stored;
+- `configuration ready`: every required value and local file prerequisite is
+  present.
 
-```text
-LISTENING
-ACCEPTED
-MESSAGE_RECEIVED
-RECEIVED
-ECHOED
-CLOSED
-SERVER_ERROR
-```
+Incomplete but syntactically valid settings may be saved. They never unlock a
+real run.
 
-TCP messages are newline-delimited. `pb_net_client.exe` already uses the required
-framing.
+## 4. Internal runner compatibility
 
-### 3.4 systemd deployment
+The existing PowerShell runner consumes a flat environment input. The local
+controller maps typed UI settings to those internal keys only when an authorized
+run is created.
 
-Install the example unit:
+The generated `runtime\<run-id>\input.env` file:
 
-```bash
-sudo cp /opt/ProxyBridge-TestLab/deploy/proxybridge-testlab-endpoint.service.example \
-  /etc/systemd/system/proxybridge-testlab-endpoint.service
-sudo systemctl daemon-reload
-sudo systemctl enable --now proxybridge-testlab-endpoint.service
-```
+- is ACL-restricted to the current user and LocalSystem;
+- uses UTF-8 without BOM;
+- is never displayed or returned by the API;
+- is never included in reports or exports;
+- is covered by an exclusive cleanup lease and removed after use;
+- is scavenged on the next controller start after an interrupted process;
+- is not the persistent source of configuration.
 
-For public IPv6, edit the unit and add `--bind-ipv6 ::` to `ExecStart`.
+## 5. Server setup
 
-Verify:
+`Server Setup` supports Debian and Ubuntu with systemd only. Authentication is
+private-key-only; password and keyboard-interactive SSH are disabled.
 
-```bash
-sudo systemctl status proxybridge-testlab-endpoint.service --no-pager
-sudo journalctl -u proxybridge-testlab-endpoint.service -n 100 --no-pager
-sudo ss -lntup | grep -E ':(41001|41002)\b'
-tail -f /var/log/proxybridge-testlab/server.jsonl
-```
+Server actions are never started merely by opening the page. The operator must:
 
-### 3.5 Firewall
+1. select `Validate connection` for read-only host-key and platform discovery;
+2. independently compare and explicitly trust the displayed host fingerprint;
+3. create and review an unexpired plan containing packages, managed paths,
+   ports, integrity records, fixed command and rollback operations;
+4. explicitly confirm and apply that exact plan;
+5. wait for post-apply artifact, systemd and TCP/UDP listener verification.
 
-Preferred: permit only the expected DIRECT and proxy egress IPs.
+The installer uses a dedicated unprivileged account, versioned endpoint files,
+an atomically activated systemd unit, a protected evidence directory and log
+rotation. Its unit denies unlisted network sources and permits the observed
+SSH-client egress plus a configured proxy-host IP. TestLab never replaces the
+host firewall policy or removes unrelated packages, units, accounts or rules.
 
-```bash
-sudo ufw allow from <DIRECT_EGRESS_IPV4> to any port 41001 proto tcp
-sudo ufw allow from <DIRECT_EGRESS_IPV4> to any port 41002 proto tcp
-sudo ufw allow from <DIRECT_EGRESS_IPV4> to any port 41001 proto udp
-sudo ufw allow from <DIRECT_EGRESS_IPV4> to any port 41002 proto udp
+A signed local readiness receipt expires after 24 hours. Restarting the
+controller or changing host trust requires validation again. Metrics are read
+over SSH only after the endpoint reaches `READY` and recent messages are
+redacted before display.
 
-sudo ufw allow from <PROXY_EGRESS_IPV4> to any port 41001 proto tcp
-sudo ufw allow from <PROXY_EGRESS_IPV4> to any port 41002 proto tcp
-sudo ufw allow from <PROXY_EGRESS_IPV4> to any port 41001 proto udp
-sudo ufw allow from <PROXY_EGRESS_IPV4> to any port 41002 proto udp
-```
+The Windows tester may be behind NAT because it initiates outbound traffic. The
+Linux endpoint must have a public/routable address, port forwarding, or a
+supported overlay/VPN path. Proxy egress is a separate per-run readiness
+gate and is never inferred from the direct SSH source.
 
-Temporary unrestricted rules are simpler but less safe:
+## 6. Offline validation
 
-```bash
-sudo ufw allow 41001:41002/tcp
-sudo ufw allow 41001:41002/udp
-```
-
-## 4. Configure the Windows tester
-
-Create the local environment file:
-
-```powershell
-Copy-Item '.\.env.example' '.\.env'
-notepad '.\.env'
-```
-
-Required groups:
-
-```text
-PB_VM_IPV4 / optional PB_VM_IPV6
-PB_VPS_IPV4 / optional PB_VPS_IPV6
-PB_ENDPOINT_A_PORT / PB_ENDPOINT_B_PORT
-PB_SOCKS_HOST / PB_SOCKS_PORT / PB_SOCKS_PROXY_CONFIG_ID
-PB_CLIENT_EXE
-PB_PROXYBRIDGE_EXE
-PB_PROXYBRIDGE_CLI_EXE
-PB_DRIVER_PATH
-PB_PROXYBRIDGE_SERVICE
-PB_EVIDENCE_ROOT
-expected SHA-256 values for client, CLI, GUI and driver
-PB_SSH_HOST / PB_SSH_USER / PB_SSH_PORT / PB_SSH_KEY
-PB_VPS_SERVER_LOG
-```
-
-Use absolute Windows paths. The VPS log path must match the endpoint's
-`--jsonl-log` argument.
-
-Verify local hashes:
-
-```powershell
-Get-FileHash $env:PB_CLIENT_EXE -Algorithm SHA256
-Get-FileHash $env:PB_PROXYBRIDGE_CLI_EXE -Algorithm SHA256
-Get-FileHash $env:PB_PROXYBRIDGE_EXE -Algorithm SHA256
-Get-FileHash $env:PB_DRIVER_PATH -Algorithm SHA256
-```
-
-When using a `.env` file rather than PowerShell environment variables, run the
-same commands with the literal configured paths.
-
-Verify that secrets are ignored:
-
-```powershell
-git check-ignore -v .env
-```
-
-## 5. Configure capabilities
-
-Edit:
-
-```text
-config/capabilities.json
-```
-
-Disable unavailable functionality instead of treating it as a failure:
-
-```json
-{
-  "capabilities": {
-    "ipv4": { "enabled": true, "reason": "" },
-    "ipv6": { "enabled": false, "reason": "No native public IPv6 route" }
-  }
-}
-```
-
-To enable IPv6, all of the following must be true:
-
-- the Windows host or VM has a usable global IPv6 address and default route;
-- the VPS endpoint is bound to `::` and reachable on TCP/UDP ports 41001/41002;
-- the firewall permits the relevant IPv6 sources;
-- `PB_VM_IPV6` and `PB_VPS_IPV6` are configured;
-- the SOCKS5 path supports the required IPv6 traffic.
-
-Setting `ipv6.enabled=true` only enables scenario selection. It does not create
-IPv6 connectivity. The current published validation results did not evaluate
-IPv6, so treat IPv6 execution as experimental until independently verified.
-
-## 6. Validate the TestLab without product runtime
-
-Run the dependency-free tests:
+Run dependency-free repository tests without product or network runtime:
 
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\tests\Run-All.ps1'
 ```
 
-Dry-run catalog and profile generation:
+Fixture and mock results validate TestLab behavior. They are not ProxyBridge
+product results.
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File '.\scripts\Invoke-DryRun.ps1' `
-    -FixtureMode
-```
+## 7. Real execution status
 
-Fixture-backed mock matrix:
+Real execution is fail-closed. Server readiness is necessary but not sufficient:
+the controller must run a bounded immutable preflight and issue a signed
+two-minute receipt for the exact selection and private input. The preflight
+covers immutable local binary checks, endpoint verification, proxy-backend
+readiness, direct-baseline requirements and a clean shared product state. The
+receipt is reviewed first and is not silently regenerated when the run is
+queued.
 
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File '.\scripts\Invoke-MockMatrix.ps1' `
-    -FixtureMode
-```
-
-Mock results validate TestLab behavior. They are not product test results.
-
-## 7. Run a single real smoke test
-
-The smoke entrypoint executes one deterministic issue #206 scenario and requires
-an explicit confirmation switch:
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File '.\scripts\Invoke-RealSmoke.ps1' `
-    -ConfirmRealRuntime
-```
-
-Expected high-level output:
-
-```text
-ENVIRONMENT_PREPARED status=PASS_PREPARED run_id=<id>
-RUN_COMPLETE mode=real run_id=<id> ...
-EVIDENCE_PATH=<path>
-REAL_SMOKE_RESULT=PASS ...
-```
-
-Do not proceed to a full matrix when the smoke test reports an infrastructure,
-harness, ambiguous, or contaminated-state failure.
-
-## 8. Run the real IPv4 diagnostic sweep
-
-This suite continues after scenario-local product, harness and infrastructure
-results so that one run can report the full current executable subset. It still
-stops on contaminated state.
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File '.\Run-WfpMatrix.ps1' `
-    -EnvPath '.\.env' `
-    -CapabilitiesPath '.\config\capabilities.json' `
-    -SuitePath '.\config\suites\real-diagnostic-ipv4.json' `
-    -KnownDefectsPath '.\config\known-defects.json' `
-    -ClientContractPath '.\config\client-contract.json' `
-    -RuntimeConfigPath '.\config\runtime.json' `
-    -ScenarioRoot '.\scenarios' `
-    -OutputRoot '.\evidence\real-diagnostic-ipv4' `
-    -AllowProductRuntime `
-    -PrepareRuntimeEnvironment `
-    -ContinueOnProductFailure
-```
-
-The suite currently selects the implemented synthetic IPv4 correctness subset.
-The 135-ID catalog also contains declarative future coverage, IPv6 scenarios,
-application canaries, performance plans, and unsupported protocol boundaries.
-
-## 9. Read results
-
-Use the newest run directory without copying the run ID manually:
-
-```powershell
-$Run = Get-ChildItem '.\evidence\real-diagnostic-ipv4' -Directory |
-    Sort-Object LastWriteTime -Descending |
-    Select-Object -First 1 -ExpandProperty FullName
-
-Import-Csv "$Run\summary.csv" |
-    Group-Object status |
-    Sort-Object Name |
-    Select-Object Name,Count |
-    Format-Table -AutoSize
-
-Import-Csv "$Run\summary.csv" |
-    Where-Object {
-        $_.status -notin @(
-            'SKIPPED_SELECTION',
-            'SKIPPED_CAPABILITY',
-            'NOT_IMPLEMENTED',
-            'UNSUPPORTED_PRODUCT_SCOPE'
-        )
-    } |
-    Select-Object scenario_id,status,attempt,duration_ms |
-    Format-Table -AutoSize
-```
-
-Interpretation:
-
-- `PASS` — the tested product behavior matched the external evidence;
-- `FAIL_PRODUCT` — a product behavior failed without a harness failure;
-- `EXPECTED_FAIL` — a known defect was reproduced with its declared signature;
-- `FAIL_HARNESS` / `FAIL_INFRASTRUCTURE` — no reliable product verdict;
-- `CONTAMINATED` — stop; later results would not be trustworthy;
-- `NOT_IMPLEMENTED` — catalog coverage exists but no executable client contract yet;
-- `SKIPPED_CAPABILITY` — the environment cannot run the scenario.
-
-`RUN_COMPLETE` means that reports and checksums were written. Use
-`summary.json` and `summary.csv` to determine whether execution was complete and
-to read the product verdict.
-
-## 10. Evidence handling
-
-Each run creates a separate directory containing client records, profiles,
-ProxyBridge evidence, exact VPS payload matches, assertions, summaries, a
-transcript, and `SHA256SUMS`.
-
-Do not publish raw evidence without reviewing it. Evidence may contain public or
-private IP addresses, local paths, usernames, process names, and endpoint data.
-Use only redacted summaries in public issues unless the developer explicitly
-requests a private evidence archive.
+There is no `continue anyway` control for contamination, unknown rule state,
+hash drift or failed cleanup.

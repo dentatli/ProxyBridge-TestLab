@@ -1,0 +1,434 @@
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix4/src/protocol_worker/plugins/browser.py" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix5/src/protocol_worker/plugins/browser.py"
+index 668b769..ed5f563 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix4/src/protocol_worker/plugins/browser.py"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix5/src/protocol_worker/plugins/browser.py"
+@@ -65,103 +65,40 @@ class _SuspendedBrowserProcess:
+         self._kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+         self._process_handle: int | None = None
+         self._thread_handle: int | None = None
++        self._stdout_read_handle: int | None = None
++        self._stdout_write_handle: int | None = None
++        self._stderr_read_handle: int | None = None
++        self._stderr_write_handle: int | None = None
++        self._null_input_handle: int | None = None
+         self.pid = 0
+         self.returncode: int | None = None
+         self.stdout: Any = None
+         self.stderr: Any = None
+-        stdout_read: int | None = None
+-        stdout_write: int | None = None
+-        stderr_read: int | None = None
+-        stderr_write: int | None = None
+-        null_input: int | None = None
++        info = _ProcessInformation()
+         try:
+-            stdout_read, stdout_write = self._create_pipe()
+-            stderr_read, stderr_write = self._create_pipe()
+-            null_input = self._open_null_input()
++            self._stdout_read_handle, self._stdout_write_handle = self._create_pipe()
++            self._stderr_read_handle, self._stderr_write_handle = self._create_pipe()
++            self._null_input_handle = self._open_null_input()
+             startup = _StartupInfoW()
+             startup.cb = ctypes.sizeof(_StartupInfoW)
+             startup.dwFlags = _STARTF_USESTDHANDLES
+-            startup.hStdInput = null_input
+-            startup.hStdOutput = stdout_write
+-            startup.hStdError = stderr_write
+-            info = _ProcessInformation()
++            startup.hStdInput = self._null_input_handle
++            startup.hStdOutput = self._stdout_write_handle
++            startup.hStdError = self._stderr_write_handle
+             create = self._kernel32.CreateProcessW
+             create.argtypes = [ctypes.c_wchar_p, ctypes.c_wchar_p, ctypes.c_void_p, ctypes.c_void_p, ctypes.c_bool, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_wchar_p, ctypes.POINTER(_StartupInfoW), ctypes.POINTER(_ProcessInformation)]
+             create.restype = ctypes.c_bool
+             command_line = ctypes.create_unicode_buffer(subprocess.list2cmdline(command))
+             if not create(str(command[0]), command_line, None, None, True, _CREATE_SUSPENDED | _CREATE_NO_WINDOW, None, str(cwd), ctypes.byref(startup), ctypes.byref(info)):
+                 raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+-            self._process_handle = int(info.hProcess)
+-            self._thread_handle = int(info.hThread)
+-            self.pid = int(info.dwProcessId)
+-            if not self._close_handle(null_input):
+-                raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+-            null_input = None
+-            if not self._close_handle(stdout_write):
+-                raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+-            stdout_write = None
+-            if not self._close_handle(stderr_write):
+-                raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+-            stderr_write = None
+-            self.stdout = self._open_reader(stdout_read)
+-            stdout_read = None
+-            self.stderr = self._open_reader(stderr_read)
+-            stderr_read = None
+         except BaseException as exc:
+-            cleanup_ok = True
+-            termination_verified = False
+-            termination_failed = False
+-            for _ in range(2):
+-                try:
+-                    termination_verified = self._terminate_created_process()
+-                except BaseException:
+-                    termination_verified = False
+-                if termination_verified:
+-                    break
+-                termination_failed = True
+-            cleanup_ok = termination_verified and not termination_failed and cleanup_ok
+-            for handle in (null_input, stdout_write, stderr_write, stdout_read, stderr_read):
+-                try:
+-                    cleanup_ok = self._close_handle(handle) and cleanup_ok
+-                except BaseException:
+-                    cleanup_ok = False
+-            try:
+-                cleanup_ok = self.close() and cleanup_ok
+-            except BaseException:
+-                cleanup_ok = False
+-            if not cleanup_ok:
++            if not self.close():
+                 cleanup_failure = WorkerContractError("BROWSER_SUSPENDED_PROCESS_CLEANUP_FAILED")
+                 raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED") from cleanup_failure
+             raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED") from exc
+-
+-    def _terminate_created_process(self) -> bool:
+-        if not self._process_handle:
+-            return True
+-        terminate = self._kernel32.TerminateProcess
+-        terminate.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+-        terminate.restype = ctypes.c_bool
+-        wait = self._kernel32.WaitForSingleObject
+-        wait.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
+-        wait.restype = ctypes.c_uint32
+-        get_exit_code = self._kernel32.GetExitCodeProcess
+-        get_exit_code.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
+-        get_exit_code.restype = ctypes.c_bool
+-
+-        def verified_exited(timeout_ms: int) -> bool:
+-            state = wait(self._process_handle, timeout_ms)
+-            if state != _WAIT_OBJECT_0:
+-                return False
+-            exit_code = ctypes.c_uint32()
+-            return bool(get_exit_code(self._process_handle, ctypes.byref(exit_code)) and exit_code.value != _WINDOWS_STILL_ACTIVE)
+-
+-        state = wait(self._process_handle, 0)
+-        if state == _WAIT_OBJECT_0:
+-            return verified_exited(0)
+-        if state != _WAIT_TIMEOUT:
+-            return False
+-        if not terminate(self._process_handle, 1):
+-            return verified_exited(0)
+-        return verified_exited(2_000)
++        self._process_handle = info.hProcess
++        self._thread_handle = info.hThread
++        self.pid = info.dwProcessId
+ 
+     def _create_pipe(self) -> tuple[int, int]:
+         create_pipe = self._kernel32.CreatePipe
+@@ -176,8 +113,15 @@ class _SuspendedBrowserProcess:
+         if not create_pipe(ctypes.byref(reader), ctypes.byref(writer), ctypes.byref(attributes), 0):
+             raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+         if not set_handle(reader, _HANDLE_FLAG_INHERIT, 0):
+-            self._close_handle(int(reader.value))
+-            self._close_handle(int(writer.value))
++            cleanup_ok = True
++            for handle in (int(reader.value), int(writer.value)):
++                try:
++                    cleanup_ok = self._close_handle(handle) and cleanup_ok
++                except BaseException:
++                    cleanup_ok = False
++            if not cleanup_ok:
++                cleanup_failure = WorkerContractError("BROWSER_SUSPENDED_PROCESS_CLEANUP_FAILED")
++                raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED") from cleanup_failure
+             raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
+         return int(reader.value), int(writer.value)
+ 
+@@ -194,11 +138,43 @@ class _SuspendedBrowserProcess:
+     def _open_reader(self, handle: int) -> Any:
+         return os.fdopen(msvcrt.open_osfhandle(handle, os.O_RDONLY), "rb", buffering=0)
+ 
++    def open_output_readers(self) -> None:
++        try:
++            for handle_name in ("_null_input_handle", "_stdout_write_handle", "_stderr_write_handle"):
++                handle = getattr(self, handle_name)
++                if handle:
++                    if not self._close_handle(handle):
++                        raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
++                    setattr(self, handle_name, None)
++            if not self._stdout_read_handle or not self._stderr_read_handle:
++                raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED")
++            self.stdout = self._open_reader(self._stdout_read_handle)
++            self._stdout_read_handle = None
++            self.stderr = self._open_reader(self._stderr_read_handle)
++            self._stderr_read_handle = None
++        except BaseException as exc:
++            raise WorkerContractError("BROWSER_SUSPENDED_LAUNCH_FAILED") from exc
++
+     def _close_handle(self, handle: int | None) -> bool:
+         if not handle:
+             return True
+         return bool(self._kernel32.CloseHandle(handle))
+ 
++    def exact_process_exited(self, timeout_ms: int) -> bool:
++        if not self._process_handle:
++            return True
++        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
++        wait = kernel32.WaitForSingleObject
++        wait.argtypes = [ctypes.c_void_p, ctypes.c_uint32]
++        wait.restype = ctypes.c_uint32
++        get_exit_code = kernel32.GetExitCodeProcess
++        get_exit_code.argtypes = [ctypes.c_void_p, ctypes.POINTER(ctypes.c_uint32)]
++        get_exit_code.restype = ctypes.c_bool
++        if wait(self._process_handle, timeout_ms) != _WAIT_OBJECT_0:
++            return False
++        exit_code = ctypes.c_uint32()
++        return bool(get_exit_code(self._process_handle, ctypes.byref(exit_code)) and exit_code.value != _WINDOWS_STILL_ACTIVE)
++
+     def resume(self) -> None:
+         if not self._thread_handle:
+             raise WorkerContractError("BROWSER_RESUME_FAILED")
+@@ -247,17 +223,23 @@ class _SuspendedBrowserProcess:
+             if stream is not None:
+                 try:
+                     stream.close()
+-                except OSError:
++                except BaseException:
+                     ok = False
+-                setattr(self, stream_name, None)
+-        if self._thread_handle:
+-            if self._close_handle(self._thread_handle):
+-                self._thread_handle = None
+-            else:
+-                ok = False
+-        if self._process_handle:
+-            if self._close_handle(self._process_handle):
+-                self._process_handle = None
++                else:
++                    setattr(self, stream_name, None)
++        for handle_name in (
++            "_null_input_handle", "_stdout_write_handle", "_stderr_write_handle",
++            "_stdout_read_handle", "_stderr_read_handle", "_thread_handle", "_process_handle",
++        ):
++            handle = getattr(self, handle_name)
++            if not handle:
++                continue
++            try:
++                closed = self._close_handle(handle)
++            except BaseException:
++                closed = False
++            if closed:
++                setattr(self, handle_name, None)
+             else:
+                 ok = False
+         return ok
+@@ -664,6 +646,7 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+ 
+     process: _SuspendedBrowserProcess | None = None
+     job: _BrowserJob | None = None
++    job_assigned = False
+     profile_owned = False
+     downloads_owned = False
+     tree_pids: list[int] = []
+@@ -687,6 +670,8 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+         job = _BrowserJob()
+         process = _SuspendedBrowserProcess(command, downloads)
+         job.assign(process.pid)
++        job_assigned = True
++        process.open_output_readers()
+         process.resume()
+         stdout, stderr, output_overflow, readers = _start_output_capture(process)
+         observed, probe_status, probe_attempts, probe_elapsed_ms = _probe_actual_path(process, actual_path_timeout_ms)
+@@ -726,6 +711,11 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+             except WorkerContractError:
+                 cleanup_ok = False
+             cleanup_ok = job.close() and cleanup_ok
++        if process is not None and job_assigned:
++            try:
++                cleanup_ok = process.exact_process_exited(2_000) and cleanup_ok
++            except BaseException:
++                cleanup_ok = False
+         if process is not None:
+             if not tree_pids:
+                 try:
+@@ -733,6 +723,11 @@ def run_browser(plan: WorkerPlan) -> list[dict[str, Any]]:
+                 except WorkerContractError:
+                     tree_pids = [process.pid]
+             cleanup_ok = _terminate_tree(process.pid, tree_pids) and cleanup_ok
++            if not job_assigned:
++                try:
++                    cleanup_ok = process.exact_process_exited(2_000) and cleanup_ok
++                except BaseException:
++                    cleanup_ok = False
+         for reader in readers:
+             reader.join(timeout=2.0)
+         if any(reader.is_alive() for reader in readers):
+diff --git "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix4/tests/Test-BrowserPlugin.ps1" "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix5/tests/Test-BrowserPlugin.ps1"
+index 5ad2f32..ab89757 100644
+--- "a/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix4/tests/Test-BrowserPlugin.ps1"
++++ "b/.\\artifacts\\sdd\\FULL_INTERNET_TRAFFIC_PLAN\\task-1-after-fix5/tests/Test-BrowserPlugin.ps1"
+@@ -208,54 +208,62 @@ elif '$Mode' == 'ownership-race':
+         profile.mkdir(parents=True, exist_ok=False)
+         return original_create(profile, downloads)
+     browser._create_isolated_directories = ownership_race
+-elif '$Mode' in ('reader-open-failure', 'reader-cleanup-terminate-failure', 'reader-cleanup-wait-timeout', 'reader-cleanup-exit-code-failure', 'reader-cleanup-close-failure', 'reader-cleanup-exception'):
++elif '$Mode' in ('reader-open-failure', 'reader-job-containment', 'reader-stream-close-exception'):
+     created_pids = []
+     retained_process_handles = []
++    assigned_pids = []
++    expected_thread_handles = []
++    expected_process_handles = []
++    close_attempts = []
++    failed_stream_retained = []
++    original_assign = browser._BrowserJob.assign
++    original_open_reader = browser._SuspendedBrowserProcess._open_reader
+     original_close_handle = browser._SuspendedBrowserProcess._close_handle
++    original_process_close = browser._SuspendedBrowserProcess.close
++
++    def tracked_assign(self, pid):
++        result = original_assign(self, pid)
++        assigned_pids.append(pid)
++        return result
++
++    def tracked_close_handle(self, handle):
++        close_attempts.append(handle)
++        return original_close_handle(self, handle)
++
++    def tracked_process_close(self):
++        try:
++            return original_process_close(self)
++        finally:
++            failed_stream_retained.append(self.stdout is not None)
++
++    class CloseExceptionStream:
++        def __init__(self, stream):
++            self._stream = stream
++
++        def close(self):
++            self._stream.close()
++            raise RuntimeError('fixture stdout close exception')
++
++        def __getattr__(self, name):
++            return getattr(self._stream, name)
++
++    browser._BrowserJob.assign = tracked_assign
++    browser._SuspendedBrowserProcess._close_handle = tracked_close_handle
++    browser._SuspendedBrowserProcess.close = tracked_process_close
++    reader_calls = [0]
++
+     def reader_failure(self, handle):
+-        created_pids.append(self.pid)
+-        retained_process_handles.append(duplicate_process_handle(self._process_handle))
+-        if '$Mode' == 'reader-cleanup-terminate-failure':
+-            original_terminate = self._kernel32.TerminateProcess
+-            cleanup_terminate_calls = [0]
+-            def fail_first_cleanup_terminate(process_handle, exit_code):
+-                cleanup_terminate_calls[0] += 1
+-                if cleanup_terminate_calls[0] == 1:
+-                    return False
+-                return original_terminate(process_handle, exit_code)
+-            self._kernel32.TerminateProcess = fail_first_cleanup_terminate
+-        elif '$Mode' == 'reader-cleanup-wait-timeout':
+-            original_wait = self._kernel32.WaitForSingleObject
+-            def timeout_cleanup_wait(process_handle, timeout_ms):
+-                if int(process_handle) == self._process_handle and timeout_ms == 2000:
+-                    return 258
+-                return original_wait(process_handle, timeout_ms)
+-            self._kernel32.WaitForSingleObject = timeout_cleanup_wait
+-        elif '$Mode' == 'reader-cleanup-exception':
+-            original_wait = self._kernel32.WaitForSingleObject
+-            cleanup_wait_calls = [0]
+-            def raise_once_during_cleanup(process_handle, timeout_ms):
+-                if int(process_handle) == self._process_handle and timeout_ms == 0 and cleanup_wait_calls[0] == 0:
+-                    cleanup_wait_calls[0] += 1
+-                    raise RuntimeError('fixture cleanup exception')
+-                return original_wait(process_handle, timeout_ms)
+-            self._kernel32.WaitForSingleObject = raise_once_during_cleanup
+-        elif '$Mode' == 'reader-cleanup-exit-code-failure':
+-            original_get_exit_code = self._kernel32.GetExitCodeProcess
+-            cleanup_exit_code_calls = [0]
+-            def fail_first_cleanup_exit_code(process_handle, exit_code):
+-                cleanup_exit_code_calls[0] += 1
+-                if cleanup_exit_code_calls[0] == 1:
+-                    return False
+-                return original_get_exit_code(process_handle, exit_code)
+-            self._kernel32.GetExitCodeProcess = fail_first_cleanup_exit_code
+-        elif '$Mode' == 'reader-cleanup-close-failure':
+-            def report_process_close_failure(close_handle):
+-                closed = original_close_handle(self, close_handle)
+-                if close_handle == self._process_handle:
+-                    return False
+-                return closed
+-            self._close_handle = report_process_close_failure
++        reader_calls[0] += 1
++        if not created_pids:
++            created_pids.append(self.pid)
++            retained_process_handles.append(duplicate_process_handle(self._process_handle))
++            expected_thread_handles.append(self._thread_handle)
++            expected_process_handles.append(self._process_handle)
++        if '$Mode' == 'reader-job-containment':
++            self._kernel32.TerminateProcess = lambda process_handle, exit_code: False
++            self._kernel32.WaitForSingleObject = lambda process_handle, timeout_ms: 258
++        elif '$Mode' == 'reader-stream-close-exception' and reader_calls[0] == 1:
++            return CloseExceptionStream(original_open_reader(self, handle))
+         raise OSError('fixture reader open failure')
+     browser._SuspendedBrowserProcess._open_reader = reader_failure
+ elif '$Mode' in ('stderr-pipe-failure', 'nul-input-failure'):
+@@ -291,12 +299,16 @@ except BaseException as exc:
+     result = {'error': str(exc), 'error_type': type(exc).__name__, 'error_cause': str(exc.__cause__) if exc.__cause__ else ''}
+     if '$Mode' == 'ownership-race':
+         result['ownership_race_preserved'] = os.path.isdir(r'$($profile.Replace('\','\\'))')
+-    if '$Mode' in ('reader-open-failure', 'reader-cleanup-terminate-failure', 'reader-cleanup-wait-timeout', 'reader-cleanup-exit-code-failure', 'reader-cleanup-close-failure', 'reader-cleanup-exception'):
++    if '$Mode' in ('reader-open-failure', 'reader-job-containment', 'reader-stream-close-exception'):
+         result['created_pid'] = created_pids[0] if created_pids else 0
+         retained = retained_process_handles[0] if retained_process_handles else 0
+         result['created_root_alive_before_test_cleanup'] = bool(retained and not exact_process_handle_state(retained))
+         result['created_root_cleaned_by_test'] = bool(retained and (exact_process_handle_state(retained) or exact_process_handle_state(retained, terminate=True)))
+         result['retained_process_handle_closed'] = bool(retained and close_exact_handle(retained))
++        result['job_assigned_before_reader_failure'] = bool(created_pids and created_pids[0] in assigned_pids)
++        result['thread_close_attempted'] = bool(expected_thread_handles and expected_thread_handles[0] in close_attempts)
++        result['process_close_attempted'] = bool(expected_process_handles and expected_process_handles[0] in close_attempts)
++        result['failed_stream_retained'] = bool(failed_stream_retained and failed_stream_retained[-1])
+     if '$Mode' in ('stderr-pipe-failure', 'nul-input-failure'):
+         result['resource_handles_closed'] = bool(acquired_handles) and set(acquired_handles).issubset(closed_handles)
+     print(json.dumps(result, separators=(',', ':')))
+@@ -367,25 +379,34 @@ try {
+     $ownershipRace = Invoke-BrowserFixtureCase -Mode 'ownership-race' -ExpectedError 'BROWSER_ISOLATION_SETUP_FAILED'
+     Assert-True ([bool]$ownershipRace.ownership_race_preserved) 'worker must not remove a directory won by another actor during setup'
+     $readerOpenFailure = Invoke-BrowserFixtureCase -Mode 'reader-open-failure'
++    $readerJobContainment = Invoke-BrowserFixtureCase -Mode 'reader-job-containment'
++    $readerStreamCloseFailure = Invoke-BrowserFixtureCase -Mode 'reader-stream-close-exception'
+     Assert-True ([int]$readerOpenFailure.created_pid -gt 0) 'reader-open regression must record the created suspended root PID'
++    Assert-True ([bool]$readerJobContainment.job_assigned_before_reader_failure) "persistent TerminateProcess/Wait failure must occur only after Job assignment; root_alive=$([bool]$readerJobContainment.created_root_alive_before_test_cleanup); later_thread_close=$([bool]$readerStreamCloseFailure.thread_close_attempted); later_process_close=$([bool]$readerStreamCloseFailure.process_close_attempted); cleanup_error=$([string]$readerStreamCloseFailure.error)"
++    Assert-True (-not [bool]$readerJobContainment.created_root_alive_before_test_cleanup) 'Job containment must remove the exact suspended root despite persistent old-path TerminateProcess/Wait failure'
++    Assert-True ([bool]$readerJobContainment.created_root_cleaned_by_test) 'persistent-failure regression cleanup must leave no fixture root behind'
++    Assert-True ([bool]$readerJobContainment.retained_process_handle_closed) 'persistent-failure regression must close its duplicate exact process handle'
++    Assert-Equal 'BROWSER_SUSPENDED_LAUNCH_FAILED' ([string]$readerJobContainment.error) 'post-assignment reader failure must preserve the stable launch error after verified containment'
++    Assert-True ($null -eq $readerJobContainment.PSObject.Properties['record']) 'persistent TerminateProcess/Wait failure must never emit PASS evidence'
+     Assert-True (-not [bool]$readerOpenFailure.created_root_alive_before_test_cleanup) 'reader-open failure must terminate the created suspended root before returning control'
+     Assert-True ([bool]$readerOpenFailure.created_root_cleaned_by_test) 'reader-open regression cleanup must leave no fixture root behind'
+     Assert-True ([bool]$readerOpenFailure.retained_process_handle_closed) 'reader-open regression must close its duplicate exact process handle'
++    Assert-True ([bool]$readerOpenFailure.job_assigned_before_reader_failure) 'ordinary reader-open failure must occur only after Job assignment'
+     Assert-Equal 'BROWSER_SUSPENDED_LAUNCH_FAILED' ([string]$readerOpenFailure.error) 'reader-open failure must use the stable launch error'
+     Assert-True ($null -eq $readerOpenFailure.PSObject.Properties['record']) 'reader-open failure must never emit PASS evidence'
++    Assert-True ([bool]$readerStreamCloseFailure.job_assigned_before_reader_failure) 'partial reader setup must occur only after Job assignment'
++    Assert-True (-not [bool]$readerStreamCloseFailure.created_root_alive_before_test_cleanup) 'partial reader setup failure must leave the exact suspended root contained'
++    Assert-True ([bool]$readerStreamCloseFailure.thread_close_attempted) 'stdout close exception must not skip the later primary-thread handle close'
++    Assert-True ([bool]$readerStreamCloseFailure.process_close_attempted) 'stdout close exception must not skip the later process handle close'
++    Assert-True ([bool]$readerStreamCloseFailure.failed_stream_retained) 'failed stdout close must retain the stream reference for fail-closed ownership'
++    Assert-Equal 'BROWSER_TREE_CLEANUP_FAILED' ([string]$readerStreamCloseFailure.error) 'stream close failure must win as the stable cleanup error'
++    Assert-True ($null -eq $readerStreamCloseFailure.PSObject.Properties['record']) 'stream close failure must never emit PASS evidence'
++    Assert-True ([bool]$readerStreamCloseFailure.created_root_cleaned_by_test) 'stream-close regression cleanup must leave no fixture root behind'
++    Assert-True ([bool]$readerStreamCloseFailure.retained_process_handle_closed) 'stream-close regression must close its duplicate exact process handle'
+     $stderrPipeFailure = Invoke-BrowserFixtureCase -Mode 'stderr-pipe-failure' -ExpectedError 'BROWSER_SUSPENDED_LAUNCH_FAILED'
+     Assert-True ([bool]$stderrPipeFailure.resource_handles_closed) 'stderr-pipe acquisition failure must close every previously acquired pipe handle'
+     $nulInputFailure = Invoke-BrowserFixtureCase -Mode 'nul-input-failure' -ExpectedError 'BROWSER_SUSPENDED_LAUNCH_FAILED'
+     Assert-True ([bool]$nulInputFailure.resource_handles_closed) 'NUL-input acquisition failure must close every previously acquired pipe handle'
+-    foreach ($cleanupMode in @('reader-cleanup-terminate-failure', 'reader-cleanup-wait-timeout', 'reader-cleanup-exit-code-failure', 'reader-cleanup-close-failure', 'reader-cleanup-exception')) {
+-        $cleanupFailure = Invoke-BrowserFixtureCase -Mode $cleanupMode
+-        Assert-Equal 'WorkerContractError' ([string]$cleanupFailure.error_type) "constructor cleanup failure $cleanupMode must not bypass the stable worker wrapper"
+-        Assert-Equal 'BROWSER_SUSPENDED_LAUNCH_FAILED' ([string]$cleanupFailure.error) "constructor cleanup failure $cleanupMode must preserve the stable launch error"
+-        Assert-Equal 'BROWSER_SUSPENDED_PROCESS_CLEANUP_FAILED' ([string]$cleanupFailure.error_cause) "constructor cleanup failure $cleanupMode must be propagated through the stable wrapper"
+-        Assert-True (-not [bool]$cleanupFailure.created_root_alive_before_test_cleanup) "constructor cleanup failure $cleanupMode must not return while the exact root remains active"
+-        Assert-True ([bool]$cleanupFailure.created_root_cleaned_by_test) "constructor cleanup failure $cleanupMode exact-handle regression cleanup must verify exit"
+-        Assert-True ([bool]$cleanupFailure.retained_process_handle_closed) "constructor cleanup failure $cleanupMode must close the duplicate exact process handle"
+-    }
+     $driverInfo = [System.Diagnostics.ProcessStartInfo]::new()
+     $driverInfo.FileName = $python
+     $driverInfo.Arguments = '-c "import time; time.sleep(10)"'

@@ -174,6 +174,55 @@ function Add-ResultRecord {
     if ([string]$Record.status -match '^(SKIPPED|BLOCKED|UNSUPPORTED)') { Add-RedactedJsonLine -Path $Report.skipped_path -Record $Record -Environment $Environment }
 }
 
+function Test-ReportArtifact {
+    param([string]$Path, [ValidateSet('json','jsonl')][string]$Kind = 'json')
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) { return [pscustomobject]@{captured=$false;parsed=$false} }
+    try {
+        if ($Kind -eq 'json') { $null = [System.IO.File]::ReadAllText((Resolve-Path -LiteralPath $Path)) | ConvertFrom-Json }
+        else { foreach($line in [System.IO.File]::ReadAllLines((Resolve-Path -LiteralPath $Path))){if(-not [string]::IsNullOrWhiteSpace($line)){$null=$line|ConvertFrom-Json}} }
+        return [pscustomobject]@{captured=$true;parsed=$true}
+    }
+    catch { return [pscustomobject]@{captured=$true;parsed=$false} }
+}
+
+function New-EvidenceCompletenessMatrix {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$ScenarioEvidenceRoot,
+        [Parameter(Mandatory)][string]$RunRoot,
+        [ValidateSet('dry-run','mock','real')][string]$RunMode,
+        $AssertionResult,
+        $PostCleanup
+    )
+    $assertionPresent=$null -ne $AssertionResult
+    $routeRequired=$assertionPresent -and [bool]$AssertionResult.route_evidence_required
+    $definitions=@(
+        @('profile_validation',$true,$true,(Join-Path $ScenarioEvidenceRoot 'profile-validation.json'),'json'),
+        @('rule_plan',$true,$true,(Join-Path $ScenarioEvidenceRoot 'rule-plan.json'),'json'),
+        @('rule_apply_readback',$false,($RunMode -eq 'real'),(Join-Path $ScenarioEvidenceRoot 'cli-lifecycle.json'),'json'),
+        @('client_plan',$true,$true,(Join-Path $ScenarioEvidenceRoot 'client-plan.json'),'json'),
+        @('client_lifecycle',($RunMode -ne 'dry-run'),($RunMode -ne 'dry-run'),(Join-Path $ScenarioEvidenceRoot 'client-result.json'),'json'),
+        @('client_jsonl',($RunMode -ne 'dry-run'),($RunMode -ne 'dry-run'),(Join-Path $ScenarioEvidenceRoot 'client-result.json'),'json'),
+        @('proxybridge_lifecycle',($RunMode -eq 'real'),($RunMode -eq 'real'),(Join-Path $ScenarioEvidenceRoot 'cli-lifecycle.json'),'json'),
+        @('proxybridge_records',$routeRequired,($RunMode -ne 'dry-run'),(Join-Path $ScenarioEvidenceRoot 'proxybridge-evidence.json'),'json'),
+        @('endpoint_query',($RunMode -eq 'real'),($RunMode -eq 'real'),(Join-Path $ScenarioEvidenceRoot 'vps-collection-result.json'),'json'),
+        @('endpoint_jsonl',($RunMode -ne 'dry-run'),($RunMode -ne 'dry-run'),(Join-Path $ScenarioEvidenceRoot 'vps-evidence.json'),'json'),
+        @('direct_baseline',($RunMode -eq 'real'),($RunMode -eq 'real'),(Join-Path $RunRoot 'direct-baseline-result.json'),'json'),
+        @('assertion_result',($RunMode -ne 'dry-run'),($RunMode -ne 'dry-run'),(Join-Path $ScenarioEvidenceRoot 'assertions.json'),'json'),
+        @('cleanup',($RunMode -eq 'real'),($RunMode -eq 'real'),(Join-Path $ScenarioEvidenceRoot 'post-run-cleanup.json'),'json'),
+        @('post_run_health',($RunMode -eq 'real'),($RunMode -eq 'real'),(Join-Path $ScenarioEvidenceRoot 'post-run-cleanup.json'),'json')
+    )
+    $channels=foreach($definition in $definitions){
+        $artifact=Test-ReportArtifact -Path ([string]$definition[3]) -Kind ([string]$definition[4])
+        $validated=[bool]$artifact.parsed
+        if([string]$definition[0] -in @('cleanup','post_run_health') -and $null -ne $PostCleanup){$validated=$validated -and [bool]$PostCleanup.passed}
+        if([string]$definition[0] -eq 'assertion_result' -and $assertionPresent){$validated=$validated -and @($AssertionResult.contamination).Count -eq 0 -and @($AssertionResult.harness_errors).Count -eq 0}
+        [pscustomobject][ordered]@{channel=[string]$definition[0];mandatory=[bool]$definition[1];requested=[bool]$definition[2];captured=[bool]$artifact.captured;parsed=[bool]$artifact.parsed;validated=[bool]$validated}
+    }
+    $missing=@($channels|Where-Object{$_.mandatory -and -not $_.validated}|Select-Object -ExpandProperty channel)
+    return [pscustomobject][ordered]@{schema_version=1;run_mode=$RunMode;overall_complete=($missing.Count -eq 0);missing_mandatory=@($missing);channels=@($channels)}
+}
+
 function Write-RunSummary {
     param(
         $Report,
@@ -188,10 +237,25 @@ function Write-RunSummary {
     foreach ($record in $Records) { $csv.Add(('"{0}","{1}","{2}","{3}",{4},{5}' -f $RunMode, $record.scenario_id, $record.implementation_status, $record.status, $record.attempt, $record.duration_ms)) }
     Write-Utf8Atomic -Path (Join-Path $Report.run_root 'summary.csv') -Text ((Protect-SensitiveText -Text ($csv -join [Environment]::NewLine) -Environment $Environment) + [Environment]::NewLine)
 
+    $attemptAggregates = foreach ($group in @($Records | Where-Object { [int]$_.attempt -gt 0 } | Group-Object scenario_id | Sort-Object Name)) {
+        $attemptRecords = @($group.Group | Sort-Object { [int]$_.attempt })
+        $statuses = @($attemptRecords | Select-Object -ExpandProperty status -Unique)
+        $aggregate = if ($statuses.Count -gt 1) { 'INTERMITTENT' }
+            elseif ($statuses.Count -eq 1 -and [string]$statuses[0] -in @('PASS','MOCK_PASS','DRY_RUN_READY')) { 'CONSISTENT_PASS' }
+            else { 'CONSISTENT_FAILURE' }
+        [pscustomobject][ordered]@{
+            scenario_id=$group.Name;run_mode=$RunMode;attempt_count=$attemptRecords.Count;aggregate=$aggregate
+            statuses=@($attemptRecords|ForEach-Object{[pscustomobject][ordered]@{attempt=[int]$_.attempt;status=[string]$_.status;duration_ms=[long]$_.duration_ms}})
+        }
+    }
+    Write-RedactedJsonReport -Value @($attemptAggregates) -Path (Join-Path $Report.run_root 'attempt-aggregates.json') -Environment $Environment
+
     $catalogSummary = [pscustomobject][ordered]@{
         declared = @($AllScenarios).Count
         executable = @($AllScenarios | Where-Object { [string]$_.implementation_status -eq 'EXECUTABLE' }).Count
         declarative = @($AllScenarios | Where-Object { [string]$_.implementation_status -eq 'DECLARATIVE_ONLY' }).Count
+        system_checks = @($AllScenarios | Where-Object { [string]$_.implementation_status -eq 'SYSTEM_CHECK' }).Count
+        capability_gated = @($AllScenarios | Where-Object { [string]$_.implementation_status -eq 'CAPABILITY_GATED' }).Count
         unsupported = @($AllScenarios | Where-Object { [string]$_.implementation_status -eq 'UNSUPPORTED_PRODUCT_SCOPE' }).Count
         selected = @($Records | Where-Object { $null -ne $_.PSObject.Properties['selected'] -and [bool]$_.selected } | Select-Object -ExpandProperty scenario_id -Unique).Count
         dry_run_records = @($Records | Where-Object { [string]$_.status -in @('DRY_RUN_READY','NOT_IMPLEMENTED') }).Count
@@ -205,6 +269,12 @@ function Write-RunSummary {
         product_verdict = $(if (@($Records | Where-Object { [string]$_.status -eq 'FAIL_PRODUCT' }).Count -gt 0) { 'FAIL_PRODUCT' } elseif (@($Records | Where-Object { [string]$_.status -in @('EXPECTED_FAIL','MOCK_EXPECTED_FAIL') }).Count -gt 0) { 'EXPECTED_FAILURE_OBSERVED' } else { 'NO_PRODUCT_FAILURE_OBSERVED' })
         catalog = $catalogSummary
         statuses = @($Records | Group-Object status | Sort-Object Name | ForEach-Object { [pscustomobject]@{ status=$_.Name; count=$_.Count; run_mode=$RunMode } })
+        attempt_aggregates = [pscustomobject][ordered]@{
+            scenarios=@($attemptAggregates).Count
+            intermittent=@($attemptAggregates|Where-Object{[string]$_.aggregate -eq 'INTERMITTENT'}).Count
+            consistent_pass=@($attemptAggregates|Where-Object{[string]$_.aggregate -eq 'CONSISTENT_PASS'}).Count
+            consistent_failure=@($attemptAggregates|Where-Object{[string]$_.aggregate -eq 'CONSISTENT_FAILURE'}).Count
+        }
     }
     Write-RedactedJsonReport -Value $summary -Path (Join-Path $Report.run_root 'summary.json') -Environment $Environment
 
@@ -222,6 +292,8 @@ function Write-RunSummary {
             group=$group.Name; run_mode=$RunMode; declared=$group.Count
             executable=@($group.Group | Where-Object { [string]$_.implementation_status -eq 'EXECUTABLE' }).Count
             declarative=@($group.Group | Where-Object { [string]$_.implementation_status -eq 'DECLARATIVE_ONLY' }).Count
+            system_checks=@($group.Group | Where-Object { [string]$_.implementation_status -eq 'SYSTEM_CHECK' }).Count
+            capability_gated=@($group.Group | Where-Object { [string]$_.implementation_status -eq 'CAPABILITY_GATED' }).Count
             unsupported=@($group.Group | Where-Object { [string]$_.implementation_status -eq 'UNSUPPORTED_PRODUCT_SCOPE' }).Count
             selected=@($groupRecords | Where-Object { $null -ne $_.PSObject.Properties['selected'] -and [bool]$_.selected } | Select-Object -ExpandProperty scenario_id -Unique).Count
             results=@($normalized | Group-Object status | Sort-Object Name | ForEach-Object { [pscustomobject]@{status=$_.Name;count=$_.Count;run_mode=$RunMode} })
@@ -246,4 +318,4 @@ function Complete-RunChecksums {
     Write-Utf8Atomic -Path $Report.checksum_path -Text ((@($lines) -join [Environment]::NewLine) + [Environment]::NewLine)
 }
 
-Export-ModuleMember -Function Protect-SensitiveText, Protect-SensitiveObject, New-RunReport, New-DryRunReport, Write-SafeTranscript, Write-JsonReport, Write-RedactedJsonReport, Add-RedactedJsonLine, Add-SelectionRecord, Add-ResultRecord, Write-RunSummary, Write-ChecksumReport, Complete-RunChecksums
+Export-ModuleMember -Function Protect-SensitiveText, Protect-SensitiveObject, New-RunReport, New-DryRunReport, Write-SafeTranscript, Write-JsonReport, Write-RedactedJsonReport, Add-RedactedJsonLine, Add-SelectionRecord, Add-ResultRecord, New-EvidenceCompletenessMatrix, Write-RunSummary, Write-ChecksumReport, Complete-RunChecksums

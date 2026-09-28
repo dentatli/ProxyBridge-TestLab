@@ -13,6 +13,7 @@ Assert-True `
     'direct baseline payload must end with LF for endpoint MESSAGE_RECEIVED framing'
 Assert-Equal 'powershell-dotnet-tcp-control' $plan.executor 'baseline must use internal .NET control flow'
 Assert-True ([string]$plan.watched_application -ne 'powershell.exe') 'baseline control must not use watched client executable'
+Assert-True ([Text.Encoding]::UTF8.GetString($payloadBytes) -match '^PB_NET\|test_id=direct-baseline\|run_id=baseline-[a-f0-9]{32}\|sequence=1\|phase=direct_baseline\|protocol=TCP') 'baseline payload must carry strict endpoint evidence identity'
 
 $collector={
     param($record)

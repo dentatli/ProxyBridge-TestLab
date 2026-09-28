@@ -94,6 +94,12 @@ function Get-EffectiveRuntimeEnvironment {
     catch { throw 'PB_CLIENT_EXE cannot be normalized.' }
     $effective['PB_RULE_APPLICATION_BASENAME'] = [System.IO.Path]::GetFileName($normalizedClient)
     $effective['PB_RULE_APPLICATION_FULLPATH'] = $normalizedClient
+    if ($effective.ContainsKey('PB_PROTOCOL_PYTHON_EXE') -and -not [string]::IsNullOrWhiteSpace([string]$effective['PB_PROTOCOL_PYTHON_EXE'])) {
+        try { $normalizedProtocolPython = [System.IO.Path]::GetFullPath([string]$effective['PB_PROTOCOL_PYTHON_EXE']).TrimEnd('\') }
+        catch { throw 'PB_PROTOCOL_PYTHON_EXE cannot be normalized.' }
+        $effective['PB_PROTOCOL_WORKER_APPLICATION_BASENAME'] = [System.IO.Path]::GetFileName($normalizedProtocolPython)
+        $effective['PB_PROTOCOL_WORKER_APPLICATION_FULLPATH'] = $normalizedProtocolPython
+    }
     $effective['PB_ENDPOINT_DELAY_PORT'] = [string]$RuntimeConfig.scenario_defaults.endpoint_delay_port
     $effective['PB_ENDPOINT_ERROR_PORT'] = [string]$RuntimeConfig.scenario_defaults.endpoint_error_port
     $effective['PB_RULE_PORT_RANGE'] = [string]$RuntimeConfig.scenario_defaults.rule_port_range
