@@ -1,8 +1,31 @@
 # Наблюдение жизненного цикла записи redirect context
 
-Статус: план следующего этапа, без установки, включения kernel debugging, изменения BCD/доверия/гипервизора или нового трафика. Парный контроль local/Linux уже разобран: [результат](TCP_CONTEXT_EXTERNAL_RECEIVER_CONTROL.md). Его повтор не показывает недостающую внутреннюю операцию Windows.
+Статус: найдено дополнительное расширение обычной трассировки, подготовлен и разобран WPR черновик; нового sealed Run-комплекта и реального сбора пока нет. Установка, kernel debugging, BCD/доверие/гипервизор и новый трафик не выполнялись. Парный контроль local/Linux уже разобран: [результат](TCP_CONTEXT_EXTERNAL_RECEIVER_CONTROL.md).
 
 Нужно установить, почему после отказанного SYN и повтора принятый Core сокет не имеет redirect context. Наблюдаемая цепочка доказана; отнесение дефекта к Windows или драйверу пока не доказано.
+
+## Единый расширенный сбор перед адресной отладкой памяти
+
+Запрос пользователя 2026-10-07: проверять несколько причин одновременно, а не готовить новый узкий запуск для каждой гипотезы. Найдены два дополнительных источника, отсутствовавших в предыдущей трассе:
+
+| Источник | Проверенные поля / назначение | Что ещё не доказано |
+| --- | --- | --- |
+| `Microsoft.Windows.Networking.WFP.Callout`, GUID `00e7ee66-5b24-5c41-22cb-af98f63e2f90` | `ConnectRedirectClassify`, `ApplyWritableLayerData`, `RedirectedAuthConnect`, `QueryRedirectionState`, `SetRedirectRecords`; CorrelationId, TransportEndpointHandle, CalloutId, IsReauth, права/действие, исходные/изменённые адреса и NTSTATUS в соответствующих событиях | Реальная эмиссия и точная связь объектов; эти поля сами по себе не показывают освобождение приватной записи |
+| `Microsoft-Windows-Winsock-AFD`, GUID `e53c6823-7bb8-44bb-90dc-3f86090d48a6` | Endpoint, AcceptEndpoint, CurrentBacklog, Backlog; event4019 содержит PauseUnPause/TLBacklogCount | Эмиссия, семантика конкретных значений и связь AFD endpoint с TCP/WFP объектом; равенство разных типов handle нельзя предполагать |
+
+WFP Callout provider подтверждён [документацией Microsoft eBPF](https://github.com/microsoft/ebpf-for-windows/blob/main/docs/Diagnostics.md). В локальном NETIO.SYS статически найдены его GUID, metadata шести вариантов перечисленных событий (два уровня ConnectRedirectClassify), keyword `0x4`, level до5 и диагностические exports. AFD templates29 выбранных событий совпали с прежним локальным каталогом; бинарные поля в выбранных templates — адреса, не данные пакетов. Это статическая проверка возможностей, не подтверждение runtime coverage. `logman query providers` не нашёл текущую регистрацию Callout GUID; нельзя считать отсутствующее событие признаком отсутствия действия.
+
+Черновик [tcp-wfp-full-metadata-draft.wprp](../config/tcp-wfp-full-metadata-draft.wprp) объединяет эти источники с прежними16TCPIP IDs и original Winsock WPP status. Ограничение64MiB Sequential; AFD29 IDs, WFP keyword4/level5. Он **не подключён к обычному контроллеру**, не заменяет старые frozen profiles и не является готовой командой Run. `wpr -profiles` разобрал его с exit0; запись не запускалась. Audit: `artifacts/diagnostics/tcp-endpoint-expansion-review-20261007/validation.json`.
+
+Следующая реализация должна давать пользователю одну команду и один итоговый пакет:
+
+1. Проверить новый комплект и hashes NETIO/AFD/TCPIP/mswsock, сохранить принадлежность callout/filter IDs в начале и конце опыта. Настройки фильтров, proxy и сети не менять.
+2. Внутри одной команды проверить реальную эмиссию источников на принадлежащих опыту baseline-соединениях. Если нужный источник молчит, остановить опыт с конкретным отчётом о пробеле, не продолжать полную нагрузку с пустыми журналами.
+3. Снять одновременно Windows WFP/AFD/TCP/WPP, собственный kernel/Core журнал и CTS/data/lifecycle на исходной очереди: baseline →64→256→640→recovery. Linux/NAT матрицу не повторять для уже локализованного context failure. Windows WFP журнал не имеет прежнего собственного APPID-фильтра; coverage неподходящих APPID всё равно должен быть проверен.
+4. Построить одну временную цепочку по rawQPC и подтверждённым идентификаторам объектов, включая дополнительные callout, reauth, pause/unpause, принятый endpoint и original query. Не использовать ближайшее событие/порядок строк как замену связи.
+5. Одновременно проверить давление очереди, дополнительную классификацию/изменение redirect, неправильную связь endpoint и возврат исходного NTSTATUS. Отдельно выдать coverage и непроверенные переходы; не объявлять внутренний transfer/free доказанным только по CorrelationId.
+
+Дополнительный журнал способен различить больше гипотез за один опыт. Он не гарантирует точную причину с первого запуска: если существенный переход приватной записи не представлен этими событиями, нужен следующий ниже способ прямого наблюдения. Новый сбор не следует запускать до подготовки контроллера, проверки runtime coverage/очистки и нового sealed handoff.
 
 ## Гипотезы в одном наблюдении
 
@@ -27,7 +50,7 @@
 
 ## Требуемая среда и граница следующего действия
 
-Для такого наблюдения нужен kernel debugger вне исследуемой Windows VM. Локальный `WinDbg -kl` не поддерживает точки остановки и пошаговое выполнение: [Microsoft: Local Kernel-Mode Debugging](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/performing-local-kernel-debugging). Microsoft описывает отдельный host/target и подключение к VM через виртуальный COM/named pipe: [настройка kernel debugging VM](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/attaching-to-a-virtual-machine--kernel-mode-).
+Для **прямого наблюдения записей памяти и исполнения переноса/освобождения**, если расширенная трасса не показывает нужный переход, нужен kernel debugger вне исследуемой Windows VM. Локальный `WinDbg -kl` не поддерживает точки остановки и пошаговое выполнение: [Microsoft: Local Kernel-Mode Debugging](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/performing-local-kernel-debugging). Доступны [точки остановки на запись памяти](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/ba--break-on-access-), но их число ограничено; следить таким способом за всеми1936объектами одновременно нельзя обещать. Microsoft описывает отдельный host/target и подключение к VM через виртуальный COM/named pipe: [настройка kernel debugging VM](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/attaching-to-a-virtual-machine--kernel-mode-).
 
 Доступ к физическому хосту, его ОС и подходящий debug transport пока не подтверждены. Linux receiver по SSH не является отладчиком ядра Windows. Конкретные команды настройки и breakpoint-скрипт можно подготовить после подтверждения этой среды и проверки символов/инструкций нужной сборки; сейчас запускать такие команды нельзя. Действующие ограничения на BCD, доверие, настройки гипервизора, UAC и автоматическую перезагрузку сохраняются.
 

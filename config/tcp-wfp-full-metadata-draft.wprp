@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Draft only: no controller, sealed preparation or runtime emission validation yet. Do not substitute into old frozen plans. -->
+<WindowsPerformanceRecorder Version="1.0" Author="ProxyBridge-TestLab; draft full-route metadata profile">
+  <Profiles>
+    <EventCollector Id="TcpWfpFullCollector" Name="TestLab TCP WFP Full Metadata Collector">
+      <BufferSize Value="64" />
+      <Buffers Value="128" />
+      <MaximumFileSize Value="64" FileMode="Sequential" />
+    </EventCollector>
+    <EventProvider Id="TcpContextStatusProvider" Name="2f07e2ee-15db-40f1-90ef-9d7ba282188a" Strict="true" NonPagedMemory="true" Level="5">
+      <Keywords>
+        <Keyword Value="0xFFFFFFFFFFFFFFFF" />
+      </Keywords>
+      <EventFilters FilterIn="true">
+        <EventId Value="1004" />
+        <EventId Value="1008" />
+        <EventId Value="1009" />
+        <EventId Value="1014" />
+        <EventId Value="1015" />
+        <EventId Value="1016" />
+        <EventId Value="1017" />
+        <EventId Value="1033" />
+        <EventId Value="1055" />
+        <EventId Value="1063" />
+        <EventId Value="1186" />
+        <EventId Value="1214" />
+        <EventId Value="1315" />
+        <EventId Value="1416" />
+        <EventId Value="1477" />
+        <EventId Value="1553" />
+      </EventFilters>
+    </EventProvider>
+    <EventProvider Id="WinsockStatusProvider" Name="ac7ff34d-58da-490c-843e-57baeb1bafef" Strict="true" Level="4">
+      <Keywords>
+        <Keyword Value="0x2" />
+      </Keywords>
+      <EventFilters FilterIn="true">
+        <EventId Value="11" />
+      </EventFilters>
+    </EventProvider>
+    <EventProvider Id="AfdEndpointProvider" Name="e53c6823-7bb8-44bb-90dc-3f86090d48a6" Strict="true" NonPagedMemory="true" Level="4">
+      <Keywords>
+        <Keyword Value="0xFFFFFFFFFFFFFFFF" />
+      </Keywords>
+      <EventFilters FilterIn="true">
+        <EventId Value="1" />
+        <EventId Value="2" />
+        <EventId Value="3" />
+        <EventId Value="4" />
+        <EventId Value="5" />
+        <EventId Value="6" />
+        <EventId Value="7" />
+        <EventId Value="8" />
+        <EventId Value="1000" />
+        <EventId Value="1001" />
+        <EventId Value="1002" />
+        <EventId Value="1017" />
+        <EventId Value="1018" />
+        <EventId Value="1020" />
+        <EventId Value="1021" />
+        <EventId Value="1023" />
+        <EventId Value="1024" />
+        <EventId Value="1026" />
+        <EventId Value="1027" />
+        <EventId Value="1029" />
+        <EventId Value="1030" />
+        <EventId Value="1032" />
+        <EventId Value="1035" />
+        <EventId Value="1036" />
+        <EventId Value="1037" />
+        <EventId Value="3000" />
+        <EventId Value="3001" />
+        <EventId Value="3006" />
+        <EventId Value="4019" />
+      </EventFilters>
+    </EventProvider>
+    <EventProvider Id="WfpCalloutRedirectProvider" Name="00e7ee66-5b24-5c41-22cb-af98f63e2f90" Strict="true" NonPagedMemory="true" Level="5">
+      <Keywords>
+        <Keyword Value="0x4" />
+      </Keywords>
+    </EventProvider>
+    <Profile Id="TestLabTcpWfpFullMetadata.Verbose.File" Name="TestLabTcpWfpFullMetadata" Description="DRAFT: selected TCP, original Winsock status, AFD endpoint/backlog and WFP callout redirect metadata; emission and exact object correlation NOT yet verified" LoggingMode="File" DetailLevel="Verbose">
+      <Collectors>
+        <EventCollectorId Value="TcpWfpFullCollector">
+          <EventProviders>
+            <EventProviderId Value="TcpContextStatusProvider" />
+            <EventProviderId Value="WinsockStatusProvider" />
+            <EventProviderId Value="AfdEndpointProvider" />
+            <EventProviderId Value="WfpCalloutRedirectProvider" />
+          </EventProviders>
+        </EventCollectorId>
+      </Collectors>
+    </Profile>
+  </Profiles>
+</WindowsPerformanceRecorder>

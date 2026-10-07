@@ -15,7 +15,7 @@
 
 Отчёты и receipts исходного запуска сохранены без изменения. Полный derived audit: [analysis.md](../artifacts/diagnostics/tcp-external-receiver-review-20261007-094223/analysis.md), [validation.json](../artifacts/diagnostics/tcp-external-receiver-review-20261007-094223/validation.json).322новыхUSERфайла, прежние snapshots и57runtime+7trace hashes сохранены. Сохранённый Restore baseline hash/Stopped/detached проверен; текущая система не опрашивалась.
 
-Комплект `tcp-redirect-context-preparation-20261007-093635-91ea36ae` уже использован; его HANDOFF описывает выполненную подготовку, не новый запуск. Старые планы не refreeze/Resume. Новый Run не подготовлен. Следующий различающий этап: [наблюдение endpoint lifecycle](TCP_CONTEXT_ENDPOINT_LIFECYCLE_PLAN.md), требующее kernel debugger вне Windows VM; BCD/гипервизор/доверие/перезагрузку в этом анализе не меняли. Обычный UI remote benchmark остаётся REMOTE_CONTROLLER_PENDING.
+Комплект `tcp-redirect-context-preparation-20261007-093635-91ea36ae` уже использован; его HANDOFF описывает выполненную подготовку, не новый запуск. Старые планы не refreeze/Resume. Новый Run не подготовлен. Следующий различающий этап: [единый расширенный сбор WFP/AFD и план endpoint lifecycle](TCP_CONTEXT_ENDPOINT_LIFECYCLE_PLAN.md). Для прямого наблюдения памяти, если существенный переход отсутствует в дополнительных событиях, потребуется kernel debugger вне Windows VM; BCD/гипервизор/доверие/перезагрузку в этом анализе не меняли. Обычный UI remote benchmark остаётся REMOTE_CONTROLLER_PENDING.
 
 ## Что проверяем
 
@@ -66,6 +66,6 @@ Linux-получатель использует проверенный CTS push 
 
 ## Следующий различающий этап
 
-Пара выполнена; повторять её ради отчёта не требуется. [План endpoint-lifecycle](TCP_CONTEXT_ENDPOINT_LIFECYCLE_PLAN.md) описывает одновременную проверку переноса/освобождения записи, выбора endpoint при повторе и дополнительных unscoped изменений. Для этого нужен kernel debugger вне Windows VM, с подтверждённым доступом/транспортом и символами нужной сборки. Действующие ограничения UAC/login/reboot/BCD/доверия/гипервизора сохраняются; установка и новые прогоны в офлайн-анализе не выполнялись.
+Пара выполнена; повторять её ради отчёта не требуется. [План endpoint-lifecycle](TCP_CONTEXT_ENDPOINT_LIFECYCLE_PLAN.md) описывает одновременную проверку переноса/освобождения записи, выбора endpoint при повторе и дополнительных unscoped изменений. Теперь план также включает дополнительные WFP/AFD источники для единой проверки нескольких гипотез. Черновой профиль статически проверен; runtime coverage и новый контроллер ещё не подготовлены. Если нужный переход остаётся ненаблюдаемым, нужен kernel debugger вне Windows VM с подтверждённым доступом/транспортом и символами нужной сборки. Действующие ограничения UAC/login/reboot/BCD/доверия/гипервизора сохраняются; установка и новые прогоны в офлайн-анализе не выполнялись.
 
 Источники первоначальных гипотез и ограничения: `artifacts/diagnostics/tcp-context-status-review-20261006-174008/web-research-20261006.md`. Ранее созданные frozen HANDOFF/plans остаются историческими записями и не переписываются.
