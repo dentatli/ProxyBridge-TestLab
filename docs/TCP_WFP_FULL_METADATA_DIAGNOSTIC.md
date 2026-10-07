@@ -1,8 +1,20 @@
 # Единый сбор WFP, AFD, TCP и контекста Core
 
-Статус 2026-10-07 после пользовательского Run150744: четыре baseline соединения и передача2MiB успешны, сбор остановился на XML parsing в coverage gate до нагрузки. После исправления формата netsh saved baseline даёт COVERAGE_CONFIRMED: owned WFP Apply/classify, AFD accept и TCP setup сопоставлены для всех четырёх соединений. Приватная утрата context под нагрузкой не наблюдалась в этом запуске, точная причина исходных сбросов остаётся неизвестной. Source checkpoint сохраняется в `codex/checkpoint-20261007`; ignored captures, локальные бинарники и private settings не являются частью Git backup.
+Статус 2026-10-07 после пользовательского Run153716-f140a1c9/fullTrace153714-1811d8fe: весь набор4→64→256→640→4 завершён, офлайн сопоставлены968 owned WFP/AFD/TCP/query цепочек,96 отказов STATUS_NOT_FOUND. Подтверждён пусковой механизм — SYN во время паузы очереди приёма Core. Приватный перенос/освобождение context не представлен событиями, поэтому точный внутренний дефект Windows/драйвера ещё не установлен. Повтор обычного ETW прогона сейчас не нужен. Source checkpoint сохраняется в `codex/checkpoint-20261007`; ignored captures, локальные бинарники и private settings не являются частью Git backup.
 
-Текущий новый комплект: `artifacts/diagnostics/tcp-redirect-context-preparation-20261007-151313-480f38a3`. Контроллер: [Invoke-KernelTcpFullMetadataDiagnostic.ps1](../scripts/Invoke-KernelTcpFullMetadataDiagnostic.ps1). CLI/Core/sys и140 файлов копии источников совпадают с комплектом172202. На этом этапе не пересобирались ни продукт/драйвер, ни console host/ETL decoder; изменён только Python разбор WFP snapshot. Новый files-only kit не копирует installation receipt и не refreeze старые plans.
+Использованный комплект: `artifacts/diagnostics/tcp-redirect-context-preparation-20261007-151313-480f38a3`. Контроллер: [Invoke-KernelTcpFullMetadataDiagnostic.ps1](../scripts/Invoke-KernelTcpFullMetadataDiagnostic.ps1). CLI/Core/sys и140 файлов копии источников совпадают с комплектом172202. Офлайн-анализ не менял binaries/controllers или пользовательские receipts. Старые планы не refreeze/Resume.
+
+## Нагрузочный результат и граница диагноза
+
+Все968 native соединения имеют owned Apply callout301 на targetPID1856/relay34010, одну CorrelationId группу и RedirectedAuthConnect NTSTATUS0 до первого SYN. Classify/Auth имеют одинаковый TransportEndpointHandle. Во всём выбранном наборе2763 classify все handles уникальны, IsReauth0; повторная classify для этих handles не наблюдалась. Это не исключает скрытые операции, отсутствующие в выбранной эмиссии.
+
+AFD listener однозначно связан с Core по bind/listen/Endpoint/AcceptEndpoint/peer tuple. Источник Core для original передаёт SOMAXCONN; в AFD listen наблюдается Backlog200. Размер SOMAXCONN выбирает провайдер, это не бесконечная очередь ([Microsoft listen](https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen)). TLBacklogCount при Pause200/201, при Unpause160; паузы51,3511/95,7253/62,5418мс дали по32 native SYNdrop30→retry→context failure. Все96 запросов точно связаны с C0000225 STATUS_NOT_FOUND по PID/TID/rawQPC внутри query entry..exit. У872 успешных native соединений drop30/retry нет. Принятый AFD child закрывает Core после неуспешного query; его pointer life проверен через create..close, а не ближайшее событие.
+
+Это давление **очереди ожидающих приёма**, не переполнение внутренней таблицы драйвера и не предел активных соединений. WFP transport handle не приравнивается к AFD/TCP pointer. Скрытая операция утраты записи остаётся неизвестной; увеличение backlog в предыдущем опыте устраняло триггер, но не доказывает исправление этой операции.
+
+Baseline1MiB/1875 selected и load18,375MiB/102667 selected: lost0/buffers0/rawQPC10MHz/read-close-write0. Независимый xperf подтвердил все102667 rawQPC/header и доступные numeric/text/IPv4/bool поля, Get-WinEvent —96 WPP payloads. Отсутствующие address fields и иные binary fields отмечены отдельно. Kernel968/NULL0/overwritten0/unconfirmed0; исходный kernel report при переоценке exact. Data436MiB/872 success. Native client exit32/64 сохранены; CLI graceful/unforced, receivers/collector/proxy/sampler0/unforced. Saved Restore подтверждает baseline path/hash/Stopped/detached; текущее глобальное состояние ОС не утверждается.55runtime+13outer hashes exact;271 USER files и223 предыдущих неизменны.
+
+Audit: [analysis.md](../artifacts/diagnostics/tcp-wfp-full-load-review-20261007-153714/analysis.md) и validation.json. Исходный TRACE_SAVED_LOAD_CORRELATION_PENDING не переписан; результат аудита OFFLINE_FULL_WFP_AFD_LOAD_CORRELATION_COMPLETE_PRIVATE_CAUSE_UNPROVEN. Следующий различающий шаг — [прямое наблюдение private endpoint context](TCP_CONTEXT_ENDPOINT_LIFECYCLE_PLAN.md), для него нужны сведения об ОС физического хоста и доступе. Пока нет нового комплекта/Run, debugger setup, BCD/trust/hypervisor/network/UAC changes или product fix.
 
 ## Формат XML netsh и подтверждённый baseline
 
@@ -36,7 +48,9 @@ Audit: `artifacts/diagnostics/tcp-wfp-full-start-review-20261007-135055`;209 ф�
 
 WFP Callout provider описан [Microsoft](https://github.com/microsoft/ebpf-for-windows/blob/main/docs/Diagnostics.md); keyword4/level5 и нужные metadata проверены в локальном NETIO. AFD29 IDs дополняют прежние16TCPIP IDs и original Winsock WPP status. На каждый сегмент лимит64MiB; потери/достижение лимита/неподтверждённая остановка не считаются достаточным сбором. Успешный baseline не обязан содержать WPP error event: тот появляется при отказе. Эмиссия pause/unpause и события ошибки проверяются на нагрузке при последующем анализе.
 
-## Запуск пользователем
+## Исторические команды завершённого пользовательского запуска
+
+Комплект151313 уже использован и восстановлен; команды ниже сохранены как описание протокола. Они не являются новым NEXT и не предлагаются для повторения текущей диагностики.
 
 В PowerShell **от администратора**:
 

@@ -1,5 +1,15 @@
 # Work checkpoint
 
+## 2026-10-07: полная WFP/AFD нагрузочная трасса разобрана
+
+USER151313 Run153716-f140a1c9/fullTrace153714-1811d8fe: OFFLINE_FULL_WFP_AFD_LOAD_CORRELATION_COMPLETE_PRIVATE_CAUSE_UNPROVEN.968 exact owned WFP/AFD/TCP/kernel/Core/query chains,96 original C0000225→WSA10022;32@256+64@640,872 success/data436MiB/recovery4sameCLI1856. All native owned Apply301/target1856/relay34010 +unique CorrelationId/Classify/Auth NTSTATUS0 before first SYN;2763 selected classify unique TransportEndpointHandle/IsReauth0. No visible second classify on native handles; private write/free still unobserved.
+
+Actual AFD listener bind/life observed; original Core passes SOMAXCONN, provider/AFD listen200.4019 Pause TLBacklogCount200/201→Unpause160,51,3511/95,7253/62,5418ms;32 native drops30/retry/context fails in each paused interval. All96 exact STATUS_NOT_FOUND within PID/TID/rawQPCquery; accepted AFD child close follows query failure, reuse bounded by create..close.872 successes no native SYNdrop30/retry. This is accept queue pressure, not driver table overflow/capacity or a proven Windows/driver bug. No equality assumed between WFP/AFD/TCP object types.
+
+ETL baseline1MiB/1875selected/load18,375MiB/102667selected,loss0buffers0/QPC10MHz/readclosewrite0/declaredgap no newcohort. Independent xperf102667 headers+available numeric/text/IPv4/bool fields exact,8header collisions resolved by payload; Get-WinEvent96WPP payloads exact. Other binary/zero-length fields explicitly limited. Kernel968/NULL0/overwritten0/unconfirmed0/reportreevalexact.55runtime13outer hashes verified,271newUSERfiles+223previous unchanged. Saved CLI graceful/unforced/receiver0/helpercollector sampler0; native load256exit32/load640exit64 retained;resource5AVAILABLE. SavedRestore baselinehash/pathStopped/detached checked/currentglobalfalse.
+
+Audit [analysis.md](../artifacts/diagnostics/tcp-wfp-full-load-review-20261007-153714/analysis.md)+validation.json. No binary/controller/query change, build/sign/install/livecapture/traffic/refreeze/Resume/report rewrite. NEXT direct observation of private endpoint context transfer/free/retry/query; physical host OS/access asked before choosing transport. No new ordinary ETW Run needed. BCD/trust/hypervisor/proxy/network/UAC/password/autoreboot/subagents/productfix remain untouched; source/docs checkpoint/push authorized, ignored evidence excluded.
+
 ## 2026-10-07: единый WFP/AFD контроллер подготовлен
 
 FINAL новый комплект130731-dbfa7b1c: PS5 Prepare и PS5/7 Inspect FILES_VALIDATED/0;55 runtime +13 outer hashes verified. CLI/Core/sys побайтово совпадают172202, bundleacece5c3;140 файлов source copy exact. Продукт/драйвер не пересобирались; собран только offline ETL decoder. Original очередь, одна local/SOCKS5 серия, ConnectEx32,4→baseline coverage gate→64/256/640→4, sameCLI. Дополнительные WFP/AFD журналы собираются вместе с TCP/WPP/kernel/Core; snapshots read-only. После baseline сохраняется и проверяется первый ETL; при пробеле нагрузка не начинается. Во время проверки ETW приостановлен, интервал записан; новые cohorts не запускаются. Второй ETL covers load/recovery,64MiB каждый; native errors не становятся PASS.

@@ -1,6 +1,8 @@
 # Наблюдение жизненного цикла записи redirect context
 
-Статус: дополнительное расширение обычной трассировки реализовано отдельным контроллером; [новый sealed комплект и команды](TCP_WFP_FULL_METADATA_DIAGNOSTIC.md) подготовлены. Реальный сбор пока не выполнен. Install текущим nonadmin процессом отказал до изменения регистрации; kernel debugging, BCD/доверие/гипервизор и новый трафик не выполнялись. Парный контроль local/Linux уже разобран: [результат](TCP_CONTEXT_EXTERNAL_RECEIVER_CONTROL.md).
+Статус: пользовательский единый WFP/AFD сбор153716-f140a1c9 выполнен и [офлайн разобран](TCP_WFP_FULL_METADATA_DIAGNOSTIC.md).968 owned цепочек,96 STATUS_NOT_FOUND после SYNdrop30 внутри фактической AFD pause; WFP Apply/Auth подтверждены до первого SYN во всех96. Это устанавливает trigger, но не внутреннюю операцию утраты. Перенос/освобождение private record не представлены выбранными событиями. Kernel debugging и изменения BCD/доверия/гипервизора не выполнялись. ОС физического хоста и доступ к нему запрошены у пользователя; повтор обычной ETW нагрузки не предлагается.
+
+AFD source backlog здесь выбран провайдером при SOMAXCONN: listen200, Pause TLBacklogCount200/201, Unpause160, три паузы по32 отказа. Это очередь ожидающих accept, не таблица драйвера. В выбранном WFP наборе2763 уникальных TransportEndpointHandle/IsReauth0; повторной classify этих handles не наблюдалось. AFD child life связан по create..close и native tuple, но мост WFP handle→приватный TCP endpoint ещё отсутствует. Полный audit `artifacts/diagnostics/tcp-wfp-full-load-review-20261007-153714`.
 
 Нужно установить, почему после отказанного SYN и повтора принятый Core сокет не имеет redirect context. Наблюдаемая цепочка доказана; отнесение дефекта к Windows или драйверу пока не доказано.
 
@@ -17,7 +19,7 @@ WFP Callout provider подтверждён [документацией Microsof
 
 Черновик [tcp-wfp-full-metadata-draft.wprp](../config/tcp-wfp-full-metadata-draft.wprp) объединяет эти источники с прежними16TCPIP IDs и original Winsock WPP status. Ограничение64MiB Sequential; AFD29 IDs, WFP keyword4/level5. Он **не подключён к обычному контроллеру**, не заменяет старые frozen profiles и не является готовой командой Run. `wpr -profiles` разобрал его с exit0; запись не запускалась. Audit: `artifacts/diagnostics/tcp-endpoint-expansion-review-20261007/validation.json`.
 
-Требования к единому сбору ниже реализованы отдельным [контроллером](TCP_WFP_FULL_METADATA_DIAGNOSTIC.md) для записи и начального coverage; нагрузочная корреляция объектов ожидает реального Run:
+Требования к единому сбору ниже реализованы отдельным [контроллером](TCP_WFP_FULL_METADATA_DIAGNOSTIC.md); baseline/load корреляция выполнена в пользовательском Run153716. Это историческое описание этапа; непросмотренные private переходы перечислены ниже:
 
 1. Проверить новый комплект и hashes NETIO/AFD/TCPIP/mswsock, сохранить принадлежность callout/filter IDs в начале и конце опыта. Настройки фильтров, proxy и сети не менять.
 2. Внутри одной команды проверить реальную эмиссию источников на принадлежащих опыту baseline-соединениях. Если нужный источник молчит, остановить опыт с конкретным отчётом о пробеле, не продолжать полную нагрузку с пустыми журналами.
