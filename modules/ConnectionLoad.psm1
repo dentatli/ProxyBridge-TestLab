@@ -9,6 +9,13 @@ function Get-ConnectionLoadPreset {
 function Write-ConnectionJson($Value,[string]$Path) { ConvertTo-Json -InputObject $Value -Depth 15 | Set-Content -LiteralPath $Path -Encoding UTF8 }
 function Get-ConnectionQpc { return [Diagnostics.Stopwatch]::GetTimestamp()*1000.0/[Diagnostics.Stopwatch]::Frequency }
 
+function Read-ConnectionReceiverJson([string[]]$Lines) {
+    $text=$Lines -join "`n"
+    # Preserve Linux ISO timestamp spelling too: PS7 DateTime coercion would change +00:00 to Z.
+    if ((Get-Command ConvertFrom-Json).Parameters.ContainsKey('DateKind')) {return ConvertFrom-Json -InputObject $text -DateKind String}
+    return ConvertFrom-Json -InputObject $text
+}
+
 function Get-ConnectionResourceObservation {
     param([string]$Directory,[long]$MinimumAvailableBytes)
     $observation=[ordered]@{schema_version=1;scope='connection-load-resource-gate';status='QUERY_FAILED';started_at_utc=[DateTime]::UtcNow.ToString('o');completed_at_utc='';free_physical_bytes=$null;disk_free_bytes=$null;minimum_available_bytes=$MinimumAvailableBytes;minimum_disk_free_bytes=268435456L;memory_bound_met=$false;disk_bound_met=$false;error=''}
@@ -36,11 +43,21 @@ function Invoke-ConnectionCohort {
     $volume=[long]$Phase.seconds*65536
     $common=@('-protocol:tcp','-pattern:push',('-transfer:'+$volume),'-ratelimit:65536','-verify:data','-port:54122','-buffer:65536','-consoleverbosity:1','-statusupdate:250')
     $startingWorker='';$startingPlan=$null
+    $external=$Context.PSObject.Properties['external_receiver'] -and $Context.external_receiver
+    $target=$(if ($external) {[string]$Context.external_receiver.host} else {'127.0.0.1'})
+    $remoteRun='';$remoteAttempted=$false
     try {
         $resources=Get-ConnectionResourceObservation -Directory $directory -MinimumAvailableBytes $Context.preset.minimum_available_bytes
         Write-ConnectionJson $resources (Join-Path $directory 'resource-observation.json')
         if ($resources.status -eq 'QUERY_FAILED') {throw 'CONNECTION_RESOURCE_OBSERVATION_FAILED'}
         if ($resources.status -ne 'AVAILABLE') {throw 'CONNECTION_LOAD_RESOURCE_BOUND'}
+        if ($external) {
+            $remoteRun='pair-'+[guid]::NewGuid().ToString('N')
+            $record['receiver_run_id']=$remoteRun;$remoteAttempted=$true
+            $remoteStart=Read-ConnectionReceiverJson (& (Join-Path $Context.root 'scripts/Invoke-LinuxCtsReceiver.ps1') -Phase Start -ConnectionFile $Context.external_receiver.connection_file -RunId $remoteRun -TransferBytes $volume -MaxConnections $Phase.connections -MaxTotalConnections $Phase.connections -MaxDurationSeconds 720)
+            Write-ConnectionJson $remoteStart (Join-Path $directory 'linux-start.json')
+            if ($remoteStart.result.status -ne 'RECEIVER_LISTENING') {throw 'CONNECTION_LINUX_RECEIVER_NOT_READY'}
+        } else {
         $serverPlan=[pscustomobject]@{executable=$Context.receiver;arguments=(@('-listen:127.0.0.1',('-serverexitlimit:'+$Phase.connections),('-connectionfilename:'+(Join-Path $directory 'receiver.csv')))+$common);console_host_path=(Join-Path $Context.root 'bin/pb_console_host.exe');stop_timeout_ms=5000}
         $startingWorker='receiver';$startingPlan=$serverPlan
         $server=& $adapter.StartProcess $serverPlan
@@ -57,12 +74,13 @@ function Invoke-ConnectionCohort {
         if ($listeners.Count -ne 1) { throw 'CONNECTION_RECEIVER_NOT_READY' }
         $Context.sampler.process.StandardInput.WriteLine(([ordered]@{role='receiver';pid=$server.pid;path=$server.actual_path} | ConvertTo-Json -Compress));$Context.sampler.process.StandardInput.Flush()
         $record.receiver_pid=$server.pid
+        }
         $connectionOptions=@('-throttleconnections:32')
         if ($Context.PSObject.Properties['diagnostic_case'] -and $Context.diagnostic_case) {
             if (-not $Context.diagnostic_only -or $Context.mode -ne 'PROXY' -or $Context.diagnostic_case.pending_limit -notin @(1,32) -or $Context.diagnostic_case.connect_method -cnotin @('ConnectEx','connect')) {throw 'CONNECTION_MATRIX_CONTEXT_INVALID'}
             $connectionOptions=@(('-throttleconnections:'+$Context.diagnostic_case.pending_limit),('-conn:'+$Context.diagnostic_case.connect_method))
         }
-        $clientPlan=[pscustomobject]@{executable=$Context.client;arguments=(@('-target:127.0.0.1',('-connections:'+$Phase.connections),'-iterations:1')+$connectionOptions+@('-shutdown:rude',('-connectionfilename:'+(Join-Path $directory 'client.csv')))+$common);timeout_ms=600000}
+        $clientPlan=[pscustomobject]@{executable=$Context.client;arguments=(@(('-target:'+$target),('-connections:'+$Phase.connections),'-iterations:1')+$connectionOptions+@('-shutdown:rude',('-connectionfilename:'+(Join-Path $directory 'client.csv')))+$common);timeout_ms=600000}
         $start=Get-ConnectionQpc
         $startingWorker='client';$startingPlan=$clientPlan
         $client=& $adapter.StartProcess $clientPlan
@@ -105,6 +123,15 @@ function Invoke-ConnectionCohort {
             if ($client.session.IsRunning) { & $adapter.KillProcess $client;$record.client_forced_stop=$true }
             Write-ConnectionJson (& $adapter.GetProcessResult $client) (Join-Path $directory 'client-process.json')
             & $adapter.DisposeProcess $client
+        }
+        if ($remoteAttempted) {
+            try {
+                $remoteStop=Read-ConnectionReceiverJson (& (Join-Path $Context.root 'scripts/Invoke-LinuxCtsReceiver.ps1') -Phase Stop -ConnectionFile $Context.external_receiver.connection_file -RunId $remoteRun)
+                Write-ConnectionJson $remoteStop (Join-Path $directory 'linux-stop.json')
+                if ($remoteStop.result.status -ne 'RECEIVER_SERVICE_STOPPED') {throw 'CONNECTION_LINUX_STOP_UNCONFIRMED'}
+            } catch {$record.status='INCONCLUSIVE';$record.error+='; LINUX_STOP: '+$_.Exception.Message}
+            try {$null=& (Join-Path $Context.root 'scripts/Invoke-LinuxCtsReceiver.ps1') -Phase Collect -ConnectionFile $Context.external_receiver.connection_file -RunId $remoteRun -EvidenceDirectory (Join-Path $directory 'linux-receiver')}
+            catch {$record.status='INCONCLUSIVE';$record.error+='; LINUX_COLLECT: '+$_.Exception.Message}
         }
         if ($server) {
             if (-not $server.session.WaitForExit(1000)) {

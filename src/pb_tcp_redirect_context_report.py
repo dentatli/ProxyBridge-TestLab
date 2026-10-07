@@ -32,7 +32,7 @@ def parse_queries(stdout):
     return records
 
 def evaluate(path, *, diagnostic_method='tcp-redirect-context-diagnostic-v1', report_method='redirect-context-logging-v1',
-             distinguish_unidentified_connect_failures=False):
+             distinguish_unidentified_connect_failures=False, target_ip='127.0.0.1', receiver_evaluator=None):
     errors=[];source={str(p.relative_to(path)):hashlib.sha256(p.read_bytes()).hexdigest() for p in path.rglob('*')
         if p.is_file() and p.name not in ('redirect-context-report.json','redirect-context-summary.md','diagnostic-run.json')}
     result=dict(schema_version=1,method=report_method,diagnostic_only=True,performance_comparable=False,
@@ -70,7 +70,8 @@ def evaluate(path, *, diagnostic_method='tcp-redirect-context-diagnostic-v1', re
             errors.append('RUN_OR_CLEANUP_INCOMPLETE')
         assigned=[]
         for phase in mode['phases']:
-            p=path/'proxy'/phase['id'];rows=csv_rows(p/'client.csv');receiver=csv_rows(p/'receiver.csv')
+            p=path/'proxy'/phase['id'];rows=csv_rows(p/'client.csv')
+            receiver=receiver_evaluator(p,phase) if receiver_evaluator else csv_rows(p/'receiver.csv')
             captured=[q for q in queries if phase['start_qpc_ms']<=q['qpc_ms']<=phase['end_qpc_ms']]
             index=collections.defaultdict(list)
             for q in captured:index[f"{q['peer_addr']}:{q['peer_port']}"].append(q)
@@ -91,11 +92,11 @@ def evaluate(path, *, diagnostic_method='tcp-redirect-context-diagnostic-v1', re
                 events=index.get(row['LocalAddress'],[])
                 if len(events)!=1:phase_errors.append('NATIVE_QUERY_MATCH_NOT_UNIQUE');continue
                 q=dict(events[0]);assigned.append(q['seq'])
-                if row['RemoteAddress']!='127.0.0.1:54122' or (row['Result']=='Succeeded' and q['category']!='IPV4_CONTEXT_AVAILABLE'):
+                if row['RemoteAddress']!=target_ip+':54122' or (row['Result']=='Succeeded' and q['category']!='IPV4_CONTEXT_AVAILABLE'):
                     phase_errors.append('NATIVE_QUERY_VERDICT_OR_DESTINATION_DIFFERS')
                 q['native_pid']=phase['client_pid'];q['native_result']=row['Result'];q['native_connection_id']=row['ConnectionId']
                 q['native_send_bytes']=int(row['SendBytes']);q['native_recv_bytes']=int(row['RecvBytes']);matched.append(q)
-                if q['local_addr']!='127.0.0.1' or q['local_port']!=34010 or q['local_error'] or q['peer_error']:
+                if (target_ip=='127.0.0.1' and q['local_addr']!='127.0.0.1') or q['local_port']!=34010 or q['local_error'] or q['peer_error']:
                     phase_errors.append('QUERY_ENDPOINT_UNCONFIRMED')
                 if q['category']=='IPV4_CONTEXT_AVAILABLE' and (q['ctx_pid']!=phase['client_pid'] or q['protocol']!=6):
                     phase_errors.append('RETURNED_CONTEXT_PID_OR_PROTOCOL_DIFFERS')

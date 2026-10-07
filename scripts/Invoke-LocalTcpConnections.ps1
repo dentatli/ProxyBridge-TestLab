@@ -6,7 +6,8 @@ param([ValidateSet('SMOKE')][string]$Profile='SMOKE',[string]$EvidenceDirectory=
     [ValidateSet('LOW','HIGH')][string]$Load='LOW',[switch]$DiagnosticRedirectContext,
     [ValidateSet('','connectex-32','connectex-1','connect-32','connect-1')][string]$DiagnosticConnectionCase='',
     [switch]$DiagnosticFixtureCloseGuard,
-    [ValidateSet('','original','backlog1024','backlog1024-delay650')][string]$DiagnosticRouteCase='')
+    [ValidateSet('','original','backlog1024','backlog1024-delay650')][string]$DiagnosticRouteCase='',
+    [ValidateSet('','local','linux')][string]$DiagnosticReceiverCase='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -68,6 +69,16 @@ if ($DiagnosticRedirectContext) {
     }
     $observationEnvironment['PB_DRIVER_PATH']=$diagnosticRegisteredDriverPath
 }
+$receiverPolicy=$null;$receiverTarget='127.0.0.1'
+if ($DiagnosticReceiverCase -or ($DiagnosticRedirectContext -and $diagnosticReceipt.PSObject.Properties['external_receiver_policy'])) {
+    if (-not $DiagnosticRedirectContext -or -not $DiagnosticReceiverCase -or $DiagnosticRouteCase -cne 'original' -or
+        $DiagnosticConnectionCase -cne 'connectex-32' -or -not $DiagnosticFixtureCloseGuard -or
+        [Environment]::GetEnvironmentVariable('PB_TESTLAB_RECEIVER_CASE','Process') -cne $DiagnosticReceiverCase) {throw 'CONNECTION_EXTERNAL_CASE_BINDING_INVALID'}
+    Import-Module (Join-Path $root 'modules/ExternalReceiverDiagnostic.psm1')
+    $receiverPolicy=$diagnosticReceipt.external_receiver_policy
+    Assert-ExternalReceiverPolicy $receiverPolicy
+    if ($DiagnosticReceiverCase -eq 'linux') {$receiverTarget=[string]$receiverPolicy.host}
+}
 $diagnosticCase=$null
 if ($DiagnosticRouteCase -or ($DiagnosticRedirectContext -and $diagnosticReceipt.PSObject.Properties['route_matrix_policy'])) {
     if (-not $DiagnosticRedirectContext -or $diagnosticReceipt.method -ne 'redirect-kernel-context-v4' -or -not $DiagnosticRouteCase -or
@@ -105,6 +116,7 @@ if ($DiagnosticRedirectContext) {
     if ($diagnosticReceipt.method -eq 'redirect-kernel-context-v4') {$manifest.method='tcp-redirect-kernel-context-v4';$manifest['kernel_observation_policy']=$diagnosticReceipt.observation_policy}
     if ($DiagnosticRouteCase) {$manifest['route_case']=$DiagnosticRouteCase;$manifest['route_matrix_policy']=$diagnosticReceipt.route_matrix_policy}
 }
+if ($receiverPolicy) {$manifest['external_receiver_policy']=$receiverPolicy;$manifest['receiver_case']=$DiagnosticReceiverCase}
 function Save-Manifest { Write-ConnectionJson $manifest (Join-Path $EvidenceDirectory 'comparison-manifest.json') }
 function Assert-ConnectionOff([string]$Directory,[ValidateSet('before','after')][string]$Phase) {
     $state=Get-InterceptionStateSnapshot -Environment $observationEnvironment -AllowProductRuntime
@@ -146,6 +158,7 @@ function Invoke-ConnectionMode($Mode,$Directory) {
         foreach ($port in @(54122,54123)) { if (@(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue).Count) { throw 'CONNECTION_PORT_IN_USE' } }
         $proxyLog=Join-Path $Directory 'proxy.jsonl'
         $proxyArguments=@('-u',(Join-Path $root 'src/pb_controlled_tcp_proxy.py'),'--wheel',$wheel,'--jsonl-log',$proxyLog,'--port','54123','--receiver-port','54122','--event-loop','proactor','--shutdown-diagnostics','--bounded-shutdown','--max-duration-seconds','720')
+        if ($receiverPolicy) {$proxyArguments+=@('--receiver-host',$receiverTarget)}
         if ($DiagnosticFixtureCloseGuard) {$proxyArguments+='--guard-proactor-close-reset'}
         $proxy=Start-ConnectionWorker 'proxy' $proxyArguments $workers
         Wait-ConnectionWorker $proxy $proxyLog
@@ -176,6 +189,11 @@ function Invoke-ConnectionMode($Mode,$Directory) {
         }
         if ($kernelDiagnostic -and $diagnosticReceipt.PSObject.Properties['timing_policy']) {$config['kernel_timing_policy']=$diagnosticReceipt.timing_policy}
         Write-ConnectionJson $config (Join-Path $Directory 'benchmark-config.json')
+        if ($receiverPolicy) {
+            $config['external_receiver_policy']=$receiverPolicy;$config['receiver_case']=$DiagnosticReceiverCase
+            Write-ConnectionJson $config (Join-Path $Directory 'benchmark-config.json')
+            if ($DiagnosticReceiverCase -eq 'linux') {$context | Add-Member -NotePropertyName external_receiver -NotePropertyValue $receiverPolicy}
+        }
         $cohortCommand=Get-Command Invoke-ConnectionCohorts -CommandType Function
         $loadedCommand=Get-Command Get-LoadedInterceptionDriverObservation -CommandType Function
         $interceptionCommand=Get-Command Get-InterceptionStateSnapshot -CommandType Function
@@ -228,7 +246,7 @@ function Invoke-ConnectionMode($Mode,$Directory) {
             Write-ConnectionJson $preparation (Join-Path $Directory 'preparation-result.json')
             if (-not $preparation.prepared) { throw 'CONNECTION_PRODUCT_PREPARATION_FAILED' }
             $profilePath=Join-Path $Directory 'route.pbprofile'
-            Write-ConnectionJson ([ordered]@{Version='1.0';LocalhostViaProxy=$true;IsTrafficLoggingEnabled=$true;ProxyConfigs=@([ordered]@{Id=1;Name='Connection load SOCKS5';Type='SOCKS5';Host='127.0.0.1';Port='54123';Username='';Password='';SendDomainToProxy=$false});ProxyRules=@([ordered]@{Name='Connection load';ProcessName='ctsTraffic.exe';TargetHosts='127.0.0.1';TargetPorts='54122';TargetDomains='';Protocol='TCP';Action='PROXY';ProxyConfigId=1;IsEnabled=$true})}) $profilePath
+            Write-ConnectionJson ([ordered]@{Version='1.0';LocalhostViaProxy=$true;IsTrafficLoggingEnabled=$true;ProxyConfigs=@([ordered]@{Id=1;Name='Connection load SOCKS5';Type='SOCKS5';Host='127.0.0.1';Port='54123';Username='';Password='';SendDomainToProxy=$false});ProxyRules=@([ordered]@{Name='Connection load';ProcessName='ctsTraffic.exe';TargetHosts=$receiverTarget;TargetPorts='54122';TargetDomains='';Protocol='TCP';Action='PROXY';ProxyConfigId=1;IsEnabled=$true})}) $profilePath
             $plan=New-ProxyBridgeCliPlan -ExecutablePath $environment['PB_PROXYBRIDGE_CLI_EXE'] -ProfilePath $profilePath -ProductProfileContract driver -CliVariant $environment['PB_PROXYBRIDGE_CLI_VARIANT'] -ReadyStableMs 1000 -ReadinessTimeoutMs 10000 -StopTimeoutMs 5000
             $sink={param($value) & $writeCommand $value (Join-Path $context.directory 'cli-lifecycle.json')}.GetNewClosure()
             $lifecycle=Invoke-ProxyBridgeCliLifecycle -Plan $plan -ProcessAdapter $adapter -AllowProductRuntime -Workload $workload -EvidenceSink $sink
@@ -296,6 +314,7 @@ if ($DiagnosticRedirectContext) {
     if ($diagnosticCase) {$reportEntry='pb_tcp_redirect_context_matrix_report.py';$reportArgs+=@('--case')}
     if ($diagnosticReceipt.method -eq 'redirect-context-probes-v3') {$reportEntry='pb_tcp_redirect_context_probes_report.py';$reportArgs=@('--evidence-directory',$EvidenceDirectory)}
     if ($diagnosticReceipt.method -eq 'redirect-kernel-context-v4') {$reportEntry='pb_tcp_kernel_context_report.py';$reportArgs=@('--evidence-directory',$EvidenceDirectory)}
+    if ($receiverPolicy) {$reportEntry='pb_tcp_external_receiver_report.py';$reportArgs=@('--evidence-directory',$EvidenceDirectory,'--case')}
     & $PythonPath (Join-Path $root ('src/'+$reportEntry)) @reportArgs
     if ($LASTEXITCODE -ne 0 -and $manifest.status -ne 'FAILED') {throw 'CONNECTION_REDIRECT_DIAGNOSTIC_CAPTURE_INCOMPLETE'}
 }

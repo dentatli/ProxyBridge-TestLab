@@ -1,5 +1,7 @@
 # Linux-получатель для контроля WFP context
 
+Парный product-контроль подготовлен 2026-10-07: [новый local/Linux kernel/Core/TCP/Winsock опыт](TCP_CONTEXT_EXTERNAL_RECEIVER_CONTROL.md), FINAL093635-91ea36ae, все три бинарника прежние. Реальный paired Run ещё не выполнен. Linux SSH Inspect подтвердил установленный receiver; новый слушатель не запускали. Обычный UI remote controller остаётся заблокирован.
+
 2026-10-07: root SSH по отдельному ключу проверен, Linux receiver установлен и его SHA256 совпадает с локальным файлом. Ubuntu 22.04.5 LTS, Python 3.10.12, systemd. Адреса, приватный ключ и connection profile находятся в LocalAppData вне публичного конфига. Ключ хоста закреплён в отдельном known_hosts по явному поручению пользователя проверить уже доступное SSH-соединение; это не независимая консольная проверка.
 
 ## Реальные проверки

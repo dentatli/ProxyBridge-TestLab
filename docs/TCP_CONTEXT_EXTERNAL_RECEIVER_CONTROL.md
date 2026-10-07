@@ -1,6 +1,28 @@
 # Контроль WFP context с внешним получателем
 
-Статус 2026-10-07: Linux VM/root SSH/receiver подготовлены. USER Windows CTS → Linux Run подтвердил 4/4 GUID/данные/2 MiB/exit0 и clean receiver stop. Strict v1 отчёт отказал из-за разных native local/Linux peer адресов; отдельный opt-in v2 подтвердил wire/data совместимость, сохранив topology-unconfirmed и все оригиналы. Windows — Hyper-V VM, видна смена адресов/портов; механизм NAT не доказан. Полный paired local/external kernel опыт и UI remote benchmark ещё не реализованы. Подробности: [LINUX_CTS_RECEIVER.md](LINUX_CTS_RECEIVER.md).
+Статус 2026-10-07: парный local/Linux kernel/Core/TCP/Winsock-контроль подготовлен в новом комплекте `tcp-redirect-context-preparation-20261007-093635-91ea36ae`; реальные установка и запуск ещё не выполнены. CLI/Core/sys побайтно совпадают с предыдущим комплектом 172202, новые сборка и подпись не требовались. Подготовка и проверка файлов прошли в PowerShell 5.1/7; 57 runtime + 7 trace hashes проверены. Установка текущим неповышенным токеном отказала до регистрации драйвера. Обычный UI remote benchmark остаётся заблокирован. Ранее USER Windows CTS → Linux подтвердил 4/4 GUID/данные/2 MiB и clean stop; opt-in v2 сохранил topology-unconfirmed из-за смены адресов/портов. Подробности: [LINUX_CTS_RECEIVER.md](LINUX_CTS_RECEIVER.md).
+
+## Запуск нового парного контроля
+
+В PowerShell **от администратора**:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\src\ProxyBridge-TestLab\scripts\Invoke-KernelTcpExternalReceiverDiagnostic.ps1" -DiagnosticDirectory "C:\src\ProxyBridge-TestLab\artifacts\diagnostics\tcp-redirect-context-preparation-20261007-093635-91ea36ae" -Phase Install
+```
+
+Только после успешной установки вручную перезагрузить Windows. Затем в PowerShell от администратора:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\src\ProxyBridge-TestLab\scripts\Invoke-KernelTcpExternalReceiverDiagnostic.ps1" -DiagnosticDirectory "C:\src\ProxyBridge-TestLab\artifacts\diagnostics\tcp-redirect-context-preparation-20261007-093635-91ea36ae" -Phase Run
+```
+
+Ориентировочно 4–8 минут плюс сохранение трассы: local → linux, в обоих исходная очередь и локальный SOCKS5, по 4 → 64 → 256 → 640 → 4. Дождаться очистки, guarded Restore исходного пути драйвера и сохранения TCP context-status trace. Передать каталог `tcp-context-status-trace-*` даже при ошибке. Старые frozen-планы не возобновлять и не перегенерировать; промежуточный неустановленный 092520 заменён новым комплектом после исправления самоссылки в хешах отчёта.
+
+Непосредственно перед подготовкой наблюдалось около 2,27 GiB свободной RAM Windows, лишь немного выше порога 2 GiB. При отказе RESOURCE_BOUND сохранить ресурсный отчёт; это отказ до нагрузки, не доказательство проблемы ProxyBridge. Перед запуском желательно иметь 3–4 GiB запаса свободной памяти. Работающий HTTP proxy Codex не менялся.
+
+Новый Linux-получатель запускается отдельно для каждой фазы, ограничен числом соединений и 512 KiB на поток; сохраняются start/stop/collection/exit и оригинальный JSONL. GUID, данные и хеши связывают получателя с CTS; взаимное равенство адресов при NAT не требуется. Kernel/native/Core и исходный NTSTATUS связываются внутри Windows по raw QPC. Отчёт оставляет TRACE_PENDING до анализа фактического отказа SYN/повтора; успешные данные не доказывают причину или исправление.
+
+Проверено: три старых kernel-отчёта повторно совпали полностью; синтетическая пара сохраняет 96 отказов; восемь повреждений журналов отклоняются; PS5/7 по шесть cohort и три dispatch случая, 13 отрицательных policy случаев; восемь проверок фактического SOCKS on_connect не открывают посторонний адрес. Новые сохранённые отчёты повторно оцениваются точно. Это проверки адаптеров и сохранённых/синтетических данных, не новый реальный product Run. Audit: `artifacts/diagnostics/external-pair-development-20261007`; точный handoff в `verification/HANDOFF.md` нового комплекта.
 
 ## Что проверяем
 
@@ -41,7 +63,7 @@ ProxyBridge на HLK-машине для этого контроля устан�
 6. Отдельное сопоставление receiver/client по GUID, объёму, результату и tuple. QPC разных машин не сравнивать напрямую; для цепочки context использовать raw QPC текущего ПК. Синхронизация часов не превращает remote QPC в общий счётчик.
 7. Проверить новую политику и сопоставление на синтетических полных/повреждённых данных, затем подготовить новый комплект. Запуск, установка и перезагрузка остаются ручными действиями пользователя согласно текущим границам работы.
 
-Найденные привязки: `Invoke-LocalTcpConnections.ps1`, `modules/ConnectionLoad.psm1`, `src/pb_controlled_tcp_proxy.py`, `src/pb_tcp_connections_report.py`, `src/pb_tcp_kernel_context_report.py`; текущие wrappers не принимают внешнее назначение. Эти файлы пока не изменялись.
+Привязки реализованы отдельным opt-in `ExternalReceiverPair`: `Invoke-KernelTcpExternalReceiverDiagnostic.ps1`, общий диагностический dispatcher, `Invoke-LocalTcpConnections.ps1`, `ConnectionLoad.psm1`, строгая SOCKS allowlist и новые external evidence/report modules. Обычные локальные параметры остаются прежними. Контракт новых планов связывает частный SSH-профиль, exact destination и бинарники; стандартный UI удалённого режима не включался.
 
 ## Критерии вывода
 

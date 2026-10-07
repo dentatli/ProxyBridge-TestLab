@@ -1,5 +1,13 @@
 ﻿# Work checkpoint
 
+## Парный local/Linux контроль подготовлен; новый Run ожидается (2026-10-07)
+
+FINAL tcp-redirect-context-preparation-20261007-093635-91ea36ae: PS5 Prepare, PS5/7 Inspect FILES_VALIDATED; 57 runtime + 7 trace hashes, WPP traceGUID UserData4. CLI/Core/sys byte-identical172202, bundle acece5c33a9fd03f41e16b2e4b55f331633dda857c806a3cbe11724101bc9302; сборки/подписи/установки/трафика не было. Opt-in local → linux, исходная очередь/локальный SOCKS5/ConnectEx32/4→64→256→640→4. Linux контролируется отдельно по фазам, strict GUID/data/hash/lifecycle; Windows QPC не смешивается с Linux clocks. Новые отчёты остаются TRACE_PENDING; ошибки не становятся PASS.
+
+Три старых kernel-отчёта повторно exact; синтетическая пара сохраняет96отказов,8corrupt rejected. PS5/7: cohort6+dispatch3+policy13 каждый, AST; реальный on_connect с fake network —8destinationcases. Два сохранённых новых case-report reeval exact после исключения собственных generatedoutputs из source hashes. Исторические USER data сохранены. SSH Inspect подтвердил deployment; receiver не запускали. Текущий token неadmin: actualInstall отказал до регистрации/no receipt. Свободная Windows RAM наблюдалась2.27GiB, нужно>=2GiB с запасом; RESOURCE_BOUND не причина продукта.
+
+NEXT USERADMIN Invoke-KernelTcpExternalReceiverDiagnostic.ps1 NEW093635 -Phase Install → только success ручная reboot → Run4–8min+traceSave; дождаться очистки/guarded Restore/save, передать tcp-context-status-trace root даже при ошибке. Команды в TCP_CONTEXT_EXTERNAL_RECEIVER_CONTROL.md и FINAL verification/HANDOFF.md. Новый verification/handoff.json фиксирует бинарники/freeze; промежуточный неустановленный092520 заменён, не refreeze/Resume. Точная Windows private-context lifecycle причина ещё не доказана; remote UI не включён. Изменения исходников/doc отправляются в текущую checkpoint ветку; секреты/артефакты вне Git.
+
 ## Согласован штатный SSH-сценарий Ubuntu (2026-10-07)
 
 USER задал новый remote workflow: generated SSH key/public copy для root authorized_keys, IP/optional port, автоматическая настройка или проверка готового узла, запрет тестов без соединения. Только последние Ubuntu; точный allowlist/LTS policy пока не определён. План REMOTE_UBUNTU_SETUP_PLAN.md описывает backend fail-closed/fresh per-test route checks, idempotent setup, full catalogue goal и текущие пробелы. Код remote wizard/controllers не реализовывался и REMOTE_CONTROLLER_PENDING не снимался. Следующий диагностический шаг остаётся парный local/Linux receiver с local SOCKS; Windows internal-context lifecycle ещё неизвестен.

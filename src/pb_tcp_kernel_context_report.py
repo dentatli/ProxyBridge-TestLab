@@ -53,16 +53,16 @@ def validate_binding(path):
         if state['wfp']['status']!='SERVICE_FILE_VERIFIED' or state['wfp']['file_path']!=installation['candidate_path'] or state['wfp']['observed_file_sha256']!=installation['candidate_sha256']:
             raise ValueError('KERNEL_SAVED_SERVICE_IDENTITY_DIFFERS')
 
-def correlate(queries,events):
+def correlate(queries,events,*,target_ip='127.0.0.1'):
     matched=[];unconfirmed=[]
     for q in queries:
         eligible=[e for e in events if e['reason']==13 and e['pid']==q['native_pid'] and
             ('phase_id' not in q or e.get('phase_id')==q['phase_id']) and
             e['local_port']>0 and e['local_port']==q['peer_port'] and
-            (ip(e['local_v4'])==q['peer_addr'] or (e['local_v4']==0 and q['peer_addr']=='127.0.0.1' and
+            (ip(e['local_v4'])==q['peer_addr'] or (e['local_v4']==0 and (q['peer_addr']=='127.0.0.1' or target_ip!='127.0.0.1') and
              q.get('native_endpoint_verified') is True and q.get('native_local_endpoint')==f"{q['peer_addr']}:{q['peer_port']}" and
-             q.get('native_remote_endpoint')=='127.0.0.1:54122')) and
-            ip(e['remote_v4'])=='127.0.0.1' and e['remote_port']==54122 and
+             q.get('native_remote_endpoint')==target_ip+':54122')) and
+            ip(e['remote_v4'])==target_ip and e['remote_port']==54122 and
             ip(e['new_v4'])==q['local_addr'] and e['new_port']==q['local_port'] and
             e['start_qpc']*1000/e['frequency']<=q['qpc_ms']]
         if len(eligible)!=1:
@@ -82,13 +82,13 @@ def correlate(queries,events):
     if len({m['kernel_seq'] for m in matched})!=len(matched):raise ValueError('KERNEL_EVENT_REUSED')
     return matched,unconfirmed
 
-def bind_native_endpoints(path,phase,queries):
+def bind_native_endpoints(path,phase,queries,*,target_ip='127.0.0.1'):
     # Re-read the owned client's CSV: never replace an unspecified address by order or time proximity.
     rows=csv_rows(path/'proxy'/phase['id']/'client.csv')
     bound=[]
     for q in queries:
         candidates=[r for r in rows if r['LocalAddress']==f"{q['peer_addr']}:{q['peer_port']}" and
-            r['RemoteAddress']=='127.0.0.1:54122' and r['Result']==q['native_result'] and
+            r['RemoteAddress']==target_ip+':54122' and r['Result']==q['native_result'] and
             r['ConnectionId']==q['native_connection_id'] and int(r['SendBytes'])==q['native_send_bytes'] and
             int(r['RecvBytes'])==q['native_recv_bytes']]
         if len(candidates)!=1:raise ValueError('KERNEL_NATIVE_ENDPOINT_BINDING_NOT_UNIQUE')
@@ -96,8 +96,8 @@ def bind_native_endpoints(path,phase,queries):
             native_local_endpoint=candidates[0]['LocalAddress'],native_remote_endpoint=candidates[0]['RemoteAddress']))
     return bound
 
-def evaluate(path):
-    result=evaluate_case(path,diagnostic_method=METHOD)
+def evaluate(path,*,target_ip='127.0.0.1',receiver_evaluator=None):
+    result=evaluate_case(path,diagnostic_method=METHOD,target_ip=target_ip,receiver_evaluator=receiver_evaluator)
     result['method']='redirect-kernel-context-v4';result['kernel_root_cause_proven']=False
     if result['status']=='DIAGNOSTIC_NOT_STARTED':return result
     try:
@@ -120,7 +120,7 @@ def evaluate(path):
         for e in events:
             if set(e)!={name for name,_ in Event._fields_} or any(type(v) is not int or v<0 for v in e.values()):raise ValueError('KERNEL_EVENT_FIELDS_INVALID')
         if any(e['frequency']!=final['frequency'] or e['end_qpc']<e['start_qpc'] or e['reason'] not in range(1,14) for e in events):raise ValueError('KERNEL_RECORD_INVALID')
-        queries=[q for phase in result['phases'] for q in bind_native_endpoints(path,phase,phase['matched_queries'])]
+        queries=[q for phase in result['phases'] for q in bind_native_endpoints(path,phase,phase['matched_queries'],target_ip=target_ip)]
         cli=read(path/'proxy/cli-lifecycle.json')
         phases=read(path/'proxy/run-receipt.json')['phases'];native_pids={p['client_pid'] for p in phases}
         if any(e['pid'] not in native_pids for e in events):raise ValueError('KERNEL_UNOWNED_NATIVE_PID')
@@ -128,7 +128,7 @@ def evaluate(path):
             owned=[p for p in phases if p['client_pid']==e['pid'] and p['start_qpc_ms']<=e['start_qpc']*1000/e['frequency']<=e['end_qpc']*1000/e['frequency']<=p['end_qpc_ms']]
             if len(owned)!=1:raise ValueError('KERNEL_PHASE_TIME_OUTSIDE_OWNED_WINDOW')
             e['phase_id']=owned[0]['id']
-        matched,unconfirmed=correlate(queries,events)
+        matched,unconfirmed=correlate(queries,events,target_ip=target_ip)
         if any(e['target_pid']!=cli['pid'] for e in events if e['reason']==13):raise ValueError('KERNEL_TARGET_PID_DIFFERS')
         if any(q['category']=='IPV4_CONTEXT_AVAILABLE' and not m['allocation_present'] for q in queries for m in matched if m['query_seq']==q['seq']):
             raise ValueError('KERNEL_CORE_CONTEXT_CONTRADICTION')

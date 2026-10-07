@@ -5,6 +5,7 @@ import datetime as dt
 import hashlib
 import importlib.metadata
 import json
+import ipaddress
 import logging
 import os
 from pathlib import Path
@@ -35,7 +36,7 @@ async def serve(args):
 
         class Observe(Addon):
             async def on_connect(self, flow):
-                if flow.dst.host != '127.0.0.1' or flow.dst.port not in {args.receiver_port, *args.additional_receiver_port}:
+                if flow.dst.host != args.receiver_host or flow.dst.port not in {args.receiver_port, *args.additional_receiver_port}:
                     raise ValueError('DESTINATION_OUTSIDE_BENCHMARK')
                 reader, writer = await asyncio.open_connection(flow.dst.host, flow.dst.port)
                 local = writer.get_extra_info('sockname')
@@ -213,6 +214,7 @@ def main():
     parser.add_argument('--jsonl-log', type=Path, required=True)
     parser.add_argument('--port', type=int, required=True)
     parser.add_argument('--receiver-port', type=int, required=True)
+    parser.add_argument('--receiver-host', default='127.0.0.1', help='Exact IPv4 controlled destination; local by default')
     parser.add_argument('--additional-receiver-port', type=int, action='append', default=[])
     parser.add_argument('--max-duration-seconds', type=int, default=180)
     parser.add_argument('--event-loop', choices=('selector', 'proactor'), default='selector')
@@ -220,6 +222,12 @@ def main():
     parser.add_argument('--bounded-shutdown', action='store_true', help='Drain client tasks before waiting for server closure, only after STOP')
     parser.add_argument('--guard-proactor-close-reset', action='store_true', help='Diagnostic matrix only: pinned accepted-socket close compatibility')
     args = parser.parse_args()
+    try:
+        host = ipaddress.IPv4Address(args.receiver_host)
+        if str(host) != args.receiver_host or host.is_unspecified or host.is_multicast or str(host)=='255.255.255.255':
+            raise ValueError()
+    except ValueError:
+        parser.error('one canonical unicast IPv4 receiver host required')
     if not (1024 <= args.port <= 65535 and 1024 <= args.receiver_port <= 65535 and args.port != args.receiver_port):
         parser.error('distinct nonprivileged ports required')
     if len(args.additional_receiver_port)>1 or any(not 1024<=p<=65535 or p in (args.port,args.receiver_port) for p in args.additional_receiver_port):

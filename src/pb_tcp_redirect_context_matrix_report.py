@@ -19,7 +19,7 @@ def options(launch,name):
     observed=[v.lower() for v in re.findall(r'(?:^|\s)-'+name+r':([^\s"]+)',launch['observed_command_line'],re.I)]
     return planned,observed
 
-def evaluate_case(path, *, diagnostic_method=None):
+def evaluate_case(path, *, diagnostic_method=None, target_ip='127.0.0.1', receiver_evaluator=None):
     case_method=diagnostic_method or CASE_METHOD
     try:
         if diagnostic_method is None and read(path/'comparison-manifest.json')['method']=='tcp-redirect-context-matrix-case-v2':
@@ -27,7 +27,8 @@ def evaluate_case(path, *, diagnostic_method=None):
     except (OSError,KeyError,ValueError,TypeError):pass
     evaluator=evaluate_base if case_method=='tcp-redirect-kernel-context-v4' else evaluate_extended
     result=evaluator(path,diagnostic_method=case_method,report_method=case_method.removeprefix('tcp-'),
-        distinguish_unidentified_connect_failures=(case_method in ('tcp-redirect-context-probes-v3','tcp-redirect-kernel-context-v4')))
+        distinguish_unidentified_connect_failures=(case_method in ('tcp-redirect-context-probes-v3','tcp-redirect-kernel-context-v4')),
+        **(dict(target_ip=target_ip,receiver_evaluator=receiver_evaluator) if evaluator is evaluate_base else {}))
     try:
         failures=[p['process_start_failure'] for p in read(path/'proxy/run-receipt.json')['phases'] if 'process_start_failure' in p]
         if failures:
@@ -82,13 +83,14 @@ def evaluate_case(path, *, diagnostic_method=None):
         for phase in mode['phases']:
             folder=path/'proxy'/phase['id']
             launch=read(folder/'client-launch.json')
-            client=read(folder/'client-process.json');server=read(folder/'receiver-process.json')
+            client=read(folder/'client-process.json')
+            server=read(folder/'receiver-process.json') if not receiver_evaluator else dict(timed_out=False,output_capture_complete=True)
             if phase['client_forced_stop'] or phase['server_forced_stop'] or client['timed_out'] or server['timed_out'] or not all(p['output_capture_complete'] for p in (client,server)):
                 raise ValueError('CASE_NATIVE_CAPTURE_OR_CLEANUP_INCOMPLETE')
             if launch['pid']!=client['pid'] or Path(launch['observed_executable']).resolve()!=Path(client['actual_path']).resolve():raise ValueError('CASE_CLIENT_IDENTITY_DIFFERS')
             values=dict(conn=[case['connect_method'].lower()],throttleconnections=[str(case['pending_limit'])],
                 connections=[str(phase['requested_connections'])],iterations=['1'],shutdown=['rude'],verify=['data'],
-                transfer=['524288'],ratelimit=['65536'],port=['54122'],target=['127.0.0.1'])
+                transfer=['524288'],ratelimit=['65536'],port=['54122'],target=[target_ip])
             for name,expected_value in values.items():
                 if options(launch,name)!=(expected_value,expected_value):raise ValueError('CASE_LIVE_ARGUMENT_DIFFERS: '+name)
     except (OSError,KeyError,ValueError,TypeError,StopIteration) as error:

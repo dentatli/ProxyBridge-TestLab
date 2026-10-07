@@ -9,6 +9,9 @@ $profile=Join-Path $root 'config/tcp-context-status-diagnostic.wprp'
 $wpr=Join-Path $env:SystemRoot 'System32/wpr.exe'
 $DiagnosticDirectory=[IO.Path]::GetFullPath($DiagnosticDirectory)
 $planPath=Join-Path $DiagnosticDirectory 'tcp-context-status-plan.json'
+$build=Get-Content -LiteralPath (Join-Path $DiagnosticDirectory 'kit/redirect-context-diagnostic.json') -Raw | ConvertFrom-Json
+$externalPair=[bool]$build.PSObject.Properties['external_receiver_policy']
+$winsockPayloadBytes=$(if ($externalPair) {4} else {20})
 function Read-SetupJson([string]$Path) {
     if ((Get-Item -LiteralPath $Path).Length -gt 1MB) {throw 'TCP_SETUP_JSON_TOO_LARGE'}
     Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
@@ -27,13 +30,13 @@ if ($Phase -eq 'Prepare') {
     $files=@($PSCommandPath,$profile,$wpr,(Join-Path $DiagnosticDirectory 'runtime-plan.json'),(Join-Path $env:SystemRoot 'System32/mswsock.dll'),(Join-Path $env:SystemRoot 'System32/drivers/tcpip.sys'),(Join-Path $env:SystemRoot 'System32/drivers/afd.sys'))
     $hashes=@($files | ForEach-Object {Assert-SetupPlainPath $_;[ordered]@{path=$_;sha256=(Get-FileHash -LiteralPath $_).Hash.ToLowerInvariant()}})
     [ordered]@{schema_version=1;method='tcp-context-status-etw-v1';diagnostic_only=$true;performance_comparable=$false;packet_payload_provider_enabled=$false;
-        winsock_status_provider='ac7ff34d-58da-490c-843e-57baeb1bafef';winsock_status_event_id=11;winsock_status_keyword='0x2';winsock_trace_guid='97dcf1eb-61bd-3c9f-e009-df6b3349ea30';winsock_payload_bytes=20;event_ids=@(1004,1008,1009,1014,1015,1016,1017,1033,1055,1063,1186,1214,1315,1416,1477,1553);raw_trace_limit_mib=32;profile_name='TestLabTcpContextStatus';files=$hashes} |
+        winsock_status_provider='ac7ff34d-58da-490c-843e-57baeb1bafef';winsock_status_event_id=11;winsock_status_keyword='0x2';winsock_trace_guid='97dcf1eb-61bd-3c9f-e009-df6b3349ea30';winsock_payload_bytes=$winsockPayloadBytes;event_ids=@(1004,1008,1009,1014,1015,1016,1017,1033,1055,1063,1186,1214,1315,1416,1477,1553);raw_trace_limit_mib=32;profile_name='TestLabTcpContextStatus';files=$hashes} |
         ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $planPath -Encoding UTF8
 }
 Assert-SetupPlainPath $planPath
 $plan=Read-SetupJson $planPath
 if ($plan.schema_version -ne 1 -or $plan.method -cne 'tcp-context-status-etw-v1' -or -not $plan.diagnostic_only -or $plan.performance_comparable -or
-    $plan.winsock_status_provider -cne 'ac7ff34d-58da-490c-843e-57baeb1bafef' -or $plan.winsock_status_event_id -ne 11 -or $plan.winsock_status_keyword -cne '0x2' -or $plan.winsock_trace_guid -cne '97dcf1eb-61bd-3c9f-e009-df6b3349ea30' -or $plan.winsock_payload_bytes -ne 20 -or $plan.packet_payload_provider_enabled -or $plan.raw_trace_limit_mib -ne 32 -or $plan.profile_name -cne 'TestLabTcpContextStatus' -or
+    $plan.winsock_status_provider -cne 'ac7ff34d-58da-490c-843e-57baeb1bafef' -or $plan.winsock_status_event_id -ne 11 -or $plan.winsock_status_keyword -cne '0x2' -or $plan.winsock_trace_guid -cne '97dcf1eb-61bd-3c9f-e009-df6b3349ea30' -or $plan.winsock_payload_bytes -ne $winsockPayloadBytes -or $plan.packet_payload_provider_enabled -or $plan.raw_trace_limit_mib -ne 32 -or $plan.profile_name -cne 'TestLabTcpContextStatus' -or
     (@($plan.event_ids) -join ',') -cne '1004,1008,1009,1014,1015,1016,1017,1033,1055,1063,1186,1214,1315,1416,1477,1553' -or $plan.files.Count -ne 7) {throw 'TCP_SETUP_PLAN_INVALID'}
 $expectedPaths=@($PSCommandPath,$profile,$wpr,(Join-Path $DiagnosticDirectory 'runtime-plan.json'),(Join-Path $env:SystemRoot 'System32/mswsock.dll'),(Join-Path $env:SystemRoot 'System32/drivers/tcpip.sys'),(Join-Path $env:SystemRoot 'System32/drivers/afd.sys'))
 if ((@($plan.files.path | Sort-Object) -join '|') -ine (@($expectedPaths | Sort-Object) -join '|')) {throw 'TCP_SETUP_FROZEN_PATH_BINDING_INVALID'}
@@ -48,7 +51,7 @@ $null=New-Item -ItemType Directory -Path $traceDirectory
 $receipt=[ordered]@{schema_version=1;method='tcp-context-status-etw-v1';diagnostic_only=$true;performance_comparable=$false;status='PREPARING';
     diagnostic_directory=$DiagnosticDirectory;trace_directory=$traceDirectory;started_at_utc=[DateTime]::UtcNow.ToString('o');
     setup_plan_sha256=(Get-FileHash -LiteralPath $planPath).Hash.ToLowerInvariant();runtime_plan_sha256=(Get-FileHash -LiteralPath (Join-Path $DiagnosticDirectory 'runtime-plan.json')).Hash.ToLowerInvariant();
-    event_ids=@($plan.event_ids);winsock_status_provider=$plan.winsock_status_provider;winsock_status_event_id=11;winsock_status_keyword='0x2';winsock_trace_guid=$plan.winsock_trace_guid;winsock_payload_bytes=20;winsock_status_emission_verified=$false;owned_query_status_correlation_verified=$false;packet_payload_provider_enabled=$false;capture_scope='selected whole-PC TCP and Winsock error metadata; provider/trace-GUID/20-byte payload/PID/TID/QPC query matching required';
+    event_ids=@($plan.event_ids);winsock_status_provider=$plan.winsock_status_provider;winsock_status_event_id=11;winsock_status_keyword='0x2';winsock_trace_guid=$plan.winsock_trace_guid;winsock_payload_bytes=$winsockPayloadBytes;winsock_status_emission_verified=$false;owned_query_status_correlation_verified=$false;packet_payload_provider_enabled=$false;capture_scope=('selected whole-PC TCP and Winsock error metadata; trace-GUID/'+$winsockPayloadBytes+'-byte UserData/PID/TID/rawQPC query matching required');
     raw_trace_limit_mib=32;wpr_started=$false;wpr_stopped=$false;trace_saved=$false;raw_limit_observed=$false;
     native_verdict_overridden=$false;capture_completeness_verified=$false;root_cause_proven=$false;workload_result_directory='';workload_error='';error='';log_errors=@()}
 function Save-SetupReceipt {$receipt | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $traceDirectory 'tcp-context-status-receipt.json') -Encoding UTF8}
@@ -76,7 +79,8 @@ function Invoke-SetupCapture {
         $ownsRecording=($started.exit_code -eq 0)
         if ($started.exit_code -ne 0 -or $started.text -match '(?i)0x[c8][0-9a-f]{7}') {throw 'TCP_SETUP_WPR_START_FAILED'}
         $receipt.wpr_started=$true;$receipt.status='RECORDING';$receipt['clock_recording_ready']=Get-SetupClock;Save-SetupReceipt
-        Write-Host 'TCP setup + original Winsock status before 10022: selected event 11/keyword 2; same Core/kernel and three route cases. Approximately 6–12 minutes plus trace save. Absence of an event is not proof of absent context; not a performance comparison.'
+        if ($externalPair) {Write-Host 'Original Winsock status + TCP/kernel/Core: local/Linux receiver pair, original queue, local SOCKS5; approximately 4–8 minutes plus trace save. WPP trace-GUID/UserData4/rawQPC; diagnosis only.'}
+        else {Write-Host 'TCP setup + original Winsock status before 10022: selected event 11/keyword 2; same Core/kernel and three route cases. Approximately 6–12 minutes plus trace save. Absence of an event is not proof of absent context; not a performance comparison.'}
         try {
             & $inner -DiagnosticDirectory $DiagnosticDirectory -Phase Run *>&1 | ForEach-Object {$lines.Add($_.ToString());Write-Host $_.ToString()}
         } catch {$receipt.workload_error=$_.Exception.Message;$lines.Add($_.ToString())}
