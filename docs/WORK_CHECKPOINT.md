@@ -1,5 +1,14 @@
 ﻿# Work checkpoint
 
+## 2026-10-07: парный local/Linux контроль разобран
+
+USER093635 candidate Run094224-62cd5574 / statusTrace094223-d0d110cc: OFFLINE_EXTERNAL_PAIR_TRACE_ANALYSIS_COMPLETE. Local96/968fail(32@256+64@640),Linux95/968(32+63); все191originalSTATUS_NOT_FOUND C0000225→WSA10022 строгоPID/TID/rawQPCentry..exit,0unassigned. ВсеfailureSYNdrop30/SO_PAUSE_ACCEPT→retry→query; Linuxодинsocket дваretry/3inspection,по192nativeSYNdrop/retry.1745successno-native-retry,872,5MiB/fullroutes/GUID/LinuxSHA. Endpoint destinationexternal неустраняетfault; native→Core loopbackвобоих,поэтомуloopbackrelayprivatecontextmechanismнеисключён.1936scopedalloc32/Apply/APPIDblindspot retained; privateWindowsrecordmove/free/Windowsbug/driverbug/tableoverflow/capacity/fix/PERFнепроверены.
+
+ETL13,25MiB/106,0231402s/SHA619f6237/lost0buffers0,42286TCPIPfullpayloadmultisets2decoderexact/191statusRAW+WinEvent+xperfexact/UserData4/QPC10MHz,UTCdrift5,1853msнеиспользован.8successfulfixture→Linuxoutboundretry/dataOK/causeunknown;8otherloopback5985retry/notserviceidentityclaim.4923otherdrops4752ownedpairphase/171unassigned. Reports3reevalsexact;322newUSERfiles+oldsnaps+57runtime7trace+PE/PDBunchanged. SameCLIrecovery4both/gracefulworkers0/unforced/resource10passed(min5209952256bytes)/5Linuxunitscleanexit0. SavedRestorebaselinehashStopped/detachedverified/currentglobalfalse. Audit [analysis.md](../artifacts/diagnostics/tcp-external-receiver-review-20261007-094223/analysis.md)+validation.json; ignoredcapturesnotGitbackup.
+
+NEXT [endpoint-lifecycle plan](TCP_CONTEXT_ENDPOINT_LIFECYCLE_PLAN.md): outside-VMkerneldebugger/identity+transfer+free+retry+query+unscopedwrites. HostOS/access/transport not confirmed; noBCD/trust/hypervisor/UAC/rebootchanges/newRun/productfix. Completed093635handoffnotnewcommand/nooldrefreezeResume. Source commit/pushauthorized; secrets/capturesexcluded. RemoteUIcontrollerpending.
+
+
 ## Парный local/Linux контроль подготовлен; новый Run ожидается (2026-10-07)
 
 FINAL tcp-redirect-context-preparation-20261007-093635-91ea36ae: PS5 Prepare, PS5/7 Inspect FILES_VALIDATED; 57 runtime + 7 trace hashes, WPP traceGUID UserData4. CLI/Core/sys byte-identical172202, bundle acece5c33a9fd03f41e16b2e4b55f331633dda857c806a3cbe11724101bc9302; сборки/подписи/установки/трафика не было. Opt-in local → linux, исходная очередь/локальный SOCKS5/ConnectEx32/4→64→256→640→4. Linux контролируется отдельно по фазам, strict GUID/data/hash/lifecycle; Windows QPC не смешивается с Linux clocks. Новые отчёты остаются TRACE_PENDING; ошибки не становятся PASS.
