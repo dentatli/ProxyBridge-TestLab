@@ -2,6 +2,7 @@
 import argparse
 import csv
 import json
+import re
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -24,7 +25,20 @@ def sockaddr(event,name):
     return '.'.join(str(x) for x in data[4:8]),int.from_bytes(data[2:4],'big')
 def ownership(path):
     if Path(path).stat().st_size>32*1024*1024: raise ValueError('WFP_STATE_TOO_LARGE')
-    tree=ET.parse(path);result={}
+    # netsh may emit adjacent wfpstate and firewallState elements. Parse the
+    # complete fragment document, rather than dropping its trailing content.
+    text=Path(path).read_text(encoding='utf-8-sig')
+    if re.search(r'<!\s*(?:DOCTYPE|ENTITY)\b',text,re.IGNORECASE):raise ValueError('WFP_STATE_DTD_NOT_ALLOWED')
+    declaration=re.match(r'\A\s*(<\?xml\s[^?]*\?>)',text)
+    if declaration:
+        ET.fromstring(declaration.group(1)+'<declarationCheck/>')
+        text=text[declaration.end():]
+    document=ET.fromstring('<netshFragments>'+text+'</netshFragments>')
+    roots=list(document)
+    if (document.text or '').strip() or any((node.tail or '').strip() for node in roots):raise ValueError('WFP_STATE_EXTRA_TEXT')
+    names=[node.tag.split('}')[-1] for node in roots]
+    if names not in (['wfpstate'],['wfpstate','firewallState']):raise ValueError('WFP_STATE_ROOTS_INVALID')
+    tree=roots[0];result={}
     for node in tree.iter():
         children={c.tag.split('}')[-1]:''.join(c.itertext()).strip() for c in node}
         if 'calloutKey' not in children or 'calloutId' not in children:continue
