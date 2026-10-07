@@ -7,7 +7,8 @@ param([ValidateSet('SMOKE')][string]$Profile='SMOKE',[string]$EvidenceDirectory=
     [ValidateSet('','connectex-32','connectex-1','connect-32','connect-1')][string]$DiagnosticConnectionCase='',
     [switch]$DiagnosticFixtureCloseGuard,
     [ValidateSet('','original','backlog1024','backlog1024-delay650')][string]$DiagnosticRouteCase='',
-    [ValidateSet('','local','linux')][string]$DiagnosticReceiverCase='')
+    [ValidateSet('','local','linux')][string]$DiagnosticReceiverCase='',
+    [scriptblock]$DiagnosticPhaseObserver)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -25,10 +26,16 @@ $identity=Get-ProductBuildIdentity -Environment $environment -Contract driver
 if (-not $identity.files_verified) { throw 'CONNECTION_PRODUCT_FILES_NOT_VERIFIED' }
 $diagnosticReceiptPath=Join-Path (Split-Path -Parent $environment['PB_PROXYBRIDGE_CLI_EXE']) 'redirect-context-diagnostic.json'
 $hasDiagnosticMarker=$environment.ContainsKey('PB_TESTLAB_REDIRECT_CONTEXT_DIAGNOSTIC') -or (Test-Path -LiteralPath $diagnosticReceiptPath)
+if ($DiagnosticPhaseObserver -and -not $DiagnosticRedirectContext) {throw 'CONNECTION_PHASE_OBSERVER_REQUIRES_DIAGNOSTIC'}
 if ($hasDiagnosticMarker -and -not $DiagnosticRedirectContext) { throw 'CONNECTION_DIAGNOSTIC_KIT_NOT_A_BENCHMARK' }
 if ($DiagnosticRedirectContext) {
     if (-not $hasDiagnosticMarker -or $Duration -ne 'SHORT' -or $Load -ne 'HIGH' -or $CancellationPath) {throw 'CONNECTION_REDIRECT_DIAGNOSTIC_CONTRACT_INVALID'}
     $diagnosticReceipt=Get-Content -LiteralPath $diagnosticReceiptPath -Raw | ConvertFrom-Json
+    if ($DiagnosticPhaseObserver) {
+        if (-not $diagnosticReceipt.PSObject.Properties['full_metadata_policy']) {throw 'CONNECTION_FULL_METADATA_POLICY_MISSING'}
+        Import-Module (Join-Path $root 'modules/FullMetadataDiagnostic.psm1')
+        Assert-FullMetadataPolicy $diagnosticReceipt.full_metadata_policy
+    }
     if ($diagnosticReceipt.method -notin @('redirect-context-logging-v1','redirect-context-followup-v2','redirect-context-probes-v3','redirect-kernel-context-v4') -or
         $environment['PB_TESTLAB_REDIRECT_CONTEXT_DIAGNOSTIC'] -ne $diagnosticReceipt.method -or -not $diagnosticReceipt.diagnostic_only -or $diagnosticReceipt.performance_comparable -or
         $diagnosticReceipt.status -ne 'DIAGNOSTIC_BUILD_PREPARED' -or $diagnosticReceipt.source_commit -ne '63be0ebf9bec92bfba95ef3d6729c375aa9af84e') {throw 'CONNECTION_REDIRECT_DIAGNOSTIC_RECEIPT_INVALID'}
@@ -202,6 +209,7 @@ function Invoke-ConnectionMode($Mode,$Directory) {
         $workerCommand=Get-Command Start-ConnectionWorker -CommandType Function
         $workerReadyCommand=Get-Command Wait-ConnectionWorker -CommandType Function
         $capturedCollector=Join-Path $root 'src/pb_kernel_context_collector.py'
+        $capturedPhaseObserver=$DiagnosticPhaseObserver
         $workload={
             param($cli)
             if ($cli) {
@@ -219,7 +227,7 @@ function Invoke-ConnectionMode($Mode,$Directory) {
                     $collector=& $workerCommand 'kernel-collector' @('-u',$capturedCollector,'--jsonl-log',(Join-Path $context.directory 'kernel-context.jsonl')) $workers
                     & $workerReadyCommand $collector (Join-Path $context.directory 'kernel-context.jsonl')
                 }
-                & $cohortCommand -Context $context -Cli $cli
+                & $cohortCommand -Context $context -Cli $cli -DiagnosticPhaseObserver $capturedPhaseObserver
             } finally {
                 # Drain while the same CLI still owns the running driver; unloading first loses the ring tail.
                 if ($collector) {

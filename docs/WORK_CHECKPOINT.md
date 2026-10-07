@@ -1,5 +1,13 @@
 ﻿# Work checkpoint
 
+## 2026-10-07: единый WFP/AFD контроллер подготовлен
+
+FINAL новый комплект130731-dbfa7b1c: PS5 Prepare и PS5/7 Inspect FILES_VALIDATED/0;55 runtime +13 outer hashes verified. CLI/Core/sys побайтово совпадают172202, bundleacece5c3;140 файлов source copy exact. Продукт/драйвер не пересобирались; собран только offline ETL decoder. Original очередь, одна local/SOCKS5 серия, ConnectEx32,4→baseline coverage gate→64/256/640→4, sameCLI. Дополнительные WFP/AFD журналы собираются вместе с TCP/WPP/kernel/Core; snapshots read-only. После baseline сохраняется и проверяется первый ETL; при пробеле нагрузка не начинается. Во время проверки ETW приостановлен, интервал записан; новые cohorts не запускаются. Второй ETL covers load/recovery,64MiB каждый; native errors не становятся PASS.
+
+Actual saved ETL decode42477raw headers/payload exact;17synthetic coverage rejects;PS5/7 по13capture/policy/cohort +8frozenplan checks,AST6.322USER files unchanged; прежние plans не refreeze/Resume, общие source bindings четырёх контроллеров изменились дополнительно к прежним отличиям parent172202. Новый runtime source map фиксируется отдельно. Actual nonadmin Install отказал FULL_METADATA_REQUIRES_ADMINISTRATOR до mutation; receipt отсутствует, trace/product/traffic не запускались. Реальная эмиссия WFP/AFD и exact load object matching/private transfer/free/rootcause ещё pending. Audit tcp-wfp-full-development-20261007/validation.json и новый verification/HANDOFF.md/handoff.json.
+
+NEXT USERADMIN [новый wrapper](TCP_WFP_FULL_METADATA_DIAGNOSTIC.md) Install→толькоsuccess ручная reboot→Run2–4min+two trace saves/decode; дождаться очистки/guarded Restore и передать tcp-wfp-full-trace root даже при ошибке. TRACE_SAVED_LOAD_CORRELATION_PENDING означает готовность к офлайн-анализу, не PASS продукта. Новый handoff заменяет прежний черновой NEXT; не повторять local/Linux matrix. Нет BCD/trust/hypervisor/proxy/network/UAC/password/autoreboot/subagents/productfix. Source commit/push разрешён, ignoredkits/captures/private settings не являются Git backup.
+
 ## 2026-10-07: найдены источники для единого расширенного сбора
 
 Запрос USER: перестать проверять гипотезы по одной. Статически подтверждены Windows WFP Callout provider (GUID00e7ee66-5b24-5c41-22cb-af98f63e2f90, шесть redirect metadata variants, keyword4/level<=5) и AFD29 templates, совпадающие с прежним локальным каталогом. Новые поля: WFP CorrelationId/TransportEndpointHandle/CalloutId/IsReauth и redirect actions; AFD Endpoint/AcceptEndpoint/CurrentBacklog/Backlog/PauseUnPause/TLBacklogCount. GUID также документирован Microsoft. Реальная регистрация Callout не наблюдалась; эмиссия, семантика счётчиков и точная связь объектов пока не проверены.

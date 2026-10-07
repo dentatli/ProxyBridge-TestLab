@@ -1,6 +1,7 @@
 ﻿[CmdletBinding()]
 param([Parameter(Mandatory)][string]$DiagnosticDirectory,
-    [ValidateSet('Prepare','Inspect','Install','Run','Restore')][string]$Phase='Inspect')
+    [ValidateSet('Prepare','Inspect','Install','Run','Restore')][string]$Phase='Inspect',
+    [scriptblock]$DiagnosticPhaseObserver)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -147,7 +148,7 @@ if ($Phase -eq 'Run') {
     if ($installed.status -ne 'INSTALLED_REBOOT_REQUIRED') {throw 'KERNEL_DIAGNOSTIC_INSTALL_FIRST'}
     $boot=([DateTime](Get-CimInstance Win32_OperatingSystem -OperationTimeoutSec 5).LastBootUpTime).ToUniversalTime()
     if ($boot -le ([DateTime]$installed.installed_at_utc).ToUniversalTime()) {throw 'KERNEL_DIAGNOSTIC_REBOOT_REQUIRED'}
-    try {& $inner -DiagnosticDirectory $DiagnosticDirectory -Phase Run}
+    try {& $inner -DiagnosticDirectory $DiagnosticDirectory -Phase Run -DiagnosticPhaseObserver $DiagnosticPhaseObserver}
     finally {
         try {Invoke-Registration 'Restore'} catch {Write-Warning ('Возврат к исходному пути не подтверждён: '+$_.Exception.Message+'. После штатного завершения выполните -Phase Restore.');throw}
     }

@@ -147,7 +147,7 @@ function Invoke-ConnectionCohort {
 }
 
 function Invoke-ConnectionCohorts {
-    param($Context,$Cli)
+    param($Context,$Cli,[scriptblock]$DiagnosticPhaseObserver)
     if ($Cli) {
         $Context.sampler.process.StandardInput.WriteLine(([ordered]@{role='proxybridge_cli';pid=$Cli.pid;path=$Cli.actual_path} | ConvertTo-Json -Compress));$Context.sampler.process.StandardInput.Flush()
     }
@@ -164,6 +164,8 @@ function Invoke-ConnectionCohorts {
         # failure. Resource bounds or forced cleanup abort further load safely.
         if ($record.error) {throw ('CONNECTION_COHORT_INCOMPLETE: '+$record.error)}
         if ($record.client_forced_stop -or $record.server_forced_stop) { throw 'CONNECTION_COHORT_COULD_NOT_COMPLETE_CLEANLY' }
+        # Opt-in diagnostic observer runs after a fully drained cohort. No ordinary path supplies it.
+        if ($DiagnosticPhaseObserver) { & $DiagnosticPhaseObserver $Context $Cli $phase $record }
     }
 }
 

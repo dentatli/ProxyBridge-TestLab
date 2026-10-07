@@ -1,7 +1,8 @@
 ﻿[CmdletBinding()]
 param([Parameter(Mandatory)][string]$DiagnosticDirectory,
     [ValidateSet('Prepare','Inspect','Run')][string]$Phase='Inspect',
-    [ValidateSet('Single','ConnectionMatrix','RouteMatrix','ExternalReceiverPair')][string]$ExperimentSet='Single')
+    [ValidateSet('Single','ConnectionMatrix','RouteMatrix','ExternalReceiverPair')][string]$ExperimentSet='Single',
+    [scriptblock]$DiagnosticPhaseObserver)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1')
@@ -47,7 +48,15 @@ if ($receipt.method -eq 'redirect-context-probes-v3' -and ($receipt.probe_policy
     -not $receipt.probe_policy.original_verdict_preserved -or $receipt.probe_policy.probe_payload_recorded)) {throw 'REDIRECT_DIAGNOSTIC_PROBE_POLICY_INVALID'}
 if ($ExperimentSet -eq 'ConnectionMatrix' -and $receipt.method -ne 'redirect-context-followup-v2') {throw 'REDIRECT_MATRIX_REQUIRES_FOLLOWUP_CORE'}
 $matrixCaseIds=@('connectex-32','connectex-1','connect-32','connect-1')
-$routeMatrix=$null;$externalPair=$null
+$routeMatrix=$null;$externalPair=$null;$fullMetadata=$null
+if ($receipt.PSObject.Properties['full_metadata_policy']) {
+    Import-Module (Join-Path $root 'modules/FullMetadataDiagnostic.psm1')
+    $fullMetadata=$receipt.full_metadata_policy
+    Assert-FullMetadataPolicy $fullMetadata
+    if ($receipt.method -cne 'redirect-kernel-context-v4' -or $receipt.PSObject.Properties['external_receiver_policy']) {throw 'FULL_METADATA_REQUIRES_LOCAL_KERNEL_KIT'}
+}
+if ($DiagnosticPhaseObserver -and -not $fullMetadata) {throw 'DIAGNOSTIC_PHASE_OBSERVER_POLICY_MISSING'}
+if ($Phase -eq 'Run' -and $fullMetadata -and -not $DiagnosticPhaseObserver) {throw 'FULL_METADATA_REQUIRES_COVERAGE_OBSERVER'}
 if ($receipt.PSObject.Properties['external_receiver_policy']) {
     Import-Module (Join-Path $root 'modules/ExternalReceiverDiagnostic.psm1')
     $externalPair=$receipt.external_receiver_policy
@@ -60,6 +69,7 @@ if ($receipt.PSObject.Properties['route_matrix_policy']) {
     $routeMatrix=$receipt.route_matrix_policy
     $ExperimentSet=$(if ($externalPair) {'ExternalReceiverPair'} else {'RouteMatrix'})
     $matrixCaseIds=$(if ($externalPair) {@($externalPair.cases)} else {@($routeMatrix.cases)})
+    if ($fullMetadata) {$matrixCaseIds=@('original')}
 } elseif ($ExperimentSet -in @('RouteMatrix','ExternalReceiverPair')) {throw 'ROUTE_MATRIX_POLICY_MISSING'}
 $freezePath=Join-Path $DiagnosticDirectory 'runtime-plan.json'
 if ($Phase -eq 'Prepare') {
@@ -72,6 +82,7 @@ if ($Phase -eq 'Prepare') {
         'bin/tools/windivert-2.2.2/windivertctl.exe','bin/tools/windivert-2.2.2/WinDivert.dll') | ForEach-Object {Join-Path $root $_}
     $files+=@('Env','ProductBuild','RuntimeEnvironment','InterceptionState','ProxyBridgeCli','ProcessAdapter','ProxyBridgeEvidence','ConnectionLoad','ProductProfile') | ForEach-Object {Join-Path $root ('modules/'+$_+'.psm1')}
     if ($routeMatrix) {$files+=@((Join-Path $root 'modules/RouteMatrixDiagnostic.psm1'),(Join-Path $root 'src/pb_tcp_route_matrix_report.py'),(Join-Path $root 'src/pb_tcp_route_legs.py'))}
+    if ($fullMetadata) {$files+=@('modules/FullMetadataDiagnostic.psm1','scripts/Invoke-KernelTcpFullMetadataDiagnostic.ps1','config/tcp-wfp-full-metadata.wprp','src/pb_read_wfp_etl.cpp','src/pb_wfp_full_coverage.py','src/pb_prepare_full_metadata_diagnostic.py','bin/pb_read_wfp_etl.exe') | ForEach-Object {Join-Path $root $_}}
     if ($externalPair) {
         $files+=@('modules/ExternalReceiverDiagnostic.psm1','scripts/Invoke-LinuxCtsReceiver.ps1','scripts/Invoke-KernelTcpExternalReceiverDiagnostic.ps1','src/pb_tcp_external_receiver_evidence.py','src/pb_tcp_external_receiver_report.py','src/pb_cts_push_receiver.py','src/pb_linux_cts_control.py','src/pb_prepare_external_receiver_pair.py') | ForEach-Object {Join-Path $root $_}
         $files+=$externalPair.connection_file
@@ -200,9 +211,10 @@ try {
     Copy-Item -LiteralPath (Join-Path $kit 'redirect-context-diagnostic.json') -Destination (Join-Path $evidence 'diagnostic-build.json')
     $matrix=$null
     if ($frozenExperimentSet -in @('ConnectionMatrix','RouteMatrix','ExternalReceiverPair')) {
-        $matrix=[ordered]@{schema_version=1;method=$(if ($externalPair) {'local-linux-receiver-pair-v1'} elseif ($routeMatrix) {'listener-route-matrix-v1'} else {'redirect-context-matrix-v2'});fixture_close_guard=$freeze.fixture_close_guard;diagnostic_only=$true;performance_comparable=$false;status='RUNNING';error='';cases=@($matrixCaseIds | ForEach-Object {[ordered]@{id=$_;directory=$_;status='SKIPPED'}})}
+        $matrix=[ordered]@{schema_version=1;method=$(if ($fullMetadata) {'full-wfp-afd-capture-v1'} elseif ($externalPair) {'local-linux-receiver-pair-v1'} elseif ($routeMatrix) {'listener-route-matrix-v1'} else {'redirect-context-matrix-v2'});fixture_close_guard=$freeze.fixture_close_guard;diagnostic_only=$true;performance_comparable=$false;status='RUNNING';error='';cases=@($matrixCaseIds | ForEach-Object {[ordered]@{id=$_;directory=$_;status='SKIPPED'}})}
         $run['experiment_set']=$frozenExperimentSet;$run.workload_directory=''
-        if ($externalPair) {Write-Host 'Парный контроль: локальный / Linux получатель, исходная очередь Core и локальный SOCKS5. Каждый 4 → 64 → 256 → 640 → 4; примерно 4–8 минут плюс трасса. Не измерение скорости.'}
+        if ($fullMetadata) {Write-Host 'Единый WFP/AFD сбор: исходная очередь, 4 → coverage gate → 64 → 256 → 640 → 4; тот же CLI, примерно 2–4 минуты плюс сохранение/разбор трассы. Не сравнение скорости.'}
+        elseif ($externalPair) {Write-Host 'Парный контроль: локальный / Linux получатель, исходная очередь Core и локальный SOCKS5. Каждый 4 → 64 → 256 → 640 → 4; примерно 4–8 минут плюс трасса. Не измерение скорости.'}
         elseif ($routeMatrix) {Write-Host 'Три варианта одной командой: исходная очередь / очередь 1024 / очередь 1024 с задержкой приёма 650 мс. Каждый 4 → 64 → 256 → 640 → 4; примерно 6–12 минут. Общая TCP-трасса, kernel/Core/query/data; не сравнение скорости.'}
         else {Write-Host 'Диагностика четырёх вариантов: ConnectEx/connect × 32/1 ожидающих подключений; каждый 4 → 64 → 256 → 640 → 4. Примерно 8–16 минут; одна команда. Не сравнение скорости.'}
     } elseif ($receipt.method -eq 'redirect-context-probes-v3') {Write-Host 'Три проверки за один запуск: RECORDS на успешных сокетах; context спустя 5/25/100 мс; тип и адреса отказавшего сокета. ConnectEx/32, 4 → 64 → 256 → 640 → 4. Примерно 2–5 минут; задержки меняют условия, не сравнение скорости.'}
@@ -221,7 +233,7 @@ try {
                         }
                     } elseif ($routeMatrix) {
                         Invoke-RouteMatrixCase -Case $case.id -Workload {
-                            & (Join-Path $PSScriptRoot 'Invoke-LocalTcpConnections.ps1') -Profile SMOKE -Duration SHORT -Load HIGH -EnvPath (Join-Path $kit 'product.env') -PythonPath $freeze.python -EvidenceDirectory (Join-Path $evidence $case.directory) -DiagnosticRedirectContext -DiagnosticConnectionCase 'connectex-32' -DiagnosticFixtureCloseGuard -DiagnosticRouteCase $case.id
+                            & (Join-Path $PSScriptRoot 'Invoke-LocalTcpConnections.ps1') -Profile SMOKE -Duration SHORT -Load HIGH -EnvPath (Join-Path $kit 'product.env') -PythonPath $freeze.python -EvidenceDirectory (Join-Path $evidence $case.directory) -DiagnosticRedirectContext -DiagnosticConnectionCase 'connectex-32' -DiagnosticFixtureCloseGuard -DiagnosticRouteCase $case.id -DiagnosticPhaseObserver $DiagnosticPhaseObserver
                         }
                     } else {
                         & (Join-Path $PSScriptRoot 'Invoke-LocalTcpConnections.ps1') -Profile SMOKE -Duration SHORT -Load HIGH -EnvPath (Join-Path $kit 'product.env') -PythonPath $freeze.python -EvidenceDirectory (Join-Path $evidence $case.directory) -DiagnosticRedirectContext -DiagnosticConnectionCase $case.id -DiagnosticFixtureCloseGuard
@@ -240,7 +252,8 @@ try {
     finally {
         if ($matrix) {
             $matrix | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath (Join-Path $evidence 'matrix-manifest.json') -Encoding UTF8
-            & $freeze.python (Join-Path $root $(if ($externalPair) {'src/pb_tcp_external_receiver_report.py'} elseif ($routeMatrix) {'src/pb_tcp_route_matrix_report.py'} else {'src/pb_tcp_redirect_context_matrix_report.py'})) --evidence-directory $evidence
+            if ($fullMetadata) {& $freeze.python (Join-Path $root 'src/pb_tcp_kernel_context_report.py') --evidence-directory (Join-Path $evidence 'original')}
+            else {& $freeze.python (Join-Path $root $(if ($externalPair) {'src/pb_tcp_external_receiver_report.py'} elseif ($routeMatrix) {'src/pb_tcp_route_matrix_report.py'} else {'src/pb_tcp_redirect_context_matrix_report.py'})) --evidence-directory $evidence}
             $run['matrix_report_exit_code']=$LASTEXITCODE
             if ($LASTEXITCODE -ne 0 -and $run.status -ne 'FAILED') {$run.status='FAILED';$run.error='REDIRECT_CONTEXT_MATRIX_CAPTURE_INCOMPLETE'}
         }
