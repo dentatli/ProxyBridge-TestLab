@@ -28,6 +28,8 @@ namespace ProxyBridge.TestLab
         private bool identityReceived;
         private string identityLine = String.Empty;
         private string identityError = String.Empty;
+        private long identityCallbackQpc;
+        private long identityReadyQpc;
         private readonly StringBuilder stdout = new StringBuilder();
         private readonly StringBuilder stderr = new StringBuilder();
         private readonly object stdoutLock = new object();
@@ -49,6 +51,7 @@ namespace ProxyBridge.TestLab
                 if (args.Data == null) { stderrClosed.Set(); return; }
                 if (consoleHosted && !identityReceived)
                 {
+                    identityCallbackQpc = Stopwatch.GetTimestamp();
                     identityReceived = true;
                     identityLine = args.Data.Substring(0, Math.Min(8192, args.Data.Length));
                     const string prefix = "PB_CONSOLE_HOST_PID=";
@@ -64,6 +67,7 @@ namespace ProxyBridge.TestLab
                         }
                     }
                     else identityError = "INVALID_FIRST_STDERR_IDENTITY_LINE";
+                    identityReadyQpc = Stopwatch.GetTimestamp();
                     identityReady.Set();
                     return;
                 }
@@ -83,9 +87,15 @@ namespace ProxyBridge.TestLab
 
         public static SafeProcessSession Start(string fileName, string arguments, string consoleHost, bool terminalOutput)
         {
+            return Start(fileName, arguments, consoleHost, terminalOutput, false);
+        }
+
+        public static SafeProcessSession Start(string fileName, string arguments, string consoleHost, bool terminalOutput, bool identityAck)
+        {
             ProcessStartInfo info = new ProcessStartInfo();
             bool hosted = !String.IsNullOrEmpty(consoleHost);
             if (terminalOutput && !hosted) throw new InvalidOperationException("TERMINAL_HOST_REQUIRED");
+            if (identityAck && !hosted) throw new InvalidOperationException("IDENTITY_ACK_HOST_REQUIRED");
             info.FileName = hosted ? consoleHost : fileName;
             info.Arguments = arguments ?? String.Empty;
             info.UseShellExecute = false;
@@ -100,6 +110,8 @@ namespace ProxyBridge.TestLab
             process.EnableRaisingEvents = true;
             SafeProcessSession session = new SafeProcessSession(process, hosted, terminalOutput);
             bool started = false;
+            long identityWaitStartQpc = 0, identityWaitEndQpc = 0;
+            bool identityWaitCompleted = false;
             try
             {
                 if (!process.Start()) throw new InvalidOperationException("PROCESS_START_RETURNED_FALSE");
@@ -115,8 +127,23 @@ namespace ProxyBridge.TestLab
                 }
                 else process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
-                if (hosted && (!session.identityReady.WaitOne(5000) || session.target == null))
-                    throw new InvalidOperationException("CONSOLE_HOST_IDENTITY_FAILED");
+                if (hosted)
+                {
+                    identityWaitStartQpc = Stopwatch.GetTimestamp();
+                    identityWaitCompleted = session.identityReady.WaitOne(5000);
+                    identityWaitEndQpc = Stopwatch.GetTimestamp();
+                    if (!identityWaitCompleted || session.target == null)
+                        throw new InvalidOperationException("CONSOLE_HOST_IDENTITY_FAILED");
+                    if (identityAck)
+                    {
+                        // The host still holds the child suspended. Validate the
+                        // executable identity before allowing any child work.
+                        if (!String.Equals(session.QueryActualPath(), System.IO.Path.GetFullPath(fileName), StringComparison.OrdinalIgnoreCase))
+                            throw new InvalidOperationException("CONSOLE_HOST_ACK_PATH_DIFFERS");
+                        process.StandardInput.WriteLine("READY");
+                        process.StandardInput.Flush();
+                    }
+                }
                 return session;
             }
             catch (Exception error)
@@ -136,6 +163,14 @@ namespace ProxyBridge.TestLab
                 error.Data["PB_START_IDENTITY_RECEIVED"] = session.identityReceived;
                 error.Data["PB_START_IDENTITY_LINE"] = session.identityLine;
                 error.Data["PB_START_IDENTITY_ERROR"] = session.identityError;
+                error.Data["PB_START_IDENTITY_ACK"] = identityAck;
+                error.Data["PB_START_IDENTITY_WAIT_COMPLETED"] = identityWaitCompleted;
+                error.Data["PB_START_IDENTITY_WAIT_START_QPC"] = identityWaitStartQpc;
+                error.Data["PB_START_IDENTITY_WAIT_END_QPC"] = identityWaitEndQpc;
+                error.Data["PB_START_IDENTITY_CALLBACK_QPC"] = session.identityCallbackQpc;
+                error.Data["PB_START_IDENTITY_READY_QPC"] = session.identityReadyQpc;
+                error.Data["PB_START_QPC_FREQUENCY"] = Stopwatch.Frequency;
+                error.Data["PB_START_CHILD_EXIT_CODE"] = session.ExitCode;
                 error.Data["PB_START_HOST_PID"] = started ? process.Id : 0;
                 error.Data["PB_START_HOST_EXIT_CODE"] = started && process.HasExited ? process.ExitCode : -1;
                 error.Data["PB_START_FORCED_CLEANUP"] = forced;
@@ -363,15 +398,17 @@ function New-SystemProcessAdapter {
         $argumentText = Join-ProcessArguments -Arguments @($plan.arguments)
         $hostPath = ''
         $terminalOutput = $false
+        $identityAck = $null -ne $plan.PSObject.Properties['console_identity_ack'] -and [bool]$plan.console_identity_ack
         if ($null -ne $plan.PSObject.Properties['console_host_path']) {
             $hostPath = [string]$plan.console_host_path
             if (-not (Test-Path -LiteralPath $hostPath -PathType Leaf)) { throw 'CONSOLE_HOST_MISSING: run scripts/Build-ConsoleHost.ps1' }
             $terminalOutput = $null -ne $plan.PSObject.Properties['console_output_mode'] -and [string]$plan.console_output_mode -eq 'terminal'
             $hostArguments = @([string]$plan.stop_timeout_ms, [string]$plan.executable) + @($plan.arguments)
             if ($terminalOutput) { $hostArguments = @('--terminal') + $hostArguments }
+            if ($identityAck) { $hostArguments = @('--identity-ack') + $hostArguments }
             $argumentText = Join-ProcessArguments -Arguments $hostArguments
         }
-        $session = [ProxyBridge.TestLab.SafeProcessSession]::Start([string]$plan.executable, $argumentText, $hostPath, $terminalOutput)
+        $session = [ProxyBridge.TestLab.SafeProcessSession]::Start([string]$plan.executable, $argumentText, $hostPath, $terminalOutput, $identityAck)
         return [pscustomobject]@{
             pid = $session.Pid
             actual_path = ''

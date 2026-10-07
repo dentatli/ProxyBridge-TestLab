@@ -1,4 +1,4 @@
-﻿# Work checkpoint
+# Work checkpoint
 
 ## 2026-10-07: единый WFP/AFD контроллер подготовлен
 
@@ -2299,3 +2299,12 @@ State: Milestones 9-11 complete; Milestone 12 offline gate passed; server discov
 # TCP setup 065347 разобран; причина ещё требует подтверждения (2026-10-06)
 
 Все968связок уникальны,96ошибок. SYN→connect504–511мс толькоуfailed;success≤0,096мс. ПотериETW0,78originalfilesunchanged. Отказы связаны с199–202наблюдаемыми ожидающими приёма сокетами; actualkernelqueue имеханизмутратыcontext не прочитаны. [Разбор](C:\src\ProxyBridge-TestLab\artifacts\diagnostics\tcp-setup-review-20261006-065346/analysis.md). Новыйцелевой16eventtrace,samebinarykit,files/fakecheckspassed: [HANDOFF](C:\src\ProxyBridge-TestLab\artifacts\diagnostics\tcp-redirect-context-preparation-20261006-070917-d31f549e/verification/HANDOFF.md). NEXTUSERADMINInstall→manualreboot→Run2–4мин, дождатьсяcleanup/save. Старый064810RESTORED; прежние записи нижеисторические.
+
+
+## 2026-10-07: unified capture receiver identity refusal
+
+USER Run135055 / fullTrace135054: receiver successfully bound/listened but PID identity handshake failed before native client. Offline saved ETL:2786 selected,827 receiver events/4.7943681s; cancelled accepts at teardown. Original host forced cleanup retained, callback/exit ordering unavailable; no root-cause evidence for the original WFP context fault. Saved CLI/other helpers clean; original service path/hash/Stopped/detached restored in saved receipts.209 user files protected, old freeze/report not rewritten.
+
+Opt-in startup ACK keeps receiver suspended until its retained process handle/path are confirmed; child exit and wait/callback QPC retained. Real CTS no-client controls PS5/7 ACK/default gracefulexit0; host READY/EOF/bad/timeout/earlyexit37 and adapter identity refusals verified;14 capture checks+8 frozen-plan checks each. Only console host rebuilt; no product/sys/sign/install/live capture/client.
+
+Fresh tcp-redirect-context-preparation-20261007-140958-ae8a2209:PS5Prepare+PS5PS7Inspect FILES_VALIDATED,55+13 hashes exact,CLI/Core/sys acece5c3 and140 copied source files unchanged. Currenttoken nonadmin; NEXT USERADMIN new wrapper Install→onlysuccess manual reboot→Run2–4min plus trace save/decode→wait cleanup/Restore and send full trace root even error. No old refreeze/Resume. New audit tcp-wfp-full-start-review-20261007-135055;new verification/HANDOFF.md andhandoff.json;details docs/TCP_WFP_FULL_METADATA_DIAGNOSTIC.md. Exact original cause remains pending; no maintained product fix/capacity/performance claim. Source checkpoint/push authorized; captured/private/ignored artifacts excluded.

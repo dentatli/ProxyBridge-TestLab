@@ -9,7 +9,7 @@ def sha(path):return hashlib.sha256(path.read_bytes()).hexdigest()
 def read(path):return json.loads(path.read_text(encoding='utf-8-sig'))
 def save(path,value):path.write_text(json.dumps(value,indent=2)+'\n',encoding='utf-8')
 POLICY=dict(method='full-wfp-afd-capture-v1',diagnostic_only=True,performance_comparable=False,cases=['original'],baseline_connections=4,
-            raw_trace_limit_mib=64,baseline_coverage_before_load=True,recording_gap_declared=True,read_only_wfp_snapshot=True,
+            raw_trace_limit_mib=64,baseline_coverage_before_load=True,receiver_identity_ack=True,recording_gap_declared=True,read_only_wfp_snapshot=True,
             private_record_observed=False,root_cause_proven=False)
 
 def prepare(root,parent,new,verification):

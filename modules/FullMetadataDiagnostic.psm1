@@ -4,6 +4,7 @@ function Assert-FullMetadataPolicy($Policy) {
     if ($Policy.method -cne 'full-wfp-afd-capture-v1' -or -not $Policy.diagnostic_only -or $Policy.performance_comparable -or
         (@($Policy.cases) -join ',') -cne 'original' -or $Policy.baseline_connections -ne 4 -or
         $Policy.raw_trace_limit_mib -ne 64 -or -not $Policy.baseline_coverage_before_load -or
+        -not $Policy.PSObject.Properties['receiver_identity_ack'] -or -not $Policy.receiver_identity_ack -or
         -not $Policy.recording_gap_declared -or -not $Policy.read_only_wfp_snapshot -or $Policy.private_record_observed -or $Policy.root_cause_proven) {
         throw 'FULL_METADATA_POLICY_INVALID'
     }

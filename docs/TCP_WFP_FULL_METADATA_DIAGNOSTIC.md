@@ -1,10 +1,22 @@
 # Единый сбор WFP, AFD, TCP и контекста Core
 
-Статус 2026-10-07: новый комплект подготовлен и проверен на диске; реальная эмиссия дополнительных WFP/AFD событий, нагрузка и точная причина ещё не проверены. Install в текущем nonadmin процессе отказал с `FULL_METADATA_REQUIRES_ADMINISTRATOR` до изменения регистрации; installation receipt отсутствует. Source checkpoint сохраняется в `codex/checkpoint-20261007`; ignored captures, локальные бинарники и private settings не являются частью Git backup.
+Статус 2026-10-07 после пользовательского Run135055: сбор остановился на подтверждении PID получателя, до native client и нагрузки. Сохранённый baseline ETL содержит WFP/AFD события без потерь, но принадлежность четырём тестовым соединениям не подтверждена: этих соединений не было. Точная причина исходной утраты redirect context остаётся неизвестной. Source checkpoint сохраняется в `codex/checkpoint-20261007`; ignored captures, локальные бинарники и private settings не являются частью Git backup.
 
-Новый комплект: `artifacts/diagnostics/tcp-redirect-context-preparation-20261007-130731-dbfa7b1c`. Контроллер: [Invoke-KernelTcpFullMetadataDiagnostic.ps1](../scripts/Invoke-KernelTcpFullMetadataDiagnostic.ps1). CLI/Core/sys и140 файлов копии источников совпадают с комплектом172202; продукт и драйвер не пересобирались. Собран только самостоятельный декодер сохранённых ETL, не подключающийся к процессам и не включающий провайдеры.
+Текущий новый комплект: `artifacts/diagnostics/tcp-redirect-context-preparation-20261007-140958-ae8a2209`. Контроллер: [Invoke-KernelTcpFullMetadataDiagnostic.ps1](../scripts/Invoke-KernelTcpFullMetadataDiagnostic.ps1). CLI/Core/sys и140 файлов копии источников совпадают с комплектом172202; продукт и драйвер не пересобирались. На этом этапе пересобран только console host для подтверждения идентичности получателя до ResumeThread. Декодер сохранённых ETL прежний.
 
-Неиспользованный промежуточный125700-81e73d81 заменён до установки/сбора: по локальным NETIO metadata исправлена проверка CorrelationId, это UINT64, не GUID. Его frozen файлы не переписывались; использовать только130731-dbfa7b1c.
+Неиспользованный промежуточный125700-81e73d81 заменён до установки/сбора: по локальным NETIO metadata исправлена проверка CorrelationId, это UINT64, не GUID. Использованный130731-dbfa7b1c и его результаты сохраняются как история; исходная регистрация после его Run восстановлена и проверена в сохранённых receipts. Старые комплекты не refreeze/Resume; следующий Install/Run относится только к140958-ae8a2209.
+
+## Отказ подтверждения PID получателя
+
+В Run135055 получатель PID1972 успешно выполнил bind/listen127.0.0.1:54122, создал CSV с одним заголовком и оставил827 событий в интервале4794.3681мс. Затем наблюдаются отменённые AFD accept (C0000120). Startup receipt сохраняет принудительную очистку host job, а исключение получения process handle говорит об уже завершившемся процессе. Это согласуется с гонкой пятисекундного ожидания identity callback и очистки. Истинный порядок callback/таймаута/завершения не записан; отдельное падение CTS и его исходный exit code не доказаны. Пустой stdout сам по себе не доказывает отсутствие работы процесса.
+
+Новый opt-in `receiver_identity_ack` действует только в едином сборе: host создаёт получателя suspended и публикует PID; адаптер удерживает process handle, проверяет путь и посылает READY; только затем host выполняет ResumeThread. EOF, неверная команда и таймаут завершают свою job, не дают запускать клиента. Сохраняются QPC начала/конца ожидания и callback, факт завершения ожидания, native child exit code, когда он доступен. Проверки пути, готовности listener и coverage gate остаются обязательными. Общий запуск без opt-in сохраняет прежний протокол.
+
+Проверены настоящий CTS receiver без клиента/ProxyBridge в PS5/7, с ACK и без него: удержание PID/пути, штатный CTRL_BREAK, exit0, без forced stop. Отдельный host контроль проверил suspended child до READY, ранний exit37, неправильный ACK, EOF и таймаут. Адаптер в обеих версиях отвергает другой путь до Resume и отсутствие host. Не утверждается, что таймаут под полной нагрузкой воспроизведён или устранён во всех условиях.
+
+В исходной трассе2786 выбранных событий:2236AFD,511TCPIP,39WFP ConnectRedirectClassify; QPC10MHz, events/buffers lost0, read/close/write errors0. WFP Apply для owned native cohort пока не проверен. Сохранённые CLI/helper/collector/sampler завершились штатно; host job получателя принудительно очищалась. Saved Restore подтверждает исходный hash/path, Stopped и отсутствие известных WFP объектов, а не текущее глобальное состояние Windows.
+
+Audit: `artifacts/diagnostics/tcp-wfp-full-start-review-20261007-135055`;209 файлов пользовательского комплекта, запуска и трассы защищены hash snapshot. Свежий комплект проходит PS5 Prepare и PS5/7 Inspect;14 capture/policy/cohort и8 frozen-plan checks в каждой версии. Следующие команды в `verification/HANDOFF.md`; агент не выполняет driver Install, повышение прав или перезагрузку.
 
 ## Что происходит в одной команде Run
 
@@ -21,13 +33,13 @@ WFP Callout provider описан [Microsoft](https://github.com/microsoft/ebpf-
 В PowerShell **от администратора**:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\src\ProxyBridge-TestLab\scripts\Invoke-KernelTcpFullMetadataDiagnostic.ps1" -DiagnosticDirectory "C:\src\ProxyBridge-TestLab\artifacts\diagnostics\tcp-redirect-context-preparation-20261007-130731-dbfa7b1c" -Phase Install
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\src\ProxyBridge-TestLab\scripts\Invoke-KernelTcpFullMetadataDiagnostic.ps1" -DiagnosticDirectory "C:\src\ProxyBridge-TestLab\artifacts\diagnostics\tcp-redirect-context-preparation-20261007-140958-ae8a2209" -Phase Install
 ```
 
 Только после успешного Install вручную перезагрузить Windows. Затем в административном PowerShell:
 
 ```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\src\ProxyBridge-TestLab\scripts\Invoke-KernelTcpFullMetadataDiagnostic.ps1" -DiagnosticDirectory "C:\src\ProxyBridge-TestLab\artifacts\diagnostics\tcp-redirect-context-preparation-20261007-130731-dbfa7b1c" -Phase Run
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\src\ProxyBridge-TestLab\scripts\Invoke-KernelTcpFullMetadataDiagnostic.ps1" -DiagnosticDirectory "C:\src\ProxyBridge-TestLab\artifacts\diagnostics\tcp-redirect-context-preparation-20261007-140958-ae8a2209" -Phase Run
 ```
 
 Около2–4 минут нагрузки плюс сохранение/разбор двух трасс и snapshots. Требуется прежний ресурсный запас>=2GiB свободной RAM. Если baseline источники не подтверждены, команда завершится раньше. Не дробить опыт ради лимита разрешённых коротких проверок. Дождаться завершения очистки, Restore и сохранения трасс; передать путь `tcp-wfp-full-trace-*` даже при ошибке. Snapshot может содержать пути и адреса других процессов, поэтому пакет остаётся локальным ignored evidence, не публикуется в Git.
@@ -40,4 +52,4 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\src\ProxyBridge-Test
 
 В одном пакете можно проверять давление очереди, дополнительные callout/reauth/redirect действия, выбор/жизнь endpoint и исходный NTSTATUS. Нельзя заранее обещать увидеть приватный перенос/освобождение записи. Если переход отсутствует в событиях, остаётся [условный этап kernel debugging](TCP_CONTEXT_ENDPOINT_LIFECYCLE_PLAN.md); Windowsbug/driverbug/table overflow/capacity/fix/performance пока не доказаны.
 
-Проверка подготовки: PS5 Prepare и PS5/7 Inspect exit0, FILES_VALIDATED;13 capture/policy/cohort checks +8 frozen-plan checks в каждой версии PowerShell;17 synthetic coverage rejects;42477 raw headers/payloads прежней трассы совпали с предыдущим reader;322 USER files сохранены. Audit: `artifacts/diagnostics/tcp-wfp-full-development-20261007`, frozen handoff — `verification/HANDOFF.md` и `handoff.json` нового комплекта. Старые планы/отчёты не переписывались и не refreeze/Resume; изменённые общие контроллеры делают старые runtime source bindings устаревшими, использовать только новый комплект.
+Историческая проверка подготовки130731: PS5 Prepare и PS5/7 Inspect exit0, FILES_VALIDATED;13 capture/policy/cohort checks +8 frozen-plan checks в каждой версии PowerShell;17 synthetic coverage rejects;42477 raw headers/payloads прежней трассы совпали с предыдущим reader;322 USER files сохранены. Audit: `artifacts/diagnostics/tcp-wfp-full-development-20261007`, frozen handoff130731 сохранён; текущий handoff — в140958. Старые планы/отчёты не переписывались и не refreeze/Resume; изменённые общие контроллеры делают старые runtime source bindings устаревшими, использовать только новый комплект.

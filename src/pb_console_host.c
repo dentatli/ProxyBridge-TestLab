@@ -33,6 +33,26 @@ static DWORD WINAPI close_terminal(void *parameter) {
 
 static BOOL WINAPI ignore_control(DWORD event) { (void)event; return TRUE; }
 
+// Optional startup handshake: do not run the child until the caller has
+// retained its process handle. EOF, malformed input and timeout fail closed.
+static BOOL wait_identity_ack(HANDLE input) {
+    ULONGLONG start = GetTickCount64();
+    char line[8] = {0};
+    DWORD length = 0;
+    while (GetTickCount64() - start < 5000) {
+        DWORD available = 0, read_count = 0;
+        char ch;
+        if (!PeekNamedPipe(input, NULL, 0, NULL, &available, NULL)) return FALSE;
+        if (!available) { Sleep(5); continue; }
+        if (!ReadFile(input, &ch, 1, &read_count, NULL) || read_count != 1) return FALSE;
+        if (ch == '\n') return length == 5 && memcmp(line, "READY", 5) == 0;
+        if (ch == '\r') continue;
+        if (length >= sizeof(line)) return FALSE;
+        line[length++] = ch;
+    }
+    return FALSE;
+}
+
 static BOOL append_char(wchar_t *buffer, size_t *length, wchar_t ch) {
     if (*length >= 32766) return FALSE;
     buffer[(*length)++] = ch;
@@ -98,12 +118,18 @@ int wmain(int argc, wchar_t **argv) {
     size_t command_length = 0;
     unsigned long stop_ms;
     int result = HOST_ERROR, i, offset;
-    BOOL use_terminal;
+    BOOL use_terminal, identity_ack;
     BOOL attributes_ready = FALSE, assigned = FALSE, signalled = FALSE;
     char request[8] = {0};
     DWORD request_length = 0;
-    use_terminal = argc > 1 && wcscmp(argv[1], L"--terminal") == 0;
-    offset = use_terminal ? 1 : 0;
+    offset = 0;
+    use_terminal = FALSE; identity_ack = FALSE;
+    while (argc > 1 + offset) {
+        if (wcscmp(argv[1 + offset], L"--terminal") == 0 && !use_terminal) use_terminal = TRUE;
+        else if (wcscmp(argv[1 + offset], L"--identity-ack") == 0 && !identity_ack) identity_ack = TRUE;
+        else break;
+        offset++;
+    }
     if (argc < 4 + offset) return HOST_ERROR;
     stop_ms = wcstoul(argv[1 + offset], &end, 10);
     if (*end || stop_ms < 1 || stop_ms > 60000) return HOST_ERROR;
@@ -155,6 +181,11 @@ int wmain(int argc, wchar_t **argv) {
     // The first stderr line is ours, before the product can write anything.
     fprintf(stderr, "PB_CONSOLE_HOST_PID=%lu\n", child.dwProcessId);
     fflush(stderr);
+    if (identity_ack && !wait_identity_ack(input)) {
+        fprintf(stderr, "PB_CONSOLE_HOST_STARTUP_ERROR=IDENTITY_ACK_NOT_CONFIRMED\n");
+        fflush(stderr);
+        goto done;
+    }
     if (ResumeThread(child.hThread) == (DWORD)-1) goto done;
     for (;;) {
         DWORD available = 0, read_count = 0;
@@ -190,6 +221,13 @@ done:
     if (child.hProcess && WaitForSingleObject(child.hProcess, 0) != WAIT_OBJECT_0) {
         BOOL terminated = assigned ? TerminateJobObject(job, HOST_FORCED_EXIT) : TerminateProcess(child.hProcess, HOST_FORCED_EXIT);
         if (!terminated || WaitForSingleObject(child.hProcess, 5000) != WAIT_OBJECT_0) result = HOST_ERROR;
+    }
+    if (identity_ack && child.hProcess) {
+        DWORD child_code;
+        if (GetExitCodeProcess(child.hProcess, &child_code)) {
+            fprintf(stderr, "PB_CONSOLE_HOST_CHILD_EXIT_CODE=%lu\n", child_code);
+            fflush(stderr);
+        }
     }
     if (terminal) {
         HANDLE closing = CreateThread(NULL, 0, close_terminal, terminal, 0, NULL);

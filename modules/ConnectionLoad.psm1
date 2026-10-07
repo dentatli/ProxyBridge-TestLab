@@ -59,6 +59,9 @@ function Invoke-ConnectionCohort {
             if ($remoteStart.result.status -ne 'RECEIVER_LISTENING') {throw 'CONNECTION_LINUX_RECEIVER_NOT_READY'}
         } else {
         $serverPlan=[pscustomobject]@{executable=$Context.receiver;arguments=(@('-listen:127.0.0.1',('-serverexitlimit:'+$Phase.connections),('-connectionfilename:'+(Join-Path $directory 'receiver.csv')))+$common);console_host_path=(Join-Path $Context.root 'bin/pb_console_host.exe');stop_timeout_ms=5000}
+        if ($Context.PSObject.Properties['full_metadata_identity_ack'] -and $Context.full_metadata_identity_ack) {
+            $serverPlan | Add-Member -NotePropertyName console_identity_ack -NotePropertyValue $true
+        }
         $startingWorker='receiver';$startingPlan=$serverPlan
         $server=& $adapter.StartProcess $serverPlan
         $startingWorker='';$startingPlan=$null
