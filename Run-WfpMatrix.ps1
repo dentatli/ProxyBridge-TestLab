@@ -6,6 +6,9 @@ param(
     [string]$KnownDefectsPath,
     [string]$ClientContractPath,
     [string]$RuntimeConfigPath,
+    [ValidateSet('driver','v4.0.0')][string]$ProductProfileContract = 'driver',
+    [ValidateSet('','driver','v4.0.0')][string]$ReferenceProfileContract = '',
+    [ValidateSet('configured','ip')][string]$ProxyDestinationMode = 'configured',
     [string]$ScenarioRoot,
     [string]$MockFixtureRoot,
     [string]$OutputRoot,
@@ -33,6 +36,9 @@ $selectedModeCount = 0
 foreach ($runtimeFlag in @($DryRun, $MockRuntime, $AllowProductRuntime)) { if ([bool]$runtimeFlag) { $selectedModeCount++ } }
 if ($selectedModeCount -ne 1) { throw 'SELECT_EXACTLY_ONE_RUNTIME_MODE' }
 $runMode = $(if ($DryRun) { 'dry-run' } elseif ($MockRuntime) { 'mock' } else { 'real' })
+# The existing service/driver preparation is WFP-specific. A legacy profile
+# serializer must not implicitly authorize running the WinDivert product.
+if ($ProductProfileContract -ne 'driver' -and -not $DryRun) { throw 'PRODUCT_PROFILE_CONTRACT_PLANNING_ONLY: v4.0.0 requires -DryRun until its runtime lifecycle is implemented.' }
 
 if ([string]::IsNullOrWhiteSpace($EnvPath)) { $EnvPath = Join-Path $PSScriptRoot '.env' }
 if ([string]::IsNullOrWhiteSpace($CapabilitiesPath)) { $CapabilitiesPath = Join-Path $PSScriptRoot 'config/capabilities.json' }
@@ -45,8 +51,8 @@ if ([string]::IsNullOrWhiteSpace($MockFixtureRoot)) { $MockFixtureRoot = Join-Pa
 if ([string]::IsNullOrWhiteSpace($OutputRoot)) { $OutputRoot = Join-Path $PSScriptRoot 'evidence' }
 
 foreach ($module in @(
-    'Env','Config','ScenarioCatalog','ProfileAdapter','ProfileValidator','RulePlan','ProcessAdapter','ClientRunner','ProtocolWorker','ProtocolRunner',
-    'ProxyBridgeCli','HealthChecks','RuntimeEnvironment','DirectBaseline','ProxyBridgeEvidence','VpsEvidence','Assertions','MockRuntime','Report'
+    'Env','Config','ScenarioCatalog','ProfileAdapter','ProfileValidator','ProductProfile','ProductBuild','RulePlan','ProcessAdapter','ClientRunner','ProtocolWorker','ProtocolRunner',
+    'ProxyBridgeCli','HealthChecks','RuntimeEnvironment','InterceptionState','DirectBaseline','ProxyBridgeEvidence','VpsEvidence','Assertions','MockRuntime','Report'
 )) { Import-Module (Join-Path $PSScriptRoot "modules/$module.psm1") -Force }
 
 function New-ResultRecord {
@@ -125,8 +131,43 @@ function Stop-RunBeforeScenarios {
     throw "$Status`: $Reason"
 }
 
+function Save-InterceptionObservation {
+    param([Parameter(Mandatory)][string]$Path)
+    try { $snapshot = Get-InterceptionStateSnapshot -Environment $rawEnvironment -AllowProductRuntime }
+    catch {
+        $snapshot = [pscustomobject]@{status='BLOCKED';current_driver_preparation_allowed=$false;blocking_reasons=@('INTERCEPTION_OBSERVATION_FAILED');interception_cleanup_verified=$false;version_switch_ready=$false}
+    }
+    Write-RedactedJsonReport -Value $snapshot -Path $Path -Environment $buildReportEnvironment
+    return $snapshot
+}
+
 $initializeRealRuntime = {
 if ($runMode -eq 'real') {
+    if (-not (Test-Path -LiteralPath (Join-Path $PSScriptRoot 'bin/pb_console_host.exe') -PathType Leaf)) {
+        Stop-RunBeforeScenarios -Status 'FAIL_CONFIGURATION' -Reason 'CONSOLE_HOST_MISSING: run scripts/Build-ConsoleHost.ps1 before runtime.'
+    }
+    # Capture the core DLL as well as the executables before any preparation
+    # can start the GUI or modify the product's process state.
+    try { $productBuild = Get-ProductBuildIdentity -Environment $rawEnvironment -Contract $ProductProfileContract }
+    catch {
+        $productBuild = [pscustomobject]@{status='FILES_NOT_VERIFIED';files_verified=$false;reason=(Get-SafeExceptionMessage -ErrorRecord $_ -Environment $environment)}
+    }
+    # These public technical identifiers belong in the audit report. Keep all
+    # other environment values (including credentials and paths) redacted.
+    $buildReportEnvironment = [System.Collections.Generic.Dictionary[string, string]]::new([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($key in $environment.Keys) {
+        $publicHash = $key -match '^PB_EXPECTED_(PROXYBRIDGE_(CLI|EXE|CORE)|DRIVER|WINDIVERT_(DLL|DRIVER|CTL|OBSERVER_DLL))_SHA256$' -and $environment[$key] -match '^[a-fA-F0-9]{64}$'
+        $publicCommit = $key -eq 'PB_PROXYBRIDGE_SOURCE_COMMIT' -and $environment[$key] -match '^[a-fA-F0-9]{40}$'
+        if (-not $publicHash -and -not $publicCommit) { $buildReportEnvironment[$key] = $environment[$key] }
+    }
+    Write-RedactedJsonReport -Value $productBuild -Path (Join-Path $report.run_root 'product-build.json') -Environment $buildReportEnvironment
+    if (-not $productBuild.files_verified) {
+        Stop-RunBeforeScenarios -Status 'FAIL_CONFIGURATION' -Reason 'PRODUCT_BUILD_NOT_VERIFIED: inspect product-build.json; no product was started.'
+    }
+    $interceptionBefore = Save-InterceptionObservation -Path (Join-Path $report.run_root 'interception-before.json')
+    if (-not $interceptionBefore.current_driver_preparation_allowed) {
+        Stop-RunBeforeScenarios -Status 'FAIL_INFRASTRUCTURE' -Reason ($interceptionBefore.blocking_reasons -join ', ')
+    }
     try { $runtimeEnvironmentPlan = New-RuntimeEnvironmentPlan -Environment $rawEnvironment -RuntimeConfig $runtimeConfig }
     catch {
         $configurationFailure = [pscustomobject]@{prepared=$false;status='FAIL_CONFIGURATION';reason=(Get-SafeExceptionMessage -ErrorRecord $_ -Environment $environment);remediation='Replace example/private placeholders and use absolute verified paths before runtime.'}
@@ -192,6 +233,52 @@ foreach ($scenario in $scenarios) {
     })
 }
 if (-not $resumeReached) { throw 'RESUME_SCENARIO_NOT_FOUND' }
+$preparedProfiles = @{}
+if ($ProductProfileContract -ne 'driver' -or -not [string]::IsNullOrWhiteSpace($ReferenceProfileContract)) {
+    $compatibilityRecords = [System.Collections.Generic.List[object]]::new()
+    $profilesCompatible = $selectedCount -gt 0
+    foreach ($item in $decisions) {
+        if (-not $item.decision.selected) { continue }
+        $scenarioId = [string]$item.scenario.scenario_id
+        try {
+            $validation = Test-ExpectedProfileValidation -Scenario $item.scenario -Environment $environment -TemplatePath (Join-Path $PSScriptRoot 'templates/profile.pbprofile.template') -ProxyDestinationMode $ProxyDestinationMode
+            $preparedProfiles[$scenarioId] = $validation
+            $target = $null
+            $reference = $null
+            if ($validation.may_write) {
+                $target = Get-ProductProfileCompatibility -Profile $validation.profile -Contract $ProductProfileContract
+                if (-not [string]::IsNullOrWhiteSpace($ReferenceProfileContract)) {
+                    $reference = Get-ProductProfileCompatibility -Profile $validation.profile -Contract $ReferenceProfileContract
+                }
+            }
+            $compatible = [bool]$validation.passed -and $(if ($validation.may_write) {
+                $target.profile_compatible -and ($null -eq $reference -or $reference.profile_compatible)
+            } else { [string]::IsNullOrWhiteSpace($ReferenceProfileContract) })
+            if (-not $compatible) { $profilesCompatible = $false }
+            $compatibilityRecords.Add([pscustomobject]@{
+                scenario_id=$scenarioId; profile_compatible=$compatible
+                status=$(if (-not $validation.passed) { 'INVALID_PROFILE' } elseif (-not $validation.may_write) { 'NO_PRODUCT_PROFILE' } elseif ($compatible) { 'PROFILE_COMPATIBLE' } else { 'NOT_COMPARABLE' })
+                target=$target; reference=$reference; validation_errors=@($validation.errors)
+            })
+        }
+        catch {
+            $profilesCompatible = $false
+            $compatibilityRecords.Add([pscustomobject]@{
+                scenario_id=$scenarioId; profile_compatible=$false; status='PROFILE_PREPARATION_FAILED'
+                reason=(Get-SafeExceptionMessage -ErrorRecord $_ -Environment $environment)
+            })
+        }
+    }
+    Write-RedactedJsonReport -Value ([pscustomobject]@{
+        scope='profile-format-only'; product_profile_contract=$ProductProfileContract
+        reference_profile_contract=$ReferenceProfileContract; proxy_destination_mode=$ProxyDestinationMode
+        product_identity_verified=$false; route_verified=$false; reference_executed=$false
+        profile_compatible=$profilesCompatible
+        status=$(if ($selectedCount -eq 0) { 'NO_SELECTED_SCENARIOS' } elseif ($profilesCompatible) { 'PROFILE_COMPATIBLE' } else { 'NOT_COMPARABLE' })
+        scenarios=$compatibilityRecords.ToArray()
+    }) -Path (Join-Path $report.run_root 'profile-compatibility.json') -Environment $environment
+    if (-not $profilesCompatible) { Stop-RunBeforeScenarios -Status 'FAIL_CONFIGURATION' -Reason 'PRODUCT_PROFILE_NOT_COMPARABLE: inspect profile-compatibility.json; no product was started.' }
+}
 $cancellationRequested = -not [string]::IsNullOrWhiteSpace($CancellationPath) -and (Test-Path -LiteralPath $CancellationPath -PathType Leaf)
 if (-not $cancellationRequested) { . $initializeRealRuntime }
 
@@ -244,11 +331,15 @@ foreach ($item in $decisions) {
     $clientPlan = $null
     try {
         $resolvedScenario = Resolve-JsonVariables -InputObject $scenario -Variables $environment
-        $profileValidation = Test-ExpectedProfileValidation -Scenario $scenario -Environment $environment -TemplatePath (Join-Path $PSScriptRoot 'templates/profile.pbprofile.template')
+        $profileValidation = $(if ($preparedProfiles.ContainsKey([string]$scenario.scenario_id)) {
+            $preparedProfiles[[string]$scenario.scenario_id]
+        } else {
+            Test-ExpectedProfileValidation -Scenario $scenario -Environment $environment -TemplatePath (Join-Path $PSScriptRoot 'templates/profile.pbprofile.template') -ProxyDestinationMode $ProxyDestinationMode
+        })
         if (-not $profileValidation.passed) { throw "PROFILE_EXPECTATION_FAILED: $($profileValidation.errors -join ' | ')" }
         $profile = $profileValidation.profile
-        if ($profileValidation.may_write) { $writtenProfile = Write-ResolvedProfile -Profile $profile -ScenarioId $scenario.scenario_id -OutputDirectory $report.profile_root }
-        Write-RedactedJsonReport -Value ([pscustomobject]@{run_mode=$runMode;expectation=$profileValidation.expectation;passed=$profileValidation.passed;errors=@($profileValidation.errors);profile_written=($null -ne $writtenProfile)}) -Path (Join-Path $scenarioEvidence 'profile-validation.json') -Environment $environment
+        if ($profileValidation.may_write) { $writtenProfile = Write-ResolvedProfile -Profile $profile -ScenarioId $scenario.scenario_id -OutputDirectory $report.profile_root -ProductProfileContract $ProductProfileContract }
+        Write-RedactedJsonReport -Value ([pscustomobject]@{run_mode=$runMode;expectation=$profileValidation.expectation;passed=$profileValidation.passed;errors=@($profileValidation.errors);profile_written=($null -ne $writtenProfile);product_profile_contract=$ProductProfileContract;proxy_destination_mode=$ProxyDestinationMode}) -Path (Join-Path $scenarioEvidence 'profile-validation.json') -Environment $environment
     }
     catch {
         $profileFailures++
@@ -370,7 +461,8 @@ foreach ($item in $decisions) {
                 $readyStableMs = $(if ($environment.ContainsKey('PB_CLI_READY_STABLE_MS')) { [int]$environment['PB_CLI_READY_STABLE_MS'] } else { [int]$runtimeConfig.cli_readiness.stable_ms })
                 $readinessTimeoutMs = $(if ($environment.ContainsKey('PB_CLI_READINESS_TIMEOUT_MS')) { [int]$environment['PB_CLI_READINESS_TIMEOUT_MS'] } else { [int]$runtimeConfig.cli_readiness.readiness_timeout_ms })
                 $stopTimeoutMs = $(if ($environment.ContainsKey('PB_CLI_STOP_TIMEOUT_MS')) { [int]$environment['PB_CLI_STOP_TIMEOUT_MS'] } else { [int]$runtimeConfig.cli_readiness.stop_timeout_ms })
-                $cliPlan = New-ProxyBridgeCliPlan -ExecutablePath $environment['PB_PROXYBRIDGE_CLI_EXE'] -ProfilePath $writtenProfile.path -ReadyRegex $readyRegex -ReadyStableMs $readyStableMs -ReadinessTimeoutMs $readinessTimeoutMs -StopTimeoutMs $stopTimeoutMs -ActualPathTimeoutMs ([int]$runtimeConfig.cli_actual_path_timeout_ms)
+                $cliVariant = $(if ($environment.ContainsKey('PB_PROXYBRIDGE_CLI_VARIANT')) { [string]$environment['PB_PROXYBRIDGE_CLI_VARIANT'] } else { 'upstream' })
+                $cliPlan = New-ProxyBridgeCliPlan -ExecutablePath $environment['PB_PROXYBRIDGE_CLI_EXE'] -ProfilePath $writtenProfile.path -ProductProfileContract $ProductProfileContract -CliVariant $cliVariant -ReadyRegex $readyRegex -ReadyStableMs $readyStableMs -ReadinessTimeoutMs $readinessTimeoutMs -StopTimeoutMs $stopTimeoutMs -ActualPathTimeoutMs ([int]$runtimeConfig.cli_actual_path_timeout_ms)
                 Write-RedactedJsonReport -Value $cliPlan -Path (Join-Path $scenarioEvidence 'cli-plan.json') -Environment $environment
                 $clientAdapter = New-SystemProcessAdapter
                 $workload = $(if ($isProtocolScenario) {
@@ -384,7 +476,17 @@ foreach ($item in $decisions) {
                 $lifecycleStart = [datetime]::Parse([string]$lifecycle.started_at_utc).ToUniversalTime()
                 $lifecycleEnd = [datetime]::Parse([string]$lifecycle.completed_at_utc).ToUniversalTime()
                 $proxyBridgeLines = @(([string]$lifecycle.process_result.stdout) -split "`r?`n") + @(([string]$lifecycle.process_result.stderr) -split "`r?`n")
-                $proxyBridgeRecords = @(ConvertFrom-ProxyBridgeTextLines -Lines $proxyBridgeLines -DefaultTimestampUtc $lifecycleStart)
+                # Render terminal observations with pyte. Their deduplicated
+                # screen rows are advisory, not a complete source event log.
+                $plainLogCapture = $null -ne $lifecycle.process_result.PSObject.Properties['output_format'] -and [string]$lifecycle.process_result.output_format -eq 'separate-text-streams'
+                $terminalDecode = $null
+                $proxyBridgeRecords = @()
+                if ($plainLogCapture) { $proxyBridgeRecords = @(ConvertFrom-ProxyBridgeTextLines -Lines $proxyBridgeLines -DefaultTimestampUtc $lifecycleStart) }
+                elseif ([string]$lifecycle.process_result.output_format -eq 'terminal-vt-merged') {
+                    $terminalDecode = ConvertFrom-ProxyBridgeTerminalCapture -RawText ([string]$lifecycle.process_result.stdout) -EvidenceDirectory $scenarioEvidence -Environment $environment -DefaultTimestampUtc $lifecycleStart
+                    $proxyBridgeRecords = @($terminalDecode.records)
+                    Write-RedactedJsonReport -Value $terminalDecode -Path (Join-Path $scenarioEvidence 'proxybridge-terminal-decode.json') -Environment $environment
+                }
                 if ($isProtocolScenario) {
                     $vpsPlan = New-ProtocolServerCollectionPlan -Environment $environment -ExecutionPlan $clientPlan -Cursor $vpsCursor
                     Write-RedactedJsonReport -Value $vpsPlan -Path (Join-Path $scenarioEvidence 'vps-collection-plan.json') -Environment $environment
@@ -409,7 +511,10 @@ foreach ($item in $decisions) {
                 Write-RedactedJsonReport -Value $vpsRecords -Path (Join-Path $scenarioEvidence 'vps-evidence.json') -Environment $environment
                 $context = [pscustomobject]@{
                     vps_capture_complete=$vpsCaptureComplete;vps_capture_complete_shas=$vpsCompleteShas;server_capture_complete=$vpsCaptureComplete
-                    channel_capture_completed=$true;records_found=(@($proxyBridgeRecords).Count -gt 0)
+                    channel_capture_completed=([bool]$lifecycle.process_result.output_capture_complete -and $plainLogCapture);records_found=(@($proxyBridgeRecords).Count -gt 0)
+                    proxybridge_log_format=[string]$lifecycle.process_result.output_format
+                    proxybridge_source_event_stream_complete=$false
+                    proxybridge_log_decoder_status=$(if($plainLogCapture){'PLAIN_TEXT'}elseif($null -ne $terminalDecode){[string]$terminalDecode.status}else{'UNSUPPORTED_FORMAT'})
                     direct_egress_ip=[string]$directBaseline.direct_egress_ip;proxy_egress_ip=$ExpectedProxyEgressIpv4
                     expected_process=$(if($isProtocolScenario){[string]$clientPlan.expected_process}else{[System.IO.Path]::GetFileName($environment['PB_CLIENT_EXE'])});start_time_utc=$lifecycleStart;end_time_utc=$lifecycleEnd
                 }
@@ -424,7 +529,8 @@ foreach ($item in $decisions) {
             }
             catch {
                 $safe = Get-SafeExceptionMessage -ErrorRecord $_ -Environment $environment
-                if ($safe -match 'CLI_CLEANUP_FAILED|POST_STOP_VERIFICATION') { $status='CONTAMINATED' }
+                if ($safe -match 'CLI_CLEANUP_FAILED|POST_STOP_VERIFICATION|PROCESS_FORCE_STOP_TIMEOUT|CONSOLE_HOST_CHILD_STOP_TIMEOUT') { $status='CONTAMINATED';$stopRun=$true }
+                elseif ($safe -match 'CONSOLE_HOST') { $status='FAIL_INFRASTRUCTURE';$stopRun=$true }
                 elseif ($safe -match 'READINESS|ACTUAL_PATH|PATH_VERIFICATION|CLIENT_PRELAUNCH|START_FAILED|PROCESS_START') { $status='FAIL_INFRASTRUCTURE' }
                 elseif ($safe -match 'PROTOCOL_(PRELAUNCH|PATH_QUERY_TIMEOUT|PATH_VERIFICATION|SSH_|CURSOR_|SERVER_COLLECTION_|ENVIRONMENT_MISSING_)') { $status='FAIL_INFRASTRUCTURE' }
                 elseif ($safe -match 'VPS_(SSH_(COLLECTION_INCOMPLETE|TIMEOUT|FAILED|PROCESS_FAILED|HOST_INVALID|USER_INVALID|PORT_INVALID|EXECUTABLE_MISSING)|CURSOR_(TIMEOUT|FAILED|OUTPUT_INVALID|OFFSET_INVALID|INVALID))|VPS_ENVIRONMENT_MISSING_') { $status='FAIL_INFRASTRUCTURE' }
@@ -435,9 +541,13 @@ foreach ($item in $decisions) {
         }
 
         if ($runMode -eq 'real') {
+            $interceptionAfter = Save-InterceptionObservation -Path (Join-Path $scenarioEvidence 'interception-after.json')
+            if (-not $interceptionAfter.current_driver_preparation_allowed) {
+                $status='CONTAMINATED';$reason=($interceptionAfter.blocking_reasons -join ', ');$stopRun=$true
+            }
             $postCleanup = Test-RuntimeEnvironmentClean -Plan $runtimeEnvironmentPlan -Adapter $runtimeEnvironmentAdapter -AllowProductRuntime
             Write-RedactedJsonReport -Value $postCleanup -Path (Join-Path $scenarioEvidence 'post-run-cleanup.json') -Environment $environment
-            if (-not $postCleanup.passed) { $status='CONTAMINATED';$reason=[string]$postCleanup.reason }
+            if (-not $postCleanup.passed) { $status='CONTAMINATED';$reason=[string]$postCleanup.reason;$stopRun=$true }
         }
 
         $completeness = New-EvidenceCompletenessMatrix -ScenarioEvidenceRoot $scenarioEvidence -RunRoot $report.run_root -RunMode $runMode -AssertionResult $assertion -PostCleanup $postCleanup
@@ -449,6 +559,7 @@ foreach ($item in $decisions) {
         $attemptTimer.Stop()
         $record = New-ResultRecord -Scenario $scenario -Status $status -Reason $reason -Attempt $attempt -DurationMs $attemptTimer.ElapsedMilliseconds -Selected $true -ProfileSha256 $profileSha
         $records.Add($record); Add-ResultRecord -Report $report -Record $record -Environment $environment
+        if ($stopRun) { break }
         if ($runMode -eq 'real' -and $status -eq 'FAIL_PRODUCT') { $consecutiveProductFailures++ }
         elseif ($runMode -eq 'real') { $consecutiveProductFailures = 0 }
         if ($runMode -eq 'real' -and (Test-ShouldStopRun -Status $status -Suite $suite -ConsecutiveProductFailures $consecutiveProductFailures -Independent $scenario.independent)) { $stopRun=$true;break }

@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WindowsPerformanceRecorder Version="1.0" Author="ProxyBridge-TestLab">
+  <Profiles>
+    <SystemCollector Id="TestLabSystemCollector" Name="NT Kernel Logger">
+      <BufferSize Value="512" />
+      <Buffers Value="128" />
+      <MaximumFileSize Value="2048" FileMode="Sequential" />
+    </SystemCollector>
+    <SystemProvider Id="TestLabSystemProvider">
+      <Keywords>
+        <Keyword Value="ProcessThread" />
+        <Keyword Value="Loader" />
+        <Keyword Value="CpuConfig" />
+        <Keyword Value="CSwitch" />
+        <Keyword Value="ReadyThread" />
+        <Keyword Value="SampledProfile" />
+        <Keyword Value="DPC" />
+        <Keyword Value="Interrupt" />
+        <Keyword Value="NetworkTrace" />
+      </Keywords>
+      <Stacks>
+        <Stack Value="CSwitch" />
+        <Stack Value="ReadyThread" />
+        <Stack Value="SampledProfile" />
+      </Stacks>
+    </SystemProvider>
+    <Profile Id="TestLabTcpPull.Verbose.File" Name="TestLabTcpPull" Description="Bounded thread scheduling and kernel TCP metadata; no packet payload provider" LoggingMode="File" DetailLevel="Verbose">
+      <Collectors>
+        <SystemCollectorId Value="TestLabSystemCollector">
+          <SystemProviderId Value="TestLabSystemProvider" />
+        </SystemCollectorId>
+      </Collectors>
+    </Profile>
+    <Profile Id="TestLabTcpPull.Verbose.Memory" Name="TestLabTcpPull" Base="TestLabTcpPull.Verbose.File" Description="Thread scheduling and kernel TCP metadata" LoggingMode="Memory" DetailLevel="Verbose" />
+  </Profiles>
+</WindowsPerformanceRecorder>

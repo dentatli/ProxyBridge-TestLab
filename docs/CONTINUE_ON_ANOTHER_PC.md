@@ -1,5 +1,7 @@
 # Continue development on another Windows PC
 
+> The resume prompt below is historical. Start with [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) and repository AGENTS.md. Do not automatically resume Task 3a or its old TDD workflow.
+
 Clone https://github.com/dentatli/ProxyBridge-TestLab.git (or fast-forward an
 existing clean checkout). Open the repository root in Codex. Do not copy the
 previous machine's .env, SSH private keys, UI secret storage, runtime evidence,

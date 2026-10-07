@@ -1,4 +1,5 @@
 Set-StrictMode -Version Latest
+Import-Module (Join-Path $PSScriptRoot 'InterceptionState.psm1')
 
 function Get-RuntimeEnvironmentValue {
     param([System.Collections.Generic.IDictionary[string, string]]$Environment, [string]$Name)
@@ -63,9 +64,11 @@ function New-RuntimeEnvironmentPlan {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)][System.Collections.Generic.IDictionary[string, string]]$Environment,
-        [Parameter(Mandatory)]$RuntimeConfig
+        [Parameter(Mandatory)]$RuntimeConfig,
+        [switch]$ProductOnly
     )
 
+    if (-not $ProductOnly) {
     foreach ($name in @('PB_VM_IPV4', 'PB_VPS_IPV4')) { Assert-LiveIpv4Value -Name $name -Value (Get-RuntimeEnvironmentValue $Environment $name) }
     foreach ($name in @('PB_SOCKS_HOST', 'PB_SSH_HOST')) { Assert-LiveHostValue -Name $name -Value (Get-RuntimeEnvironmentValue $Environment $name) }
     foreach ($name in @('PB_ENDPOINT_A_PORT', 'PB_ENDPOINT_B_PORT', 'PB_SOCKS_PORT', 'PB_SSH_PORT')) { Assert-RuntimePort -Name $name -Value (Get-RuntimeEnvironmentValue $Environment $name) }
@@ -79,12 +82,14 @@ function New-RuntimeEnvironmentPlan {
         }
     }
 
+    }
     $binaryDefinitions = @(
-        @('client', 'PB_CLIENT_EXE', 'PB_EXPECTED_CLIENT_SHA256', ''),
-        @('proxybridge-gui', 'PB_PROXYBRIDGE_EXE', 'PB_EXPECTED_PROXYBRIDGE_EXE_SHA256', 'ProxyBridge.exe'),
         @('proxybridge-cli', 'PB_PROXYBRIDGE_CLI_EXE', 'PB_EXPECTED_PROXYBRIDGE_CLI_SHA256', 'ProxyBridge_CLI.exe'),
         @('driver', 'PB_DRIVER_PATH', 'PB_EXPECTED_DRIVER_SHA256', '')
     )
+    if (-not $ProductOnly) { $binaryDefinitions += ,@('client', 'PB_CLIENT_EXE', 'PB_EXPECTED_CLIENT_SHA256', '') }
+    $hasGui = $Environment.ContainsKey('PB_PROXYBRIDGE_EXE') -and -not [string]::IsNullOrWhiteSpace([string]$Environment['PB_PROXYBRIDGE_EXE'])
+    if ($hasGui) { $binaryDefinitions += ,@('proxybridge-gui', 'PB_PROXYBRIDGE_EXE', 'PB_EXPECTED_PROXYBRIDGE_EXE_SHA256', 'ProxyBridge.exe') }
     $optionalProtocolDefinitions = @(
         @('protocol-python', 'PB_PROTOCOL_PYTHON_EXE', 'PB_EXPECTED_PROTOCOL_PYTHON_SHA256', ''),
         @('protocol-worker', 'PB_PROTOCOL_WORKER_ENTRYPOINT', 'PB_EXPECTED_PROTOCOL_WORKER_SHA256', ''),
@@ -114,22 +119,34 @@ function New-RuntimeEnvironmentPlan {
             configured_path=$configuredPath; expected_sha256=$expectedHash.ToLowerInvariant(); process_name=$definition[3]
         })
     }
+    if (-not $ProductOnly) {
     foreach ($absolutePathKey in @('PB_EVIDENCE_ROOT', 'PB_SSH_KEY')) {
         $absolutePath = Get-RuntimeEnvironmentValue $Environment $absolutePathKey
         if (-not [System.IO.Path]::IsPathRooted($absolutePath)) { throw "FAIL_CONFIGURATION: RUNTIME_PATH_NOT_ABSOLUTE_$absolutePathKey" }
     }
     $null = Get-RuntimeEnvironmentValue $Environment 'PB_SSH_USER'
     $null = Get-RuntimeEnvironmentValue $Environment 'PB_VPS_SERVER_LOG'
+    }
     $serviceName = Get-RuntimeEnvironmentValue $Environment 'PB_PROXYBRIDGE_SERVICE'
+    $targets = @($binaries | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.process_name) })
+    if (-not $hasGui) {
+        if ($serviceName -cne 'ProxyBridgeDrv') { throw 'FAIL_CONFIGURATION: HEADLESS_DRIVER_SERVICE_NAME_INVALID' }
+        $cliDirectory = Split-Path -Parent (Get-RuntimeEnvironmentValue $Environment 'PB_PROXYBRIDGE_CLI_EXE')
+        if (-not (Test-EquivalentRuntimePath (Join-Path $cliDirectory 'ProxyBridgeDrv.sys') (Get-RuntimeEnvironmentValue $Environment 'PB_DRIVER_PATH'))) { throw 'FAIL_CONFIGURATION: HEADLESS_DRIVER_NOT_BESIDE_CLI' }
+        # An unconfigured GUI is still a conflict; never omit it from observation.
+        $targets += [pscustomobject]@{process_name='ProxyBridge.exe';configured_path=''}
+    }
 
     return [pscustomobject][ordered]@{
         schema_version=1; action='prepare-configured-proxybridge-runtime'; binaries=$binaries.ToArray()
-        process_targets=@($binaries | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.process_name) })
+        purpose=$(if ($ProductOnly) { 'product-lifecycle-only' } else { 'traffic-run' })
+        process_targets=$targets
         service_name=$serviceName
+        service_bootstrap=$(if ($hasGui) { 'gui' } else { 'driver-service' })
         stop_timeout_ms=[int]$RuntimeConfig.cli_readiness.stop_timeout_ms
         service_start_timeout_ms=[int]$RuntimeConfig.environment_preparation.service_start_timeout_ms
         poll_interval_ms=[int]$RuntimeConfig.environment_preparation.poll_interval_ms
-        allowed_mutations=@('stop exact configured ProxyBridge GUI/CLI process', 'start verified configured GUI only when service is Stopped')
+        allowed_mutations=@('stop exact configured ProxyBridge GUI/CLI process', $(if ($hasGui) { 'start verified configured GUI only when service is Stopped' } else { 'start existing verified ProxyBridgeDrv service only when Stopped' }))
         forbidden_mutations=@('install or remove service/driver', 'change firewall', 'run installer or signing scripts')
     }
 }
@@ -145,6 +162,10 @@ function New-RuntimePreparationFailure {
 
 function New-SystemRuntimeEnvironmentAdapter {
     [CmdletBinding()]param()
+    if (-not ('System.ServiceProcess.ServiceController' -as [type])) {
+        $assembly = $(if ($PSVersionTable.PSVersion.Major -ge 6) { 'System.ServiceProcess.ServiceController' } else { 'System.ServiceProcess' })
+        Add-Type -AssemblyName $assembly
+    }
     $adapter = [pscustomobject]@{ is_mock=$false }
     $adapter | Add-Member -NotePropertyName FileExists -NotePropertyValue { param($path) Test-Path -LiteralPath $path -PathType Leaf }
     $adapter | Add-Member -NotePropertyName FileHash -NotePropertyValue { param($path) (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant() }
@@ -178,9 +199,29 @@ function New-SystemRuntimeEnvironmentAdapter {
     }
     $adapter | Add-Member -NotePropertyName GetServiceState -NotePropertyValue {
         param($name)
-        $service = Get-Service -Name $name -ErrorAction SilentlyContinue
-        if ($null -eq $service) { return [pscustomobject]@{exists=$false;state='MISSING'} }
-        return [pscustomobject]@{exists=$true;state=[string]$service.Status}
+        return Get-WfpServiceState -Name ([string]$name) -AllowProductRuntime
+    }
+    $adapter | Add-Member -NotePropertyName StartDriverService -NotePropertyValue {
+        param($plan)
+        $driver = @($plan.binaries | Where-Object { $_.id -eq 'driver' }) | Select-Object -First 1
+        if ($null -eq $driver -or [string]$plan.service_name -cne 'ProxyBridgeDrv') { throw 'HEADLESS_DRIVER_CONFIGURATION_INVALID' }
+        $observationEnvironment = [Collections.Generic.Dictionary[string,string]]::new([StringComparer]::OrdinalIgnoreCase)
+        $observationEnvironment['PB_PROXYBRIDGE_SERVICE'] = [string]$plan.service_name
+        $observationEnvironment['PB_DRIVER_PATH'] = [string]$driver.configured_path
+        $observationEnvironment['PB_EXPECTED_DRIVER_SHA256'] = [string]$driver.expected_sha256
+        $observation = Get-InterceptionStateSnapshot -Environment $observationEnvironment -AllowProductRuntime
+        if (-not $observation.current_driver_preparation_allowed) { throw 'HEADLESS_DRIVER_STATE_NOT_VERIFIED' }
+        $controller = [ServiceProcess.ServiceController]::new([string]$plan.service_name)
+        try {
+            if (($controller.ServiceType -band [ServiceProcess.ServiceType]::KernelDriver) -eq 0) { throw 'HEADLESS_SERVICE_IS_NOT_KERNEL_DRIVER' }
+            if ($controller.Status -eq [ServiceProcess.ServiceControllerStatus]::Stopped) { $controller.Start() }
+            elseif ($controller.Status -ne [ServiceProcess.ServiceControllerStatus]::Running) { throw 'HEADLESS_DRIVER_STATE_UNSETTLED' }
+        } catch {
+            $native = $_.Exception
+            while ($null -ne $native.InnerException) { $native = $native.InnerException }
+            if ($native -is [ComponentModel.Win32Exception]) { throw "HEADLESS_DRIVER_START_NATIVE_ERROR_$($native.NativeErrorCode)" }
+            throw
+        } finally { $controller.Dispose() }
     }
     $adapter | Add-Member -NotePropertyName StartGui -NotePropertyValue {
         param($path)
@@ -262,14 +303,17 @@ function Test-RuntimeEnvironmentClean {
     $service=& $Adapter.GetServiceState ([string]$Plan.service_name)
     $passed=($processes.Count -eq 0 -and [bool]$service.exists -and [string]$service.state -eq 'Running')
     $reason=$(if($processes.Count -gt 0){'ProxyBridge GUI/CLI process remains active'}elseif(-not [bool]$service.exists){'configured driver service is missing'}elseif([string]$service.state -ne 'Running'){"configured driver service state is $($service.state)"}else{'GUI/CLI absent and service Running'})
-    return [pscustomobject][ordered]@{passed=$passed;status=$(if($passed){'PASS_CLEAN'}else{'CONTAMINATED'});reason=$reason;remediation=$(if($passed){''}else{'Close only the configured ProxyBridge GUI/CLI binaries and verify the configured service is Running.'});processes=@($processes);service=$service}
+    return [pscustomobject][ordered]@{passed=$passed;status=$(if($passed){'PASS_CLEAN'}else{'CONTAMINATED'});scope='process-absence-and-service-state';interception_cleanup_verified=$false;version_switch_ready=$false;reason=$reason;remediation=$(if($passed){''}else{'Close only the configured ProxyBridge GUI/CLI binaries and verify the configured service is Running.'});processes=@($processes);service=$service}
 }
 
 function Invoke-RuntimeEnvironmentPreparation {
     [CmdletBinding()]
     param([Parameter(Mandatory)]$Plan,[Parameter(Mandatory)]$Adapter,[switch]$AllowProductRuntime)
     if (-not [bool]$Adapter.is_mock -and -not $AllowProductRuntime) { throw 'RUNTIME_ENVIRONMENT_ACTION_NOT_ALLOWED' }
-    foreach($member in @('FileExists','FileHash','GetProcesses','StopProcess','KillProcess','IsRunning','GetServiceState','StartGui','Sleep')){if($null -eq $Adapter.PSObject.Properties[$member]){throw "RUNTIME_ENVIRONMENT_ADAPTER_MISSING_$($member.ToUpperInvariant())"}}
+    $headless = $null -ne $Plan.PSObject.Properties['service_bootstrap'] -and [string]$Plan.service_bootstrap -eq 'driver-service'
+    $members = @('FileExists','FileHash','GetProcesses','StopProcess','KillProcess','IsRunning','GetServiceState','Sleep')
+    $members += $(if ($headless) { 'StartDriverService' } else { 'StartGui' })
+    foreach($member in $members){if($null -eq $Adapter.PSObject.Properties[$member]){throw "RUNTIME_ENVIRONMENT_ADAPTER_MISSING_$($member.ToUpperInvariant())"}}
     $validation=[System.Collections.Generic.List[object]]::new();$transitions=[System.Collections.Generic.List[object]]::new()
     $cleanup=[pscustomobject]@{attempted=$false;graceful=$false;forced=$false;verified=$false}
     $serviceBefore=$null;$serviceAfter=$null
@@ -300,6 +344,23 @@ function Invoke-RuntimeEnvironmentPreparation {
     $serviceBefore=& $Adapter.GetServiceState ([string]$Plan.service_name)
     if(-not [bool]$serviceBefore.exists){return New-RuntimePreparationFailure 'configured driver service is missing' 'Install/repair the product outside this harness, then retry.' $transitions $cleanup $validation $serviceBefore $serviceAfter}
     if([string]$serviceBefore.state -eq 'Running'){$transitions.Add([pscustomobject]@{event='SERVICE_ALREADY_RUNNING';state='Running'})}
+    elseif([string]$serviceBefore.state -eq 'Stopped' -and $headless){
+        try {
+            & $Adapter.StartDriverService $Plan
+            $watch = [Diagnostics.Stopwatch]::StartNew()
+            $becameRunning = $false
+            while ($watch.ElapsedMilliseconds -lt [int]$Plan.service_start_timeout_ms) {
+                $observed = & $Adapter.GetServiceState ([string]$Plan.service_name)
+                if ([bool]$observed.exists -and [string]$observed.state -eq 'Running') { $becameRunning=$true; break }
+                & $Adapter.Sleep ([int]$Plan.poll_interval_ms)
+            }
+            if (-not $becameRunning) { throw 'HEADLESS_DRIVER_START_TIMEOUT' }
+            $transitions.Add([pscustomobject]@{event='VERIFIED_DRIVER_SERVICE_STARTED';state='Running'})
+        } catch {
+            $transitions.Add([pscustomobject]@{event='HEADLESS_DRIVER_START_ERROR';reason=$_.Exception.Message})
+            return New-RuntimePreparationFailure 'HEADLESS_DRIVER_START_FAILED' 'Verify elevation and the registered driver path/signature; no GUI or installer was started.' $transitions $cleanup $validation $serviceBefore $serviceAfter
+        }
+    }
     elseif([string]$serviceBefore.state -eq 'Stopped'){
         $guiTarget=@($targets|Where-Object{[string]$_.process_name -ieq 'ProxyBridge.exe'})|Select-Object -First 1;$bootstrap=$null;$becameRunning=$false
         try{

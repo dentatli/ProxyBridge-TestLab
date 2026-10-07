@@ -22,6 +22,7 @@ results/
 # Build output
 bin/
 obj/
+*.obj
 
 # Editors
 __pycache__/

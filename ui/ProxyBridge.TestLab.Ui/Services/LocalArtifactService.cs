@@ -155,6 +155,10 @@ public sealed class LocalArtifactService(
         AddVerifiedArtifact(snapshot, "local_product.cli_path", "PB_PROXYBRIDGE_CLI_EXE", "PB_EXPECTED_PROXYBRIDGE_CLI_SHA256", values);
         AddVerifiedArtifact(snapshot, "local_product.driver_path", "PB_DRIVER_PATH", "PB_EXPECTED_DRIVER_SHA256", values);
 
+        var corePath = Path.Combine(Path.GetDirectoryName(values["PB_PROXYBRIDGE_CLI_EXE"])!, "ProxyBridgeCore.dll");
+        if (!File.Exists(corePath)) throw new InvalidOperationException("PROXYBRIDGE_CORE_NOT_FOUND");
+        values["PB_EXPECTED_PROXYBRIDGE_CORE_SHA256"] = ComputeSha256(corePath);
+
         if (!File.Exists(ClientExecutablePath)) throw new InvalidOperationException("AUTOMATIC_CLIENT_NOT_FOUND");
         values["PB_CLIENT_EXE"] = Path.GetFullPath(ClientExecutablePath);
         values["PB_EXPECTED_CLIENT_SHA256"] = ComputeSha256(ClientExecutablePath);

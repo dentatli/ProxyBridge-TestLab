@@ -1,5 +1,7 @@
 # ProxyBridge-TestLab full development plan
 
+> Historical plan. Current direction and development rules: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md), updated 2026-09-28. Old acceptance results remain historical.
+
 Status: approved for implementation  
 Plan version: 1.0  
 User-facing language: English

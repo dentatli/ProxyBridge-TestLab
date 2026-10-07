@@ -1,5 +1,9 @@
 # ProxyBridge-TestLab
 
+Development direction (2026-09-28): see [current plan](docs/DEVELOPMENT_PLAN.md).
+Local/remote proxy selection and the simplified benchmark flow are planned changes;
+the runtime documentation below describes the existing implementation.
+
 Independent deterministic test and evidence-collection framework for
 [ProxyBridge](https://github.com/InterceptSuite/ProxyBridge).
 

@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "method": "controlled-workload-v1",
+  "durations": {
+    "SHORT": { "transfer_seconds": 8, "rtt_low_echoes": 128, "rtt_high_echoes": 256 },
+    "NORMAL": { "transfer_seconds": 32, "rtt_low_echoes": 1500, "rtt_high_echoes": 3000 },
+    "LONG": { "transfer_seconds": 120, "rtt_low_echoes": 6000, "rtt_high_echoes": 12000 }
+  },
+  "loads": {
+    "LOW": { "rate_limit_bytes_per_s": 8388608, "pause_ms": 20 },
+    "HIGH": { "rate_limit_bytes_per_s": 67108864, "pause_ms": 10 }
+  },
+  "rtt_warmup_count": 1000,
+  "rtt_message_bytes": 512,
+  "connections": 1,
+  "native_timeout_ms": 600000
+}

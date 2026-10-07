@@ -60,10 +60,19 @@ typedef struct CONFIG {
     unsigned long payload_size;
     int payload_size_explicit;
     unsigned int stream_count;
+    unsigned int benchmark_streams;
+    unsigned int benchmark_stream_index;
+    unsigned int benchmark_warmup_count;
+    unsigned short benchmark_alternate_port;
+    unsigned int benchmark_message_size;
+    int tcp_rtt;
     unsigned int parallel_count;
     unsigned int process_index;
     unsigned int reconnect_count;
     DWORD stream_interval_ms;
+    char benchmark_relay_ip[INET6_ADDRSTRLEN];
+    unsigned short benchmark_relay_port;
+    int benchmark_exact_source;
     char test_id[MAX_TEXT];
     char run_id[MAX_TEXT];
     char jsonl_log[MAX_PATH_TEXT];
@@ -97,6 +106,13 @@ typedef struct FLOW_RECORD {
     char payload_sha256[SHA256_HEX];
     char response_sha256[SHA256_HEX];
     ULONGLONG timing_ms;
+    const char *response_source_class;
+    int accepted_for_performance;
+    double udp_send_qpc_ms;
+    double udp_receive_qpc_ms;
+    double tcp_send_qpc_ms;
+    double tcp_receive_qpc_ms;
+    int tcp_nodelay;
     const char *expected_result;
     char actual_result[MAX_TEXT];
 } FLOW_RECORD;
@@ -165,6 +181,9 @@ static void usage(const char *program)
         "--tcp-peer-policy exact|record-only --expected-action DIRECT|PROXY|BLOCK "
         "--expect echo|no-echo --timeout-ms 3000 --payload-size BYTES "
         "--stream-count 1..64 --stream-interval-ms MS "
+        "--benchmark-relay-ip IP --benchmark-relay-port PORT "
+        "--benchmark-source-policy exact --benchmark-streams 1..4 "
+        "--benchmark-warmup-count 0..1000 --benchmark-alternate-port PORT "
         "--parallel-count 1..32 "
         "--process-index 1..32 "
         "--reconnect-count 1..32 "
@@ -265,6 +284,8 @@ static int parse_arguments(int argc, char **argv, CONFIG *config)
     config->bind_retry_count = 10;
     config->bind_retry_delay_ms = 50;
     config->stream_count = 1;
+    config->benchmark_streams = 1;
+    config->benchmark_stream_index = 1;
     config->parallel_count = 1;
     config->reconnect_count = 1;
 
@@ -359,8 +380,31 @@ static int parse_arguments(int argc, char **argv, CONFIG *config)
             config->payload_size = number;
             config->payload_size_explicit = 1;
         } else if (strcmp(name, "--stream-count") == 0) {
-            if (!parse_ulong(value, 1, 64, &number)) return 0;
+            if (!parse_ulong(value, 1, 20000, &number)) return 0;
             config->stream_count = (unsigned int)number;
+        } else if (strcmp(name, "--benchmark-streams") == 0) {
+            if (!parse_ulong(value, 1, 4, &number)) return 0;
+            config->benchmark_streams = (unsigned int)number;
+        } else if (strcmp(name, "--benchmark-alternate-port") == 0) {
+            if (!parse_ulong(value, 1, 65535, &number)) return 0;
+            config->benchmark_alternate_port = (unsigned short)number;
+        } else if (strcmp(name, "--benchmark-warmup-count") == 0) {
+            if (!parse_ulong(value, 0, 1000, &number)) return 0;
+            config->benchmark_warmup_count = (unsigned int)number;
+        } else if (strcmp(name, "--tcp-rtt") == 0) {
+            if (strcmp(value, "1") != 0) return 0;
+            config->tcp_rtt = 1;
+        } else if (strcmp(name, "--benchmark-message-size") == 0) {
+            if (!parse_ulong(value, 256, 1200, &number)) return 0;
+            config->benchmark_message_size = (unsigned int)number;
+        } else if (strcmp(name, "--benchmark-relay-ip") == 0) {
+            if (!copy_text(config->benchmark_relay_ip, sizeof(config->benchmark_relay_ip), value)) return 0;
+        } else if (strcmp(name, "--benchmark-relay-port") == 0) {
+            if (!parse_ulong(value, 1, 65535, &number)) return 0;
+            config->benchmark_relay_port = (unsigned short)number;
+        } else if (strcmp(name, "--benchmark-source-policy") == 0) {
+            if (strcmp(value, "exact") != 0) return 0;
+            config->benchmark_exact_source = 1;
         } else if (strcmp(name, "--parallel-count") == 0) {
             if (!parse_ulong(value, 1, MAX_PARALLEL, &number)) return 0;
             config->parallel_count = (unsigned int)number;
@@ -404,8 +448,39 @@ static int parse_arguments(int argc, char **argv, CONFIG *config)
     if (config->mode == MODE_SINGLE && config->protocol == PROTO_NONE) return 0;
     if (config->mode == MODE_SINGLE && config->protocol == PROTO_UDP &&
         config->payload_size_explicit && config->payload_size > MAX_UDP_PAYLOAD) return 0;
+    if (config->benchmark_alternate_port &&
+        (config->benchmark_streams != 2 || config->benchmark_alternate_port == config->udp_remote_port)) return 0;
+    if (config->benchmark_streams > 1 &&
+        (!(config->benchmark_exact_source || config->benchmark_relay_port) ||
+         config->local_port != 0 || config->benchmark_warmup_count >= config->stream_count)) return 0;
     if (config->stream_count > 1 &&
-        (config->mode != MODE_SINGLE || !config->payload_size_explicit)) return 0;
+        (config->mode != MODE_SINGLE ||
+         (!config->payload_size_explicit && !config->benchmark_relay_port && !config->benchmark_exact_source && !config->tcp_rtt))) return 0;
+    if ((config->benchmark_relay_ip[0] != 0) != (config->benchmark_relay_port != 0)) return 0;
+    if (config->benchmark_exact_source && config->benchmark_relay_port) return 0;
+    if ((config->stream_count > 64 || config->benchmark_message_size) &&
+        !config->benchmark_exact_source && !config->benchmark_relay_port && !config->tcp_rtt) return 0;
+    if (config->tcp_rtt &&
+        (config->mode != MODE_SINGLE || config->protocol != PROTO_TCP ||
+         config->family != AF_INET || config->stream_count < 2 ||
+         config->benchmark_streams != 1 || config->parallel_count != 1 ||
+         config->reconnect_count != 1 || config->process_index ||
+         config->payload_size_explicit || !config->benchmark_message_size ||
+         config->endpoint_behavior[0] || config->expect != EXPECT_ECHO ||
+         config->expected_action == ACTION_BLOCK || config->benchmark_relay_port ||
+         config->benchmark_exact_source || config->local_port != 0 || config->remote_host[0] ||
+         strcmp(config->remote_ip, "127.0.0.1") != 0)) return 0;
+    if ((config->benchmark_relay_port || config->benchmark_exact_source) &&
+        (config->mode != MODE_SINGLE || config->protocol != PROTO_UDP ||
+         config->family != AF_INET || config->udp_mode != UDP_CONNECTED ||
+         config->stream_count < 2 || config->payload_size_explicit ||
+         config->parallel_count != 1 || config->reconnect_count != 1 ||
+         config->process_index || config->endpoint_behavior[0] ||
+         config->expected_action != (config->benchmark_exact_source ? ACTION_DIRECT : ACTION_PROXY) || config->expect != EXPECT_ECHO ||
+         (config->benchmark_relay_port && strcmp(config->benchmark_relay_ip, "127.0.0.1") != 0) ||
+         strcmp(config->remote_ip, "127.0.0.1") != 0 ||
+         config->remote_host[0] || config->second_remote_port != config->udp_remote_port ||
+         (config->second_remote_ip[0] && strcmp(config->second_remote_ip, config->remote_ip) != 0))) return 0;
     if (config->parallel_count > 1 &&
         (config->mode != MODE_SINGLE || config->stream_count > 1 ||
          config->local_port != 0)) return 0;
@@ -615,6 +690,7 @@ static int write_record(FILE *file, const FLOW_RECORD *record)
     json_pair(file, "mode", mode_name(record->config->mode));
     fprintf(file, ",\"process_id\":%lu", (unsigned long)GetCurrentProcessId());
     fprintf(file, ",\"sequence\":%d,", record->sequence);
+    fprintf(file, "\"benchmark_stream_index\":%u,", record->config->benchmark_stream_index);
     json_pair(file, "phase", record->phase); fputc(',', file);
     json_pair(file, "expected_action", expected_action_name(record->expected_action)); fputc(',', file);
     json_pair(file, "expect", expect_name(record->expect)); fputc(',', file);
@@ -643,7 +719,15 @@ static int write_record(FILE *file, const FLOW_RECORD *record)
     fprintf(file, "\"response_order\":%d,", record->response_order);
     json_pair(file, "payload_sha256", record->payload_sha256); fputc(',', file);
     json_pair(file, "response_sha256", record->response_sha256);
+    fputc(',', file);
+    json_pair(file, "response_source_class", record->response_source_class);
+    fprintf(file, ",\"accepted_for_performance\":%s,\"udp_send_qpc_ms\":%.6f,\"udp_receive_qpc_ms\":%.6f",
+        record->accepted_for_performance ? "true" : "false",
+        record->udp_send_qpc_ms, record->udp_receive_qpc_ms);
     fprintf(file, ",\"timing_ms\":%llu,", (unsigned long long)record->timing_ms);
+    fprintf(file, "\"tcp_send_qpc_ms\":%.6f,\"tcp_receive_qpc_ms\":%.6f,\"tcp_nodelay\":%s,",
+        record->tcp_send_qpc_ms, record->tcp_receive_qpc_ms,
+        record->tcp_nodelay ? "true" : "false");
     json_pair(file, "expected_result", record->expected_result); fputc(',', file);
     json_pair(file, "actual_result", record->actual_result);
     fputs("}\n", file);
@@ -856,6 +940,7 @@ static void initialize_record(FLOW_RECORD *record, const CONFIG *config,
     record->udp_mode = protocol == PROTO_UDP ?
         (config->udp_mode == UDP_CONNECTED ? "connected" : "unconnected") : "n/a";
     record->close_mode = "none";
+    record->response_source_class = "NOT_OBSERVED";
     copy_text(record->requested_local_ip, sizeof(record->requested_local_ip), config->local_ip);
     record->requested_local_port = local_port;
     copy_text(record->requested_remote_ip, sizeof(record->requested_remote_ip), remote_ip);
@@ -866,6 +951,67 @@ static void initialize_record(FLOW_RECORD *record, const CONFIG *config,
     record->requested_remote_port = remote_port;
     record->expected_result = expect_name(expect);
     copy_text(record->actual_result, sizeof(record->actual_result), "fail:not_started");
+}
+
+static double qpc_ms(void)
+{
+    LARGE_INTEGER ticks, frequency;
+    if (!QueryPerformanceCounter(&ticks) || !QueryPerformanceFrequency(&frequency)) return 0.0;
+    return (double)ticks.QuadPart * 1000.0 / (double)frequency.QuadPart;
+}
+
+/* A controller must independently verify ownership of the supplied relay.
+ * This only permits collection to continue; the strict source error remains. */
+static int check_udp_source(FLOW_RECORD *record, const SOCKADDR_STORAGE *remote,
+    const SOCKADDR_STORAGE *source, const unsigned char *response)
+{
+    int parsed = endpoint_parts(source, record->actual_remote_ip,
+        sizeof(record->actual_remote_ip), &record->actual_remote_port);
+    if (parsed && endpoints_equal(remote, source)) {
+        record->response_source_class = "ORIGINAL_ENDPOINT";
+        return 1;
+    }
+    if (parsed && record->config->benchmark_relay_port &&
+        record->actual_remote_port == record->config->benchmark_relay_port &&
+        strcmp(record->actual_remote_ip, record->config->benchmark_relay_ip) == 0) {
+        record->response_source_class = "OWNED_RELAY";
+        return 1;
+    }
+    record->response_source_class = "UNEXPECTED";
+    if (!sha256_bytes(response, (ULONG)record->bytes_received, record->response_sha256))
+        record->response_sha256[0] = '\0';
+    record->wsa_error = WSAEINVAL;
+    copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_response_source");
+    return 0;
+}
+
+static int start_tcp_rtt(SOCKET socket_handle, FLOW_RECORD *record)
+{
+    int value = 1;
+    int length = sizeof(value);
+    if (!record->config->tcp_rtt) return 1;
+    if (setsockopt(socket_handle, IPPROTO_TCP, TCP_NODELAY,
+            (const char *)&value, sizeof(value)) == SOCKET_ERROR ||
+        getsockopt(socket_handle, IPPROTO_TCP, TCP_NODELAY,
+            (char *)&value, &length) == SOCKET_ERROR || value != 1) {
+        record->wsa_error = WSAGetLastError();
+        if (!record->wsa_error) record->wsa_error = WSAEINVAL;
+        copy_text(record->actual_result, sizeof(record->actual_result), "fail:tcp_nodelay");
+        return 0;
+    }
+    record->tcp_nodelay = 1;
+    record->tcp_send_qpc_ms = qpc_ms();
+    return record->tcp_send_qpc_ms > 0;
+}
+
+static void mark_valid_response(FLOW_RECORD *record)
+{
+    record->accepted_for_performance = record->config->benchmark_relay_port != 0 || record->config->benchmark_exact_source;
+    record->wsa_error = 0;
+    if (strcmp(record->response_source_class, "OWNED_RELAY") == 0) {
+        record->wsa_error = WSAEINVAL;
+        copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_response_source");
+    } else copy_text(record->actual_result, sizeof(record->actual_result), "pass");
 }
 
 static int build_payload(const CONFIG *config, int sequence, const char *phase,
@@ -884,6 +1030,11 @@ static int build_payload(const CONFIG *config, int sequence, const char *phase,
     *payload_length = snprintf((char *)payload, MAX_PAYLOAD,
         "PB_NET|test_id=%s|run_id=%s|sequence=%d|phase=%s|protocol=%s\n",
         config->test_id, config->run_id, sequence, phase, protocol_name(protocol));
+    if (config->benchmark_message_size) {
+        if (*payload_length <= 0 || (unsigned int)*payload_length > config->benchmark_message_size) return 0;
+        memset(payload + *payload_length, 'X', config->benchmark_message_size - (unsigned int)*payload_length);
+        *payload_length = (int)config->benchmark_message_size;
+    }
     return *payload_length > 0 && *payload_length < MAX_PAYLOAD;
 }
 
@@ -982,7 +1133,8 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:tcp_peer_mismatch");
             goto done;
         }
-        if (config->payload_size_explicit) {
+        if (!start_tcp_rtt(socket_handle, record)) goto done;
+        if (config->payload_size_explicit || config->tcp_rtt) {
             result = send_tcp_frame_header(socket_handle, config, payload_length,
                 &record->wsa_error);
             if (result == SOCKET_ERROR) {
@@ -1007,6 +1159,7 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
         }
         record->bytes_sent = result;
         result = recv_exact(socket_handle, (char *)response, payload_length, &record->wsa_error);
+        if (config->tcp_rtt) record->tcp_receive_qpc_ms = qpc_ms();
         if (result == SOCKET_ERROR) {
             if (expect == EXPECT_NO_ECHO) {
                 copy_text(record->actual_result, sizeof(record->actual_result), "pass:no_echo_observed");
@@ -1039,6 +1192,7 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
                 goto done;
             }
         }
+        record->udp_send_qpc_ms = qpc_ms();
         result = config->udp_mode == UDP_CONNECTED ?
             send(socket_handle, (const char *)wire_payload, wire_length, 0) :
             sendto(socket_handle, (const char *)wire_payload, wire_length, 0,
@@ -1058,6 +1212,7 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
         memset(&response_source, 0, sizeof(response_source));
         result = recvfrom(socket_handle, (char *)response, MAX_PAYLOAD, 0,
             (struct sockaddr *)&response_source, &response_source_length);
+        record->udp_receive_qpc_ms = qpc_ms();
         if (result == SOCKET_ERROR) {
             record->wsa_error = WSAGetLastError();
             if (expect == EXPECT_NO_ECHO) {
@@ -1070,12 +1225,7 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
         }
         record->bytes_received = result;
         record->response_count = 1;
-        if (!endpoint_parts(&response_source, record->actual_remote_ip,
-                sizeof(record->actual_remote_ip), &record->actual_remote_port) ||
-            !endpoints_equal(&remote, &response_source)) {
-            record->wsa_error = WSAEINVAL;
-            copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_response_source"); goto done;
-        }
+        if (!check_udp_source(record, &remote, &response_source, response)) goto done;
         if (_stricmp(config->endpoint_behavior, "duplicate") == 0) {
             int duplicate_result;
             response_source_length = sizeof(response_source);
@@ -1148,8 +1298,7 @@ static int perform_flow(const CONFIG *config, int sequence, const char *phase,
             }
         }
     }
-    record->wsa_error = 0;
-    copy_text(record->actual_result, sizeof(record->actual_result), "pass");
+    mark_valid_response(record);
     success = 1;
 done:
     record->timing_ms = GetTickCount64() - started;
@@ -1559,7 +1708,8 @@ static int perform_existing_socket_flow(const CONFIG *config, SOCKET socket_hand
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:tcp_peer_mismatch");
             goto done;
         }
-        if (config->payload_size_explicit) {
+        if (!start_tcp_rtt(socket_handle, record)) goto done;
+        if (config->payload_size_explicit || config->tcp_rtt) {
             result = send_tcp_frame_header(socket_handle, config, payload_length,
                 &record->wsa_error);
             if (result == SOCKET_ERROR) {
@@ -1576,6 +1726,7 @@ static int perform_existing_socket_flow(const CONFIG *config, SOCKET socket_hand
         record->bytes_sent = result;
         result = recv_exact(socket_handle, (char *)response, payload_length,
             &record->wsa_error);
+        if (config->tcp_rtt) record->tcp_receive_qpc_ms = qpc_ms();
         if (result == SOCKET_ERROR) {
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:recv");
             goto done;
@@ -1591,6 +1742,7 @@ static int perform_existing_socket_flow(const CONFIG *config, SOCKET socket_hand
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_control_payload");
             goto done;
         }
+        record->udp_send_qpc_ms = qpc_ms();
         result = config->udp_mode == UDP_CONNECTED ?
             send(socket_handle, (const char *)wire_payload, wire_length, 0) :
             sendto(socket_handle, (const char *)wire_payload, wire_length, 0,
@@ -1605,6 +1757,7 @@ static int perform_existing_socket_flow(const CONFIG *config, SOCKET socket_hand
         memset(&response_source, 0, sizeof(response_source));
         result = recvfrom(socket_handle, (char *)response, MAX_PAYLOAD, 0,
             (struct sockaddr *)&response_source, &response_source_length);
+        record->udp_receive_qpc_ms = qpc_ms();
         if (result == SOCKET_ERROR) {
             record->wsa_error = WSAGetLastError();
             copy_text(record->actual_result, sizeof(record->actual_result), "fail:recvfrom");
@@ -1612,13 +1765,7 @@ static int perform_existing_socket_flow(const CONFIG *config, SOCKET socket_hand
         }
         record->bytes_received = result;
         record->response_count = 1;
-        if (!endpoint_parts(&response_source, record->actual_remote_ip,
-                sizeof(record->actual_remote_ip), &record->actual_remote_port) ||
-            !endpoints_equal(&remote, &response_source)) {
-            record->wsa_error = WSAEINVAL;
-            copy_text(record->actual_result, sizeof(record->actual_result), "fail:udp_response_source");
-            goto done;
-        }
+        if (!check_udp_source(record, &remote, &response_source, response)) goto done;
     }
     if (!sha256_bytes((const unsigned char *)response,
         (ULONG)record->bytes_received, record->response_sha256)) {
@@ -1632,8 +1779,7 @@ static int perform_existing_socket_flow(const CONFIG *config, SOCKET socket_hand
         copy_text(record->actual_result, sizeof(record->actual_result), "fail:payload_mismatch");
         goto done;
     }
-    record->wsa_error = 0;
-    copy_text(record->actual_result, sizeof(record->actual_result), "pass");
+    mark_valid_response(record);
     success = 1;
 done:
     record->timing_ms = GetTickCount64() - started;
@@ -1672,6 +1818,119 @@ static int close_first_issue206(SOCKET socket_handle, CLOSE_MODE mode, int *wsa_
     return 1;
 }
 
+typedef struct {
+    FILE *log_file;
+    CRITICAL_SECTION log_lock;
+    HANDLE start_gate;
+    HANDLE measurement_gate;
+    volatile LONG ready;
+    volatile LONG aborted;
+    unsigned int streams;
+} BENCHMARK_SHARED;
+
+typedef struct {
+    CONFIG config;
+    BENCHMARK_SHARED *shared;
+    HANDLE thread;
+    int success;
+} BENCHMARK_STREAM;
+
+static DWORD WINAPI benchmark_stream_thread(LPVOID parameter)
+{
+    BENCHMARK_STREAM *context = (BENCHMARK_STREAM *)parameter;
+    CONFIG *config = &context->config;
+    BENCHMARK_SHARED *shared = context->shared;
+    SOCKET held = INVALID_SOCKET;
+    FLOW_RECORD first, record;
+    unsigned int local_sequence;
+    int ok = 1;
+    memset(&first, 0, sizeof(first));
+    WaitForSingleObject(shared->start_gate, INFINITE);
+    for (local_sequence = 1; local_sequence <= config->stream_count; local_sequence++) {
+        unsigned int sequence = (config->benchmark_stream_index - 1) * config->stream_count + local_sequence;
+        char phase[32];
+        if (local_sequence == config->benchmark_warmup_count + 1) {
+            if ((unsigned int)InterlockedIncrement(&shared->ready) == shared->streams)
+                SetEvent(shared->measurement_gate);
+            WaitForSingleObject(shared->measurement_gate, INFINITE);
+        }
+        if (InterlockedCompareExchange(&shared->aborted, 0, 0)) { ok = 0; break; }
+        if (local_sequence > 1 && config->stream_interval_ms) Sleep(config->stream_interval_ms);
+        snprintf(phase, sizeof(phase), "stream_%u", sequence);
+        if (local_sequence == 1) {
+            ok = perform_flow(config, (int)sequence, phase, config->protocol, 0,
+                config->remote_ip, config->udp_remote_port, 0, config->expected_action,
+                config->expect, config->tcp_peer_policy, &held, &first);
+            first.close_mode = "held_active";
+            record = first;
+        } else {
+            ok = perform_existing_socket_flow(config, held, (int)sequence, phase,
+                config->protocol, first.socket_id, first.actual_local_port,
+                config->remote_ip, config->udp_remote_port, config->expected_action,
+                config->expect, config->tcp_peer_policy, &record);
+        }
+        EnterCriticalSection(&shared->log_lock);
+        if (!write_record(shared->log_file, &record)) ok = 0;
+        LeaveCriticalSection(&shared->log_lock);
+        if (!ok) {
+            InterlockedExchange(&shared->aborted, 1);
+            SetEvent(shared->measurement_gate);
+            break;
+        }
+    }
+    if (held != INVALID_SOCKET) closesocket(held);
+    context->success = ok;
+    return 0;
+}
+
+static int perform_benchmark_streams(const CONFIG *config, FILE *log_file)
+{
+    BENCHMARK_SHARED shared;
+    BENCHMARK_STREAM *contexts;
+    unsigned int index, started = 0;
+    int ok = 1;
+    memset(&shared, 0, sizeof(shared));
+    shared.log_file = log_file;
+    shared.streams = config->benchmark_streams;
+    shared.start_gate = CreateEvent(NULL, TRUE, FALSE, NULL);
+    shared.measurement_gate = CreateEvent(NULL, TRUE, FALSE, NULL);
+    contexts = (BENCHMARK_STREAM *)calloc(shared.streams, sizeof(*contexts));
+    if (!shared.start_gate || !shared.measurement_gate || !contexts) {
+        if (shared.start_gate) CloseHandle(shared.start_gate);
+        if (shared.measurement_gate) CloseHandle(shared.measurement_gate);
+        free(contexts);
+        return 0;
+    }
+    InitializeCriticalSection(&shared.log_lock);
+    for (index = 0; index < shared.streams; index++) {
+        contexts[index].config = *config;
+        contexts[index].config.benchmark_stream_index = index + 1;
+        if (index == 1 && config->benchmark_alternate_port) {
+            contexts[index].config.udp_remote_port = config->benchmark_alternate_port;
+            contexts[index].config.second_remote_port = config->benchmark_alternate_port;
+        }
+        contexts[index].shared = &shared;
+        contexts[index].thread = CreateThread(NULL, 0, benchmark_stream_thread, &contexts[index], 0, NULL);
+        if (!contexts[index].thread) { ok = 0; break; }
+        started++;
+    }
+    if (!ok) {
+        InterlockedExchange(&shared.aborted, 1);
+        SetEvent(shared.measurement_gate);
+    }
+    SetEvent(shared.start_gate);
+    for (index = 0; index < started; index++) {
+        WaitForSingleObject(contexts[index].thread, INFINITE);
+        if (!contexts[index].success) ok = 0;
+        CloseHandle(contexts[index].thread);
+    }
+    CloseHandle(shared.start_gate);
+    CloseHandle(shared.measurement_gate);
+    DeleteCriticalSection(&shared.log_lock);
+    free(contexts);
+    return ok;
+}
+
 int main(int argc, char **argv)
 {
     CONFIG config;
@@ -1700,7 +1959,9 @@ int main(int argc, char **argv)
     if (config.mode == MODE_SINGLE) {
         unsigned short remote_port = config.protocol == PROTO_TCP ?
             config.tcp_remote_port : config.udp_remote_port;
-        if (config.reconnect_count > 1) {
+        if (config.benchmark_streams > 1) {
+            ok = perform_benchmark_streams(&config, log_file);
+        } else if (config.reconnect_count > 1) {
             unsigned int sequence;
             ok = 1;
             for (sequence = 1; sequence <= config.reconnect_count; sequence++) {

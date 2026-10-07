@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WindowsPerformanceRecorder Version="1.0" Author="ProxyBridge-TestLab">
+  <Profiles>
+    <EventCollector Id="TcpHandshakeCollector" Name="TestLab TCP Handshake Collector">
+      <BufferSize Value="64" />
+      <Buffers Value="32" />
+      <MaximumFileSize Value="32" FileMode="Sequential" />
+    </EventCollector>
+    <EventProvider Id="TcpHandshakeProvider" Name="2f07e2ee-15db-40f1-90ef-9d7ba282188a" Strict="true" NonPagedMemory="true" Level="5">
+      <Keywords><Keyword Value="0xFFFFFFFFFFFFFFFF" /></Keywords>
+      <EventFilters FilterIn="true">
+        <EventId Value="1004" /><EventId Value="1008" /><EventId Value="1009" />
+        <EventId Value="1014" /><EventId Value="1015" /><EventId Value="1016" />
+        <EventId Value="1017" /><EventId Value="1033" /><EventId Value="1055" />
+        <EventId Value="1063" />
+        <EventId Value="1186" /><EventId Value="1214" /><EventId Value="1315" /><EventId Value="1416" /><EventId Value="1477" /><EventId Value="1553" />
+      </EventFilters>
+    </EventProvider>
+    <Profile Id="TestLabTcpHandshake.Verbose.File" Name="TestLabTcpHandshake" Description="Bounded TCP setup, retry, drop and redirect metadata; no packet payload provider" LoggingMode="File" DetailLevel="Verbose">
+      <Collectors>
+        <EventCollectorId Value="TcpHandshakeCollector"><EventProviders><EventProviderId Value="TcpHandshakeProvider" /></EventProviders></EventCollectorId>
+      </Collectors>
+    </Profile>
+  </Profiles>
+</WindowsPerformanceRecorder>

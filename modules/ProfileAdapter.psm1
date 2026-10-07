@@ -1,6 +1,7 @@
 Set-StrictMode -Version Latest
 
 Import-Module (Join-Path $PSScriptRoot 'ProfileValidator.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot 'ProductProfile.psm1') -Force
 
 function Resolve-JsonVariablesInternal {
     param(
@@ -99,7 +100,8 @@ function New-ResolvedProfile {
         [Parameter(Mandatory)]$Scenario,
         [Parameter(Mandatory)][System.Collections.Generic.IDictionary[string, string]]$Environment,
         [Parameter(Mandatory)][string]$TemplatePath,
-        [switch]$SkipFinalValidation
+        [switch]$SkipFinalValidation,
+        [ValidateSet('configured','ip')][string]$ProxyDestinationMode = 'configured'
     )
 
     if (-not (Test-Path -LiteralPath $TemplatePath -PathType Leaf)) {
@@ -127,6 +129,7 @@ function New-ResolvedProfile {
     foreach ($proxyConfig in @($profile.ProxyConfigs)) {
         $proxyConfig.Port = [string]$proxyConfig.Port
         $proxyConfig.Id = ConvertTo-RequiredInteger -Value $proxyConfig.Id -FieldName 'ProxyConfigs[].Id'
+        if ($ProxyDestinationMode -eq 'ip') { $proxyConfig.SendDomainToProxy = $false }
     }
     if ($null -ne $resolvedScenario.PSObject.Properties['parameters'] -and
         $null -ne $resolvedScenario.parameters.PSObject.Properties['additional_proxy_config_id']) {
@@ -178,10 +181,11 @@ function Test-ExpectedProfileValidation {
     param(
         [Parameter(Mandatory)]$Scenario,
         [Parameter(Mandatory)][System.Collections.Generic.IDictionary[string, string]]$Environment,
-        [Parameter(Mandatory)][string]$TemplatePath
+        [Parameter(Mandatory)][string]$TemplatePath,
+        [ValidateSet('configured','ip')][string]$ProxyDestinationMode = 'configured'
     )
     $expectation = $(if ($null -ne $Scenario.PSObject.Properties['profile_expectation']) { [string]$Scenario.profile_expectation } else { 'valid' })
-    $profile = New-ResolvedProfile -Scenario $Scenario -Environment $Environment -TemplatePath $TemplatePath -SkipFinalValidation
+    $profile = New-ResolvedProfile -Scenario $Scenario -Environment $Environment -TemplatePath $TemplatePath -SkipFinalValidation -ProxyDestinationMode $ProxyDestinationMode
     $validation = Test-ProxyBridgeProfile -Profile $profile
     switch ($expectation) {
         'valid' { return [pscustomobject]@{ passed=[bool]$validation.valid; expectation=$expectation; errors=@($validation.errors); profile=$profile; may_write=[bool]$validation.valid } }
@@ -211,19 +215,20 @@ function Write-ResolvedProfile {
     param(
         [Parameter(Mandatory)]$Profile,
         [Parameter(Mandatory)][string]$ScenarioId,
-        [Parameter(Mandatory)][string]$OutputDirectory
+        [Parameter(Mandatory)][string]$OutputDirectory,
+        [ValidateSet('driver','v4.0.0')][string]$ProductProfileContract = 'driver'
     )
 
     if ($ScenarioId -notmatch '^[A-Za-z0-9][A-Za-z0-9._-]*$') {
         throw "Invalid scenario ID for profile output."
     }
-    $null = Test-ProxyBridgeProfile -Profile $Profile -ThrowOnError
+    $productProfile = ConvertTo-ProductProfile -Profile $Profile -Contract $ProductProfileContract
     $null = New-Item -ItemType Directory -Path $OutputDirectory -Force
     $path = Join-Path $OutputDirectory "$ScenarioId.pbprofile"
-    $json = $Profile | ConvertTo-Json -Depth 100
+    $json = $productProfile | ConvertTo-Json -Depth 100
     [System.IO.File]::WriteAllText($path, $json + [Environment]::NewLine, [System.Text.UTF8Encoding]::new($false))
     $hash = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash.ToLowerInvariant()
-    return [pscustomobject]@{ path = $path; sha256 = $hash }
+    return [pscustomobject]@{ path = $path; sha256 = $hash; product_profile_contract = $ProductProfileContract }
 }
 
 Export-ModuleMember -Function Resolve-JsonVariables, New-ResolvedProfile, Test-ExpectedProfileValidation, Get-ExpectedProfileValidationDisposition, Write-ResolvedProfile

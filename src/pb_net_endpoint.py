@@ -8,10 +8,12 @@ import datetime as dt
 import hashlib
 import ipaddress
 import json
+import os
 import re
 import signal
 import socket
 import struct
+import sys
 import threading
 import time
 from pathlib import Path
@@ -28,7 +30,7 @@ PAYLOAD_IDENTITY = re.compile(
     rb"\|run_id=([A-Za-z0-9._-]{1,128})"
     rb"\|sequence=([1-9][0-9]{0,8})"
     rb"\|phase=([A-Za-z0-9_-]{1,64})"
-    rb"\|protocol=(TCP|UDP)\n$"
+    rb"\|protocol=(TCP|UDP)\nX*$"
 )
 
 
@@ -52,8 +54,9 @@ def payload_identity(payload: bytes) -> dict[str, Any]:
 
 
 class JsonlLogger:
-    def __init__(self, path: Path) -> None:
-        self._file = path.open("a", encoding="utf-8", newline="\n")
+    def __init__(self, path: Path, log_flush_mode: str = "FLUSH_EACH") -> None:
+        self._file = path.open("a", encoding="utf-8", newline="\n", buffering=262144)
+        self._flush_mode = log_flush_mode
         self._lock = threading.Lock()
 
     def write(
@@ -66,6 +69,7 @@ class JsonlLogger:
         remote: tuple[Any, ...] | None = None,
         payload: bytes = b"",
         error: str = "",
+        tcp_nodelay: bool | None = None,
     ) -> None:
         local_ip, local_port = endpoint_fields(local)
         remote_ip, remote_port = endpoint_fields(remote)
@@ -74,6 +78,8 @@ class JsonlLogger:
             "timestamp_utc": dt.datetime.now(dt.timezone.utc).isoformat(),
             "monotonic_ns": time.monotonic_ns(),
             "event": event,
+            "process_id": os.getpid(),
+            "log_flush_mode": self._flush_mode,
             "family": family,
             "protocol": protocol,
             "local_ip": local_ip,
@@ -89,10 +95,13 @@ class JsonlLogger:
             "error": error,
             **identity,
         }
+        if tcp_nodelay is not None:
+            record["tcp_nodelay"] = tcp_nodelay
         line = json.dumps(record, ensure_ascii=True, separators=(",", ":"))
         with self._lock:
             self._file.write(line + "\n")
-            self._file.flush()
+            if self._flush_mode == "FLUSH_EACH" or event not in {"RECEIVED", "MESSAGE_RECEIVED", "ECHOED"}:
+                self._file.flush()
 
     def close(self) -> None:
         with self._lock:
@@ -243,8 +252,11 @@ def tcp_client_loop(
     remote: tuple[Any, ...],
     stop: threading.Event,
     logger: JsonlLogger,
+    tcp_nodelay: bool = False,
 ) -> None:
     client.settimeout(POLL_SECONDS)
+    if tcp_nodelay:
+        client.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     local = client.getsockname()
     family = family_name(client.family)
     message_buffer = bytearray()
@@ -254,7 +266,8 @@ def tcp_client_loop(
     frame_delay_ms = 0
     last_message = b""
     logger.write(event="ACCEPTED", family=family, protocol="TCP",
-                 local=local, remote=remote)
+                 local=local, remote=remote,
+                 tcp_nodelay=bool(client.getsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY)))
     try:
         while not stop.is_set():
             try:
@@ -363,6 +376,7 @@ def tcp_accept_loop(
     logger: JsonlLogger,
     clients: list[threading.Thread],
     clients_lock: threading.Lock,
+    tcp_nodelay: bool = False,
 ) -> None:
     local = sock.getsockname()
     family = family_name(sock.family)
@@ -378,7 +392,7 @@ def tcp_accept_loop(
             return
         thread = threading.Thread(
             target=tcp_client_loop,
-            args=(client, remote, stop, logger),
+            args=(client, remote, stop, logger, tcp_nodelay),
             name=f"tcp-{family}-{remote[0]}-{remote[1]}",
             daemon=True,
         )
@@ -390,10 +404,14 @@ def tcp_accept_loop(
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--jsonl-log", required=True, type=Path)
+    parser.add_argument("--log-flush-mode", choices=("FLUSH_EACH", "BUFFERED"), default="FLUSH_EACH")
+    parser.add_argument("--tcp-nodelay", action="store_true")
     parser.add_argument("--bind-ipv4", default="127.0.0.1", type=ip_value(4))
     parser.add_argument("--bind-ipv6", default="::1", type=ip_value(6))
     parser.add_argument("--endpoint-a-port", default=ENDPOINT_A_PORT, type=port_value)
     parser.add_argument("--endpoint-b-port", default=ENDPOINT_B_PORT, type=port_value)
+    parser.add_argument("--control-stdin", action="store_true",
+                        help="stop cleanly when stdin receives STOP or closes")
     args = parser.parse_args()
     if args.endpoint_a_port == args.endpoint_b_port:
         parser.error("endpoint A and endpoint B ports must differ")
@@ -402,7 +420,7 @@ def parse_args() -> argparse.Namespace:
 
 def main() -> int:
     args = parse_args()
-    logger = JsonlLogger(args.jsonl_log)
+    logger = JsonlLogger(args.jsonl_log, args.log_flush_mode)
     stop = threading.Event()
     listeners: list[socket.socket] = []
     services: list[threading.Thread] = []
@@ -412,6 +430,13 @@ def main() -> int:
 
     def request_stop(_signum: int, _frame: object) -> None:
         stop.set()
+
+    def read_control() -> None:
+        while not stop.is_set():
+            command = sys.stdin.readline()
+            if not command or command.strip() == "STOP":
+                stop.set()
+                return
 
     signal.signal(signal.SIGINT, request_stop)
     signal.signal(signal.SIGTERM, request_stop)
@@ -444,7 +469,7 @@ def main() -> int:
                 arguments = (sock, stop, logger)
             else:
                 target = tcp_accept_loop
-                arguments = (sock, stop, logger, clients, clients_lock)
+                arguments = (sock, stop, logger, clients, clients_lock, args.tcp_nodelay)
             thread = threading.Thread(target=target, args=arguments,
                                       name=f"listener-{family_name(sock.family)}-{sock.type}",
                                       daemon=True)
@@ -454,6 +479,8 @@ def main() -> int:
             f"READY 8 listeners A={args.endpoint_a_port} B={args.endpoint_b_port}",
             flush=True,
         )
+        if args.control_stdin:
+            threading.Thread(target=read_control, name="stdin-control", daemon=True).start()
         while not stop.wait(POLL_SECONDS):
             pass
     except Exception as exc:

@@ -1,4 +1,4 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
 
 function Initialize-ProcessSessionType {
     if ($null -ne ('ProxyBridge.TestLab.SafeProcessSession' -as [type])) { return }
@@ -6,6 +6,7 @@ function Initialize-ProcessSessionType {
     $source = @'
 using System;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -14,57 +15,164 @@ namespace ProxyBridge.TestLab
 {
     public sealed class SafeProcessSession : IDisposable
     {
+        [DllImport("kernel32.dll", EntryPoint = "QueryFullProcessImageNameW", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = true)]
+        private static extern bool QueryFullProcessImageName(IntPtr handle, uint flags, StringBuilder path, ref uint length);
         private readonly Process process;
+        private Process target;
+        private readonly bool consoleHosted;
+        private readonly bool terminalOutput;
+        private volatile bool outputReadFailed;
+        private readonly ManualResetEvent identityReady = new ManualResetEvent(false);
+        private readonly ManualResetEvent stdoutClosed = new ManualResetEvent(false);
+        private readonly ManualResetEvent stderrClosed = new ManualResetEvent(false);
+        private bool identityReceived;
+        private string identityLine = String.Empty;
+        private string identityError = String.Empty;
         private readonly StringBuilder stdout = new StringBuilder();
         private readonly StringBuilder stderr = new StringBuilder();
         private readonly object stdoutLock = new object();
         private readonly object stderrLock = new object();
         private bool disposed;
 
-        private SafeProcessSession(Process process)
+        private SafeProcessSession(Process process, bool consoleHosted, bool terminalOutput)
         {
             this.process = process;
+            this.consoleHosted = consoleHosted;
+            this.terminalOutput = terminalOutput;
             process.OutputDataReceived += delegate(object sender, DataReceivedEventArgs args)
             {
-                if (args.Data == null) return;
+                if (args.Data == null) { stdoutClosed.Set(); return; }
                 lock (stdoutLock) stdout.AppendLine(args.Data);
             };
             process.ErrorDataReceived += delegate(object sender, DataReceivedEventArgs args)
             {
-                if (args.Data == null) return;
+                if (args.Data == null) { stderrClosed.Set(); return; }
+                if (consoleHosted && !identityReceived)
+                {
+                    identityReceived = true;
+                    identityLine = args.Data.Substring(0, Math.Min(8192, args.Data.Length));
+                    const string prefix = "PB_CONSOLE_HOST_PID=";
+                    int pid;
+                    if (args.Data.StartsWith(prefix, StringComparison.Ordinal) &&
+                        Int32.TryParse(args.Data.Substring(prefix.Length), out pid) && pid > 0)
+                    {
+                        try { target = Process.GetProcessById(pid); IntPtr retainedHandle = target.Handle; }
+                        catch (Exception error)
+                        {
+                            identityError = error.GetType().FullName + ": " + error.Message;
+                            if (target != null) target.Dispose(); target = null;
+                        }
+                    }
+                    else identityError = "INVALID_FIRST_STDERR_IDENTITY_LINE";
+                    identityReady.Set();
+                    return;
+                }
                 lock (stderrLock) stderr.AppendLine(args.Data);
             };
         }
 
         public static SafeProcessSession Start(string fileName, string arguments)
         {
+            return Start(fileName, arguments, null);
+        }
+
+        public static SafeProcessSession Start(string fileName, string arguments, string consoleHost)
+        {
+            return Start(fileName, arguments, consoleHost, false);
+        }
+
+        public static SafeProcessSession Start(string fileName, string arguments, string consoleHost, bool terminalOutput)
+        {
             ProcessStartInfo info = new ProcessStartInfo();
-            info.FileName = fileName;
+            bool hosted = !String.IsNullOrEmpty(consoleHost);
+            if (terminalOutput && !hosted) throw new InvalidOperationException("TERMINAL_HOST_REQUIRED");
+            info.FileName = hosted ? consoleHost : fileName;
             info.Arguments = arguments ?? String.Empty;
             info.UseShellExecute = false;
             info.RedirectStandardOutput = true;
             info.RedirectStandardError = true;
+            info.RedirectStandardInput = hosted;
+            if (terminalOutput) info.StandardOutputEncoding = new UTF8Encoding(false, true);
             info.CreateNoWindow = true;
 
             Process process = new Process();
             process.StartInfo = info;
             process.EnableRaisingEvents = true;
-            SafeProcessSession session = new SafeProcessSession(process);
-            if (!process.Start())
+            SafeProcessSession session = new SafeProcessSession(process, hosted, terminalOutput);
+            bool started = false;
+            try
             {
-                session.Dispose();
-                throw new InvalidOperationException("PROCESS_START_RETURNED_FALSE");
+                if (!process.Start()) throw new InvalidOperationException("PROCESS_START_RETURNED_FALSE");
+                started = true;
+                if (!hosted) session.target = process;
+                if (terminalOutput)
+                {
+                    // ConPTY frames need not end in a newline. Read continuously
+                    // so readiness cannot wait on DataReceived's line buffering.
+                    Thread reader = new Thread(session.ReadTerminalOutput);
+                    reader.IsBackground = true;
+                    reader.Start();
+                }
+                else process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+                if (hosted && (!session.identityReady.WaitOne(5000) || session.target == null))
+                    throw new InvalidOperationException("CONSOLE_HOST_IDENTITY_FAILED");
+                return session;
             }
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
-            return session;
+            catch (Exception error)
+            {
+                // Keep the original refusal and bounded cleanup evidence. Do not
+                // retry or accept a process whose identity was not confirmed.
+                bool forced = false;
+                string cleanupError = String.Empty;
+                try
+                {
+                    forced = started && !process.HasExited;
+                    if (started) session.Kill();
+                }
+                catch (Exception cleanup) { cleanupError = cleanup.GetType().FullName + ": " + cleanup.Message; }
+                error.Data["PB_START_STATUS"] = "PROCESS_START_FAILED";
+                error.Data["PB_START_HOSTED"] = hosted;
+                error.Data["PB_START_IDENTITY_RECEIVED"] = session.identityReceived;
+                error.Data["PB_START_IDENTITY_LINE"] = session.identityLine;
+                error.Data["PB_START_IDENTITY_ERROR"] = session.identityError;
+                error.Data["PB_START_HOST_PID"] = started ? process.Id : 0;
+                error.Data["PB_START_HOST_EXIT_CODE"] = started && process.HasExited ? process.ExitCode : -1;
+                error.Data["PB_START_FORCED_CLEANUP"] = forced;
+                error.Data["PB_START_CLEANUP_ERROR"] = cleanupError;
+                error.Data["PB_START_OUTPUT_CAPTURE_COMPLETE"] = session.OutputCaptureComplete;
+                string capturedOut = session.Stdout, capturedError = session.Stderr;
+                error.Data["PB_START_STDOUT"] = capturedOut.Substring(0, Math.Min(8192, capturedOut.Length));
+                error.Data["PB_START_STDERR"] = capturedError.Substring(0, Math.Min(8192, capturedError.Length));
+                error.Data["PB_START_OUTPUT_TRUNCATED"] = capturedOut.Length > 8192 || capturedError.Length > 8192;
+                session.Dispose();
+                throw;
+            }
         }
 
-        public int Pid { get { return process.Id; } }
+        public int Pid { get { return target.Id; } }
+
+        private void ReadTerminalOutput()
+        {
+            char[] buffer = new char[4096];
+            try
+            {
+                int count;
+                while ((count = process.StandardOutput.Read(buffer, 0, buffer.Length)) > 0)
+                    lock (stdoutLock) stdout.Append(buffer, 0, count);
+            }
+            catch { outputReadFailed = true; }
+            finally { stdoutClosed.Set(); }
+        }
 
         public string QueryActualPath()
         {
-            try { return process.MainModule.FileName; }
+            try
+            {
+                StringBuilder path = new StringBuilder(32768);
+                uint length = (uint)path.Capacity;
+                return QueryFullProcessImageName(target.Handle, 0, path, ref length) ? path.ToString() : String.Empty;
+            }
             catch { return String.Empty; }
         }
 
@@ -72,15 +180,21 @@ namespace ProxyBridge.TestLab
         {
             get
             {
-                try { return !process.HasExited; }
-                catch { return false; }
+                return target != null && !target.HasExited;
             }
         }
 
         public bool WaitForExit(int timeoutMs)
         {
-            bool completed = process.WaitForExit(Math.Max(1, timeoutMs));
-            if (completed) process.WaitForExit();
+            Stopwatch timer = Stopwatch.StartNew();
+            int budget = Math.Max(1, timeoutMs);
+            bool completed = process.WaitForExit(budget);
+            if (completed)
+            {
+                // Descendants may retain a pipe. Do not wait indefinitely for EOF.
+                stdoutClosed.WaitOne(Math.Max(0, budget - (int)timer.ElapsedMilliseconds));
+                stderrClosed.WaitOne(Math.Max(0, budget - (int)timer.ElapsedMilliseconds));
+            }
             return completed;
         }
 
@@ -93,6 +207,10 @@ namespace ProxyBridge.TestLab
                 if (!String.IsNullOrWhiteSpace(outputRegex))
                 {
                     string captured = Stdout + Environment.NewLine + Stderr;
+                    // This removes framing for the known startup message only.
+                    // The retained stdout stays raw VT, not a rendered log.
+                    if (terminalOutput) captured = Regex.Replace(captured,
+                        @"\x1B\[[0-?]*[ -/]*[@-~]|\x1B\][^\x07\x1B]*(?:\x07|\x1B\\)|\x1B[@-_]", String.Empty);
                     if (Regex.IsMatch(captured, outputRegex, RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)) return true;
                 }
                 else if (stableMs > 0 && timer.ElapsedMilliseconds >= stableMs) return true;
@@ -103,9 +221,15 @@ namespace ProxyBridge.TestLab
 
         public bool GracefulStop(int timeoutMs)
         {
-            if (!IsRunning) return true;
+            if (!IsRunning) return false;
             try
             {
+                if (consoleHosted)
+                {
+                    process.StandardInput.WriteLine("STOP");
+                    process.StandardInput.Flush();
+                    return WaitForExit(checked(timeoutMs + 5500)) && process.ExitCode == 10 && !IsRunning && target.ExitCode == 0;
+                }
                 process.CloseMainWindow();
                 return WaitForExit(timeoutMs);
             }
@@ -114,9 +238,10 @@ namespace ProxyBridge.TestLab
 
         public void Kill()
         {
-            if (!IsRunning) return;
-            process.Kill();
-            process.WaitForExit();
+            if (!process.HasExited) process.Kill();
+            if (!WaitForExit(5000)) throw new InvalidOperationException("PROCESS_FORCE_STOP_TIMEOUT");
+            if (consoleHosted && target != null && !target.WaitForExit(5000))
+                throw new InvalidOperationException("CONSOLE_HOST_CHILD_STOP_TIMEOUT");
         }
 
         public int ExitCode
@@ -124,7 +249,7 @@ namespace ProxyBridge.TestLab
             get
             {
                 if (IsRunning) return -1;
-                try { return process.ExitCode; }
+                try { return target.ExitCode; }
                 catch { return -1; }
             }
         }
@@ -139,11 +264,37 @@ namespace ProxyBridge.TestLab
             get { lock (stderrLock) return stderr.ToString(); }
         }
 
+        public string StopTransport
+        {
+            get
+            {
+                if (!consoleHosted) return "window-message";
+                if (!process.HasExited) return "console-host-running";
+                switch (process.ExitCode)
+                {
+                    case 0: return "exited-without-stop-signal";
+                    case 10: return terminalOutput ? "conpty-ctrl-c-written-process-exited" : "ctrl-break-delivered-process-exited";
+                    case 11: return "forced-job-termination";
+                    default: return "console-host-error";
+                }
+            }
+        }
+
+        public bool OutputCaptureComplete
+        {
+            get { return !outputReadFailed && stdoutClosed.WaitOne(0) && stderrClosed.WaitOne(0); }
+        }
+
+        public string OutputFormat { get { return terminalOutput ? "terminal-vt-merged" : "separate-text-streams"; } }
+
         public void Dispose()
         {
             if (disposed) return;
             disposed = true;
+            if (consoleHosted && target != null) target.Dispose();
             process.Dispose();
+            // Async read callbacks may still finish after a bounded drain;
+            // leave the event handles to their finalizers in that case.
         }
     }
 }
@@ -210,7 +361,17 @@ function New-SystemProcessAdapter {
     $adapter | Add-Member -NotePropertyName StartProcess -NotePropertyValue {
         param($plan)
         $argumentText = Join-ProcessArguments -Arguments @($plan.arguments)
-        $session = [ProxyBridge.TestLab.SafeProcessSession]::Start([string]$plan.executable, $argumentText)
+        $hostPath = ''
+        $terminalOutput = $false
+        if ($null -ne $plan.PSObject.Properties['console_host_path']) {
+            $hostPath = [string]$plan.console_host_path
+            if (-not (Test-Path -LiteralPath $hostPath -PathType Leaf)) { throw 'CONSOLE_HOST_MISSING: run scripts/Build-ConsoleHost.ps1' }
+            $terminalOutput = $null -ne $plan.PSObject.Properties['console_output_mode'] -and [string]$plan.console_output_mode -eq 'terminal'
+            $hostArguments = @([string]$plan.stop_timeout_ms, [string]$plan.executable) + @($plan.arguments)
+            if ($terminalOutput) { $hostArguments = @('--terminal') + $hostArguments }
+            $argumentText = Join-ProcessArguments -Arguments $hostArguments
+        }
+        $session = [ProxyBridge.TestLab.SafeProcessSession]::Start([string]$plan.executable, $argumentText, $hostPath, $terminalOutput)
         return [pscustomobject]@{
             pid = $session.Pid
             actual_path = ''
@@ -267,6 +428,7 @@ function New-SystemProcessAdapter {
     }
     $adapter | Add-Member -NotePropertyName GetProcessResult -NotePropertyValue {
         param($process)
+        if (-not $process.session.IsRunning) { $null = $process.session.WaitForExit(5000) }
         return [pscustomobject]@{
             exit_code = $process.session.ExitCode
             timed_out = [bool]$process.timed_out
@@ -277,6 +439,9 @@ function New-SystemProcessAdapter {
             actual_path_probe_elapsed_ms = [int]$process.actual_path_probe_elapsed_ms
             stdout = [string]$process.session.Stdout
             stderr = [string]$process.session.Stderr
+            stop_transport = [string]$process.session.StopTransport
+            output_capture_complete = [bool]$process.session.OutputCaptureComplete
+            output_format = [string]$process.session.OutputFormat
         }
     }
     $adapter | Add-Member -NotePropertyName DisposeProcess -NotePropertyValue {

@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 using ProxyBridge.TestLab.Ui.Hubs;
 using ProxyBridge.TestLab.Ui.Models;
 using ProxyBridge.TestLab.Ui.Services;
@@ -23,11 +24,17 @@ builder.Services.AddSingleton<DpapiSecretProtector>();
 builder.Services.AddSingleton<ProtocolCertificateStore>();
 builder.Services.AddSingleton<ServerProtocolPortCatalog>();
 builder.Services.AddSingleton<LocalArtifactService>();
+builder.Services.AddSingleton<LocalReceiverService>();
+builder.Services.AddHostedService(services => services.GetRequiredService<LocalReceiverService>());
 builder.Services.AddSingleton<ILocalRuntimeStatusProvider>(services => services.GetRequiredService<LocalArtifactService>());
 builder.Services.AddSingleton<SettingsStore>();
 builder.Services.AddSingleton<IRunSettingsProvider>(services => services.GetRequiredService<SettingsStore>());
 builder.Services.AddSingleton<RunnerEnvironmentService>();
 builder.Services.AddSingleton<RequestTokenService>();
+builder.Services.AddSingleton<BenchmarkLabService>();
+builder.Services.AddSingleton<BenchmarkBuildCatalog>();
+builder.Services.AddSingleton<BenchmarkLaunchPlanService>();
+builder.Services.AddSingleton<RuntimeExecutionLease>();
 builder.Services.AddSingleton<ServerTrustStore>();
 builder.Services.AddSingleton<ServerReceiptStore>();
 builder.Services.AddSingleton<ServerArtifactBuilder>();
@@ -46,6 +53,9 @@ builder.Services.AddSingleton<RunJobStore>();
 builder.Services.AddSingleton<IRunEventPublisher, SignalRRunEventPublisher>();
 builder.Services.AddSingleton<RunCoordinator>();
 builder.Services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<RunCoordinator>());
+builder.Services.AddSingleton<BenchmarkRunService>();
+builder.Services.AddHostedService(serviceProvider => serviceProvider.GetRequiredService<BenchmarkRunService>());
+builder.Services.Configure<HostOptions>(options => options.ShutdownTimeout = TimeSpan.FromMinutes(3));
 
 var app = builder.Build();
 
@@ -107,6 +117,103 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 var api = app.MapGroup("/api/v1");
+
+api.MapGet("/lab/state", async (BenchmarkLabService lab, BenchmarkBuildCatalog builds, BenchmarkRunService runs, RequestTokenService tokens, CancellationToken cancellationToken) =>
+    Results.Ok(new { csrf_token = tokens.Token, selection = await lab.GetSelectionAsync(cancellationToken), builds = await builds.PublicAsync(cancellationToken), reports = lab.GetReports(), local_runs = lab.GetLocalRttReports(), local_transfers = lab.GetLocalTransferReports(), local_connections = lab.GetLocalConnectionReports(), launch_history = lab.GetLaunchAttempts(), run_control = runs.State() }));
+
+api.MapPost("/lab/build/select", async (BenchmarkBuildRequest request, BenchmarkBuildCatalog builds, BenchmarkLabService lab, BenchmarkRunService runs, CancellationToken token) =>
+{
+    try
+    {
+        if (runs.HasActiveRun) return Results.BadRequest(new { error = "REAL_RUN_ALREADY_ACTIVE" });
+        return Results.Ok(await lab.SelectAsync(await builds.RequestAsync(request.BuildId, token), token));
+    }
+    catch (Exception error) when (error is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or OperationCanceledException or ArgumentException or FormatException or KeyNotFoundException)
+    { return Results.BadRequest(new { error = "BUILD_SELECTION_FAILED" }); }
+});
+
+api.MapPost("/lab/build/rename", async (BenchmarkBuildRenameRequest request, BenchmarkBuildCatalog builds, CancellationToken token) =>
+{
+    try { await builds.RenameAsync(request.BuildId, request.DisplayName, token); return Results.Ok(new { status = "BUILD_RENAMED" }); }
+    catch (Exception error) when (error is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or OperationCanceledException or ArgumentException)
+    { return Results.BadRequest(new { error = "BUILD_RENAME_FAILED" }); }
+});
+
+api.MapGet("/lab/run", (BenchmarkRunService runs) => Results.Ok(runs.State()));
+api.MapGet("/lab/history", (int offset, BenchmarkLabService lab) =>
+    offset is >= 0 and <= 1000000 ? Results.Ok(lab.GetLaunchAttempts(offset)) : Results.BadRequest(new { error = "HISTORY_OFFSET_INVALID" }));
+api.MapGet("/lab/history/{id}", (string id, BenchmarkLabService lab) =>
+{
+    if (!System.Text.RegularExpressions.Regex.IsMatch(id, "^(lab-tcp_(rtt|rtt_three_modes|transfer|connections)-smoke-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}|tcp-rtt-three-modes-smoke-[0-9]{8}-[0-9]{6}-[a-f0-9]{6})$"))
+        return Results.BadRequest(new { error = "HISTORY_ID_INVALID" });
+    return Results.Ok(id.StartsWith("lab-tcp_connections-", StringComparison.Ordinal) ? lab.GetLocalConnectionReports(id) : id.StartsWith("lab-tcp_transfer-", StringComparison.Ordinal) ? lab.GetLocalTransferReports(id) : lab.GetLocalRttReports(id));
+});
+api.MapPost("/lab/run/start", async (BenchmarkStartRequest request, BenchmarkRunService runs, CancellationToken cancellationToken) =>
+{
+    try { return Results.Ok(await runs.LaunchAsync(request.PlanId, cancellationToken)); }
+    catch (InvalidOperationException error)
+    {
+        var allowed = new[] { "INVALID_PLAN", "ADMINISTRATOR_REQUIRED", "REAL_RUN_ALREADY_ACTIVE", "AUTOMATIC_SCENARIO_PENDING", "SELECTION_REQUIRED", "SELECTION_CHANGED_PREPARE_AGAIN", "PLAN_ALREADY_USED_PREPARE_AGAIN" };
+        return Results.BadRequest(new { error = allowed.Contains(error.Message) ? error.Message : "GUI_RUN_NOT_STARTED" });
+    }
+    catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or System.ComponentModel.Win32Exception or OperationCanceledException or KeyNotFoundException or ArgumentException)
+    { return Results.BadRequest(new { error = "GUI_RUN_NOT_STARTED" }); }
+});
+api.MapPost("/lab/run/stop", async (BenchmarkStartRequest request, BenchmarkRunService runs, CancellationToken cancellationToken) =>
+{
+    try { return Results.Ok(await runs.RequestStopAsync(cancellationToken, request.PlanId)); }
+    catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or OperationCanceledException)
+    { return Results.BadRequest(new { error = "GUI_STOP_NOT_QUEUED" }); }
+});
+
+api.MapPost("/lab/inspect", async (ProductSelectionRequest request, BenchmarkLabService lab, CancellationToken cancellationToken) =>
+{
+    try { return Results.Ok(await lab.InspectAsync(request, cancellationToken)); }
+    catch (Exception error) when (error is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or OperationCanceledException)
+    { return Results.BadRequest(new { error = "PRODUCT_FILES_INSPECTION_FAILED" }); }
+});
+
+api.MapPost("/lab/select", async (ProductSelectionRequest request, BenchmarkLabService lab, CancellationToken cancellationToken) =>
+{
+    try { return Results.Ok(await lab.SelectAsync(request, cancellationToken)); }
+    catch (Exception error) when (error is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or OperationCanceledException)
+    { return Results.BadRequest(new { error = "PRODUCT_SELECTION_NOT_SAVED" }); }
+});
+
+api.MapPost("/lab/prepare", async (BenchmarkPlanRequest request, BenchmarkLaunchPlanService service, CancellationToken cancellationToken) =>
+{
+    try { return Results.Ok(await service.PrepareAsync(request, cancellationToken)); }
+    catch (Exception error) when (error is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or OperationCanceledException)
+    { return Results.BadRequest(new { error = "BENCHMARK_PLAN_NOT_PREPARED" }); }
+});
+
+api.MapPost("/lab/suite/prepare", async (BenchmarkSuiteRequest request, BenchmarkLaunchPlanService service, BenchmarkRunService runs, CancellationToken token) =>
+{
+    try
+    {
+        if (runs.HasActiveRun) return Results.BadRequest(new { error = "REAL_RUN_ALREADY_ACTIVE" });
+        return Results.Ok(await service.PrepareSuiteAsync(request, token));
+    }
+    catch (Exception error) when (error is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or OperationCanceledException)
+    { return Results.BadRequest(new { error = "BENCHMARK_PLAN_NOT_PREPARED" }); }
+});
+api.MapPost("/lab/suite/start", async (BenchmarkStartRequest request, BenchmarkRunService runs, CancellationToken token) =>
+{
+    try { return Results.Ok(await runs.LaunchSuiteAsync(request.PlanId, token)); }
+    catch (InvalidOperationException error)
+    {
+        var allowed = new[] { "INVALID_PLAN", "ADMINISTRATOR_REQUIRED", "REAL_RUN_ALREADY_ACTIVE", "PLAN_ALREADY_USED_PREPARE_AGAIN" };
+        return Results.BadRequest(new { error = allowed.Contains(error.Message) ? error.Message : "SUITE_LAUNCH_NOT_CONFIRMED" });
+    }
+    catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or OperationCanceledException or KeyNotFoundException or ArgumentException)
+    { return Results.BadRequest(new { error = "SUITE_LAUNCH_NOT_CONFIRMED" }); }
+});
+api.MapPost("/lab/suite/stop", async (BenchmarkStartRequest request, BenchmarkRunService runs, CancellationToken token) =>
+{
+    try { return Results.Ok(await runs.RequestSuiteStopAsync(request.PlanId, token)); }
+    catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or OperationCanceledException)
+    { return Results.BadRequest(new { error = "GUI_STOP_NOT_QUEUED" }); }
+});
 
 api.MapGet("/system/status", async (
     CatalogService catalogService,
@@ -183,6 +290,21 @@ api.MapPut("/settings", async (
 
 api.MapGet("/server/status", async (ServerProvisioningService service, CancellationToken cancellationToken) =>
     Results.Ok(await service.GetStatusAsync(cancellationToken)));
+
+api.MapGet("/local-receiver/status", (LocalReceiverService service) => Results.Ok(new
+{
+    receiver = service.GetStatus(),
+    lastEvidence = service.GetLastEvidence()
+}));
+
+api.MapPost("/local-receiver/start", async (LocalReceiverService service, CancellationToken cancellationToken) =>
+{
+    try { return Results.Ok(await service.StartReceiverAsync(cancellationToken)); }
+    catch (InvalidOperationException exception) { return Results.BadRequest(new { error = exception.Message }); }
+});
+
+api.MapPost("/local-receiver/stop", async (LocalReceiverService service, CancellationToken cancellationToken) =>
+    Results.Ok(new { evidence = await service.StopReceiverAsync(cancellationToken) }));
 
 api.MapPost("/server/validate", async (
     ProxyBridge.TestLab.Ui.Models.ServerValidationRequest request,
@@ -269,8 +391,10 @@ api.MapPost("/runs/dry-run", async (
 api.MapPost("/runs", async (
     RunCreateRequest request,
     RunCoordinator coordinator,
+    BenchmarkRunService labRuns,
     CancellationToken cancellationToken) =>
 {
+    if (request.Mode == "real" && labRuns.HasActiveRun) return Results.BadRequest(new { error = "REAL_RUN_ALREADY_ACTIVE" });
     try { return Results.Accepted(value: await coordinator.QueueAsync(request, cancellationToken)); }
     catch (RunRequestException exception)
     {

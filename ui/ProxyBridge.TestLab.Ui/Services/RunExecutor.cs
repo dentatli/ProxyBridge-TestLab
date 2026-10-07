@@ -21,7 +21,8 @@ public sealed class PowerShellRunExecutor(
     AppStoragePaths storagePaths,
     SettingsStore settingsStore,
     RunnerEnvironmentService runnerEnvironment,
-    RunCapabilityFileService capabilityFiles) : IRunExecutor
+    RunCapabilityFileService capabilityFiles,
+    RuntimeExecutionLease runtimeLease) : IRunExecutor
 {
     private static readonly UTF8Encoding Utf8NoBom = new(false);
 
@@ -44,8 +45,15 @@ public sealed class PowerShellRunExecutor(
         await capabilityFiles.WriteForExecutionAsync(context.Mode, settings.Settings.Capabilities, capabilitiesPath, CancellationToken.None);
 
         RunnerInputLease? inputLease = null;
+        FileStream? executionLease = null;
         try
         {
+            if (context.Mode == "real")
+            {
+                try { executionLease = runtimeLease.Acquire(); }
+                catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException)
+                { return new RunExecutionResult(false, null, false, false, false, "Another real runner holds the checkout lease, or the lease is unavailable."); }
+            }
             var environmentPath = appPaths.FixtureEnvironmentPath;
             if (context.Mode == "real")
             {
@@ -134,7 +142,8 @@ public sealed class PowerShellRunExecutor(
         }
         finally
         {
-            if (inputLease is not null) await inputLease.DisposeAsync();
+            try { if (inputLease is not null) await inputLease.DisposeAsync(); }
+            finally { executionLease?.Dispose(); }
         }
     }
 

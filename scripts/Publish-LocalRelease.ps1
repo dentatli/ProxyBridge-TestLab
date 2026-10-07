@@ -16,6 +16,12 @@ $packageName = "ProxyBridge-TestLab-$Version-win-x64"
 $destination = Join-Path $OutputRoot $packageName
 if (Test-Path -LiteralPath $destination) { throw 'RELEASE_DESTINATION_ALREADY_EXISTS' }
 if ([string]::IsNullOrWhiteSpace($ClientExecutablePath)) { $ClientExecutablePath = Join-Path $repositoryRoot 'bin\pb_net_client.exe' }
+$consoleHostPath = Join-Path $repositoryRoot 'bin\pb_console_host.exe'
+if (-not (Test-Path -LiteralPath $consoleHostPath -PathType Leaf)) { throw 'CONSOLE_HOST_MISSING: run scripts/Build-ConsoleHost.ps1' }
+if (-not (Test-Path -LiteralPath (Join-Path $repositoryRoot 'bin/pb_wfp_state.exe') -PathType Leaf)) { throw 'WFP_OBSERVER_MISSING: run scripts/Build-WfpObserver.ps1' }
+foreach ($dependency in @('pyte-0.8.2.dist-info/LICENSE','wcwidth-0.2.13.dist-info/LICENSE')) {
+    if (-not (Test-Path -LiteralPath (Join-Path $repositoryRoot ('bin/terminal-decoder/packages/' + $dependency)) -PathType Leaf)) { throw 'TERMINAL_DECODER_DEPENDENCY_MISSING: run scripts/Prepare-TerminalDecoder.ps1' }
+}
 
 $dotnet = Join-Path $env:ProgramFiles 'dotnet\dotnet.exe'
 if (-not (Test-Path -LiteralPath $dotnet -PathType Leaf)) { throw 'DOTNET_SDK_NOT_FOUND' }
@@ -92,7 +98,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "RELEASE_PUBLISH_FAILED exit=$LASTEXITCODE" }
 
     Assert-ProtocolWorkerBundle
-    foreach($path in @('README.md','Run-WfpMatrix.ps1','modules','config','scenarios','src','docs','scripts\Export-UiCatalog.ps1','scripts\Build-Harness.ps1','tests\fixtures','packaging','bin\protocol-worker')) { Copy-PublicTree $path }
+    foreach($path in @('README.md','Run-WfpMatrix.ps1','modules','config','scenarios','src','docs','scripts\Export-UiCatalog.ps1','scripts\Build-Harness.ps1','scripts\Build-ConsoleHost.ps1','scripts\Build-WfpObserver.ps1','scripts\Prepare-TerminalDecoder.ps1','scripts\Set-DriverTestSigning.ps1','tests\fixtures','packaging','bin\protocol-worker','bin\terminal-decoder\packages','bin\pb_console_host.exe','bin\pb_wfp_state.exe')) { Copy-PublicTree $path }
     $clientIncluded = Test-Path -LiteralPath $ClientExecutablePath -PathType Leaf
     if (-not $clientIncluded -and -not $AllowMissingClient) { throw 'CLIENT_BINARY_REQUIRED' }
     if ($clientIncluded) {

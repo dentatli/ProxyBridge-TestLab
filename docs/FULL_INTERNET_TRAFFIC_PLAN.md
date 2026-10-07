@@ -1,5 +1,7 @@
 # Full Internet Traffic Expansion Plan
 
+> Historical expansion plan. [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md) supersedes the single Linux topology, mandatory developer tests and automatic milestone continuation. New runtime modes are planned, not implemented.
+
 Status: approved and in progress  
 Plan version: 1.0  
 Approved: 2026-08-28  

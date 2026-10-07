@@ -1,4 +1,6 @@
-Set-StrictMode -Version Latest
+﻿Set-StrictMode -Version Latest
+
+Import-Module (Join-Path $PSScriptRoot 'ProcessAdapter.psm1')
 
 function ConvertFrom-ProxyBridgeDestination {
     param([string]$Destination)
@@ -39,6 +41,9 @@ function Get-ProxyBridgeLineMetadata {
         $localTime = [string]$Matches.local_time
         $text = [string]$Matches.rest
     }
+    # Official CLIs prefix their connection and core-log callbacks this way.
+    # Preserve the original line in the record, but parse its actual payload.
+    if ($text -match '^\[(?:CONN|LOG)\]\s+(?<payload>.*)$') { $text = [string]$Matches.payload }
     return [pscustomobject]@{ text=$text; timestamp=$timestamp; local_time=$localTime }
 }
 
@@ -58,7 +63,7 @@ function ConvertFrom-ProxyBridgeTextLines {
         $text = [string]$metadata.text
         $observedAt = $(if ($metadata.timestamp -eq [datetime]::MinValue) { '' } else { $metadata.timestamp.ToString('o') })
 
-        if ($text -match '^(?<process>.+?)(?:\s+\((?:PID:)?\s*(?<pid>[0-9]+)\))?(?:\s+from\s+(?<local>\[[^\]]+\]:[0-9]+|\S+:[0-9]+))?\s+->\s+(?<destination>\[[^\]]+\]:[0-9]+|\S+:[0-9]+)\s+via\s+(?<route>Direct|Blocked|Proxy(?:\s+.*)?)$') {
+        if ($text -match '^(?<process>.+?)(?:\s+\((?:PID:)?\s*(?<pid>[0-9]+)\))?(?:\s+from\s+(?<local>\[[^\]]+\]:[0-9]+|\S+:[0-9]+))?\s+->\s+(?<destination>\[[^\]]+\]:[0-9]+|\S+:[0-9]+)\s+via\s+(?<route>Direct(?:\s+\(UDP\))?|Blocked(?:\s+\(UDP\))?|Proxy(?:\s+.*)?)$') {
             $routeProcess = [string]$Matches['process']
             $routePidText = $(if ($Matches.ContainsKey('pid')) { [string]$Matches['pid'] } else { '' })
             $localText = $(if ($Matches.ContainsKey('local')) { [string]$Matches['local'] } else { '' })
@@ -160,4 +165,52 @@ function Find-ProxyBridgeFlowEvidence {
     return @($matches)
 }
 
-Export-ModuleMember -Function ConvertFrom-ProxyBridgeTextLines, Import-ProxyBridgeTextEvidence, Find-ProxyBridgeFlowEvidence
+function ConvertFrom-ProxyBridgeTerminalCapture {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$RawText,
+        [Parameter(Mandatory)][string]$EvidenceDirectory,
+        [System.Collections.IDictionary]$Environment = @{},
+        [datetime]$DefaultTimestampUtc = ([datetime]::MinValue)
+    )
+    $failure = [pscustomobject]@{ status='DECODE_UNAVAILABLE'; reason=''; records=@(); source_event_stream_complete=$false; capture_scope='rendered-terminal-observations' }
+    $root = Split-Path -Parent $PSScriptRoot
+    $python = ''
+    if ($Environment.ContainsKey('PB_TERMINAL_PYTHON_EXE')) { $python = [string]$Environment['PB_TERMINAL_PYTHON_EXE'] }
+    else {
+        foreach ($relative in @('bin/protocol-worker/runtime/python/python.exe','bin/dev-venv/Scripts/python.exe')) {
+            $candidate = Join-Path $root $relative
+            if (Test-Path -LiteralPath $candidate -PathType Leaf) { $python=$candidate; break }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($python) -or -not (Test-Path -LiteralPath $python -PathType Leaf)) { $failure.reason='TERMINAL_PYTHON_MISSING'; return $failure }
+    if (-not (Test-Path -LiteralPath (Join-Path $root 'bin/terminal-decoder/packages/pyte/__init__.py'))) { $failure.reason='TERMINAL_PACKAGES_MISSING'; return $failure }
+    $encoding = [Text.UTF8Encoding]::new($false, $true)
+    if ($encoding.GetByteCount($RawText) -gt 8MB) { $failure.reason='TERMINAL_INPUT_LIMIT'; return $failure }
+    $null = New-Item -ItemType Directory -Path $EvidenceDirectory -Force
+    # Private raw evidence; the audit exporter does not allow this file.
+    $inputPath = Join-Path $EvidenceDirectory 'proxybridge-terminal-output.txt'
+    [IO.File]::WriteAllText($inputPath, $RawText, $encoding)
+    $plan = [pscustomobject]@{
+        executable=$python; arguments=@('-I',(Join-Path $root 'src/pb_terminal_decode.py'),'--input',$inputPath)
+        process_timeout_ms=30000; actual_path_timeout_ms=2000
+    }
+    try {
+        $adapter = New-SystemProcessAdapter
+        $result = & $adapter.Invoke $plan
+        if ([bool]$result.timed_out -or [int]$result.exit_code -ne 0 -or -not [bool]$result.output_capture_complete -or -not [string]::IsNullOrWhiteSpace([string]$result.stderr)) {
+            $failure.reason='TERMINAL_DECODER_EXECUTION_FAILED'; return $failure
+        }
+        $decoded = [string]$result.stdout | ConvertFrom-Json
+        if ([int]$decoded.schema_version -ne 1 -or [string]$decoded.status -ne 'DECODED_OBSERVATIONS' -or [bool]$decoded.source_event_stream_complete -or [bool]$decoded.source_event_order_preserved -or -not [bool]$decoded.observations_deduplicated -or [int]$decoded.terminal_columns -ne 240 -or [int]$decoded.terminal_rows -ne 80 -or [string]$decoded.decoder_versions.pyte -ne '0.8.2' -or [string]$decoded.decoder_versions.wcwidth -ne '0.2.13' -or @($decoded.observed_lines).Count -gt 10000) {
+            $failure.reason='TERMINAL_DECODER_RESULT_INVALID'; return $failure
+        }
+        if ((Get-FileHash -LiteralPath $inputPath -Algorithm SHA256).Hash -ine [string]$decoded.input_sha256) { $failure.reason='TERMINAL_INPUT_CHANGED'; return $failure }
+        $records = @(ConvertFrom-ProxyBridgeTextLines -Lines @($decoded.observed_lines) -DefaultTimestampUtc $DefaultTimestampUtc | Where-Object { [string]$_.event -in @('ROUTE_DECISION','RELAY_ACCEPTED_REDIRECT') })
+        foreach ($record in $records) { $record | Add-Member -NotePropertyName capture_scope -NotePropertyValue 'terminal-observation' }
+        $decoded | Add-Member -NotePropertyName records -NotePropertyValue $records
+        return $decoded
+    } catch { $failure.reason='TERMINAL_DECODER_FAILED'; return $failure }
+}
+
+Export-ModuleMember -Function ConvertFrom-ProxyBridgeTextLines, Import-ProxyBridgeTextEvidence, Find-ProxyBridgeFlowEvidence, ConvertFrom-ProxyBridgeTerminalCapture

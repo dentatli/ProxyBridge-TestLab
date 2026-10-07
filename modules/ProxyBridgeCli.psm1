@@ -11,8 +11,14 @@ function New-ProxyBridgeCliPlan {
         [int]$ReadyStableMs = 2000,
         [int]$ReadinessTimeoutMs = 15000,
         [int]$StopTimeoutMs = 5000,
-        [int]$ActualPathTimeoutMs = 2000
+        [int]$ActualPathTimeoutMs = 2000,
+        [ValidateSet('driver','v4.0.0')][string]$ProductProfileContract = 'driver',
+        [ValidateSet('upstream','testlab-unbuffered-v1')][string]$CliVariant = 'upstream'
     )
+    # Both pinned CLIs print this after g_Start succeeds and installing their
+    # control handler. Surviving a fixed interval is not a startup signal.
+    if ($ProductProfileContract -eq 'v4.0.0' -or [string]::IsNullOrWhiteSpace($ReadyRegex)) { $ReadyRegex = '(?m)^ProxyBridge is running\. Press Ctrl\+C to stop\.\r?$' }
+    if ($StopTimeoutMs -gt 60000) { throw 'CLI_STOP_TIMEOUT_EXCEEDS_60000_MS' }
     if ($ReadinessTimeoutMs -lt 1 -or $StopTimeoutMs -lt 1 -or $ActualPathTimeoutMs -lt 1 -or $ReadyStableMs -lt 0) { throw 'CLI_TIMEOUT_CONFIGURATION_INVALID' }
     if ([string]::IsNullOrWhiteSpace($ReadyRegex) -and $ReadyStableMs -lt 1) { throw 'CLI_READINESS_SIGNAL_REQUIRED' }
     if (-not [string]::IsNullOrWhiteSpace($ReadyRegex)) {
@@ -21,6 +27,10 @@ function New-ProxyBridgeCliPlan {
     }
     return [pscustomobject][ordered]@{
         executable = $ExecutablePath
+        console_host_path = Join-Path (Split-Path -Parent $PSScriptRoot) 'bin/pb_console_host.exe'
+        console_output_mode = $(if ($CliVariant -eq 'testlab-unbuffered-v1') { 'pipe' } else { 'terminal' })
+        declared_cli_variant = $CliVariant
+        product_profile_contract = $ProductProfileContract.ToLowerInvariant()
         arguments = @('--profile', $ProfilePath, '--verbose', '3')
         expected_path = $ExecutablePath
         readiness_regex = $ReadyRegex
@@ -87,7 +97,7 @@ function Invoke-ProxyBridgeCliLifecycle {
         if (-not (Test-EquivalentExecutablePath -Expected ([string]$Plan.expected_path) -Actual ([string]$pathProbe.actual_path))) { throw 'CLI_PATH_VERIFICATION_FAILED' }
         $ready = [bool](& $ProcessAdapter.WaitForReadiness $process $Plan.readiness_regex $Plan.readiness_timeout_ms $Plan.readiness_stable_ms)
         if (-not $ready) { throw 'CLI_READINESS_TIMEOUT' }
-        if ($null -ne $Workload) { $workloadResult = & $Workload }
+        if ($null -ne $Workload) { $workloadResult = & $Workload $process }
     }
     catch { $primaryError = $_ }
     finally {
@@ -95,15 +105,24 @@ function Invoke-ProxyBridgeCliLifecycle {
             try {
                 if (& $ProcessAdapter.IsRunning $process) {
                     $gracefulStop = [bool](& $ProcessAdapter.StopProcess $process $Plan.stop_timeout_ms)
-                    if (-not $gracefulStop -or (& $ProcessAdapter.IsRunning $process)) {
+                    if (& $ProcessAdapter.IsRunning $process) {
                         $forcedStop = $true
                         & $ProcessAdapter.KillProcess $process
                     }
                 }
-                else { $gracefulStop = $true }
                 $postStopVerified = -not [bool](& $ProcessAdapter.IsRunning $process)
                 if (-not $postStopVerified) { throw 'CLI_POST_STOP_VERIFICATION_FAILED' }
                 $processResult = & $ProcessAdapter.GetProcessResult $process
+                if ($null -ne $processResult.PSObject.Properties['stop_transport']) {
+                    $transport = [string]$processResult.stop_transport
+                    if ($transport -eq 'forced-job-termination') { $forcedStop = $true }
+                    if ($forcedStop -or $transport -eq 'console-host-error' -or $transport -eq 'console-host-running') {
+                        throw 'CLI_CONTROLLED_SHUTDOWN_FAILED'
+                    }
+                    if ($ready -and (-not $gracefulStop -or [int]$processResult.exit_code -ne 0)) {
+                        throw 'CLI_EXPECTED_SHUTDOWN_NOT_OBSERVED'
+                    }
+                }
             }
             catch { $cleanupError = $_ }
             finally {
@@ -126,6 +145,11 @@ function Invoke-ProxyBridgeCliLifecycle {
             graceful_stop = $gracefulStop
             forced_stop = $forcedStop
             post_stop_verified = $postStopVerified
+            cleanup_scope = 'owned-cli-process'
+            interception_cleanup_verified = $false
+            output_format = $(if ($null -ne $processResult -and $null -ne $processResult.PSObject.Properties['output_format']) { [string]$processResult.output_format } else { 'UNOBSERVED' })
+            output_capture_complete = $(if ($null -ne $processResult -and $null -ne $processResult.PSObject.Properties['output_capture_complete']) { [bool]$processResult.output_capture_complete } else { $false })
+            stop_transport = $(if ($null -ne $processResult -and $null -ne $processResult.PSObject.Properties['stop_transport']) { [string]$processResult.stop_transport } else { 'UNOBSERVED' })
             stdout = $(if ($null -ne $processResult) { [string]$processResult.stdout } else { '' })
             stderr = $(if ($null -ne $processResult) { [string]$processResult.stderr } else { '' })
             primary_error = $(if ($null -ne $primaryError) { [string]$primaryError.Exception.Message } else { '' })
@@ -148,6 +172,8 @@ function Invoke-ProxyBridgeCliLifecycle {
         graceful_stop = $gracefulStop
         forced_stop = $forcedStop
         post_stop_verified = $postStopVerified
+        cleanup_scope = 'owned-cli-process'
+        interception_cleanup_verified = $false
         actual_path_probe_status = $actualPathProbeStatus
         actual_path_probe_attempts = $actualPathProbeAttempts
         actual_path_probe_elapsed_ms = $actualPathProbeElapsedMs

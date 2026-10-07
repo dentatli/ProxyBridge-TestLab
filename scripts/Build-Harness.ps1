@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string]$CompilerPath
+    [string]$CompilerPath,
+    [string]$OutputPath=''
 )
 
 $ErrorActionPreference = 'Stop'
@@ -8,6 +9,10 @@ $root = Split-Path -Parent $PSScriptRoot
 $source = Join-Path $root 'src\pb_net_client.c'
 $binDirectory = Join-Path $root 'bin'
 $output = Join-Path $binDirectory 'pb_net_client.exe'
+if ($OutputPath) {
+    $output = [IO.Path]::GetFullPath($OutputPath)
+    $binDirectory = Split-Path -Parent $output
+}
 
 if (-not (Test-Path -LiteralPath $source -PathType Leaf)) {
     throw "Source file not found: $source"
@@ -33,8 +38,9 @@ function Resolve-Compiler {
 }
 
 $compiler = Resolve-Compiler -ExplicitPath $CompilerPath
+$objectOutput = Join-Path $binDirectory 'pb_net_client.obj'
 if ($compiler.Kind -eq 'MSVC') {
-    & $compiler.Path /nologo /W4 /WX /O2 /TC /D_WIN32_WINNT=0x0601 $source /Fe:$output /link ws2_32.lib bcrypt.lib
+    & $compiler.Path /nologo /W4 /WX /O2 /TC /D_WIN32_WINNT=0x0601 $source /Fo:$objectOutput /Fe:$output /link ws2_32.lib bcrypt.lib
 } else {
     & $compiler.Path -std=c11 -O2 -Wall -Wextra -Werror -D_WIN32_WINNT=0x0601 -o $output $source -lws2_32 -lbcrypt
 }

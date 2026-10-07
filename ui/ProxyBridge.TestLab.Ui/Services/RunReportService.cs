@@ -20,9 +20,11 @@ public sealed class RunReportService(AppPaths paths, AppStoragePaths storagePath
         "assertions.json",
         "client-result.json",
         "proxybridge-evidence.json",
+        "proxybridge-terminal-decode.json",
         "vps-evidence.json",
         "profile-validation.json",
         "post-run-cleanup.json",
+        "interception-after.json",
         "rule-plan.json",
         "client-plan.json",
         "reset-plan.json",
@@ -35,7 +37,7 @@ public sealed class RunReportService(AppPaths paths, AppStoragePaths storagePath
     {
         "summary.json", "results.jsonl", "failures.jsonl", "skipped.jsonl", "selection.jsonl",
         "summary.csv", "coverage.json", "attempt-aggregates.json", "immutable-preflight.json", "direct-baseline-result.json",
-        "environment-preparation-result.json"
+        "environment-preparation-result.json", "profile-compatibility.json", "product-build.json", "interception-before.json"
     };
 
     public async Task<IReadOnlyList<RunListItem>> ListAsync(CancellationToken cancellationToken)

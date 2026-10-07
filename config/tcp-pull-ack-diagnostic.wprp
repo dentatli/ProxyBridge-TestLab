@@ -1,0 +1,100 @@
+<?xml version='1.0' encoding='utf-8'?>
+<WindowsPerformanceRecorder Version="1.0" Author="ProxyBridge-TestLab">
+  <Profiles>
+    <SystemCollector Id="TestLabSystemCollector" Name="NT Kernel Logger">
+      <BufferSize Value="512" />
+      <Buffers Value="128" />
+      <MaximumFileSize Value="2048" FileMode="Sequential" />
+    </SystemCollector>
+    <EventCollector Id="TestLabTcpStateCollector" Name="TestLab TCP State Collector">
+      <BufferSize Value="128" />
+      <Buffers Value="64" />
+      <MaximumFileSize Value="512" FileMode="Sequential" />
+    </EventCollector>
+    <EventCollector Id="TestLabTcpAckCollector" Name="TestLab TCP ACK Collector">
+      <BufferSize Value="128" />
+      <Buffers Value="128" />
+      <MaximumFileSize Value="1024" FileMode="Circular" />
+    </EventCollector>
+    <SystemProvider Id="TestLabSystemProvider">
+      <Keywords>
+        <Keyword Value="ProcessThread" />
+        <Keyword Value="Loader" />
+        <Keyword Value="CpuConfig" />
+        <Keyword Value="CSwitch" />
+        <Keyword Value="ReadyThread" />
+        <Keyword Value="SampledProfile" />
+        <Keyword Value="DPC" />
+        <Keyword Value="Interrupt" />
+        <Keyword Value="NetworkTrace" />
+      </Keywords>
+      <Stacks>
+        <Stack Value="CSwitch" />
+        <Stack Value="ReadyThread" />
+        <Stack Value="SampledProfile" />
+      </Stacks>
+    </SystemProvider>
+    <EventProvider Id="TestLabTcpStateProvider" Name="2f07e2ee-15db-40f1-90ef-9d7ba282188a" Strict="true" NonPagedMemory="true" Level="5">
+      <Keywords>
+        <Keyword Value="0x87" />
+      </Keywords>
+      <EventFilters FilterIn="true">
+        <EventId Value="1001" />
+        <EventId Value="1002" />
+        <EventId Value="1004" />
+        <EventId Value="1008" />
+        <EventId Value="1009" />
+        <EventId Value="1013" />
+        <EventId Value="1017" />
+        <EventId Value="1020" />
+        <EventId Value="1021" />
+        <EventId Value="1038" />
+        <EventId Value="1044" />
+        <EventId Value="1066" />
+        <EventId Value="1069" />
+        <EventId Value="1076" />
+        <EventId Value="1077" />
+        <EventId Value="1091" />
+        <EventId Value="1097" />
+        <EventId Value="1100" />
+        <EventId Value="1101" />
+        <EventId Value="1102" />
+        <EventId Value="1103" />
+        <EventId Value="1104" />
+        <EventId Value="1345" />
+        <EventId Value="1351" />
+      </EventFilters>
+    </EventProvider>
+    <EventProvider Id="TestLabTcpAckProvider" Name="2f07e2ee-15db-40f1-90ef-9d7ba282188a" Strict="true" NonPagedMemory="true" Level="5">
+      <Keywords>
+        <Keyword Value="0x300000000" />
+      </Keywords>
+      <EventFilters FilterIn="true">
+        <EventId Value="1159" />
+        <EventId Value="1160" />
+        <EventId Value="1330" />
+        <EventId Value="1331" />
+        <EventId Value="1429" />
+        <EventId Value="1587" />
+      </EventFilters>
+    </EventProvider>
+    <Profile Id="TestLabTcpPullAck.Verbose.File" Name="TestLabTcpPullAck" Description="Bounded TCP ACK/sequence/window ETW metadata; circular ACK tail, sequential state/scheduling; no packet payload" LoggingMode="File" DetailLevel="Verbose">
+      <Collectors>
+        <SystemCollectorId Value="TestLabSystemCollector">
+          <SystemProviderId Value="TestLabSystemProvider" />
+        </SystemCollectorId>
+        <EventCollectorId Value="TestLabTcpStateCollector">
+          <EventProviders>
+            <EventProviderId Value="TestLabTcpStateProvider" />
+          </EventProviders>
+        </EventCollectorId>
+        <EventCollectorId Value="TestLabTcpAckCollector">
+          <EventProviders>
+            <EventProviderId Value="TestLabTcpAckProvider" />
+          </EventProviders>
+        </EventCollectorId>
+      </Collectors>
+    </Profile>
+    <Profile Id="TestLabTcpPullAck.Verbose.Memory" Name="TestLabTcpPullAck" Base="TestLabTcpPullAck.Verbose.File" Description="Bounded TCP ACK/sequence/window ETW metadata; circular ACK tail, sequential state/scheduling; no packet payload" LoggingMode="Memory" DetailLevel="Verbose" />
+  </Profiles>
+</WindowsPerformanceRecorder>

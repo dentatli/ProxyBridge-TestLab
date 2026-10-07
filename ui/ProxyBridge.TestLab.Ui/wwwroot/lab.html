@@ -1,0 +1,152 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ProxyBridge TestLab</title>
+  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/lab.css">
+  <script src="/lab-results.js" defer></script>
+  <script src="/lab.js" defer></script>
+</head>
+<body>
+  <main class="lab-container">
+    <header class="lab-header">
+      <div><p class="eyebrow">ProxyBridge TestLab</p><h1 data-i18n="title">Лаборатория ProxyBridge</h1></div>
+      <label><span data-i18n="language">Язык</span>
+        <select id="lab-language" aria-label="Language"><option value="ru">Русский</option><option value="en">English</option></select>
+      </label>
+    </header>
+    <nav class="lab-steps" aria-label="Navigation" data-i18n-aria="navigation">
+      <a href="/lab.html?page=builds" data-lab-page="builds"><span>1</span><span data-i18n="connection">Сборки</span></a>
+      <a href="/lab.html?page=testing" data-lab-page="testing"><span>2</span><span data-i18n="testing">Тестирование</span></a>
+      <a href="/lab.html?page=run" data-lab-page="run"><span>3</span><span data-i18n="launch">Запуск</span></a>
+      <a href="/lab.html?page=results" data-lab-page="results"><span>4</span><span data-i18n="results">Результаты</span></a>
+    </nav>
+    <aside id="lab-global-run" class="lab-global-run" hidden>
+      <p id="lab-global-run-status" role="status" aria-live="polite"></p>
+      <a class="button secondary" href="/lab.html?page=run" data-lab-page="run" data-i18n="openRun">Открыть запуск</a>
+    </aside>
+    <noscript><p>Для лаборатории нужен JavaScript. / JavaScript is required to use the laboratory.</p></noscript>
+    <section id="connection" class="panel" data-lab-view="builds" aria-labelledby="builds-heading">
+      <h2 id="builds-heading" tabindex="-1" data-i18n="connection">Сборки</h2>
+      <p data-i18n="installationHelp">Выберите файлы установленного ProxyBridge. Проверка читает файлы, не запускает программу и не меняет драйвер.</p>
+      <form id="product-selection-form">
+        <div class="lab-fields">
+          <label><span data-i18n="buildName">Название сборки</span><input id="product-build-name" type="text" maxlength="64" placeholder="актуал / бета" autocomplete="off"></label>
+          <label><span data-i18n="version">Версия</span><select id="product-contract"><option value="driver">driver</option><option value="v4.0.0">4.0.0</option></select></label>
+          <label><span data-i18n="folder">Папка ProxyBridge</span><input id="product-folder" type="text" placeholder="C:\Program Files\ProxyBridge" autocomplete="off" required></label>
+          <label id="driver-path-label"><span data-i18n="driverPath">Файл драйвера, если находится в другой папке</span><input id="product-driver-path" type="text" placeholder="C:\Windows\System32\drivers\ProxyBridgeDrv.sys" autocomplete="off"></label>
+        </div>
+        <div class="server-actions">
+          <button id="inspect-product" class="button secondary" type="submit" data-i18n="inspect">Проверить файлы</button>
+          <button id="save-product-selection" class="button primary" type="button" disabled data-i18n="select">Выбрать комплект</button>
+        </div>
+      </form>
+      <div id="product-selection-status" class="lab-status" role="status" aria-live="polite"></div>
+      <details id="product-selection-details" hidden><summary data-i18n="details">Технические сведения</summary><pre id="product-selection-json"></pre></details>
+      <div class="lab-build-catalog">
+        <h3 data-i18n="savedBuilds">Сохранённые сборки</h3>
+        <p data-i18n="buildCatalogHelp">Выбор повторно проверит файлы. Собственное имя не подтверждает совместимость новой сборки.</p>
+        <div id="lab-builds"></div>
+        <p id="lab-build-error" class="lab-warning" role="alert"></p>
+      </div>
+      <div class="lab-page-actions"><a id="lab-next-testing" class="button primary" href="/lab.html?page=testing" data-lab-page="testing" data-i18n="toTesting">К тестированию</a></div>
+    </section>
+    <section id="testing" class="panel" data-lab-view="testing" aria-labelledby="testing-heading" hidden>
+      <h2 id="testing-heading" tabindex="-1" data-i18n="testing">Тестирование</h2>
+      <div class="lab-fields">
+        <label><span data-i18n="proxyMode">Расположение SOCKS5-прокси</span><select id="lab-mode"><option value="local" data-i18n="local">На этом ПК</option><option value="remote" data-i18n="remote">На удалённом узле</option></select></label>
+      </div>
+      <fieldset id="lab-test-selection"><legend data-i18n="selectTests"></legend>
+        <div class="lab-test-card">
+          <div class="lab-test-heading"><label class="lab-test-toggle"><input type="checkbox" data-lab-test="tcp_rtt"><span data-i18n="rtt"></span></label><span class="lab-test-time" data-workload-time="tcp_rtt"></span></div>
+          <div class="lab-test-settings">
+            <label><span data-i18n="duration"></span><select data-test-duration="tcp_rtt"><option value="SHORT" data-i18n="SHORT"></option><option value="NORMAL" data-i18n="NORMAL"></option><option value="LONG" data-i18n="LONG"></option></select></label>
+            <label><span data-i18n="load"></span><select data-test-load="tcp_rtt"><option value="LOW" data-i18n="LOW"></option><option value="HIGH" data-i18n="HIGH"></option></select></label>
+          </div>
+          <p data-workload-description="tcp_rtt"></p>
+        </div>
+        <div class="lab-test-card">
+          <div class="lab-test-heading"><label class="lab-test-toggle"><input type="checkbox" data-lab-test="tcp_transfer" checked><span data-i18n="transfer"></span></label><span class="lab-test-time" data-workload-time="tcp_transfer"></span></div>
+          <div class="lab-test-settings">
+            <label><span data-i18n="duration"></span><select data-test-duration="tcp_transfer"><option value="SHORT" data-i18n="SHORT"></option><option value="NORMAL" data-i18n="NORMAL"></option><option value="LONG" data-i18n="LONG"></option></select></label>
+            <label><span data-i18n="load"></span><select data-test-load="tcp_transfer"><option value="LOW" data-i18n="LOW"></option><option value="HIGH" data-i18n="HIGH"></option></select></label>
+          </div>
+          <p data-workload-description="tcp_transfer"></p>
+        </div>
+        <div class="lab-test-card">
+          <div class="lab-test-heading"><label class="lab-test-toggle"><input type="checkbox" data-lab-test="tcp_rtt_three_modes"><span data-i18n="threeModesRtt"></span></label><span class="lab-test-time" data-workload-time="tcp_rtt_three_modes"></span></div>
+          <div class="lab-test-settings">
+            <label><span data-i18n="duration"></span><select data-test-duration="tcp_rtt_three_modes"><option value="SHORT" data-i18n="SHORT"></option><option value="NORMAL" data-i18n="NORMAL"></option><option value="LONG" data-i18n="LONG"></option></select></label>
+            <label><span data-i18n="load"></span><select data-test-load="tcp_rtt_three_modes"><option value="LOW" data-i18n="LOW"></option><option value="HIGH" data-i18n="HIGH"></option></select></label>
+          </div>
+          <p data-workload-description="tcp_rtt_three_modes"></p>
+        </div>
+      <div class="lab-test-card" id="lab-connections-card">
+        <div class="lab-test-heading"><label class="lab-test-toggle"><input type="checkbox" data-lab-test="tcp_connections"><span data-i18n="connectionsTest"></span></label><span class="lab-test-time" data-workload-time="tcp_connections"></span></div>
+        <div class="lab-test-settings">
+          <label><span data-i18n="duration"></span><select data-test-duration="tcp_connections"><option value="SHORT" data-i18n="SHORT"></option><option value="NORMAL" data-i18n="NORMAL"></option><option value="LONG" data-i18n="LONG"></option></select></label>
+          <label><span data-i18n="load"></span><select data-test-load="tcp_connections"><option value="LOW" data-i18n="LOW"></option><option value="HIGH" data-i18n="HIGH"></option></select></label>
+        </div>
+        <p data-workload-description="tcp_connections"></p>
+      </div>
+      </fieldset>
+      <p id="lab-testing-time" class="lab-testing-time" role="status" aria-live="polite"></p>
+      <p data-i18n="suiteHelp">Выбранные тесты выполняются последовательно. При ошибке очередь останавливается. Остановка дожидается текущего прогона и очистки, остальные тесты не запускаются.</p>
+      <p data-i18n="suiteProfileHelp">Длительность и нагрузка задаются отдельно для каждого теста.</p>
+      <p data-i18n="controlled">В каждом режиме используется контролируемый получатель. Прямой трафик служит базой для сравнения выбранного пути через SOCKS5.</p>
+      <p id="scenario-description"></p>
+      <div class="lab-page-actions"><a class="button secondary" href="/lab.html?page=builds" data-lab-page="builds" data-i18n="connection">Сборки</a><a class="button primary" href="/lab.html?page=run" data-lab-page="run" data-i18n="toRun">К запуску</a></div>
+    </section>
+    <section id="launch" class="panel" data-lab-view="run" aria-labelledby="run-heading" hidden>
+      <h2 id="run-heading" tabindex="-1" data-i18n="launch">Запуск</h2>
+      <div id="lab-launch-summary" class="lab-launch-summary"></div>
+      <p id="lab-selection-required" class="lab-warning" hidden><span data-i18n="SELECTION_REQUIRED">Сначала выберите и сохраните комплект.</span> <a href="/lab.html?page=builds" data-lab-page="builds" data-i18n="connection">Сборки</a></p>
+      <p id="lab-launch-status" role="status"></p>
+      <p data-i18n="launchHelp">Подготовка повторно проверяет сохранённый комплект. Она не запускает ProxyBridge или трафик. Команду запуска выполняйте в PowerShell от администратора.</p>
+      <button id="prepare-lab-launch" class="button primary" type="button" data-i18n="prepareLaunch" disabled>Подготовить запуск</button>
+      <div id="lab-plan-status" class="lab-status" role="status" aria-live="polite"></div>
+      <div class="server-actions">
+        <button id="start-lab-run" class="button primary" type="button" data-i18n="startRun" disabled>Запустить проверку</button>
+        <button id="stop-lab-run" class="button secondary" type="button" data-i18n="stopRun" disabled>Остановить после текущего прогона</button>
+      </div>
+      <p id="lab-run-help"></p>
+      <div id="lab-run-status" class="lab-status" role="status" aria-live="polite"></div>
+      <div id="lab-run-error" class="lab-warning" role="alert"></div>
+      <details id="lab-plan-command-block" hidden><summary data-i18n="adminCommand">Команда для PowerShell от администратора</summary><pre id="lab-plan-command"></pre></details>
+      <div class="lab-page-actions"><a class="button secondary" href="/lab.html?page=testing" data-lab-page="testing" data-i18n="changeTesting">Изменить тестирование</a><a class="button secondary" href="/lab.html?page=results" data-lab-page="results" data-i18n="toResults">Посмотреть результаты</a></div>
+    </section>
+    <section id="results" class="panel" data-lab-view="results" aria-labelledby="results-heading" hidden>
+      <div class="lab-header"><h2 id="results-heading" tabindex="-1" data-i18n="results">Результаты</h2><button id="refresh-lab" class="button secondary" type="button" data-i18n="refresh">Обновить</button></div>
+      <nav class="lab-result-tabs" data-i18n-aria="resultSections" aria-label="Разделы результатов">
+        <a href="/lab.html?page=results&amp;tab=compare" data-results-tab="compare" data-i18n="compareResults">Сравнение</a>
+        <a href="/lab.html?page=results&amp;tab=history" data-results-tab="history" data-i18n="testHistory">История</a>
+      </nav>
+      <div id="lab-compare-view">
+        <div class="lab-fields"><label><span data-i18n="scenario">Сценарий</span><select id="comparison-scenario"><option value="tcp_rtt_three_modes" data-i18n="threeModesRtt">Задержка TCP: выключен / без правила / SOCKS5</option><option value="tcp_rtt" data-i18n="rtt">Задержка TCP-запроса и ответа</option><option value="tcp_transfer" data-i18n="transfer">Отправка и скачивание TCP</option><option value="tcp_connections" data-i18n="connectionsTest">Соединения TCP: нагрузка и восстановление</option></select></label></div>
+        <label><span data-i18n="measurementConditions"></span><select id="comparison-workload"><option value="LEGACY" data-i18n="legacyWorkload"></option></select></label>
+        <fieldset class="lab-choices"><legend data-i18n="connection">Сборки</legend><div id="comparison-builds"></div></fieldset>
+        <fieldset class="lab-choices"><legend data-i18n="metric">Показатель</legend><div id="comparison-metrics"></div></fieldset>
+        <div id="comparison-table"></div>
+        <p class="lab-warning" data-i18n="latestOnlyHelp">Последний запуск каждой сборки. Ошибки и отмена не заменяются прежним успешным результатом.</p>
+        <p data-i18n="comparisonScope">Текущие локальные короткие проверки. CPU/RAM относятся к CLI. Таблица показывает сохранённые измерения; полная сопоставимость условий между сборками пока не подтверждена.</p>
+      </div>
+      <div id="lab-history-view" hidden>
+        <div class="lab-fields">
+          <label><span data-i18n="connection">Сборки</span><select id="history-build"><option value="all" data-i18n="allBuilds">Все сборки</option></select></label>
+          <label><span data-i18n="scenario">Сценарий</span><select id="history-scenario"><option value="tcp_rtt_three_modes" data-i18n="threeModesRtt">Задержка TCP: выключен / без правила / SOCKS5</option><option value="all" data-i18n="allTests">Все тесты</option><option value="tcp_rtt" data-i18n="rtt">Задержка TCP-запроса и ответа</option><option value="tcp_transfer" data-i18n="transfer">Отправка и скачивание TCP</option><option value="tcp_connections" data-i18n="connectionsTest">Соединения TCP: нагрузка и восстановление</option></select></label>
+          <label><span data-i18n="runStatus">Статус</span><select id="history-status"><option value="all" data-i18n="allStatuses">Все статусы</option><option value="completed" data-i18n="COMPLETED">Проверка завершена</option><option value="failed" data-i18n="FAILED">Проверка не подтверждена</option><option value="cancelled" data-i18n="CANCELLED">Проверка остановлена</option><option value="running" data-i18n="RUNNING">Проверка выполняется</option></select></label>
+        </div>
+        <p id="history-count"></p>
+        <div id="lab-test-history"></div>
+        <button id="history-more" class="button secondary" type="button" data-i18n="moreHistory" hidden>Загрузить более ранние запуски</button>
+        <details class="lab-history-archive"><summary data-i18n="versionHistory">Сохранённые сравнения версий</summary>
+          <p data-i18n="historyHelp">Исторические сравнения 4.0.0 и driver.</p><div id="lab-reports"></div>
+        </details>
+      </div>
+    </section>
+    <footer><a href="/index.html" data-i18n="existingUi">Открыть прежний технический интерфейс</a></footer>
+  </main>
+</body>
+</html>

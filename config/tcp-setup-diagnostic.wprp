@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<WindowsPerformanceRecorder Version="1.0" Author="ProxyBridge-TestLab">
+  <Profiles>
+    <EventCollector Id="TcpSetupCollector" Name="TestLab TCP Setup Collector">
+      <BufferSize Value="64" />
+      <Buffers Value="32" />
+      <MaximumFileSize Value="32" FileMode="Sequential" />
+    </EventCollector>
+    <EventProvider Id="TcpSetupProvider" Name="2f07e2ee-15db-40f1-90ef-9d7ba282188a" Strict="true" NonPagedMemory="true" Level="5">
+      <Keywords><Keyword Value="0xFFFFFFFFFFFFFFFF" /></Keywords>
+      <EventFilters FilterIn="true">
+        <EventId Value="1004" /><EventId Value="1008" /><EventId Value="1009" />
+        <EventId Value="1014" /><EventId Value="1015" /><EventId Value="1016" />
+        <EventId Value="1017" /><EventId Value="1033" /><EventId Value="1055" />
+        <EventId Value="1063" /><EventId Value="1477" /><EventId Value="1553" />
+      </EventFilters>
+    </EventProvider>
+    <Profile Id="TestLabTcpSetup.Verbose.File" Name="TestLabTcpSetup" Description="Bounded TCP setup, listener and redirect metadata; no packet payload provider" LoggingMode="File" DetailLevel="Verbose">
+      <Collectors>
+        <EventCollectorId Value="TcpSetupCollector"><EventProviders><EventProviderId Value="TcpSetupProvider" /></EventProviders></EventCollectorId>
+      </Collectors>
+    </Profile>
+  </Profiles>
+</WindowsPerformanceRecorder>
