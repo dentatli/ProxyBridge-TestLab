@@ -1,5 +1,11 @@
 ﻿# Work checkpoint
 
+## Согласован штатный SSH-сценарий Ubuntu (2026-10-07)
+
+USER задал новый remote workflow: generated SSH key/public copy для root authorized_keys, IP/optional port, автоматическая настройка или проверка готового узла, запрет тестов без соединения. Только последние Ubuntu; точный allowlist/LTS policy пока не определён. План REMOTE_UBUNTU_SETUP_PLAN.md описывает backend fail-closed/fresh per-test route checks, idempotent setup, full catalogue goal и текущие пробелы. Код remote wizard/controllers не реализовывался и REMOTE_CONTROLLER_PENDING не снимался. Следующий диагностический шаг остаётся парный local/Linux receiver с local SOCKS; Windows internal-context lifecycle ещё неизвестен.
+
+Предыдущий source checkpoint c3c5f93dc0c015ed0a5627e9cf0720db43df4499 отправлен в origin/codex/checkpoint-20261007 и remote SHA проверен. Секреты/ignored runtime evidence не включались. Новый согласованный план сохраняется в той же ветке.
+
 ## USER разрешил Git checkpoint и изменения диагностической VM (2026-10-07)
 
 Пользователь разрешил необходимые изменения расходуемой Windows VM для текущей диагностики и потребовал push, чтобы не потерять исходники. Общий прежний запрет commit/push отменён; необходимо сначала сохранить текущие накопленные исходники/документацию отдельным checkpoint и подтвердить remote commit. Private keys/settings и ignored artifacts/bin/captures в Git не включать; это source checkpoint, не backup runtime evidence и не утверждение полной функциональной проверки всей WIP-работы. Рабочий proxy для Codex сохраняется; разрешение не повышает current process token автоматически. Потенциально разрушительных VM действий до сохранения не выполняли. До push установлен baseline origin/main=a85a370a47f58604e5e588c4c027a95103c29a7c.

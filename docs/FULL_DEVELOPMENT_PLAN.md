@@ -1,5 +1,7 @@
 # ProxyBridge-TestLab full development plan
 
+> Remote-mode requirements updated 2026-10-07: [Ubuntu setup workflow](REMOTE_UBUNTU_SETUP_PLAN.md) supersedes this historical plan's distribution and manual SSH setup requirements. The new workflow is planned, not fully implemented.
+
 > Historical plan. Current direction and development rules: [DEVELOPMENT_PLAN.md](DEVELOPMENT_PLAN.md), updated 2026-09-28. Old acceptance results remain historical.
 
 Status: approved for implementation  

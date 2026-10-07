@@ -1,5 +1,7 @@
 # Local web UI
 
+Remote setup target (2026-10-07): recent Ubuntu only, generated SSH key/public-key copy for root, IP/optional port, **Automatic setup** or **Check connection**. Tests require verified endpoint/route readiness, revoked on disconnect and rechecked by the backend before each test. See [the agreed workflow](../docs/REMOTE_UBUNTU_SETUP_PLAN.md). This wizard and the full remote controllers are pending; REMOTE_CONTROLLER_PENDING remains in force.
+
 The new bilingual laboratory screen is at `http://127.0.0.1:5178/lab.html`.
 It presents separate Builds → Testing → Run → Results views in Russian and English:
 `/lab.html?page=builds`, `?page=testing`, `?page=run`, `?page=results`.

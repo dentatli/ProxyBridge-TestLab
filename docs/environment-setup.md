@@ -1,5 +1,7 @@
 # Environment setup
 
+> Target workflow updated 2026-10-07: the new lab UI will generate an SSH key, show its public key for root authorized_keys, and offer IP/optional port plus **Automatic setup** or **Check connection**. Production support is limited to recent Ubuntu; the release allowlist remains to be defined. See [REMOTE_UBUNTU_SETUP_PLAN.md](REMOTE_UBUNTU_SETUP_PLAN.md). The Debian/Ubuntu and manual plan/apply flow below describes the existing technical interface. Remote tests remain blocked in the new UI until controllers and readiness checks are integrated.
+
 ProxyBridge-TestLab configuration is managed only through the local English web
 UI. Do not create or edit a repository `.env` file and do not copy credentials,
 addresses or private paths into public configuration files.
