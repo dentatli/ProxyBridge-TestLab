@@ -32,6 +32,13 @@ and [operator guide](../docs/OPERATOR_GUIDE.md).
    Save/use/update/delete named suites to repeat the same choices on another
    build. Applying a suite requires fresh preparation; it cannot reuse a frozen
    plan or establish readiness.
+   In remote mode, create/show a TestLab SSH identity or reuse an existing key
+   outside Git, enter the Ubuntu IP/SSH port and check the root connection.
+   Compare the host fingerprint with a trusted source before confirming it.
+   Automatic setup prepares an exact installation/repair plan; review and apply
+   it explicitly. Ubuntu 22.04/24.04/26.04 LTS with systemd are admitted; only
+   Ubuntu 22.04 x64/Python 3.10 has been verified on a real VM so far.
+   SSH and component READY does not enable remote benchmark execution.
 3. **Run:** prepare an immutable files-only plan, review its summary, then start
    explicitly from an administrator UI. The backend rechecks kit identity and
    launches the existing controller with evidence/route/data/cleanup gates.
@@ -52,6 +59,10 @@ Named suites store only choices in `benchmark-suites.json` below the protected
 user config directory. Catalog reads/writes are bounded and validated; corrupt
 catalogs block writes. Credentials, keys, kit paths and old launch plans are not
 stored in templates. Local saved reports are read without probing the product.
+The remote wizard uses a separate `remote-ubuntu` subtree of the user storage
+root for DPAPI settings, host trust, receipts and managed SSH keys. It does not
+automatically reuse or rewrite diagnostic metadata. Navigation/refresh keeps an
+active setup operation; restarting the app requires a fresh check and plan.
 A conditions-key match does not prove full hardware/background comparability.
 
 ## Remaining integration

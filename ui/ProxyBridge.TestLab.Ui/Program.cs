@@ -41,6 +41,7 @@ builder.Services.AddSingleton<ServerReceiptStore>();
 builder.Services.AddSingleton<ServerArtifactBuilder>();
 builder.Services.AddSingleton<IServerTransport, OpenSshServerTransport>();
 builder.Services.AddSingleton<ServerProvisioningService>();
+builder.Services.AddSingleton<RemoteUbuntuService>();
 builder.Services.AddSingleton<RuntimeCapabilityService>();
 builder.Services.AddSingleton<IRuntimeCapabilityService>(services => services.GetRequiredService<RuntimeCapabilityService>());
 builder.Services.AddSingleton<RunCapabilityFileService>();
@@ -121,6 +122,16 @@ app.UseStaticFiles(new StaticFileOptions
 });
 
 var api = app.MapGroup("/api/v1");
+
+api.MapGet("/lab/remote", async (RemoteUbuntuService remote, CancellationToken token) => Results.Ok(await remote.StateAsync(token)));
+api.MapPost("/lab/remote/configure", async (RemoteUbuntuConfiguration request, RemoteUbuntuService remote) =>
+    await RemoteAction(() => remote.ConfigureAsync(request)));
+api.MapPost("/lab/remote/identity", async (RemoteUbuntuService remote) => await RemoteAction(remote.IdentityAsync));
+api.MapPost("/lab/remote/check", async (ServerValidationRequest request, RemoteUbuntuService remote) =>
+    await RemoteAction(() => remote.CheckAsync(request)));
+api.MapPost("/lab/remote/plan", async (RemoteUbuntuService remote) => await RemoteAction(remote.PlanAsync));
+api.MapPost("/lab/remote/apply", async (ServerApplyRequest request, RemoteUbuntuService remote) =>
+    await RemoteAction(() => remote.ApplyAsync(request)));
 
 api.MapGet("/lab/state", async (BenchmarkLabService lab, BenchmarkBuildCatalog builds, BenchmarkRunService runs, RequestTokenService tokens, CancellationToken cancellationToken) =>
     Results.Ok(new { csrf_token = tokens.Token, selection = await lab.GetSelectionAsync(cancellationToken), builds = await builds.PublicAsync(cancellationToken), reports = lab.GetReports(), local_runs = lab.GetLocalRttReports(), local_transfers = lab.GetLocalTransferReports(), local_connections = lab.GetLocalConnectionReports(), launch_history = lab.GetLaunchAttempts(), run_control = runs.State() }));
@@ -483,3 +494,16 @@ app.MapGet("/favicon.ico", () => Results.NoContent());
 app.MapGet("/index.html", (HttpRequest request) => Results.Redirect("/lab.html" + request.QueryString));
 
 app.Run();
+
+static async Task<IResult> RemoteAction(Func<Task<RemoteUbuntuView>> action)
+{
+    try
+    {
+        var view = await action();
+        return view.Error is null ? Results.Ok(view) : Results.Json(view, statusCode: StatusCodes.Status409Conflict);
+    }
+    catch (InvalidOperationException exception) when (exception.Message == "REMOTE_OPERATION_ACTIVE")
+    {
+        return Results.Conflict(new { error = "REMOTE_OPERATION_ACTIVE" });
+    }
+}

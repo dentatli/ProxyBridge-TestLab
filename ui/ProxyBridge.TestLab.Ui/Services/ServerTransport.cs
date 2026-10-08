@@ -119,7 +119,7 @@ public sealed partial class OpenSshServerTransport(AppStoragePaths paths) : ISer
             if [ -r /etc/os-release ]; then . /etc/os-release; os_id="${ID:-}"; os_version="${VERSION_ID:-}"; fi
             pid1="$(cat /proc/1/comm 2>/dev/null || true)"
             arch="$(uname -m 2>/dev/null || true)"
-            sudo_ok=0; sudo -n true >/dev/null 2>&1 && sudo_ok=1
+            sudo_ok=0; if [ "$(id -u)" = 0 ] || sudo -n true >/dev/null 2>&1; then sudo_ok=1; fi
             python_ok=0; command -v python3 >/dev/null 2>&1 && python_ok=1
             python_version=''; python_compatible=0
             if [ "$python_ok" -eq 1 ]; then
@@ -135,7 +135,11 @@ public sealed partial class OpenSshServerTransport(AppStoragePaths paths) : ISer
             plugin_hash=''; [ -r /opt/proxybridge-testlab/current/server-plugin-manifest.json ] && plugin_hash="$(sha256sum /opt/proxybridge-testlab/current/server-plugin-manifest.json | awk '{print $1}')"
             plugin_selftest=0; plugin_count=0
             if [ -r /opt/proxybridge-testlab/current/pb_server_agent.py ] && [ -r /opt/proxybridge-testlab/current/server-plugin-manifest.json ]; then
-              plugin_output="$(sudo -n -u proxybridge-testlab python3 -B /opt/proxybridge-testlab/current/pb_server_agent.py --self-test --manifest /opt/proxybridge-testlab/current/server-plugin-manifest.json 2>/dev/null || true)"
+              if [ "$(id -u)" = 0 ]; then
+                plugin_output="$(runuser -u proxybridge-testlab -- python3 -B /opt/proxybridge-testlab/current/pb_server_agent.py --self-test --manifest /opt/proxybridge-testlab/current/server-plugin-manifest.json 2>/dev/null || true)"
+              else
+                plugin_output="$(sudo -n -u proxybridge-testlab python3 -B /opt/proxybridge-testlab/current/pb_server_agent.py --self-test --manifest /opt/proxybridge-testlab/current/server-plugin-manifest.json 2>/dev/null || true)"
+              fi
               plugin_count="$(printf '%s\n' "$plugin_output" | sed -n 's/^SERVER_AGENT_SELF_TEST_OK plugins=\([0-9][0-9]*\)$/\1/p')"
               if [ -n "$plugin_count" ]; then plugin_selftest=1; else plugin_count=0; fi
             fi
@@ -263,8 +267,8 @@ public sealed partial class OpenSshServerTransport(AppStoragePaths paths) : ISer
     public async Task<ServerVerificationData> VerifyAsync(ServerTarget target, ServerPortSet ports, CancellationToken cancellationToken)
     {
         ValidatePorts(ports);
-        var tcpChecks = string.Join("\n", ports.TcpPorts.Select(port => $"printf '%s\\n' \"$tcp\" | grep -Eq '[:.]{port}$' || listeners=0"));
-        var udpChecks = string.Join("\n", ports.UdpPorts.Select(port => $"printf '%s\\n' \"$udp\" | grep -Eq '[:.]{port}$' || listeners=0"));
+        var tcpChecks = string.Join("\n", (ports.ListenerTcpPorts ?? ports.TcpPorts).Select(port => $"printf '%s\\n' \"$tcp\" | grep -Eq '[:.]{port}$' || listeners=0"));
+        var udpChecks = string.Join("\n", (ports.ListenerUdpPorts ?? ports.UdpPorts).Select(port => $"printf '%s\\n' \"$udp\" | grep -Eq '[:.]{port}$' || listeners=0"));
         var script = $$"""
             set -u
             endpoint_hash=''; [ -r /opt/proxybridge-testlab/current/pb_net_endpoint.py ] && endpoint_hash="$(sha256sum /opt/proxybridge-testlab/current/pb_net_endpoint.py | awk '{print $1}')"
@@ -272,7 +276,11 @@ public sealed partial class OpenSshServerTransport(AppStoragePaths paths) : ISer
             plugin_hash=''; [ -r /opt/proxybridge-testlab/current/server-plugin-manifest.json ] && plugin_hash="$(sha256sum /opt/proxybridge-testlab/current/server-plugin-manifest.json | awk '{print $1}')"
             plugin_selftest=0; plugin_count=0
             if [ -r /opt/proxybridge-testlab/current/pb_server_agent.py ] && [ -r /opt/proxybridge-testlab/current/server-plugin-manifest.json ]; then
-              plugin_output="$(sudo -n -u proxybridge-testlab python3 -B /opt/proxybridge-testlab/current/pb_server_agent.py --self-test --manifest /opt/proxybridge-testlab/current/server-plugin-manifest.json 2>/dev/null || true)"
+              if [ "$(id -u)" = 0 ]; then
+                plugin_output="$(runuser -u proxybridge-testlab -- python3 -B /opt/proxybridge-testlab/current/pb_server_agent.py --self-test --manifest /opt/proxybridge-testlab/current/server-plugin-manifest.json 2>/dev/null || true)"
+              else
+                plugin_output="$(sudo -n -u proxybridge-testlab python3 -B /opt/proxybridge-testlab/current/pb_server_agent.py --self-test --manifest /opt/proxybridge-testlab/current/server-plugin-manifest.json 2>/dev/null || true)"
+              fi
               plugin_count="$(printf '%s\n' "$plugin_output" | sed -n 's/^SERVER_AGENT_SELF_TEST_OK plugins=\([0-9][0-9]*\)$/\1/p')"
               if [ -n "$plugin_count" ]; then plugin_selftest=1; else plugin_count=0; fi
             fi
@@ -328,7 +336,8 @@ public sealed partial class OpenSshServerTransport(AppStoragePaths paths) : ISer
         ValidateTarget(target);
         if (!File.Exists(paths.KnownHostsPath)) throw new InvalidOperationException("SSH_HOST_NOT_TRUSTED");
         var args = BuildSshArguments(target);
-        if (sudo) { args.Add("sudo"); args.Add("-n"); }
+        if (sudo && target.Username != "root") { args.Add("sudo"); args.Add("-n"); }
+        if (target.Username == "root") script = "[ \"$(id -u)\" = 0 ] || exit 77\n" + script;
         args.Add("sh"); args.Add("-s");
         var normalizedScript = script.Replace("\r\n", "\n", StringComparison.Ordinal).Replace('\r', '\n');
         var result = await RunProcessAsync(FindOpenSshTool("ssh.exe"), args, normalizedScript, timeout, cancellationToken);
@@ -431,6 +440,9 @@ public sealed partial class OpenSshServerTransport(AppStoragePaths paths) : ISer
         foreach (var port in ports.TcpPorts.Concat(ports.UdpPorts)) ValidatePort(port);
         if (ports.TcpPorts.Distinct().Count() != ports.TcpPorts.Count || ports.UdpPorts.Distinct().Count() != ports.UdpPorts.Count)
             throw new InvalidOperationException("SERVER_PORT_SET_DUPLICATE");
+        if (ports.ListenerTcpPorts?.Any(port => !ports.TcpPorts.Contains(port)) == true ||
+            ports.ListenerUdpPorts?.Any(port => !ports.UdpPorts.Contains(port)) == true)
+            throw new InvalidOperationException("SERVER_LISTENER_OUTSIDE_RESERVED_PORTS");
     }
     private static IReadOnlyList<int> ParsePortList(string value)
     {

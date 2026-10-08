@@ -49,19 +49,19 @@ public sealed class ServerProvisioningService(
         return new ServerStatusView("VALIDATION_REQUIRED", "The SSH host is trusted, but no current readiness receipt is available.", true, true, false, _lastVerifiedUtc, null, ["Validate the server and create an installation or repair plan."]);
     }
 
-    public async Task<ServerValidationView> ValidateAsync(ServerValidationRequest request, CancellationToken cancellationToken)
+    public async Task<ServerValidationView> ValidateAsync(ServerValidationRequest request, CancellationToken cancellationToken, bool ubuntuOnly = false)
     {
         await _operationGate.WaitAsync(cancellationToken);
-        try { return await ValidateCoreAsync(request, cancellationToken); }
+        try { return await ValidateCoreAsync(request, cancellationToken, ubuntuOnly); }
         finally { _operationGate.Release(); }
     }
 
-    public async Task<ServerPlanView> CreatePlanAsync(CancellationToken cancellationToken)
+    public async Task<ServerPlanView> CreatePlanAsync(CancellationToken cancellationToken, bool ubuntuOnly = false)
     {
         await _operationGate.WaitAsync(cancellationToken);
         try
         {
-            var validation = await ValidateCoreAsync(new ServerValidationRequest(), cancellationToken);
+            var validation = await ValidateCoreAsync(new ServerValidationRequest(), cancellationToken, ubuntuOnly);
             if (validation.State is not ("PLAN_READY" or "REPAIR_REQUIRED" or "READY"))
                 throw new ServerOperationException("SERVER_NOT_READY_FOR_PLAN", validation);
 
@@ -96,19 +96,19 @@ public sealed class ServerProvisioningService(
                 artifacts.PublicHashes,
                 artifacts.BundleId,
                 artifacts.ImplementedPlugins,
-                ["sudo -n sh -s < plan-owned installer"],
+                [target.Username == "root" ? "sh -s < plan-owned installer" : "sudo -n sh -s < plan-owned installer"],
                 [
                     new ServerPlanStep(1, "VERIFY_STAGED_ARTIFACTS", "Decode to a private temporary directory, verify every artifact and run the endpoint and protocol self-tests before activation.", true, "Remove only the plan-owned staging directory."),
                     new ServerPlanStep(2, "ENSURE_RUNTIME", discovery.Python3 ? "Use the existing Python 3 runtime." : "Install the Debian/Ubuntu python3 package.", !discovery.Python3, "Installed packages are retained because removing shared dependencies is unsafe."),
                     new ServerPlanStep(3, "ENSURE_SERVICE_IDENTITY", "Create the dedicated unprivileged proxybridge-testlab account when absent.", true, "Remove the account only if this plan created it and activation fails."),
                     new ServerPlanStep(4, "ATOMIC_ACTIVATION", "Activate a versioned endpoint, systemd unit and log rotation configuration.", true, "Restore the exact prior TestLab files and service state."),
                     new ServerPlanStep(5, "VERIFY_SERVICE", "Verify bundle hashes, plugin self-test, enabled/active service state and every required TCP/UDP listener.", false, "No rollback is needed for read-only verification.")
-                ], warnings);
+                ], warnings, artifacts.Ports.ListenerTcpPorts, artifacts.Ports.ListenerUdpPorts);
             var settingsDigest = ComputeSettingsDigest(snapshot, artifacts);
             lock (_stateGate)
             {
                 _plans.Clear();
-                _plans[planId] = new StoredPlan(plan, targetHash, settingsDigest, discovery, artifacts);
+                _plans[planId] = new StoredPlan(plan, targetHash, settingsDigest, discovery, artifacts, ubuntuOnly);
             }
             return plan;
         }
@@ -137,6 +137,15 @@ public sealed class ServerProvisioningService(
             if (!string.Equals(stored.TargetHash, targetHash, StringComparison.Ordinal) ||
                 !string.Equals(stored.SettingsDigest, ComputeSettingsDigest(snapshot, currentArtifacts), StringComparison.Ordinal))
                 throw new ServerOperationException("SERVER_PLAN_INPUT_CHANGED");
+
+            if (stored.UbuntuOnly)
+            {
+                var currentDiscovery = await transport.DiscoverAsync(target, stored.Artifacts.Ports, cancellationToken);
+                if (!SupportedUbuntu(currentDiscovery) || target.Username != "root")
+                    throw new ServerOperationException("UBUNTU_PLATFORM_CHANGED");
+                if (currentDiscovery.ConflictingTcpPorts.Count > 0 || currentDiscovery.ConflictingUdpPorts.Count > 0)
+                    throw new ServerOperationException("SERVER_PORT_CONFLICT");
+            }
 
             if (stored.View.State == "NO_CHANGE_VERIFY")
             {
@@ -186,7 +195,7 @@ public sealed class ServerProvisioningService(
         return await transport.GetMetricsAsync(BuildTarget(snapshot), cancellationToken);
     }
 
-    private async Task<ServerValidationView> ValidateCoreAsync(ServerValidationRequest request, CancellationToken cancellationToken)
+    private async Task<ServerValidationView> ValidateCoreAsync(ServerValidationRequest request, CancellationToken cancellationToken, bool ubuntuOnly = false)
     {
         var snapshot = await settingsStore.LoadAsync(cancellationToken);
         if (!TryBuildTarget(snapshot, out var target, out var remediation))
@@ -234,6 +243,9 @@ public sealed class ServerProvisioningService(
             return new ServerValidationView("ERROR", Humanize(exception.Message), observation.Fingerprints, null, false, null, ["Verify the private key, SSH user and non-interactive login."]);
         }
         var view = ToDiscoveryView(discovery);
+        if (ubuntuOnly && (!SupportedUbuntu(discovery) || target!.Username != "root"))
+            return new ServerValidationView("UNSUPPORTED", "UBUNTU_LTS_ROOT_REQUIRED", observation.Fingerprints, null, false, view,
+                ["Use root on Ubuntu 22.04, 24.04 or 26.04 LTS with systemd."]);
         if (discovery.OsId is not ("debian" or "ubuntu") || !discovery.Systemd)
             return new ServerValidationView("UNSUPPORTED", "Only Debian or Ubuntu with systemd as PID 1 is supported.", observation.Fingerprints, null, false, view, ["Use a supported Debian/Ubuntu systemd server."]);
         if (!discovery.SudoNonInteractive)
@@ -358,7 +370,10 @@ public sealed class ServerProvisioningService(
     };
 
     private sealed record PendingTrust(string Token, HostKeyObservation Observation, bool Changed, DateTimeOffset ExpiresUtc);
-    private sealed record StoredPlan(ServerPlanView View, string TargetHash, string SettingsDigest, ServerDiscoveryData Discovery, ServerArtifactBundle Artifacts);
+    private static bool SupportedUbuntu(ServerDiscoveryData discovery) =>
+        discovery.OsId == "ubuntu" && discovery.OsVersion is "22.04" or "24.04" or "26.04" && discovery.Systemd;
+
+    private sealed record StoredPlan(ServerPlanView View, string TargetHash, string SettingsDigest, ServerDiscoveryData Discovery, ServerArtifactBundle Artifacts, bool UbuntuOnly);
 }
 
 public sealed class ServerOperationException : Exception

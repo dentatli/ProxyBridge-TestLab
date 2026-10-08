@@ -3,7 +3,8 @@ using System.Text.RegularExpressions;
 
 namespace ProxyBridge.TestLab.Ui.Services;
 
-public sealed record ServerPortSet(IReadOnlyList<int> TcpPorts, IReadOnlyList<int> UdpPorts);
+public sealed record ServerPortSet(IReadOnlyList<int> TcpPorts, IReadOnlyList<int> UdpPorts,
+    IReadOnlyList<int>? ListenerTcpPorts = null, IReadOnlyList<int>? ListenerUdpPorts = null);
 
 public sealed partial class ServerProtocolPortCatalog(AppPaths paths)
 {
@@ -28,7 +29,8 @@ public sealed partial class ServerProtocolPortCatalog(AppPaths paths)
         ValidatePort(endpointPortB);
         var tcp = new HashSet<int>();
         var udp = new HashSet<int>();
-        foreach (var plugin in implementedPlugins.Distinct(StringComparer.Ordinal))
+        var plugins = implementedPlugins.Distinct(StringComparer.Ordinal).ToArray();
+        foreach (var plugin in plugins)
         {
             switch (plugin)
             {
@@ -64,7 +66,22 @@ public sealed partial class ServerProtocolPortCatalog(AppPaths paths)
                 case "performance-origin": Add(tcp, this["performance"]); Add(udp, this["performance"]); break;
             }
         }
-        return new ServerPortSet(tcp.Order().ToArray(), udp.Order().ToArray());
+        // Reserved ports cover future allocations too. Health verifies the listeners actually
+        // started by pb_protocol_server/start_standard_protocols/start_realtime_protocols.
+        var listenerTcp = new HashSet<int>(tcp);
+        var listenerUdp = new HashSet<int>(udp);
+        if (plugins.Contains("file-transfer", StringComparer.Ordinal))
+        {
+            listenerTcp.Remove(this["sftp"]); // The current agent serves FTP/FTPS; SFTP stays gated.
+            for (var port = this["ftp_data_start"] + 1; port <= this["ftp_data_end"]; port++) listenerTcp.Remove(port);
+        }
+        if (plugins.Contains("realtime-suite", StringComparer.Ordinal))
+        {
+            listenerTcp.Remove(this["stun_turn"]);
+            listenerTcp.Remove(this["turn_tls"]); // The current STUN/TURN agent listens on UDP.
+            for (var port = this["realtime_start"] + 2; port <= this["realtime_end"]; port++) listenerUdp.Remove(port);
+        }
+        return new ServerPortSet(tcp.Order().ToArray(), udp.Order().ToArray(), listenerTcp.Order().ToArray(), listenerUdp.Order().ToArray());
     }
 
     private static IReadOnlyDictionary<string, int> Load(AppPaths paths)

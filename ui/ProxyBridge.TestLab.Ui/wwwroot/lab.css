@@ -67,3 +67,7 @@
 .lab-test-settings label { display: grid; gap: .4rem; }
 .lab-test-card p { margin-bottom: 0; color: #b4cdce; }
 @media (max-width: 600px) { .lab-test-settings { grid-template-columns: 1fr; } .lab-test-heading { align-items: start; flex-direction: column; gap: 8px; } .lab-test-time { margin-left: 30px; } }
+#lab-remote textarea { width: 100%; box-sizing: border-box; color: var(--ink); background: var(--panel-2); border: 1px solid var(--line); padding: .75rem; border-radius: .5rem; resize: vertical; font: inherit; }
+#lab-remote pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+#remote-trust label { flex-direction: row; align-items: center; margin: 12px 0; }
+#lab-remote input[type="checkbox"] { width: auto; min-height: auto; flex: 0 0 auto; }

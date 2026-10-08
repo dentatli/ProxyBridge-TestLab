@@ -364,7 +364,8 @@ function renderLab() {
   renderLabPage();
   lab("driver-path-label").hidden = lab("product-contract").value !== "driver";
   const observation = labState.observation;
-  const busy = labActionActive || runActive();
+  const busy = labActionActive || runActive() || remoteActionActive || !!remoteState?.busy;
+  renderRemote(busy);
   const message = { KNOWN_BENCHMARK_FILES: "known", FILES_OBSERVED_COMPATIBILITY_PENDING: "pending", FILES_INCOMPLETE: "incomplete", FILES_UNREADABLE: "unreadable", UNSUPPORTED_BEFORE_4_0_0: "old" }[observation?.status];
   lab("product-selection-status").textContent = observation ? `${observation.display_name || observation.product_label} (${observation.product_label}): ${t(message || "failed")} ${labState.saved ? t("saved") : ""}` : t("noSelection");
   lab("product-selection-details").hidden = !observation;
@@ -499,6 +500,7 @@ async function loadLab() {
     const data = await response.json();
     labState.csrf = data.csrf_token;
     await loadSavedSuites();
+    await loadRemote();
     labState.builds = data.builds?.items || [];
     labState.launches = data.launch_history?.items || [];
     labState.launchNextOffset = data.launch_history?.next_offset ?? null;

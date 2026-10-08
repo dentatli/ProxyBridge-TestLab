@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/lab.css">
   <script src="/lab-results.js" defer></script>
   <script src="/lab.js" defer></script>
+  <script src="/lab-remote.js" defer></script>
   <script src="/lab-suites.js" defer></script>
 </head>
 <body>
@@ -74,6 +75,39 @@
       <div class="lab-fields">
         <label><span data-i18n="proxyMode">Расположение SOCKS5-прокси</span><select id="lab-mode"><option value="local" data-i18n="local">На этом ПК</option><option value="remote" data-i18n="remote">На удалённом узле</option></select></label>
       </div>
+      <section id="lab-remote" class="lab-suite-catalog" aria-labelledby="remote-heading" hidden>
+        <h3 id="remote-heading" data-i18n="remoteHeading"></h3>
+        <p data-i18n="remoteHelp"></p>
+        <div class="lab-fields">
+          <label><span data-i18n="remoteIp"></span><input id="remote-ip" type="text" autocomplete="off" placeholder="192.168.0.100"></label>
+          <label><span data-i18n="remotePort"></span><input id="remote-port" type="number" min="1" max="65535" value="22"></label>
+          <label><span data-i18n="remoteExistingKey"></span><input id="remote-key-path" type="text" autocomplete="off" placeholder="C:\Users\…\id_ed25519"></label>
+        </div>
+        <div class="lab-actions">
+          <button id="remote-identity" type="button" class="button secondary" data-i18n="remoteIdentity"></button>
+          <button id="remote-copy" type="button" class="button secondary" data-i18n="remoteCopy" disabled></button>
+        </div>
+        <label id="remote-public-label" hidden><span data-i18n="remotePublicKey"></span><textarea id="remote-public" rows="3" readonly spellcheck="false"></textarea></label>
+        <p id="remote-key-help" data-i18n="remoteKeyHelp"></p>
+        <div class="lab-actions">
+          <button id="remote-check" type="button" class="button secondary" data-i18n="remoteCheck"></button>
+          <button id="remote-setup" type="button" class="button primary" data-i18n="remoteSetup"></button>
+        </div>
+        <p id="remote-status" role="status" aria-live="polite"></p>
+        <p id="remote-error" class="lab-warning" role="alert"></p>
+        <div id="remote-trust" hidden>
+          <p data-i18n="remoteTrustHelp"></p><pre id="remote-fingerprints"></pre>
+          <label><input id="remote-trust-confirm" type="checkbox"><span data-i18n="remoteTrustConfirm"></span></label>
+          <label id="remote-replace-label" hidden><input id="remote-replace-confirm" type="checkbox"><span data-i18n="remoteReplaceConfirm"></span></label>
+          <button id="remote-trust-button" type="button" class="button secondary" data-i18n="remoteTrustButton"></button>
+        </div>
+        <div id="remote-plan" hidden>
+          <h4 data-i18n="remotePlanHeading"></h4><pre id="remote-plan-summary"></pre>
+          <p data-i18n="remotePlanHelp"></p>
+          <button id="remote-apply" type="button" class="button primary" data-i18n="remoteApply"></button>
+        </div>
+        <p class="lab-warning" data-i18n="remoteTestGate"></p>
+      </section>
       <fieldset id="lab-test-selection"><legend data-i18n="selectTests"></legend>
         <div class="lab-test-card">
           <div class="lab-test-heading"><label class="lab-test-toggle"><input type="checkbox" data-lab-test="tcp_rtt"><span data-i18n="rtt"></span></label><span class="lab-test-time" data-workload-time="tcp_rtt"></span></div>

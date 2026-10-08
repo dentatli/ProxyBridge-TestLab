@@ -1,6 +1,6 @@
 # ProxyBridge TestLab operator guide
 
-Current application workflow, 2026-10-08. The default page is the bilingual
+Current application workflow, 2026-10-09. The default page is the bilingual
 laboratory; the retired technical dashboard is no longer shipped.
 
 ## Supported scope
@@ -10,10 +10,21 @@ laboratory; the retired technical dashboard is no longer shipped.
 - Selected tests: TCP RTT, combined upload/download, separate three-mode RTT,
   and TCP connection load/recovery. Evidence and cleanup checks remain mandatory.
 - Unknown/relocated kits and 4.0.0 need further runtime-adapter integration.
-- The remote wizard targets Ubuntu Server 22.04/24.04/26.04 LTS; remote GUI
-  execution remains blocked until platform, components and route are verified.
+- The remote wizard admits Ubuntu Server 22.04/24.04/26.04 LTS with systemd;
+  real installation has been checked on 22.04 x64/Python 3.10. Newer releases
+  and native vendor compatibility still require acceptance checks. Remote GUI
+  benchmarks retain `REMOTE_CONTROLLER_PENDING`.
 
 ## Start and choose a run
+
+For Ubuntu setup, choose remote on Testing. Reuse an existing local private key
+outside Git or create/show the managed key and add its public key to root's
+authorized_keys. Enter IP/port, check the connection, and confirm the server
+fingerprint against a trusted source. Automatic setup prepares a plan; apply
+the reviewed plan explicitly. The service runs unprivileged; firewall policy
+stays externally owned. Reserved ports and expected active listeners are shown
+separately. A verified service is component readiness, not route/test readiness.
+After changing settings, losing SSH or restarting the app, check again.
 
 For a source checkout, follow [UI startup instructions](../ui/README.md).
 For a published package, use `packaging\Start-ProxyBridge-TestLab.ps1`.

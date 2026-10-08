@@ -70,7 +70,9 @@ public sealed record ServerPlanView(
     IReadOnlyList<string> ProtocolPlugins,
     IReadOnlyList<string> Commands,
     IReadOnlyList<ServerPlanStep> Steps,
-    IReadOnlyList<string> Warnings);
+    IReadOnlyList<string> Warnings,
+    IReadOnlyList<int>? ListenerTcpPorts = null,
+    IReadOnlyList<int>? ListenerUdpPorts = null);
 
 public sealed record ServerApplyView(
     string State,
