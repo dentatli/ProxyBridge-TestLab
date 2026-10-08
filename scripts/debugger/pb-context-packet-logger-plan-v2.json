@@ -1,0 +1,1290 @@
+{
+  "schema_version": 1,
+  "status": "DRAFT_NOT_INSTALLABLE",
+  "expected_existing_points": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13
+  ],
+  "expected_existing_state": "disabled",
+  "replacement_ids": [
+    1,
+    2,
+    10,
+    11
+  ],
+  "proposed_added_ids": [
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24
+  ],
+  "points": [
+    {
+      "id": 0,
+      "event": "CREATE_PRE",
+      "target": "tcpip!AlepCreateRedirectRecord+0x38f",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "stack",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "ep",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "previous",
+          "format": "%p",
+          "expression": "poi(@rdi+0x1c0)"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "@rax"
+        },
+        {
+          "name": "context",
+          "format": "%p",
+          "expression": "poi(@rax+0x1e0)"
+        },
+        {
+          "name": "size",
+          "format": "%I64x",
+          "expression": "poi(@rax+0x1e8)"
+        },
+        {
+          "name": "refs",
+          "format": "%x",
+          "expression": "dwo(@rax+0x1f0)"
+        },
+        {
+          "name": "familyA",
+          "format": "%x",
+          "expression": "wo(@rax+0x48)"
+        },
+        {
+          "name": "portA",
+          "format": "%x",
+          "expression": "wo(@rax+0x4a)"
+        },
+        {
+          "name": "addrA",
+          "format": "%x",
+          "expression": "dwo(@rax+0x4c)"
+        },
+        {
+          "name": "familyB",
+          "format": "%x",
+          "expression": "wo(@rax+0xc8)"
+        },
+        {
+          "name": "portB",
+          "format": "%x",
+          "expression": "wo(@rax+0xca)"
+        },
+        {
+          "name": "addrB",
+          "format": "%x",
+          "expression": "dwo(@rax+0xcc)"
+        }
+      ],
+      "condition": null,
+      "legacy_point": true
+    },
+    {
+      "id": 1,
+      "event": "CREATE_POST",
+      "target": "tcpip!AlepCreateRedirectRecord+0x396",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "ep",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "assigned",
+          "format": "%p",
+          "expression": "poi(@rdi+0x1c0)"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "@rax"
+        },
+        {
+          "name": "context",
+          "format": "%p",
+          "expression": "poi(@rax+0x1e0)"
+        },
+        {
+          "name": "size",
+          "format": "%I64x",
+          "expression": "poi(@rax+0x1e8)"
+        },
+        {
+          "name": "refs",
+          "format": "%x",
+          "expression": "dwo(@rax+0x1f0)"
+        },
+        {
+          "name": "familyA",
+          "format": "%x",
+          "expression": "wo(@rax+0x48)"
+        },
+        {
+          "name": "portA",
+          "format": "%x",
+          "expression": "wo(@rax+0x4a)"
+        },
+        {
+          "name": "addrA",
+          "format": "%x",
+          "expression": "dwo(@rax+0x4c)"
+        },
+        {
+          "name": "familyB",
+          "format": "%x",
+          "expression": "wo(@rax+0xc8)"
+        },
+        {
+          "name": "portB",
+          "format": "%x",
+          "expression": "wo(@rax+0xca)"
+        },
+        {
+          "name": "addrB",
+          "format": "%x",
+          "expression": "dwo(@rax+0xcc)"
+        }
+      ],
+      "condition": null,
+      "legacy_point": false
+    },
+    {
+      "id": 2,
+      "event": "ACCEPT_RETRIEVE_PRE",
+      "target": "tcpip!WfpAleAuthorizeAccept+0xca3",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "ep",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "previous",
+          "format": "%p",
+          "expression": "poi(@rdi+0x1c0)"
+        },
+        {
+          "name": "nbl",
+          "format": "%p",
+          "expression": "@rcx"
+        },
+        {
+          "name": "key",
+          "format": "%I64x",
+          "expression": "@rdx"
+        },
+        {
+          "name": "raw_flag",
+          "format": "%x",
+          "expression": "(@r8 & 0xff)"
+        },
+        {
+          "name": "raw_arg4",
+          "format": "%I64x",
+          "expression": "@r9"
+        },
+        {
+          "name": "output",
+          "format": "%p",
+          "expression": "poi(@rsp+0x20)"
+        }
+      ],
+      "condition": null,
+      "legacy_point": false
+    },
+    {
+      "id": 3,
+      "event": "TRANSFER_PRE",
+      "target": "tcpip!InitializeEndpointContextFromParentContext+0x1d7",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "stack",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "child",
+          "format": "%p",
+          "expression": "@rbx"
+        },
+        {
+          "name": "parent",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "@rax"
+        },
+        {
+          "name": "child_record",
+          "format": "%p",
+          "expression": "poi(@rbx+0x1c0)"
+        }
+      ],
+      "condition": null,
+      "legacy_point": true
+    },
+    {
+      "id": 4,
+      "event": "TRANSFER_POST",
+      "target": "tcpip!InitializeEndpointContextFromParentContext+0x1e6",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "stack",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "child",
+          "format": "%p",
+          "expression": "@rbx"
+        },
+        {
+          "name": "parent",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "child_record",
+          "format": "%p",
+          "expression": "poi(@rbx+0x1c0)"
+        },
+        {
+          "name": "parent_record",
+          "format": "%p",
+          "expression": "poi(@rdi+0x1c0)"
+        }
+      ],
+      "condition": null,
+      "legacy_point": true
+    },
+    {
+      "id": 5,
+      "event": "DEREF_PRE",
+      "target": "tcpip!AleRedirectRecordDereference+0xc",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "stack",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "@rcx"
+        },
+        {
+          "name": "refs",
+          "format": "%x",
+          "expression": "dwo(@rcx+0x1f0)"
+        }
+      ],
+      "condition": null,
+      "legacy_point": true
+    },
+    {
+      "id": 6,
+      "event": "DEREF_POST",
+      "target": "tcpip!AleRedirectRecordDereference+0x14",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "stack",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "@rcx"
+        },
+        {
+          "name": "previous_refs",
+          "format": "%x",
+          "expression": "@eax"
+        },
+        {
+          "name": "refs",
+          "format": "%x",
+          "expression": "dwo(@rcx+0x1f0)"
+        }
+      ],
+      "condition": null,
+      "legacy_point": true
+    },
+    {
+      "id": 7,
+      "event": "FREE_ENTER",
+      "target": "tcpip!AleRedirectRecordFree+0xd",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "stack",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "slot",
+          "format": "%p",
+          "expression": "@rcx"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "@rbx"
+        },
+        {
+          "name": "refs",
+          "format": "%x",
+          "expression": "dwo(@rbx+0x1f0)"
+        },
+        {
+          "name": "context",
+          "format": "%p",
+          "expression": "poi(@rbx+0x1e0)"
+        },
+        {
+          "name": "size",
+          "format": "%I64x",
+          "expression": "poi(@rbx+0x1e8)"
+        }
+      ],
+      "condition": null,
+      "legacy_point": true
+    },
+    {
+      "id": 8,
+      "event": "FREE_POOL_PRE",
+      "target": "tcpip!AleRedirectRecordFree+0x71",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "stack",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "slot",
+          "format": "%p",
+          "expression": "@rcx"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "@rbx; kb 6"
+        }
+      ],
+      "condition": null,
+      "legacy_point": true
+    },
+    {
+      "id": 9,
+      "event": "FREE_POOL_RETURN",
+      "target": "tcpip!AleRedirectRecordFree+0x76",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "stack",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "former_record_address",
+          "format": "%p",
+          "expression": "@rbx"
+        }
+      ],
+      "condition": null,
+      "legacy_point": true
+    },
+    {
+      "id": 10,
+      "event": "QUERY_READ",
+      "target": "tcpip!WfpAleProcessSocketOption+0x2c4",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "ep",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "poi(@rdi+0x1c0)"
+        },
+        {
+          "name": "ioctl",
+          "format": "%x",
+          "expression": "@r15d"
+        }
+      ],
+      "condition": "@r15d == 0x980000dd",
+      "legacy_point": false
+    },
+    {
+      "id": 11,
+      "event": "QUERY_STATUS",
+      "target": "tcpip!WfpAleProcessSocketOption+0x47b",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "ep",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "poi(@rdi+0x1c0)"
+        },
+        {
+          "name": "status",
+          "format": "%x",
+          "expression": "@ebx"
+        }
+      ],
+      "condition": "@r15d == 0x980000dd",
+      "legacy_point": false
+    },
+    {
+      "id": 12,
+      "event": "ALLOCATOR_FREE_CALL",
+      "target": "tcpip!WfpPoolFree+0x1a",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "stack",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "slot",
+          "format": "%p",
+          "expression": "@rbx"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "@rcx"
+        },
+        {
+          "name": "allocator_return",
+          "format": "%p",
+          "expression": "tcpip!WfpPoolFree+0x1f"
+        }
+      ],
+      "condition": "poi(@rsp+0x28) == tcpip!AleRedirectRecordFree+0x76",
+      "legacy_point": true
+    },
+    {
+      "id": 13,
+      "event": "ALLOCATOR_FREE_RETURN",
+      "target": "tcpip!WfpPoolFree+0x1f",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "stack",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "slot",
+          "format": "%p",
+          "expression": "@rbx"
+        },
+        {
+          "name": "former_record_address",
+          "format": "%p",
+          "expression": "poi(@rbx)"
+        }
+      ],
+      "condition": "poi(@rsp+0x28) == tcpip!AleRedirectRecordFree+0x76",
+      "legacy_point": true
+    },
+    {
+      "id": 14,
+      "event": "ACCEPT_RETRIEVE_RESULT",
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcaf",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "ep",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "nbl",
+          "format": "%p",
+          "expression": "@rbx"
+        },
+        {
+          "name": "status",
+          "format": "%x",
+          "expression": "@eax"
+        },
+        {
+          "name": "output_record",
+          "format": "%p",
+          "expression": "poi(@rbp-0x28)"
+        },
+        {
+          "name": "previous",
+          "format": "%p",
+          "expression": "poi(@rdi+0x1c0)"
+        }
+      ],
+      "condition": null,
+      "legacy_point": false
+    },
+    {
+      "id": 15,
+      "event": "ACCEPT_AFTER_STORE",
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcbe",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "ep",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "nbl",
+          "format": "%p",
+          "expression": "@rbx"
+        },
+        {
+          "name": "assigned",
+          "format": "%p",
+          "expression": "poi(@rdi+0x1c0)"
+        },
+        {
+          "name": "raw_flags",
+          "format": "%x",
+          "expression": "dwo(@rdi+0x30)"
+        },
+        {
+          "name": "raw_esi",
+          "format": "%x",
+          "expression": "@esi"
+        }
+      ],
+      "condition": null,
+      "legacy_point": false
+    },
+    {
+      "id": 16,
+      "event": "ASSOCIATE_ENTRY",
+      "target": "fwpkclnt!FwppNetBufferListAssociateContext",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "caller",
+          "format": "%p",
+          "expression": "poi(@rsp)"
+        },
+        {
+          "name": "raw_arg1",
+          "format": "%x",
+          "expression": "@ecx"
+        },
+        {
+          "name": "nbl",
+          "format": "%p",
+          "expression": "@rdx"
+        },
+        {
+          "name": "raw_flags",
+          "format": "%x",
+          "expression": "(@r8 & 0xffff)"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "@r9"
+        },
+        {
+          "name": "key",
+          "format": "%I64x",
+          "expression": "poi(@rsp+0x28)"
+        },
+        {
+          "name": "callback",
+          "format": "%p",
+          "expression": "poi(@rsp+0x48)"
+        }
+      ],
+      "condition": "(poi(@rsp+0x28) == 5) and (poi(@rsp+0x48) == tcpip!TlShimNblEventNotifyFn)",
+      "legacy_point": false
+    },
+    {
+      "id": 17,
+      "event": "ASSOCIATE_RETURN",
+      "target": "fwpkclnt!FwppNetBufferListAssociateContext+0x155",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp+0x58"
+        },
+        {
+          "name": "caller",
+          "format": "%p",
+          "expression": "poi(@rsp+0x58)"
+        },
+        {
+          "name": "nbl",
+          "format": "%p",
+          "expression": "@rbp"
+        },
+        {
+          "name": "key",
+          "format": "%I64x",
+          "expression": "poi(@rsp+0x80)"
+        },
+        {
+          "name": "status",
+          "format": "%I64x",
+          "expression": "@rax"
+        }
+      ],
+      "condition": "(poi(@rsp+0x80) == 5) and (poi(@rsp+0xa0) == tcpip!TlShimNblEventNotifyFn)",
+      "legacy_point": false
+    },
+    {
+      "id": 18,
+      "event": "NBL_CALLBACK",
+      "target": "tcpip!TlShimNblEventNotifyFn",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "caller",
+          "format": "%p",
+          "expression": "poi(@rsp)"
+        },
+        {
+          "name": "raw_event",
+          "format": "%x",
+          "expression": "@ecx"
+        },
+        {
+          "name": "nbl",
+          "format": "%p",
+          "expression": "@rdx"
+        },
+        {
+          "name": "peer_nbl",
+          "format": "%p",
+          "expression": "@r8"
+        },
+        {
+          "name": "raw_flags",
+          "format": "%x",
+          "expression": "(@r9 & 0xffff)"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "poi(@rsp+0x28)"
+        },
+        {
+          "name": "key",
+          "format": "%I64x",
+          "expression": "poi(@rsp+0x30)"
+        }
+      ],
+      "condition": "poi(@rsp+0x30) == 5",
+      "legacy_point": false
+    },
+    {
+      "id": 19,
+      "event": "RETRIEVE_MATCH",
+      "target": "fwpkclnt!FwpsNetBufferListRetrieveContext0+0x26b",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp+0x68"
+        },
+        {
+          "name": "caller",
+          "format": "%p",
+          "expression": "poi(@rsp+0x68)"
+        },
+        {
+          "name": "nbl",
+          "format": "%p",
+          "expression": "@rbx"
+        },
+        {
+          "name": "tag",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "poi(@rdi+8)"
+        },
+        {
+          "name": "key",
+          "format": "%I64x",
+          "expression": "@rsi"
+        },
+        {
+          "name": "raw_flag",
+          "format": "%x",
+          "expression": "(@rbp & 0xff)"
+        },
+        {
+          "name": "inactive",
+          "format": "%x",
+          "expression": "by(@rdi+0xb8)"
+        }
+      ],
+      "condition": "@rsi == 5",
+      "legacy_point": false
+    },
+    {
+      "id": 20,
+      "event": "RETRIEVE_OUTPUT",
+      "target": "fwpkclnt!FwpsNetBufferListRetrieveContext0+0x2a5",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp+0x68"
+        },
+        {
+          "name": "caller",
+          "format": "%p",
+          "expression": "poi(@rsp+0x68)"
+        },
+        {
+          "name": "tag_address",
+          "format": "%p",
+          "expression": "@rdi"
+        },
+        {
+          "name": "output",
+          "format": "%p",
+          "expression": "poi(@rsp+0x90)"
+        },
+        {
+          "name": "record",
+          "format": "%p",
+          "expression": "poi(poi(@rsp+0x90))"
+        }
+      ],
+      "condition": "(@rsi == 5) and (poi(@rsp+0x90) != 0)",
+      "legacy_point": false
+    },
+    {
+      "id": 21,
+      "event": "RETRIEVE_RETURN",
+      "target": "fwpkclnt!FwpsNetBufferListRetrieveContext0+0x107",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp+0x68"
+        },
+        {
+          "name": "caller",
+          "format": "%p",
+          "expression": "poi(@rsp+0x68)"
+        },
+        {
+          "name": "key",
+          "format": "%I64x",
+          "expression": "@rsi"
+        },
+        {
+          "name": "status",
+          "format": "%x",
+          "expression": "@ebx"
+        }
+      ],
+      "condition": "@rsi == 5",
+      "legacy_point": false
+    },
+    {
+      "id": 22,
+      "event": "RETRIEVE_SCAN_RESULT",
+      "target": "fwpkclnt!FwpsNetBufferListRetrieveContext0+0x22e",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp+0x68"
+        },
+        {
+          "name": "caller",
+          "format": "%p",
+          "expression": "poi(@rsp+0x68)"
+        },
+        {
+          "name": "key",
+          "format": "%I64x",
+          "expression": "@rsi"
+        },
+        {
+          "name": "matched",
+          "format": "%x",
+          "expression": "(@r14 & 0xff)"
+        }
+      ],
+      "condition": "@rsi == 5",
+      "legacy_point": false
+    },
+    {
+      "id": 23,
+      "event": "RETRIEVE_ENTRY",
+      "target": "fwpkclnt!FwpsNetBufferListRetrieveContext0",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp"
+        },
+        {
+          "name": "caller",
+          "format": "%p",
+          "expression": "poi(@rsp)"
+        },
+        {
+          "name": "nbl",
+          "format": "%p",
+          "expression": "@rcx"
+        },
+        {
+          "name": "key",
+          "format": "%I64x",
+          "expression": "@rdx"
+        },
+        {
+          "name": "raw_flag",
+          "format": "%x",
+          "expression": "(@r8 & 0xff)"
+        },
+        {
+          "name": "raw_arg4",
+          "format": "%I64x",
+          "expression": "@r9"
+        },
+        {
+          "name": "output",
+          "format": "%p",
+          "expression": "poi(@rsp+0x28)"
+        }
+      ],
+      "condition": "@rdx == 5",
+      "legacy_point": false
+    },
+    {
+      "id": 24,
+      "event": "RETRIEVE_ALTERNATE_RETURN",
+      "target": "fwpkclnt!FwpsNetBufferListRetrieveContext0+0x30f",
+      "fields": [
+        {
+          "name": "thread",
+          "format": "%p",
+          "expression": "@$thread"
+        },
+        {
+          "name": "pid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
+        },
+        {
+          "name": "tid",
+          "format": "%I64x",
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
+        },
+        {
+          "name": "scope",
+          "format": "%p",
+          "expression": "@rsp+0x68"
+        },
+        {
+          "name": "caller",
+          "format": "%p",
+          "expression": "poi(@rsp+0x68)"
+        },
+        {
+          "name": "key",
+          "format": "%I64x",
+          "expression": "@rsi"
+        },
+        {
+          "name": "status",
+          "format": "%x",
+          "expression": "@ebx"
+        }
+      ],
+      "condition": "@rsi == 5",
+      "legacy_point": false
+    }
+  ],
+  "namespace": "PBKDP",
+  "conditional_resume": "gc in both branches",
+  "default_enabled": false,
+  "executing_pid_used_as_packet_owner_filter": false,
+  "private_api_semantics_complete": false,
+  "debugger_format_runtime_verified": true,
+  "owned_baseline_coverage_verified": false,
+  "root_cause_proven": false,
+  "limitations": [
+    "No complete arbitrary-write coverage",
+    "No exact native tuple/Core query bridge yet",
+    "Capture perturbs timing",
+    "No driver/product change or workload in this plan"
+  ],
+  "identity_validation": {
+    "previous_probe_status": "FAILED_TPID_REJECTED",
+    "proposed_method": "typed ETHREAD.Cid fields from matching nt PDB",
+    "kernel_pdb_guid": "c29ebfb0-6b78-b3c0-20dc-a66d99713f9e",
+    "kernel_pdb_age": 1,
+    "loaded_kernel_identity_verified": true,
+    "live_expression_verified": true,
+    "probe": "scripts/debugger/pb-context-packet-format-probe-v2.wdbg",
+    "numeric_cid_offsets_used": false,
+    "installation_allowed": false,
+    "owned_nonzero_pid_tid_verified": false,
+    "physical_probe_sha256_user_confirmed": "8816e3ec025dc454f64c5f2913636a2ca6c34184855b7b96cd8c38e7dccdedcc",
+    "current_values": "thread=fffff8017c9d25c0 pid=0 tid=0 stack=fffff8010e3c7998",
+    "format_log_sha256": "8934f1ceb496b281059c9b70b2c8d6cdd628335a6a4f1bdd887f70fdb8651634",
+    "manual_disabled_staging_allowed": true
+  },
+  "masm_condition_revision": {
+    "method": "parenthesized-boolean-bitwise-and-v2",
+    "reason": "USER stage log rejects C++ logical && in MASM",
+    "input_log_sha256": "a5230b98ded524b1a5269bd40102bdc786e409ecb4061d40662038cb0032ed3f",
+    "short_circuit_assumed": false,
+    "operand_memory_reads_unchanged": true,
+    "actual_conditions_runtime_verified": false
+  }
+}

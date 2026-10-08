@@ -1,0 +1,34 @@
+$$ INTERNAL BODY - load only through pb-context-packet-stage-v2.wdbg after all prerequisites.
+$$ USER only. Target remains stopped. No enable command and no outer g.
+.echo PBKDP_STAGE_BODY_BEGIN
+bp1 tcpip!AlepCreateRedirectRecord+0x396 ".printf \"PBKDP CREATE_POST thread=%p pid=%I64x tid=%I64x scope=%p ep=%p assigned=%p record=%p context=%p size=%I64x refs=%x familyA=%x portA=%x addrA=%x familyB=%x portB=%x addrB=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0), wo(@rax+0x48), wo(@rax+0x4a), dwo(@rax+0x4c), wo(@rax+0xc8), wo(@rax+0xca), dwo(@rax+0xcc); gc;"
+bd [0n1]
+bp2 tcpip!WfpAleAuthorizeAccept+0xca3 ".printf \"PBKDP ACCEPT_RETRIEVE_PRE thread=%p pid=%I64x tid=%I64x scope=%p ep=%p previous=%p nbl=%p key=%I64x raw_flag=%x raw_arg4=%I64x output=%p\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @rcx, @rdx, (@r8 & 0xff), @r9, poi(@rsp+0x20); gc;"
+bd [0n2]
+bp10 tcpip!WfpAleProcessSocketOption+0x2c4 ".if (@r15d == 0x980000dd) { .printf \"PBKDP QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; gc; } .else { gc; }"
+bd [0n10]
+bp11 tcpip!WfpAleProcessSocketOption+0x47b ".if (@r15d == 0x980000dd) { .printf \"PBKDP QUERY_STATUS thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p status=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @ebx; gc; } .else { gc; }"
+bd [0n11]
+bp14 tcpip!WfpAleAuthorizeAccept+0xcaf ".printf \"PBKDP ACCEPT_RETRIEVE_RESULT thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p status=%x output_record=%p previous=%p\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, @rbx, @eax, poi(@rbp-0x28), poi(@rdi+0x1c0); gc;"
+bd [0n14]
+bp15 tcpip!WfpAleAuthorizeAccept+0xcbe ".printf \"PBKDP ACCEPT_AFTER_STORE thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p assigned=%p raw_flags=%x raw_esi=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, @rbx, poi(@rdi+0x1c0), dwo(@rdi+0x30), @esi; gc;"
+bd [0n15]
+bp16 fwpkclnt!FwppNetBufferListAssociateContext ".if ((poi(@rsp+0x28) == 5) and (poi(@rsp+0x48) == tcpip!TlShimNblEventNotifyFn)) { .printf \"PBKDP ASSOCIATE_ENTRY thread=%p pid=%I64x tid=%I64x scope=%p caller=%p raw_arg1=%x nbl=%p raw_flags=%x record=%p key=%I64x callback=%p\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, poi(@rsp), @ecx, @rdx, (@r8 & 0xffff), @r9, poi(@rsp+0x28), poi(@rsp+0x48); gc; } .else { gc; }"
+bd [0n16]
+bp17 fwpkclnt!FwppNetBufferListAssociateContext+0x155 ".if ((poi(@rsp+0x80) == 5) and (poi(@rsp+0xa0) == tcpip!TlShimNblEventNotifyFn)) { .printf \"PBKDP ASSOCIATE_RETURN thread=%p pid=%I64x tid=%I64x scope=%p caller=%p nbl=%p key=%I64x status=%I64x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp+0x58, poi(@rsp+0x58), @rbp, poi(@rsp+0x80), @rax; gc; } .else { gc; }"
+bd [0n17]
+bp18 tcpip!TlShimNblEventNotifyFn ".if (poi(@rsp+0x30) == 5) { .printf \"PBKDP NBL_CALLBACK thread=%p pid=%I64x tid=%I64x scope=%p caller=%p raw_event=%x nbl=%p peer_nbl=%p raw_flags=%x record=%p key=%I64x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, poi(@rsp), @ecx, @rdx, @r8, (@r9 & 0xffff), poi(@rsp+0x28), poi(@rsp+0x30); gc; } .else { gc; }"
+bd [0n18]
+bp19 fwpkclnt!FwpsNetBufferListRetrieveContext0+0x26b ".if (@rsi == 5) { .printf \"PBKDP RETRIEVE_MATCH thread=%p pid=%I64x tid=%I64x scope=%p caller=%p nbl=%p tag=%p record=%p key=%I64x raw_flag=%x inactive=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp+0x68, poi(@rsp+0x68), @rbx, @rdi, poi(@rdi+8), @rsi, (@rbp & 0xff), by(@rdi+0xb8); gc; } .else { gc; }"
+bd [0n19]
+bp20 fwpkclnt!FwpsNetBufferListRetrieveContext0+0x2a5 ".if ((@rsi == 5) and (poi(@rsp+0x90) != 0)) { .printf \"PBKDP RETRIEVE_OUTPUT thread=%p pid=%I64x tid=%I64x scope=%p caller=%p tag_address=%p output=%p record=%p\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp+0x68, poi(@rsp+0x68), @rdi, poi(@rsp+0x90), poi(poi(@rsp+0x90)); gc; } .else { gc; }"
+bd [0n20]
+bp21 fwpkclnt!FwpsNetBufferListRetrieveContext0+0x107 ".if (@rsi == 5) { .printf \"PBKDP RETRIEVE_RETURN thread=%p pid=%I64x tid=%I64x scope=%p caller=%p key=%I64x status=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp+0x68, poi(@rsp+0x68), @rsi, @ebx; gc; } .else { gc; }"
+bd [0n21]
+bp22 fwpkclnt!FwpsNetBufferListRetrieveContext0+0x22e ".if (@rsi == 5) { .printf \"PBKDP RETRIEVE_SCAN_RESULT thread=%p pid=%I64x tid=%I64x scope=%p caller=%p key=%I64x matched=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp+0x68, poi(@rsp+0x68), @rsi, (@r14 & 0xff); gc; } .else { gc; }"
+bd [0n22]
+bp23 fwpkclnt!FwpsNetBufferListRetrieveContext0 ".if (@rdx == 5) { .printf \"PBKDP RETRIEVE_ENTRY thread=%p pid=%I64x tid=%I64x scope=%p caller=%p nbl=%p key=%I64x raw_flag=%x raw_arg4=%I64x output=%p\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, poi(@rsp), @rcx, @rdx, (@r8 & 0xff), @r9, poi(@rsp+0x28); gc; } .else { gc; }"
+bd [0n23]
+bp24 fwpkclnt!FwpsNetBufferListRetrieveContext0+0x30f ".if (@rsi == 5) { .printf \"PBKDP RETRIEVE_ALTERNATE_RETURN thread=%p pid=%I64x tid=%I64x scope=%p caller=%p key=%I64x status=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp+0x68, poi(@rsp+0x68), @rsi, @ebx; gc; } .else { gc; }"
+bd [0n24]
+.echo PBKDP_STAGE_BODY_END point registration still needs bl and bpcmds review
