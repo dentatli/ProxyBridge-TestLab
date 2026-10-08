@@ -1,5 +1,7 @@
 # План logger для packet metadata
 
+**Текущий этап после V3 21:30:** USER регистрация прошла, 25 точек all d/адреса/сохранённые тела подтверждены. Новый files-only kit 163607-3fe55948 (70 frozen hashes) соответствует V3 и saved stage review. Следующий шаг — [ручной baseline четырёх соединений](KERNEL_CONTEXT_PACKET_BASELINE_V3.md); stage заново не загружать. Actions/owned lifecycle/root cause pending.
+
 **Текущий этап после V2 21:18:** guard остановился на отсутствующем `@$bp14` до изменения точек; все 14 остаются d. Подготовлен [V3 stage](KERNEL_CONTEXT_PACKET_LOGGER_STAGING_V3.md), без чтения отсутствующих IDs и с обязательным ручным bl inventory. Тела точек не менялись; новый four kit только после успешного staging review. Старые stage/kits не запускать.
 
 **Текущий этап:** первая регистрация 19:33 остановилась до изменения точек из-за моего `&&` в MASM guard. Все прежние 14 точек остались d. Использовать только [исправленную V2](KERNEL_CONTEXT_PACKET_LOGGER_STAGING_V2.md); прежние stage/kit сохранены, не запускать их. Runtime регистрация и owned packet lifecycle пока не подтверждены.
