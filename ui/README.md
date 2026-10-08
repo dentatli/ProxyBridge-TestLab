@@ -1,5 +1,9 @@
 # Local web UI
 
+Current development inventory and verification (2026-10-08): [functional status](../docs/DEVELOPMENT_FUNCTIONAL_STATUS.md).
+The laboratory supports four selected tests with individual duration/load presets and a sequential queue: TCP RTT, combined upload/download, separate OFF/UNRULED/SOCKS5 RTT, and TCP connection load/recovery.
+Named reusable suites now have save/use/update/delete controls in RU/EN. Their bounded catalog is stored as `benchmark-suites.json` below the protected user config directory, independently from builds and one-use launch plans. A corrupt catalog blocks writes instead of replacing saved choices. Applying a suite invalidates the prepared plan and requires fresh preparation for the selected build; remote choices retain the remote runtime blocker. Build, syntax and manual isolated UI/API checks passed; no product benchmark was run.
+
 Remote setup target (2026-10-07): recent Ubuntu only, generated SSH key/public-key copy for root, IP/optional port, **Automatic setup** or **Check connection**. Tests require verified endpoint/route readiness, revoked on disconnect and rechecked by the backend before each test. See [the agreed workflow](../docs/REMOTE_UBUNTU_SETUP_PLAN.md). This wizard and the full remote controllers are pending; REMOTE_CONTROLLER_PENDING remains in force.
 
 The new bilingual laboratory screen is at `http://127.0.0.1:5178/lab.html`.
@@ -22,7 +26,7 @@ RTT now projects saved CLI mean CPU/private RAM as well as latency. Conditions k
 Unconfirmed or running attempts show no metrics. Unreadable launch history blocks the latest-only table rather than hiding an unknown newer attempt.
 Initial data loads the latest 50 local reports per scenario and 1000 UI job records. Earlier jobs can be paged, and older report details are loaded on demand through a strict basename-only read-only API.
 The new results API/UI, tabs, filters, latest-attempt selection and on-demand/paged loading await user compile/runtime verification. No new benchmark is required to review the saved data.
-Test checkboxes/queues, duration/load presets and arbitrary beta/4.0.0/remote runtime adapters remain pending.
+Separate upload/download selection, loaded RTT/UDP queue integration and arbitrary beta/4.0.0/remote runtime adapters remain pending. Runtime validation of the existing queue/presets remains separate from source verification.
 Choose an installation folder and either **4.0.0** or **driver**; a separate driver path is optional.
 The files-only inspector reuses `ProductBuild.psm1` and never starts ProxyBridge or probes driver state.
 Known benchmark file fingerprints and unknown candidates have different statuses.

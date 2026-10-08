@@ -8,6 +8,7 @@
   <link rel="stylesheet" href="/lab.css">
   <script src="/lab-results.js" defer></script>
   <script src="/lab.js" defer></script>
+  <script src="/lab-suites.js" defer></script>
 </head>
 <body>
   <main class="lab-container">
@@ -55,6 +56,21 @@
     </section>
     <section id="testing" class="panel" data-lab-view="testing" aria-labelledby="testing-heading" hidden>
       <h2 id="testing-heading" tabindex="-1" data-i18n="testing">Тестирование</h2>
+      <div class="lab-suite-catalog">
+        <h3 data-i18n="savedSuites">Сохранённые наборы</h3>
+        <p data-i18n="savedSuitesHelp">Сохраните тесты и их параметры, чтобы повторить набор с другой сборкой.</p>
+        <div class="lab-fields">
+          <label><span data-i18n="savedSuites">Сохранённые наборы</span><select id="lab-saved-suite"><option value="" data-i18n="chooseSuite">Выберите набор</option></select></label>
+          <label><span data-i18n="suiteName">Название набора</span><input id="lab-suite-name" type="text" maxlength="64" autocomplete="off"></label>
+        </div>
+        <div class="server-actions">
+          <button id="lab-suite-apply" type="button" class="button secondary" data-i18n="applySuite">Выбрать набор</button>
+          <button id="lab-suite-save" type="button" class="button primary" data-i18n="saveNewSuite">Сохранить новый</button>
+          <button id="lab-suite-update" type="button" class="button secondary" data-i18n="updateSuite">Обновить выбранный</button>
+          <button id="lab-suite-delete" type="button" class="button secondary" data-i18n="deleteSuite">Удалить набор</button>
+        </div>
+        <p id="lab-suite-status" role="status" aria-live="polite"></p>
+      </div>
       <div class="lab-fields">
         <label><span data-i18n="proxyMode">Расположение SOCKS5-прокси</span><select id="lab-mode"><option value="local" data-i18n="local">На этом ПК</option><option value="remote" data-i18n="remote">На удалённом узле</option></select></label>
       </div>

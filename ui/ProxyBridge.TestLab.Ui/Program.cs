@@ -34,6 +34,7 @@ builder.Services.AddSingleton<RequestTokenService>();
 builder.Services.AddSingleton<BenchmarkLabService>();
 builder.Services.AddSingleton<BenchmarkBuildCatalog>();
 builder.Services.AddSingleton<BenchmarkLaunchPlanService>();
+builder.Services.AddSingleton<BenchmarkSuiteCatalog>();
 builder.Services.AddSingleton<RuntimeExecutionLease>();
 builder.Services.AddSingleton<ServerTrustStore>();
 builder.Services.AddSingleton<ServerReceiptStore>();
@@ -140,6 +141,29 @@ api.MapPost("/lab/build/rename", async (BenchmarkBuildRenameRequest request, Ben
 });
 
 api.MapGet("/lab/run", (BenchmarkRunService runs) => Results.Ok(runs.State()));
+api.MapGet("/lab/suites", async (BenchmarkSuiteCatalog catalog, CancellationToken token) =>
+{
+    try { return Results.Ok(new { items = await catalog.ListAsync(token) }); }
+    catch (Exception error) when (error is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException or OperationCanceledException)
+    { return Results.BadRequest(new { error = "SUITE_CATALOG_UNAVAILABLE" }); }
+});
+api.MapPost("/lab/suites/save", async (BenchmarkSuiteSaveRequest request, BenchmarkSuiteCatalog catalog, CancellationToken token) =>
+{
+    try { return Results.Ok(await catalog.SaveAsync(request, token)); }
+    catch (InvalidOperationException error)
+    {
+        var allowed = new[] { "SUITE_NAME_INVALID", "SUITE_SELECTION_INVALID", "SUITE_NOT_FOUND", "SUITE_NAME_EXISTS", "SUITE_CATALOG_LIMIT_REACHED", "SUITE_CATALOG_UNAVAILABLE" };
+        return Results.BadRequest(new { error = allowed.Contains(error.Message) ? error.Message : "SUITE_SAVE_FAILED" });
+    }
+    catch (Exception error) when (error is JsonException or IOException or UnauthorizedAccessException or OperationCanceledException)
+    { return Results.BadRequest(new { error = "SUITE_SAVE_FAILED" }); }
+});
+api.MapPost("/lab/suites/delete", async (BenchmarkSuiteCatalogRequest request, BenchmarkSuiteCatalog catalog, CancellationToken token) =>
+{
+    try { await catalog.DeleteAsync(request.Id, token); return Results.Ok(new { status = "SUITE_DELETED" }); }
+    catch (Exception error) when (error is InvalidOperationException or JsonException or IOException or UnauthorizedAccessException or OperationCanceledException)
+    { return Results.BadRequest(new { error = "SUITE_DELETE_FAILED" }); }
+});
 api.MapGet("/lab/history", (int offset, BenchmarkLabService lab) =>
     offset is >= 0 and <= 1000000 ? Results.Ok(lab.GetLaunchAttempts(offset)) : Results.BadRequest(new { error = "HISTORY_OFFSET_INVALID" }));
 api.MapGet("/lab/history/{id}", (string id, BenchmarkLabService lab) =>

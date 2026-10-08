@@ -385,6 +385,7 @@ function renderLab() {
   lab("prepare-lab-launch").disabled = busy || !labState.csrf || !labState.saved || !selectedTests().length;
   lab("lab-mode").disabled = busy;
   renderWorkloadCards(busy);
+  renderSavedSuites(busy);
   const plan = labState.plan;
   const run = labState.runControl.run;
   const suite = visibleSuite();
@@ -497,6 +498,7 @@ async function loadLab() {
     if (!response.ok) throw new Error("state");
     const data = await response.json();
     labState.csrf = data.csrf_token;
+    await loadSavedSuites();
     labState.builds = data.builds?.items || [];
     labState.launches = data.launch_history?.items || [];
     labState.launchNextOffset = data.launch_history?.next_offset ?? null;
@@ -697,8 +699,4 @@ document.querySelectorAll("[data-lab-page]").forEach(link => link.addEventListen
 }));
 window.addEventListener("popstate", () => { labPage = pageFromUrl(); renderLabPage(); document.querySelector(`[data-lab-view="${labPage}"] h2`).focus({ preventScroll: true }); });
 window.addEventListener("hashchange", () => navigateLab(pageFromUrl(), false));
-restoreTestingChoice();
-setupResults();
-navigateLab(labPage, false, false);
-renderLab();
-loadLab();
+// The lab-suites module starts the page after registering the saved-suite controls.
