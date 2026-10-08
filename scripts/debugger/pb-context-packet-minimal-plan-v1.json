@@ -1,0 +1,135 @@
+{
+  "schema_version": 1,
+  "status": "PROPOSED_DISABLED_SUBSET_RUNTIME_UNVERIFIED",
+  "method": "packet-minimal-seven-v1",
+  "registered_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24
+  ],
+  "proposed_active_ids": [
+    1,
+    7,
+    9,
+    10,
+    11,
+    14,
+    15
+  ],
+  "required_disabled_ids": [
+    0,
+    2,
+    3,
+    4,
+    5,
+    6,
+    8,
+    12,
+    13,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24
+  ],
+  "point_redefinition_required": false,
+  "staging_reload_allowed": false,
+  "automatic_debugger_control": false,
+  "workload_authorized_by_this_manifest": false,
+  "previous_preparation_allowed": false,
+  "fresh_preparation_required": true,
+  "physical_inventory_review_required": true,
+  "saved_source_log_sha256": "58000ef74f7715ca7433eaa4a0ea3ef5645df431167ca9cefc971cdeeb8053b5",
+  "point_actions_changed": false,
+  "points": [
+    {
+      "id": 1,
+      "event": "CREATE_POST",
+      "target": "tcpip!AlepCreateRedirectRecord+0x396",
+      "saved_command_sha256": "b6376eff9dabd01e027bdf758b41c32ed81764eaf84259631f8beacf526541b0",
+      "condition": null
+    },
+    {
+      "id": 7,
+      "event": "FREE_ENTER",
+      "target": "tcpip!AleRedirectRecordFree+0xd",
+      "saved_command_sha256": "677f2ed392c83c553dd6768c878407414ce2bc4d023f6f43f999803969d455e9",
+      "condition": null
+    },
+    {
+      "id": 9,
+      "event": "FREE_POOL_RETURN",
+      "target": "tcpip!AleRedirectRecordFree+0x76",
+      "saved_command_sha256": "e4e3831878b1502561669f5565761b3f5062f9509f865cd496ce1a4bb3db3cfe",
+      "condition": null
+    },
+    {
+      "id": 10,
+      "event": "QUERY_READ",
+      "target": "tcpip!WfpAleProcessSocketOption+0x2c4",
+      "saved_command_sha256": "1b4fe2d67cf4e3162a5a33f2de71d022777bf59047faa53ebcc767a901a7a19d",
+      "condition": "@r15d == 0x980000dd"
+    },
+    {
+      "id": 11,
+      "event": "QUERY_STATUS",
+      "target": "tcpip!WfpAleProcessSocketOption+0x47b",
+      "saved_command_sha256": "00f39689c09651f55a4db3900999fcf0a455de2ae5d41753645fadce3425c57c",
+      "condition": "@r15d == 0x980000dd"
+    },
+    {
+      "id": 14,
+      "event": "ACCEPT_RETRIEVE_RESULT",
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcaf",
+      "saved_command_sha256": "7fa048018e792b878a3b5b060d596c5b66f5492313a771361ea8787bedc9621b",
+      "condition": null
+    },
+    {
+      "id": 15,
+      "event": "ACCEPT_AFTER_STORE",
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcbe",
+      "saved_command_sha256": "1b44c8f5bb568273a4f292b1aad4b1378cb09286b0dc38abb205fc64bf341316",
+      "condition": null
+    }
+  ],
+  "logger_runtime_verified": false,
+  "owned_nonzero_pid_tid_verified": false,
+  "exact_core_query_binding_verified": false,
+  "root_cause_proven": false,
+  "limitations": [
+    "No NBL association/callback/internal retrieval coverage",
+    "No parent transfer or arbitrary endpoint write coverage",
+    "Free return is control-flow evidence, not allocator verification",
+    "No executing-PID ownership filter on packet/DPC paths",
+    "No common KD/Core QPC clock in retained actions",
+    "Conditional breakpoints trap before filtering and perturb timing",
+    "Retained printf memory reads can still fail before g/gc",
+    "No claim that seven points are quiet or sufficient until four-connection review"
+  ]
+}

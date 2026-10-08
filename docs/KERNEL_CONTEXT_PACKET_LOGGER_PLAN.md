@@ -1,5 +1,7 @@
 # План logger для packet metadata
 
+**Актуально после runtime сбоя V3 21:45:** две Memory access error на ID17, baseline не запущен. Старые enable25/kit163607 handoff больше не являются следующим шагом. См. [разбор кадра и сокращённый план V1](KERNEL_CONTEXT_PACKET_MINIMAL_V1.md); сначала read-only inventory, без stage/включения/Run.
+
 **Текущий этап после V3 21:30:** USER регистрация прошла, 25 точек all d/адреса/сохранённые тела подтверждены. Новый files-only kit 163607-3fe55948 (70 frozen hashes) соответствует V3 и saved stage review. Следующий шаг — [ручной baseline четырёх соединений](KERNEL_CONTEXT_PACKET_BASELINE_V3.md); stage заново не загружать. Actions/owned lifecycle/root cause pending.
 
 **Текущий этап после V2 21:18:** guard остановился на отсутствующем `@$bp14` до изменения точек; все 14 остаются d. Подготовлен [V3 stage](KERNEL_CONTEXT_PACKET_LOGGER_STAGING_V3.md), без чтения отсутствующих IDs и с обязательным ручным bl inventory. Тела точек не менялись; новый four kit только после успешного staging review. Старые stage/kits не запускать.
