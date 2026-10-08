@@ -128,6 +128,8 @@ g
 
 Это только символы, сведения о модулях и disassembly; breakpoint/watchpoint и нагрузка не задаются. Target files на диске tcpip/AFD10.0.26100.8875, NETIO10.0.26100.9444; SHA также в ignored `pb-kd-connection-review-20261008`. Нужны live output/точные инструкции до назначения offset/регистров. Копирование PDB на физический хост и новая проверка пока не выполнены/не подтверждены.
 
+2026-10-08 следующий USER output подтвердил Path validation OK, три pdb symbols и разрешение обеих ParentContext функций. Все117 выведенных opcode-инструкций InitializeEndpointContextFromParentContext совпали с дисковым PE. USER отдельно выполнил g. Символы и байты функции подтверждены; перенос при неисправном соединении ещё не наблюдался. Следующий этап — [общий адресный план и чтение шести соседних функций одной остановкой](KERNEL_CONTEXT_BREAKPOINT_PLAN.md), перед установкой точек или нагрузкой. Историческую ошибочную строку с semicolon не повторять.
+
 [Microsoft .logopen](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-logopen--open-log-file-) / [.symfix](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-symfix--set-symbol-store-path-) / [.reload](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-reload--reload-module-) / [x](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/x--examine-symbols-).
 
 ## Возврат исходных настроек после опыта
