@@ -130,12 +130,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -219,12 +219,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -521,12 +521,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -565,12 +565,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -672,12 +672,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -726,12 +726,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -780,12 +780,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -844,12 +844,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -893,12 +893,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -957,12 +957,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -1021,12 +1021,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -1070,12 +1070,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -1114,12 +1114,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -1158,12 +1158,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -1217,12 +1217,12 @@
         {
           "name": "pid",
           "format": "%I64x",
-          "expression": "@$tpid"
+          "expression": "@@c++(@$thread->Cid.UniqueProcess)"
         },
         {
           "name": "tid",
           "format": "%I64x",
-          "expression": "@$tid"
+          "expression": "@@c++(@$thread->Cid.UniqueThread)"
         },
         {
           "name": "scope",
@@ -1262,5 +1262,16 @@
     "No exact native tuple/Core query bridge yet",
     "Capture perturbs timing",
     "No driver/product change or workload in this plan"
-  ]
+  ],
+  "identity_validation": {
+    "previous_probe_status": "FAILED_TPID_REJECTED",
+    "proposed_method": "typed ETHREAD.Cid fields from matching nt PDB",
+    "kernel_pdb_guid": "c29ebfb0-6b78-b3c0-20dc-a66d99713f9e",
+    "kernel_pdb_age": 1,
+    "loaded_kernel_identity_verified": false,
+    "live_expression_verified": false,
+    "probe": "scripts/debugger/pb-context-packet-format-probe-v2.wdbg",
+    "numeric_cid_offsets_used": false,
+    "installation_allowed": false
+  }
 }

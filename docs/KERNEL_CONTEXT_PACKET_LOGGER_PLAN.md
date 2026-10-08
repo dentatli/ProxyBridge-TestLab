@@ -2,6 +2,40 @@
 
 2026-10-08. USER host log `pb-context-packet-code_03f8_2026-10-08_17-31-08-472.log` проверен офлайн. Причина исходных сбросов пока не доказана. Logger ниже — **неисполняемый draft**, не установленный набор точек и не готовый Run.
 
+## Последний результат: первая format probe не прошла
+
+USER log `pb-context-packet-format_03f8_2026-10-08_18-49-33-692.log`: 13575 bytes, SHA256 `7347b514cffc83116c3990ddc097e3bb906dbd6720791de9c4b9d1341233e556`. WinDbg отверг `@$tpid` в полных printf командах; доступность `@$tid` отдельно не доказана. Две echoed команды имели усечённое начало (`f` и `rintf` вместо `.printf`). Причина усечения неизвестна: SHA физической копии не предоставлен, локальный исходник и прежний архив целы. Все 14 точек имеют прежние адреса/тела и состояние d. END/FALSE_PATH_OK/logclose достигнуты, но это **не успех probe**; отдельный g в закрытом log не записан.
+
+Это ошибки подготовки отладчика, не наблюдение сброса или утраты контекста. До успешной проверки нового вывода нельзя готовить устанавливаемый patch, включать точки или запускать нагрузку. Старый probe и использованный 111941 frozen kit не изменяются.
+
+В кэше найден `ntkrnlmp.pdb`: GUID `c29ebfb0-6b78-b3c0-20dc-a66d99713f9e`, PE/DBI age 1 (PDB save age 6). GUID/DBI age совпадают с дисковым `ntoskrnl.exe` SHA256 `d90c69cf…`, version 26100.9457, timestamp FDA9ED74/image size 1450000/checksum C817D5. Offline dbh видит типы `_ETHREAD` и `_CLIENT_ID`; это не проверка live module или конкретных expressions.
+
+Новый `pb-context-packet-format-probe-v2.wdbg` использует поля `@@c++(@$thread->Cid.UniqueProcess)` и `UniqueThread`, **без числовых смещений CID**. [Документация Microsoft](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/c---numbers-and-operators) описывает typed `$thread` и вложенный C++ evaluator. В конкретном сеансе выражения ещё не проверены. Неисполняемый manifest остаётся DRAFT_NOT_INSTALLABLE; его зависимость от matching nt PDB и pending identity validation указана явно.
+
+Архив на Desktop VM: `PB-KD-Packet-Identity-20261008.zip`, 2802237 bytes, SHA256 `8affa57b2863b8bc54ba7db15b19eb75d09dd1f32c032b5234df544a7d034c33`. Только PDB, v2 probe и инструкция; CRC и byte roundtrip проверены. Probe — ASCII/CRLF, 26 printf с проверенным числом аргументов. CRLF выбран для нового файла, но не заявлен как доказанное исправление причины усечения. Читаются только CID текущего thread и type information; connection memory, payload и target functions не читаются/вызываются.
+
+Следующий шаг на **физическом хосте**, без тестирования продукта:
+
+1. Скопировать новый архив и распаковать целиком в `C:\PB-KD-Packet-Identity-20261008`. Существующий `C:\PB-KD-Symbols` не заменять. В PowerShell до Break проверить физический файл: `Get-FileHash -LiteralPath 'C:\PB-KD-Packet-Identity-20261008\commands\pb-context-packet-format-probe-v2.wdbg' -Algorithm SHA256`. Ожидаемый SHA256 `8816e3ec025dc454f64c5f2913636a2ca6c34184855b7b96cd8c38e7dccdedcc`.
+2. Подготовить команды на хосте. **Break приостанавливает всю VM, Codex и RDP.** Каждую внешнюю команду вводить отдельно, Enter после каждой:
+
+   `.logopen /t C:\Users\Administrator\pb-context-packet-identity-v2.log`
+
+   `.sympath+ C:\PB-KD-Packet-Identity-20261008\symbols`
+
+   `.reload /f nt`
+
+   `$<C:\PB-KD-Packet-Identity-20261008\commands\pb-context-packet-format-probe-v2.wdbg`
+
+   `.logclose`
+
+   `g`
+
+3. Если загрузка nt завершилась ошибкой, probe пропустить; `.logclose` и `g` отдельно. Не использовать `/i` для игнорирования несовпадения. Даже при любой ошибке probe ввести `g` отдельно; при новой остановке сохранить сообщение и отдельно g ещё раз.
+4. Прислать новый host log и SHA физической копии. Ожидаются matching nt PDB, readable Cid fields, 26 полных PBKDP2_PROBE строк без ошибок, FALSE_PATH_OK/END, прежние 14 d. Эти наблюдения не заменяют последующую проверку работы точек и ownership на четырёх соединениях.
+
+Audit: `artifacts/diagnostics/pb-kd-packet-format-review-20261008/{validation,package-validation}.json`. Прежние 44 USER files, новый USER log, оба старых probe файла/архив и все 62 frozen SHA защищены. Новый frozen kit и команды установки не созданы.
+
 ## Проверка присланного кода
 
 Исходный log: 98012 bytes, SHA256 `fdb0b777929f645b399804ce7e8f872085bd27daaa2c4eb168503506b9f37b9f`. Все 14 существующих точек 0..13 имеют прежние адреса/тела и состояние d. Все markers инспекции достигнуты, logclose записан; последующий отдельный g в уже закрытом log не фиксируется. Доступность VM не заменяет запись g в журнале.
@@ -38,7 +72,7 @@ Retrieve prologue уменьшает RSP на 68h. Generic match проверя�
 
 Нет PID-only фильтра на packet пути, чтения packet payload, изменения status/context/query или записи в target memory. Условия новых точек должны завершаться gc в обеих ветках при будущей установке. Никакой BP patch пока не сгенерирован/применён. Ограничения остаются: нет покрытия произвольных записей в поле, полного endpoint lifetime или доказанного native tuple/Core query bridge. Количество/порядок четырёх строк не заменяют ownership. Отсутствие одной строки не доказывает уничтожение записи. Полная нагрузка до подтверждения baseline coverage запрещена.
 
-## Сейчас: только format probe
+## Исторический шаг: первая format probe (завершилась ошибками)
 
 Подготовлен `scripts/debugger/pb-context-packet-format-probe.wdbg`, архив на Desktop VM `PB-KD-Packet-Format-Probe-20261008.zip`. В архиве только probe, без draft/команд установки. Проверены CRC, byte roundtrip, 26 printf с совпадающим числом аргументов, markers, synthetic true/false paths. Это проверки файлов, **не проверка реального исполнения WinDbg**.
 
