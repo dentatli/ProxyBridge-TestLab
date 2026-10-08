@@ -45,6 +45,7 @@ def prepare(root, output, python):
         'src/pb_tcp_kernel_timing_report.py', 'src/pb_controlled_tcp_proxy.py',
         'src/pb_pc_sampler.py', 'src/pb_proactor_close_guard.py',
         'scripts/debugger/pb-context-lifecycle-candidate.wdbg',
+        'scripts/debugger/pb-context-lifecycle-conditional-patch.wdbg',
         'bin/pb_console_host.exe', 'bin/pb_wfp_state.exe',
         'bin/tools/ctstraffic-2.0.3.9/ctsTraffic.exe',
         'bin/tools/ctstraffic-2.0.3.9/ctsTrafficReceiver.exe',

@@ -166,12 +166,30 @@ function Start-ConnectionWorker($Name,$Arguments,$Workers) {
 }
 function Wait-ConnectionWorker($Worker,$Path) {
     $timer=[Diagnostics.Stopwatch]::StartNew()
-    while ($timer.ElapsedMilliseconds -lt 5000) {
-        if ($Worker.process.HasExited) { throw ('CONNECTION_HELPER_EARLY_EXIT_'+$Worker.name) }
-        if ((Test-Path $Path) -and @(Get-Content $Path | Where-Object {$_} | ConvertFrom-Json | Where-Object event -eq 'LISTENING').Count -eq 1) { return }
-        Start-Sleep -Milliseconds 50
+    $observation=[ordered]@{schema_version=1;worker=$Worker.name;pid=$Worker.process.Id;timeout_ms=5000;
+        status='WAITING';elapsed_ms=0;listening_events=0;process_exited=$false;error='';debugger_pause_observed=$false}
+    try {
+        while ($true) {
+            $observation.process_exited=$Worker.process.HasExited
+            if ($observation.process_exited) { throw ('CONNECTION_HELPER_EARLY_EXIT_'+$Worker.name) }
+            $observation.listening_events=0
+            if (Test-Path -LiteralPath $Path) {
+                $observation.listening_events=@(Get-Content -LiteralPath $Path | Where-Object {$_} | ConvertFrom-Json | Where-Object event -eq 'LISTENING').Count
+            }
+            if ($observation.listening_events -gt 1) {throw ('CONNECTION_HELPER_DUPLICATE_READY_'+$Worker.name)}
+            # After a guest debugger pause, inspect readiness before testing elapsed time.
+            # This final observation does not extend the timeout or prove a debugger pause.
+            if ($observation.listening_events -eq 1) {$observation.status='READY';return}
+            if ($timer.ElapsedMilliseconds -ge $observation.timeout_ms) {throw ('CONNECTION_HELPER_NOT_READY_'+$Worker.name)}
+            Start-Sleep -Milliseconds 50
+        }
+    } catch {
+        $observation.status='FAILED';$observation.error=$_.Exception.Message
+        throw
+    } finally {
+        $observation.elapsed_ms=$timer.ElapsedMilliseconds
+        Write-ConnectionJson $observation ($Path+'.readiness.json')
     }
-    throw ('CONNECTION_HELPER_NOT_READY_'+$Worker.name)
 }
 function Invoke-ConnectionMode($Mode,$Directory) {
     $null=New-Item -ItemType Directory -Path $Directory

@@ -1,0 +1,7 @@
+$$ PATCH ONLY existing IDs 11 through 13 after confirming all 14 known points disabled with bl.
+$$ Do not load the candidate again. This patch leaves the three replaced points disabled.
+bp11 tcpip!WfpAleProcessSocketOption+0x47b ".if (@r15d == 0x980000dd) { .printf \"PBKD QUERY_STATUS thread=%p stack=%p ep=%p record=%p status=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @ebx; gc; } .else { gc; }"
+bp12 tcpip!WfpPoolFree+0x1a ".if (poi(@rsp+0x28) == tcpip!AleRedirectRecordFree+0x76) { .printf \"PBKD ALLOCATOR_FREE_CALL thread=%p stack=%p slot=%p record=%p allocator_return=%p\\n\", @$thread, @rsp, @rbx, @rcx, tcpip!WfpPoolFree+0x1f; gc; } .else { gc; }"
+bp13 tcpip!WfpPoolFree+0x1f ".if (poi(@rsp+0x28) == tcpip!AleRedirectRecordFree+0x76) { .printf \"PBKD ALLOCATOR_FREE_RETURN thread=%p stack=%p slot=%p former_record_address=%p\\n\", @$thread, @rsp, @rbx, poi(@rbx); gc; } .else { gc; }"
+bd [0n11] [0n12] [0n13]
+.echo PBKD conditional actions patched. Inspect bl and .bpcmds. Resume separately with g.

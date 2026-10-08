@@ -13,8 +13,8 @@ bp tcpip!AleRedirectRecordFree+0xd ".printf \"PBKD FREE_ENTER thread=%p stack=%p
 bp tcpip!AleRedirectRecordFree+0x71 ".printf \"PBKD FREE_POOL_PRE thread=%p stack=%p slot=%p record=%p\\n\", @$thread, @rsp, @rcx, @rbx; kb 6; g"
 bp tcpip!AleRedirectRecordFree+0x76 ".printf \"PBKD FREE_POOL_RETURN thread=%p stack=%p former_record_address=%p\\n\", @$thread, @rsp, @rbx; g"
 bp tcpip!WfpAleProcessSocketOption+0x2c4 ".printf \"PBKD QUERY_READ thread=%p stack=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @r15d; g"
-bp tcpip!WfpAleProcessSocketOption+0x47b ".if (@r15d == 0x980000dd) { .printf \"PBKD QUERY_STATUS thread=%p stack=%p ep=%p record=%p status=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @ebx; }; g"
-bp tcpip!WfpPoolFree+0x1a ".if (poi(@rsp+0x28) == tcpip!AleRedirectRecordFree+0x76) { .printf \"PBKD ALLOCATOR_FREE_CALL thread=%p stack=%p slot=%p record=%p allocator_return=%p\\n\", @$thread, @rsp, @rbx, @rcx, tcpip!WfpPoolFree+0x1f; }; g"
-bp tcpip!WfpPoolFree+0x1f ".if (poi(@rsp+0x28) == tcpip!AleRedirectRecordFree+0x76) { .printf \"PBKD ALLOCATOR_FREE_RETURN thread=%p stack=%p slot=%p former_record_address=%p\\n\", @$thread, @rsp, @rbx, poi(@rbx); }; g"
+bp tcpip!WfpAleProcessSocketOption+0x47b ".if (@r15d == 0x980000dd) { .printf \"PBKD QUERY_STATUS thread=%p stack=%p ep=%p record=%p status=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @ebx; gc; } .else { gc; }"
+bp tcpip!WfpPoolFree+0x1a ".if (poi(@rsp+0x28) == tcpip!AleRedirectRecordFree+0x76) { .printf \"PBKD ALLOCATOR_FREE_CALL thread=%p stack=%p slot=%p record=%p allocator_return=%p\\n\", @$thread, @rsp, @rbx, @rcx, tcpip!WfpPoolFree+0x1f; gc; } .else { gc; }"
+bp tcpip!WfpPoolFree+0x1f ".if (poi(@rsp+0x28) == tcpip!AleRedirectRecordFree+0x76) { .printf \"PBKD ALLOCATOR_FREE_RETURN thread=%p stack=%p slot=%p former_record_address=%p\\n\", @$thread, @rsp, @rbx, poi(@rbx); gc; } .else { gc; }"
 bd [0n0] [0n1] [0n2] [0n3] [0n4] [0n5] [0n6] [0n7] [0n8] [0n9] [0n10] [0n11] [0n12] [0n13]
 .echo PBKD stage file read completed - verify 14 disabled points with bl and saved commands with .bpcmds

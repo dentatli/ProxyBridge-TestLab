@@ -1,5 +1,28 @@
 # Четыре соединения для проверки живого журнала WinDbg
 
+Обновление USER Run 102744-d827d20f: native workload не начался. SOCKS helper PID 16140 записал LISTENING, затем STDIN_STOP через 58.8 мс; естественный exit 0, forced=false. Контроллер сообщил CONNECTION_HELPER_NOT_READY_proxy. В физическом log 79 TRANSFER_READ с обоими record=NULL, ни одного CREATE_PRE/ALLOCATOR_FREE_CALL; затем остановка на WfpPoolFree+0x1a и ручное отключение 14 точек. Это свидетельство прерывания logger; причина и длительность паузы непосредственно не измерены. Сохранённые after snapshots: исходный service Stopped, известных WFP objects/loaded interception driver names/product processes не наблюдалось. Это сохранённое наблюдение, не полная текущая проверка системы и не доказательство причины исходных сбросов. Original USER files и использованный 101425 plan сохранены SHA; audit `artifacts/diagnostics/pb-kd-helper-review-20261008`.
+
+Условные действия 11–13 теперь содержат `gc` в true **и** false ветках. Остальные 11 действий и адреса сохранены. Это явное продолжение по [документации Microsoft](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/gc--go-from-conditional-breakpoint-), а не доказательство ошибки старого CommandString. Для уже установленных точек предназначен отдельный [conditional patch](../scripts/debugger/pb-context-lifecycle-conditional-patch.wdbg): `bp11`/`bp12`/`bp13` заменяют ровно существующие ID, после чего отключают их. Candidate заново **не загружать**. Patch не проверяет идентичность точек автоматически: до него пользователь должен проверить `bl` на физическом хосте.
+
+Baseline-only readiness wait сохраняет `proxy.jsonl.readiness.json` / `pc-samples.jsonl.readiness.json` с PID, elapsed, event count и причиной отказа. После возврата из ожидания он читает readiness до сравнения таймера: исправлена пропущенная финальная проверка. Таймаут остаётся 5000 мс; выход процесса, несколько LISTENING и повреждённый JSON не принимаются за готовность. Запись не утверждает наличие измеренной debugger pause. По шесть files-only случаев прошли PS5/PS7, включая готовность после фактического истечения таймера и отказ без неё. Shared controller/module не менялись.
+
+**Текущий свежий комплект:** `artifacts/diagnostics/pb-kd-baseline-preparation-20261008-111941-ae56381c`. Реальные PS5 Prepare/Inspect и PS7 Inspect: 62 frozen files exact; files-only workload prefix PS5/PS7 подтверждён. Бинарники прежние; build/install/Run/traffic/debugger changes агент не выполнял. Использованные 095534 и 101425 комплекты больше не запускать и не refreeze/Resume. Живое продолжение новых действий и coverage четырёх соединений пока не проверены.
+
+Перед следующим baseline скопировать patch на физический хост в `C:\PB-KD\pb-context-lifecycle-conditional-patch.wdbg`. **Break приостановит всю VM, Codex и RDP.** Заранее сохранить аварийные команды отключения 0..13 и отдельного `g`. После Break:
+
+1. Отдельно `bl`: ровно наши известные 14 resolved points 0..13, все d, прежние symbol+offset. При несовпадении patch не выполнять.
+2. Отдельно `.logopen /t C:\Users\Administrator\pb-context-kd-baseline-fixed.log` (предыдущий log закрыт; не перезаписывать его).
+3. Отдельно `$<C:\PB-KD\pb-context-lifecycle-conditional-patch.wdbg`.
+4. Отдельно `bl`, отдельно `.bpcmds`: все 14 d, IDs 11–13 теперь с `gc` в обеих ветках, 0–10 прежние. При ошибке не запускать workload; отдельно `g` обязателен даже при ошибке.
+5. Только при совпадении включить известные 0..13 командой `be` из ручного порядка ниже, проверить `bl`, затем отдельно `g`.
+6. В повышенном PowerShell внутри VM выполнить:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File "C:\src\ProxyBridge-TestLab\scripts\Invoke-KdContextBaseline.ps1" -Phase Run -PreparationDirectory "C:\src\ProxyBridge-TestLab\artifacts\diagnostics\pb-kd-baseline-preparation-20261008-111941-ae56381c" -DebuggerLoggerEnabled
+```
+
+После завершения/ошибки отключить наши точки и продолжить VM по ручному порядку ниже. При любой остановке WinDbg сначала сохранить сообщение и отключить наши точки, затем отдельно `g`, чтобы завершилась очистка. Полная нагрузка закрыта до офлайн проверки этого baseline. Передать console output и новый физический log.
+
 Обновление USER Run 100731-2974e9ac: остановка до создания workload из-за отсутствующего components в receipt нового подготовщика. Это ошибка агентской подготовки, не ProxyBridge. Сохранены исходные три файла failed run и host log SHA e460582bfe7cf44016a612dd9a4abb9fdc57a79821b39215f04a426e02cdb5f5. В active части log есть 90 TRANSFER_READ с обоими record=NULL и без debugger errors; остальные действия на собственных соединениях не проверены. USER включил 14 e, затем отключил 14 d и закрыл log. Последующий g закрытый log не содержит; агент работает в продолжившейся VM. Audit: `artifacts/diagnostics/pb-kd-baseline-start-review-20261008/validation.json`.
 
 Исправлен только receipt producer: components теперь содержит ровно три name/SHA256. Inspect дополнительно проверяет полноту, уникальность, разрешённые имена и SHA компонентов. Новый комплект `artifacts/diagnostics/pb-kd-baseline-preparation-20261008-101425-5dc367d1`; старый 095534 не переписан, не refreeze/Resume. Реальный PS5 Prepare/Inspect и PS7 Inspect: 61 frozen hashes exact, файлы валидированы. Полный files-only prefix workload-контроллера до создания evidence прошёл PS5/PS7 с v5 input, без процессов/SCM/трафика. Единственный CIM call prefix находится в v4 branch, false для проверенного v5; #RequiresAdmin исключён только из ad hoc read-only prefix check, production Run остаётся повышенным. Шесть повреждённых components случаев отклонены каждым PS. Нового Run не было.
