@@ -132,6 +132,8 @@ g
 
 2026-10-08 USER передал шесть UF и отдельный g. Выбранные12границ точек совпали с PE; создание/перенос/снятие ссылок/free/query объединены в [кандидат общего logger](KERNEL_CONTEXT_BREAKPOINT_PLAN.md#подготовленный-кандидат-общего-журнала).587/605инструкций совпали полностью,18call-related различий сохранены отдельно. Кандидат не установлен и не является готовым Run. Следующее USER чтение bl + uf tcpip!WfpPoolFree + отдельный g, с предупреждением о полной остановке VM перед Break; workload/установка драйвера не выполняются.
 
+2026-10-08 USER bl пуст + WfpPoolFree14инструкций + g. Подготовлен14point файл с автоматическим отключением всех своих точек после установки в пустом сеансе. Две новые точки allocator call/return связаны с AleRedirectRecordFree по caller return address; новая raw sockaddr metadata нужна для проверки owned tuple на baseline. Сейчас разрешён только [ручной staging и вывод bl/.bpcmds](KERNEL_CONTEXT_LOGGER_STAGING.md), без be и трафика. Переносимый ZIP2378байт/CRC-roundtrip exact, source/portable SHA сохранены в ignored pb-kd-pool-free-review-20261008/stage-validation.json. Agent не устанавливал точки и не проверял WinDbg runtime parser; root cause всё ещё не доказана.
+
 [Microsoft .logopen](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-logopen--open-log-file-) / [.symfix](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-symfix--set-symbol-store-path-) / [.reload](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-reload--reload-module-) / [x](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/x--examine-symbols-).
 
 ## Возврат исходных настроек после опыта

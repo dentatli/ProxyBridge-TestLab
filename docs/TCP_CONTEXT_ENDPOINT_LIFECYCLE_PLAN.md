@@ -2,6 +2,8 @@
 
 Статус: пользовательский единый WFP/AFD сбор153716-f140a1c9 выполнен и [офлайн разобран](TCP_WFP_FULL_METADATA_DIAGNOSTIC.md).968 owned цепочек,96 STATUS_NOT_FOUND после SYNdrop30 внутри фактической AFD pause; WFP Apply/Auth подтверждены до первого SYN во всех96. Это устанавливает trigger, но не внутреннюю операцию утраты. Перенос/освобождение private record не представлены выбранными событиями. USER подключил WinDbg на физическом хосте через COM1 и передал live PDB/disassembly: родительская функция и шесть функций record/query проверены. Кандидат12точек подготовлен, но не установлен/не проверен в runtime. Повтор обычной ETW нагрузки не предлагается.
 
+Последнее уточнение2026-10-08: USER подтвердил пустой bl и код WfpPoolFree. Текущий кандидат14точек предназначен для [установки отключённым](KERNEL_CONTEXT_LOGGER_STAGING.md); две дополнительные точки наблюдают allocator call/return только по связанному caller. Он ещё не установлен, не включён, принадлежность объектов и фактическое исполнение при отказе не проверены.
+
 AFD source backlog здесь выбран провайдером при SOMAXCONN: listen200, Pause TLBacklogCount200/201, Unpause160, три паузы по32 отказа. Это очередь ожидающих accept, не таблица драйвера. В выбранном WFP наборе2763 уникальных TransportEndpointHandle/IsReauth0; повторной classify этих handles не наблюдалось. AFD child life связан по create..close и native tuple, но мост WFP handle→приватный TCP endpoint ещё отсутствует. Полный audit `artifacts/diagnostics/tcp-wfp-full-load-review-20261007-153714`.
 
 Нужно установить, почему после отказанного SYN и повтора принятый Core сокет не имеет redirect context. Наблюдаемая цепочка доказана; отнесение дефекта к Windows или драйверу пока не доказано.

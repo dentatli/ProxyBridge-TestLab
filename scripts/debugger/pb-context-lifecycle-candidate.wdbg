@@ -1,7 +1,8 @@
-$$ CANDIDATE ONLY: do not load before reviewing bl, live bytes and baseline ownership.
-$$ Appends 12 automatically numbered points; no explicit ID, no bc*, no target writes except bp.
-$$ Preserve the existing host log. No workload, driver install, reboot or final g in this file.
-bp tcpip!AlepCreateRedirectRecord+0x38f ".printf \"PBKD CREATE_PRE thread=%p stack=%p ep=%p previous=%p record=%p context=%p size=%I64x refs=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0); g"
+$$ STAGE ONLY: bl must be empty immediately before loading; run once per reviewed session.
+$$ Require MASM evaluator; inspect .expr before loading, do not change evaluator blindly.
+$$ Appends 14 automatically numbered points, then disables exactly IDs 0 through 13.
+$$ Preserve the existing host log. No workload, driver install, reboot, enable or final g.
+bp tcpip!AlepCreateRedirectRecord+0x38f ".printf \"PBKD CREATE_PRE thread=%p stack=%p ep=%p previous=%p record=%p context=%p size=%I64x refs=%x familyA=%x portA=%x addrA=%x familyB=%x portB=%x addrB=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0), wo(@rax+0x48), wo(@rax+0x4a), dwo(@rax+0x4c), wo(@rax+0xc8), wo(@rax+0xca), dwo(@rax+0xcc); g"
 bp tcpip!AlepCreateRedirectRecord+0x396 ".printf \"PBKD CREATE_POST thread=%p stack=%p ep=%p assigned=%p record=%p\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @rax; g"
 bp tcpip!InitializeEndpointContextFromParentContext+0x174 ".printf \"PBKD TRANSFER_READ thread=%p stack=%p child=%p parent=%p parent_record=%p child_record=%p\\n\", @$thread, @rsp, @rbx, @rdi, poi(@rdi+0x1c0), poi(@rbx+0x1c0); g"
 bp tcpip!InitializeEndpointContextFromParentContext+0x1d7 ".printf \"PBKD TRANSFER_PRE thread=%p stack=%p child=%p parent=%p record=%p child_record=%p\\n\", @$thread, @rsp, @rbx, @rdi, @rax, poi(@rbx+0x1c0); g"
@@ -13,3 +14,7 @@ bp tcpip!AleRedirectRecordFree+0x71 ".printf \"PBKD FREE_POOL_PRE thread=%p stac
 bp tcpip!AleRedirectRecordFree+0x76 ".printf \"PBKD FREE_POOL_RETURN thread=%p stack=%p former_record_address=%p\\n\", @$thread, @rsp, @rbx; g"
 bp tcpip!WfpAleProcessSocketOption+0x2c4 ".printf \"PBKD QUERY_READ thread=%p stack=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @r15d; g"
 bp tcpip!WfpAleProcessSocketOption+0x47b ".if (@r15d == 0x980000dd) { .printf \"PBKD QUERY_STATUS thread=%p stack=%p ep=%p record=%p status=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @ebx; }; g"
+bp tcpip!WfpPoolFree+0x1a ".if (poi(@rsp+0x28) == tcpip!AleRedirectRecordFree+0x76) { .printf \"PBKD ALLOCATOR_FREE_CALL thread=%p stack=%p slot=%p record=%p allocator_return=%p\\n\", @$thread, @rsp, @rbx, @rcx, tcpip!WfpPoolFree+0x1f; }; g"
+bp tcpip!WfpPoolFree+0x1f ".if (poi(@rsp+0x28) == tcpip!AleRedirectRecordFree+0x76) { .printf \"PBKD ALLOCATOR_FREE_RETURN thread=%p stack=%p slot=%p former_record_address=%p\\n\", @$thread, @rsp, @rbx, poi(@rbx); }; g"
+bd [0n0] [0n1] [0n2] [0n3] [0n4] [0n5] [0n6] [0n7] [0n8] [0n9] [0n10] [0n11] [0n12] [0n13]
+.echo PBKD stage file read completed - verify 14 disabled points with bl and saved commands with .bpcmds
