@@ -45,6 +45,8 @@ cmd.exe /c 'bcdedit /export "C:\Users\LabAdmin\pb-context-kd-before-20261007.bcd
 
 Ожидаются debug Yes у current, debugtype Serial/debugport1/baudrate115200 у dbgsettings. При ошибке не выключать VM и не продолжать настройку вслепую. Передать результат в чат. [BCDEdit /dbgsettings](https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/bcdedit--dbgsettings) и [BCDEdit /debug](https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/bcdedit--debug).
 
+2026-10-08: пользователь выполнил эту команду и прислал три сообщения успешного завершения и итоговые enum: current debug Yes, testsigning Yes; dbgsettings Serial/debugport1/baudrate115200. Агент read-only подтвердил локальные backup-файлы: BCD24576байт с hive signature regf, полный enum4043байта; hashes записаны в ignored audit `artifacts/diagnostics/pb-kd-guest-setup-review-20261008/validation.json`. Сохранённый до изменения полный enum содержит debugtype Local и не содержит явного debug/debugport/baudrate. Экспорт не импортировался и восстановление не проверялось. Это подтверждение ручной guest configuration и сохранённых файлов, не подключение kernel debugger.
+
 ## 2. Подготовить физический хост и канал
 
 Этот этап — после проверки результата шага1 и успешного source/docs checkpoint/push. VM содержит текущий Codex/workspace: заранее сохранить эту инструкцию на физическом ПК. Там в PowerShell от администратора сохранить исходные настройки в новый каталог:
@@ -119,4 +121,4 @@ Start-VM -Name 'PB-BUILD-W11-25H2' -ErrorAction Stop
 
 После старта проверить BCD и BitLocker read-only и сверить firmware/COM с backup. Driver installation/restore и перезагрузки отдельного диагностического комплекта остаются самостоятельными ручными этапами, не заменяются этой настройкой.
 
-Настройка соединения и откат пока не выполнены/не проверены. Изменения BCD/COM/firmware/trust/power/network агентом не выполнялись. Причина private context loss остаётся недоказанной.
+Гостевой Serial/debug включён пользователем 2026-10-08; подключение COM/WinDbg, холодный старт после назначения канала и откат ещё не выполнены/не проверены. Изменения BCD/COM/firmware/trust/power/network агентом не выполнялись. Следующий ручной этап — host backup → штатный guest shutdown → Off guard → COM1 pipe → WinDbg wait → Start-VM → проверить connection. Нагрузку до проверки символов и адресного плана не запускать. Причина private context loss остаётся недоказанной.
