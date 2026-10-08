@@ -92,6 +92,22 @@ WinDbg должен установить kernel connection. Если остан�
 
 После подключения передать текст WinDbg с версией target и состоянием связи. На этом этапе ещё не установлены адресные breakpoint/watchpoint и не доказана доступность нужных private symbols. Сначала проверить target build/PE/PDB/инструкции именно загруженных tcpip/AFD/NETIO. Потом подготовить отдельный debugger command file для установки/переноса/очистки записи, жизни объектов и исходного query по [плану наблюдения](TCP_CONTEXT_ENDPOINT_LIFECYCLE_PLAN.md). Старый offset `+0x1c0` не применять автоматически. Отладка меняет timing; отсутствие воспроизведения — INCONCLUSIVE.
 
+2026-10-08: пользователь прислал фактический WinDbg output: waiting pipe PB-Context-KD → Connected Windows10 26100 x64 → Kernel Debugger connection established, ptr64 TRUE, MP1, Free x64; engine10.0.29661.1004, символы srv*. Обозначение Windows10 в debugger не меняет ранее установленную Windows11 target. DriverEntry NetworkPrivacyPolicy C00000BB — отдельное boot сообщение; его связь с context failure не установлена. MCP Server Bridge указан enabled/not running/not connected; доступного инструмента управления WinDbg в текущем чате не найдено, сессией управляет пользователь на физическом хосте. Связь подтверждена USER output, но debugger ещё не проверил live symbols/инструкции/private context.
+
+## 4. Сохранить лог и проверить загруженные символы
+
+После загрузки гостя в WinDbg физического хоста нажать Break и дождаться `kd>` (при необходимости Ctrl+Break). VM/RDP/Codex при этом остановятся. **Не вводить следующие команды в PowerShell**: это команды окна Command самого WinDbg. Одна строка; последний `g` продолжает VM после чтения и загрузки символов:
+
+```text
+.logopen /t C:\Users\Administrator\pb-context-kd.log; .symfix C:\Symbols; .reload /f tcpip.sys; .reload /f afd.sys; .reload /f netio.sys; vertarget; lmvm tcpip; lmvm afd; lmvm netio; x tcpip!*InitializeEndpointContextFromParentContext*; uf tcpip!InitializeEndpointContextFromParentContext; g
+```
+
+На физическом хосте ранее USER использовал профиль Administrator, откуда выбран существующий каталог лога. Если WinDbg работает под другим профилем, выбрать существующий частный каталог того пользователя. `/t` добавляет timestamp/PID, не перезаписывает старый лог с фиксированным именем. Дождаться окончания загрузки символов; не нажимать Restart VM из-за остановки ядра. При ошибке до `g` продолжить отдельно через `g`, сохранить ошибку без обхода проверки PDB (`/i` не использовать). Пустой x или ошибка uf означает неподтверждённую точку наблюдения, не отсутствие исполнения функции.
+
+Передать вывод этой строки в чат. Это только лог, символы, сведения о модулях и disassembly; ни breakpoint/watchpoint, ни нагрузка не устанавливаются/запускаются. Target files на диске агент read-only проверил: tcpip/AFD10.0.26100.8875, NETIO10.0.26100.9444. Их SHA сохранены в ignored audit `pb-kd-connection-review-20261008`; файлы на диске не заменяют проверку загруженных модулей и соответствующего PDB. Проверка точных инструкций в live output нужна до назначения offset/регистров.
+
+[Microsoft .logopen](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-logopen--open-log-file-) / [.symfix](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-symfix--set-symbol-store-path-) / [.reload](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-reload--reload-module-) / [x](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/x--examine-symbols-).
+
 ## Возврат исходных настроек после опыта
 
 Резервный BCD и полный enum сохраняются только локально, вне Git. Не импортировать весь BCD автоматически: это аварийный backup, а обычный возврат ограничен нашими изменениями.
@@ -121,4 +137,4 @@ Start-VM -Name 'PB-BUILD-W11-25H2' -ErrorAction Stop
 
 После старта проверить BCD и BitLocker read-only и сверить firmware/COM с backup. Driver installation/restore и перезагрузки отдельного диагностического комплекта остаются самостоятельными ручными этапами, не заменяются этой настройкой.
 
-Гостевой Serial/debug включён пользователем 2026-10-08; подключение COM/WinDbg, холодный старт после назначения канала и откат ещё не выполнены/не проверены. Изменения BCD/COM/firmware/trust/power/network агентом не выполнялись. Следующий ручной этап — host backup → штатный guest shutdown → Off guard → COM1 pipe → WinDbg wait → Start-VM → проверить connection. Нагрузку до проверки символов и адресного плана не запускать. Причина private context loss остаётся недоказанной.
+Гостевой Serial/debug включён и kernel connection через pipe подтверждён пользователем 2026-10-08. Host backup/полная сверка firmware/COM не представлены новым выводом; прежние исходные настройки сохранены как наблюдения USER. Откат не выполнен/не проверен. Изменения BCD/COM/firmware/trust/power/network агентом не выполнялись. Следующий ручной этап — лог и live symbols/disassembly → проверенный адресный план → диагностическая нагрузка. Нагрузку до проверки символов и адресного плана не запускать. Причина private context loss остаётся недоказанной.
