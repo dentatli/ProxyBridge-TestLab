@@ -53,6 +53,15 @@ $kit=Join-Path $PreparationDirectory 'kit'
 foreach ($required in @('product.env','redirect-context-diagnostic.json','ProxyBridge_CLI.exe','ProxyBridgeCore.dll','ProxyBridgeDrv.sys')) {
     if (-not $seen.ContainsKey((Join-Path $kit $required))) {throw 'KD_BASELINE_KIT_NOT_FROZEN'}
 }
+$receipt=Read-Json (Join-Path $kit 'redirect-context-diagnostic.json')
+if ($receipt.method -cne 'redirect-kd-baseline-v5' -or -not $receipt.PSObject.Properties['components'] -or $receipt.components.Count -ne 3) {throw 'KD_BASELINE_COMPONENT_RECEIPT_INCOMPLETE'}
+$componentNames=@{}
+foreach ($component in $receipt.components) {
+    if ($component.name -cnotin @('ProxyBridge_CLI.exe','ProxyBridgeCore.dll','ProxyBridgeDrv.sys') -or $componentNames.ContainsKey([string]$component.name) -or
+        $component.sha256 -notmatch '^[a-f0-9]{64}$' -or $component.sha256 -cne $receipt.reused_binary_sha256.($component.name) -or
+        (Get-FileHash -LiteralPath (Join-Path $kit $component.name)).Hash -ine $component.sha256) {throw 'KD_BASELINE_COMPONENT_RECEIPT_DIFFERS'}
+    $componentNames[[string]$component.name]=$true
+}
 if ($Phase -ne 'Run') {
     [ordered]@{status='KD_BASELINE_FILES_VALIDATED';preparation_directory=$PreparationDirectory;files=$plan.files.Count;
         connections=4;load_levels=@();product_started=$false;driver_installed=$false;traffic_generated=$false;

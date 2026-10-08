@@ -66,6 +66,7 @@ def prepare(root, output, python):
                  status='DIAGNOSTIC_BUILD_PREPARED', diagnostic_only=True, performance_comparable=False,
                  source_commit='63be0ebf9bec92bfba95ef3d6729c375aa9af84e', base_kit=str(base),
                  kd_baseline_policy=POLICY, reused_binary_sha256=PINNED,
+                 components=[dict(name=name,sha256=sha) for name,sha in PINNED.items()],
                  reused_binary_paths={k:str(v) for k,v in origins.items()},
                  original_single_query_preserved=True, product_built=False, driver_installed=False)
     (kit/'redirect-context-diagnostic.json').write_text(json.dumps(receipt,indent=2)+'\n')
