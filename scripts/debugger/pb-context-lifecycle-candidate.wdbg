@@ -1,0 +1,15 @@
+$$ CANDIDATE ONLY: do not load before reviewing bl, live bytes and baseline ownership.
+$$ Appends 12 automatically numbered points; no explicit ID, no bc*, no target writes except bp.
+$$ Preserve the existing host log. No workload, driver install, reboot or final g in this file.
+bp tcpip!AlepCreateRedirectRecord+0x38f ".printf \"PBKD CREATE_PRE thread=%p stack=%p ep=%p previous=%p record=%p context=%p size=%I64x refs=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0); g"
+bp tcpip!AlepCreateRedirectRecord+0x396 ".printf \"PBKD CREATE_POST thread=%p stack=%p ep=%p assigned=%p record=%p\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @rax; g"
+bp tcpip!InitializeEndpointContextFromParentContext+0x174 ".printf \"PBKD TRANSFER_READ thread=%p stack=%p child=%p parent=%p parent_record=%p child_record=%p\\n\", @$thread, @rsp, @rbx, @rdi, poi(@rdi+0x1c0), poi(@rbx+0x1c0); g"
+bp tcpip!InitializeEndpointContextFromParentContext+0x1d7 ".printf \"PBKD TRANSFER_PRE thread=%p stack=%p child=%p parent=%p record=%p child_record=%p\\n\", @$thread, @rsp, @rbx, @rdi, @rax, poi(@rbx+0x1c0); g"
+bp tcpip!InitializeEndpointContextFromParentContext+0x1e6 ".printf \"PBKD TRANSFER_POST thread=%p stack=%p child=%p parent=%p child_record=%p parent_record=%p\\n\", @$thread, @rsp, @rbx, @rdi, poi(@rbx+0x1c0), poi(@rdi+0x1c0); g"
+bp tcpip!AleRedirectRecordDereference+0xc ".printf \"PBKD DEREF_PRE thread=%p stack=%p record=%p refs=%x\\n\", @$thread, @rsp, @rcx, dwo(@rcx+0x1f0); g"
+bp tcpip!AleRedirectRecordDereference+0x14 ".printf \"PBKD DEREF_POST thread=%p stack=%p record=%p previous_refs=%x refs=%x\\n\", @$thread, @rsp, @rcx, @eax, dwo(@rcx+0x1f0); g"
+bp tcpip!AleRedirectRecordFree+0xd ".printf \"PBKD FREE_ENTER thread=%p stack=%p slot=%p record=%p refs=%x context=%p size=%I64x\\n\", @$thread, @rsp, @rcx, @rbx, dwo(@rbx+0x1f0), poi(@rbx+0x1e0), poi(@rbx+0x1e8); g"
+bp tcpip!AleRedirectRecordFree+0x71 ".printf \"PBKD FREE_POOL_PRE thread=%p stack=%p slot=%p record=%p\\n\", @$thread, @rsp, @rcx, @rbx; kb 6; g"
+bp tcpip!AleRedirectRecordFree+0x76 ".printf \"PBKD FREE_POOL_RETURN thread=%p stack=%p former_record_address=%p\\n\", @$thread, @rsp, @rbx; g"
+bp tcpip!WfpAleProcessSocketOption+0x2c4 ".printf \"PBKD QUERY_READ thread=%p stack=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @r15d; g"
+bp tcpip!WfpAleProcessSocketOption+0x47b ".if (@r15d == 0x980000dd) { .printf \"PBKD QUERY_STATUS thread=%p stack=%p ep=%p record=%p status=%x\\n\", @$thread, @rsp, @rdi, poi(@rdi+0x1c0), @ebx; }; g"

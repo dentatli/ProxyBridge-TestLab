@@ -1,6 +1,6 @@
 # Наблюдение жизненного цикла записи redirect context
 
-Статус: пользовательский единый WFP/AFD сбор153716-f140a1c9 выполнен и [офлайн разобран](TCP_WFP_FULL_METADATA_DIAGNOSTIC.md).968 owned цепочек,96 STATUS_NOT_FOUND после SYNdrop30 внутри фактической AFD pause; WFP Apply/Auth подтверждены до первого SYN во всех96. Это устанавливает trigger, но не внутреннюю операцию утраты. Перенос/освобождение private record не представлены выбранными событиями. Физический хост/VM и исходные настройки подтверждены пользователем; подготовлено ручное подключение WinDbg через COM1. Kernel connection и изменения BCD/COM ещё не выполнены/не проверены. Повтор обычной ETW нагрузки не предлагается.
+Статус: пользовательский единый WFP/AFD сбор153716-f140a1c9 выполнен и [офлайн разобран](TCP_WFP_FULL_METADATA_DIAGNOSTIC.md).968 owned цепочек,96 STATUS_NOT_FOUND после SYNdrop30 внутри фактической AFD pause; WFP Apply/Auth подтверждены до первого SYN во всех96. Это устанавливает trigger, но не внутреннюю операцию утраты. Перенос/освобождение private record не представлены выбранными событиями. USER подключил WinDbg на физическом хосте через COM1 и передал live PDB/disassembly: родительская функция и шесть функций record/query проверены. Кандидат12точек подготовлен, но не установлен/не проверен в runtime. Повтор обычной ETW нагрузки не предлагается.
 
 AFD source backlog здесь выбран провайдером при SOMAXCONN: listen200, Pause TLBacklogCount200/201, Unpause160, три паузы по32 отказа. Это очередь ожидающих accept, не таблица драйвера. В выбранном WFP наборе2763 уникальных TransportEndpointHandle/IsReauth0; повторной classify этих handles не наблюдалось. AFD child life связан по create..close и native tuple, но мост WFP handle→приватный TCP endpoint ещё отсутствует. Полный audit `artifacts/diagnostics/tcp-wfp-full-load-review-20261007-153714`.
 
@@ -31,7 +31,7 @@ WFP Callout provider подтверждён [документацией Microsof
 
 ## Гипотезы в одном наблюдении
 
-Kernel connection и три live PDB подтверждены USER 2026-10-08;117 инструкций ParentContext побайтово совпали с PE. Конкретные проверенные symbol offsets, предстоящая проверка query/free/create аргументов и требования к одному общему опыту описаны в [адресном плане](KERNEL_CONTEXT_BREAKPOINT_PLAN.md). Это проверка кода, не исполнение утраты записи.
+Kernel connection и три live PDB подтверждены USER 2026-10-08;117 инструкций ParentContext побайтово совпали с PE. Шесть соседних функций прочитаны;587/605инструкций совпали,18изменённых call-инструкций сохранены отдельно; выбранные12границ точек совпали. Конкретные проверенные symbol offsets, различие record и pointer-to-record, кандидат logger и требования к одному общему опыту описаны в [адресном плане](KERNEL_CONTEXT_BREAKPOINT_PLAN.md). Это проверка кода, не исполнение утраты записи.
 
 | Гипотеза | Нужное различающее наблюдение |
 | --- | --- |
@@ -53,6 +53,8 @@ Kernel connection и три live PDB подтверждены USER 2026-10-08;11
 Фиксация точек остановки меняет временные условия. Поэтому это адресная диагностика владения, не измерение задержки, скорости или ёмкости. Пропущенная запись, неоднозначный объект, неподтверждённый стек или отсутствие воспроизведения запрещают окончательный вывод.
 
 ## Требуемая среда и граница следующего действия
+
+История выбора среды ниже относится к моменту до USER подключения. Текущее состояние2026-10-08: kernel connection, три live PDB и границы кандидата12точек подтверждены; установка/runtime logger, ownership endpoint и private transfer/free при отказанном SYN ещё предстоят. Административные изменения по-прежнему выполняет USER на указанных машинах, не агент.
 
 Для **прямого наблюдения записей памяти и исполнения переноса/освобождения**, если расширенная трасса не показывает нужный переход, нужен kernel debugger вне исследуемой Windows VM. Локальный `WinDbg -kl` не поддерживает точки остановки и пошаговое выполнение: [Microsoft: Local Kernel-Mode Debugging](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/performing-local-kernel-debugging). Доступны [точки остановки на запись памяти](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/ba--break-on-access-), но их число ограничено; следить таким способом за всеми1936объектами одновременно нельзя обещать. Microsoft описывает отдельный host/target и подключение к VM через виртуальный COM/named pipe: [настройка kernel debugging VM](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/attaching-to-a-virtual-machine--kernel-mode-).
 

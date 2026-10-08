@@ -130,6 +130,8 @@ g
 
 2026-10-08 следующий USER output подтвердил Path validation OK, три pdb symbols и разрешение обеих ParentContext функций. Все117 выведенных opcode-инструкций InitializeEndpointContextFromParentContext совпали с дисковым PE. USER отдельно выполнил g. Символы и байты функции подтверждены; перенос при неисправном соединении ещё не наблюдался. Следующий этап — [общий адресный план и чтение шести соседних функций одной остановкой](KERNEL_CONTEXT_BREAKPOINT_PLAN.md), перед установкой точек или нагрузкой. Историческую ошибочную строку с semicolon не повторять.
 
+2026-10-08 USER передал шесть UF и отдельный g. Выбранные12границ точек совпали с PE; создание/перенос/снятие ссылок/free/query объединены в [кандидат общего logger](KERNEL_CONTEXT_BREAKPOINT_PLAN.md#подготовленный-кандидат-общего-журнала).587/605инструкций совпали полностью,18call-related различий сохранены отдельно. Кандидат не установлен и не является готовым Run. Следующее USER чтение bl + uf tcpip!WfpPoolFree + отдельный g, с предупреждением о полной остановке VM перед Break; workload/установка драйвера не выполняются.
+
 [Microsoft .logopen](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-logopen--open-log-file-) / [.symfix](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-symfix--set-symbol-store-path-) / [.reload](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-reload--reload-module-) / [x](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/x--examine-symbols-).
 
 ## Возврат исходных настроек после опыта

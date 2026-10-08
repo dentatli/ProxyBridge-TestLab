@@ -17,16 +17,18 @@ RVA функции0x1aad4; WfpAle wrapper0x19ebc. Для будущих точе
 
 ## Проверка соседних функций одной остановкой
 
-До установки точек нужны конкретные аргументы, регистры и инструкции следующих функций. Имена найдены в соответствующем tcpip.pdb; live разрешение и disassembly ещё предстоят. Не ставить entry/return точки по предположенным ABI/полям или рассчитывать на весь путь без проверки:
+Эта проверка выполнена USER отдельными командами с последующим g. Все шесть функций разрешились. Из605 выведенных инструкций587 побайтово совпали с PE. Остальные18 — восемь пар изменённых import-call инструкций (исходный косвенный call+NOP, загруженный mov R10+прямой call) и два изменённых вызова memset. Эти различия сохранены отдельно; механизм их изменения не объявляется доказанным. Все выбранные ниже границы точек и инструкции доступа к record совпали с PE. Audit: `artifacts/diagnostics/pb-kd-record-lifecycle-review-20261008/validation.json`. Исходный attachment сохранён неизменным. Наблюдение исполнения при неисправном соединении ещё предстоит.
+
+Аргументы установлены по явным перемещениям в выведенном коде, а не по предположенной структуре private PDB:
 
 | Функция | Что установить для общего опыта |
 | --- | --- |
-| WfpAleInitializeEndpointContextFromParentContext | Связь внешнего transport endpoint/аргументов вызова с внутренним родителем и ребёнком |
-| AlepCreateRedirectRecord | Создание/привязка записи и сохранение исходного владельца |
-| AleRedirectRecordDereference | Изменение числа ссылок, аргумент той же записи и переход к освобождению |
-| AleRedirectRecordFree | Фактическое освобождение той же записи, вызывающий стек и жизнь объекта |
-| WfpAleReleaseEndpointContext | Освобождение/удержание endpoint и связь с записью; не объявлять сам Release доказанным Free |
-| WfpAleProcessSocketOption | Исходный запрос0x980000DD, выбранный endpoint, указатель record и ветка NTSTATUS |
+| WfpAleInitializeEndpointContextFromParentContext | Wrapper непосредственно вызывает InitializeEndpointContextFromParentContext, аргументы не переставляет |
+| AlepCreateRedirectRecord | RCX сохраняется в RDI endpoint; TCP branch+38f присваивает новый RAX record в endpoint+1c0 |
+| AleRedirectRecordDereference | RCX record; atomic decrement+1f0; прежнее число1 вызывает Free через адрес сохранённого указателя |
+| AleRedirectRecordFree | RCX адрес ячейки, RBX=poi(RCX); освобождает context и вспомогательные ссылки, затем вызывает WfpPoolFree для record |
+| WfpAleReleaseEndpointContext | Прибавляет80h к RCX и снимает WaitRef; сам Release не доказывает Free record |
+| WfpAleProcessSocketOption | RCX сохраняется в RDI endpoint, EDX в R15D IOCTL;0x980000DD читает record+1c0, null ведёт к C0000225 |
 
 **Перед Break обязательно предупредить: остановится вся VM/Codex/RDP.** Заранее сохранить команды на физическом хосте. В WinDbg после Break/`kd>` каждую команду вводить отдельным Enter, не вставлять весь блок и не объединять `;`:
 
@@ -60,4 +62,24 @@ g
 - Измерение производительности исключено. Каждое kernel breakpoint событие кратковременно приостанавливает VM даже при автоматическом продолжении; logger меняет timing. Если отказ не воспроизвёлся или identity/coverage неполны, вывод INCONCLUSIVE/INCOMPLETE.
 - Контроллер/комплект для согласованной нагрузки определить после готовности адресного logger. Не refreeze/resume прежний использованный план и не запускать старый FullMetadata Run автоматически. Agent не устанавливает драйвер и не генерирует трафик.
 
-Готового проверенного logger/workload пока нет. Наблюдение конкретного free/неправильного владельца должно предшествовать выводу Windows bug/driver bug и любому product fix. Подробная причинная цепочка и ограничения — [план жизненного цикла](TCP_CONTEXT_ENDPOINT_LIFECYCLE_PLAN.md).
+## Подготовленный кандидат общего журнала
+
+[pb-context-lifecycle-candidate.wdbg](../scripts/debugger/pb-context-lifecycle-candidate.wdbg) содержит12 автоматически нумеруемых software breakpoint. Это кандидат: агент не подключал его к WinDbg, не проверял исполнение CommandString и не запускал workload. Сейчас его **не загружать**. Следующее ручное чтение — bl и uf tcpip!WfpPoolFree, затем отдельный g; по выводу проверить свободную ёмкость и фактическую обёртку allocator Free. Вызов/возврат WfpPoolFree сам по себе пока не объявляется наблюдением deallocation. bp без явного номера не заменяет ранее существующие точки; kernel limit32. Все точки из кандидата необходимо отдельно сверить в bl после установки, а их номера записать для удаления только этих точек. Нельзя использовать bc*.
+
+| Группа | symbol+offset | Проверенные значения |
+| --- | --- | --- |
+| Привязка новой записи | AlepCreateRedirectRecord+38f / +396 | Перед store: RDI endpoint, RAX new record, старый endpoint+1c0; после store: фактически присвоенный record |
+| Перенос | InitializeEndpointContextFromParentContext+174 / +1d7 / +1e6 | До read; перед store ребёнку; после очистки родителя. RBX child, RDI parent, RAX record перед store |
+| Снятие ссылки | AleRedirectRecordDereference+c / +14 | RCX сам record; +1f0 refs перед atomic xadd, EAX прежнее число после него. Между двумя trap возможна конкурирующая операция; не выводить отсутствующий decrement только из этих снимков |
+| Освобождение | AleRedirectRecordFree+d / +71 / +76 | Вход: RBX=poi(RCX), RCX адрес ячейки, а не record. Перед вызовом WfpPoolFree RCX ячейка/RBX record и stack. После возврата только прежний адрес RBX, без dereference освобождённой памяти |
+| Запрос | WfpAleProcessSocketOption+2c4 / +47b | RDI endpoint, +1c0 record, R15D IOCTL. На +47b EBX уже содержит итоговый NTSTATUS, EAX ещё не присвоен; logger читает EBX и выбирает только 980000DD |
+
+WfpAleReleaseEndpointContext прибавляет к RCX80h и вызывает DecrementWaitRef. Его вызов сам по себе не доказывает освобождение record, поэтому не выбран как заменитель Free. Wrapper ParentContext прямо вызывает проверенную внутреннюю функцию. AlepCreateRedirectRecord выделяет228h байт для Windows record; его +1e0/+1e8 — pointer/size пользовательского контекста. Это разные выделения,32байт собственный контекст не считать размером Windows record.
+
+Кандидат не фильтрует по executing PID, не меняет NTSTATUS/память объектов/пользовательский query, не ставит watchpoint и не читает packet payload или произвольные32байт data. ETHREAD+stack и явные parent/child/record переходы сохраняются. После Free адрес не разыменовывается. Logger не даёт автоматически точной связи endpoint с native tuple/owned query; эту связь и create/free поколения нужно проверить на baseline вместе с действующими Core/kernel/CTS метаданными. Полная история жизни endpoint и произвольные записи вне выбранных функций ещё не покрыты. Отсутствие FREE строки не доказывает сохранность записи.
+
+Внутри **quoted breakpoint CommandString** semicolon разделяет команды printf/stack/g по документированной грамматике [Microsoft bp](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/bp--bu--bm--set-breakpoint-). Это отличается от прежней ошибочной цепочки symfix/uf/g. Пользователь по-прежнему вводит внешние команды по одной; заключительный g всегда отдельный. Для будущего чтения файла выбирать построчный `$<`, а не `$><`/`$$><`, которые объединяют строки в один блок: [Microsoft Run Script File](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-----------------------a---run-script-file-). Файл не содержит самостоятельного g в конце и не открывает/перезаписывает журнал.
+
+**Перед следующими Break/установкой обязательно предупредить:** VM/Codex/RDP останавливаются; каждая активная точка тоже кратко приостанавливает всю VM. Готовность runtime logger, ownership/coverage, нагрузка и её длительность ещё не подтверждены. Не считать старую оценку2–4мин применимой к12kernel точкам через serial pipe. Не запускать старый использованный kit автоматически; не дробить длинный опыт ради разрешения на <5мин.
+
+Наблюдение конкретного free/неправильного владельца должно предшествовать выводу Windows bug/driver bug и любому product fix. Подробная причинная цепочка и ограничения — [план жизненного цикла](TCP_CONTEXT_ENDPOINT_LIFECYCLE_PLAN.md).
