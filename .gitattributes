@@ -1,6 +1,7 @@
 * text=auto
 *.ps1 text eol=crlf
 *.psm1 text eol=crlf
+*.wdbg text eol=crlf
 *.json text eol=lf
 *.jsonl text eol=lf
 *.log text eol=lf

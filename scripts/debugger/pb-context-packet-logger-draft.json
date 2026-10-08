@@ -1254,7 +1254,7 @@
   "default_enabled": false,
   "executing_pid_used_as_packet_owner_filter": false,
   "private_api_semantics_complete": false,
-  "debugger_format_runtime_verified": false,
+  "debugger_format_runtime_verified": true,
   "owned_baseline_coverage_verified": false,
   "root_cause_proven": false,
   "limitations": [
@@ -1268,10 +1268,15 @@
     "proposed_method": "typed ETHREAD.Cid fields from matching nt PDB",
     "kernel_pdb_guid": "c29ebfb0-6b78-b3c0-20dc-a66d99713f9e",
     "kernel_pdb_age": 1,
-    "loaded_kernel_identity_verified": false,
-    "live_expression_verified": false,
+    "loaded_kernel_identity_verified": true,
+    "live_expression_verified": true,
     "probe": "scripts/debugger/pb-context-packet-format-probe-v2.wdbg",
     "numeric_cid_offsets_used": false,
-    "installation_allowed": false
+    "installation_allowed": false,
+    "owned_nonzero_pid_tid_verified": false,
+    "physical_probe_sha256_user_confirmed": "8816e3ec025dc454f64c5f2913636a2ca6c34184855b7b96cd8c38e7dccdedcc",
+    "current_values": "thread=fffff8017c9d25c0 pid=0 tid=0 stack=fffff8010e3c7998",
+    "format_log_sha256": "8934f1ceb496b281059c9b70b2c8d6cdd628335a6a4f1bdd887f70fdb8651634",
+    "manual_disabled_staging_allowed": true
   }
 }
