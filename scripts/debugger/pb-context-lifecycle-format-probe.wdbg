@@ -1,0 +1,19 @@
+$$ FORMAT PROBE ONLY. Existing breakpoint IDs and enable states stay unchanged.
+$$ Uses constants and current thread and stack values. No connection memory or traffic.
+.echo PBKD_PROBE_BEGIN synthetic values only
+.printf "PBKD_PROBE CREATE_PRE thread=%p stack=%p ep=%p previous=%p record=%p context=%p size=%I64x refs=%x familyA=%x portA=%x addrA=%x familyB=%x portB=%x addrB=%x\n", @$thread, @rsp, 0, 0, 0, 0, 0x20, 1, 2, 0, 0, 2, 0, 0
+.printf "PBKD_PROBE CREATE_POST thread=%p stack=%p ep=%p assigned=%p record=%p\n", @$thread, @rsp, 0, 0, 0
+.printf "PBKD_PROBE TRANSFER_READ thread=%p stack=%p child=%p parent=%p parent_record=%p child_record=%p\n", @$thread, @rsp, 0, 0, 0, 0
+.printf "PBKD_PROBE TRANSFER_PRE thread=%p stack=%p child=%p parent=%p record=%p child_record=%p\n", @$thread, @rsp, 0, 0, 0, 0
+.printf "PBKD_PROBE TRANSFER_POST thread=%p stack=%p child=%p parent=%p child_record=%p parent_record=%p\n", @$thread, @rsp, 0, 0, 0, 0
+.printf "PBKD_PROBE DEREF_PRE thread=%p stack=%p record=%p refs=%x\n", @$thread, @rsp, 0, 1
+.printf "PBKD_PROBE DEREF_POST thread=%p stack=%p record=%p previous_refs=%x refs=%x\n", @$thread, @rsp, 0, 1, 0
+.printf "PBKD_PROBE FREE_ENTER thread=%p stack=%p slot=%p record=%p refs=%x context=%p size=%I64x\n", @$thread, @rsp, 0, 0, 0, 0, 0x20
+.printf "PBKD_PROBE FREE_POOL_PRE thread=%p stack=%p slot=%p record=%p\n", @$thread, @rsp, 0, 0
+.printf "PBKD_PROBE FREE_POOL_RETURN thread=%p stack=%p former_record_address=%p\n", @$thread, @rsp, 0
+.printf "PBKD_PROBE QUERY_READ thread=%p stack=%p ep=%p record=%p ioctl=%x\n", @$thread, @rsp, 0, 0, 0x980000dd
+.if (0x980000dd == 0x980000dd) { .printf "PBKD_PROBE QUERY_STATUS thread=%p stack=%p ep=%p record=%p status=%x\n", @$thread, @rsp, 0, 0, 0xc0000225 }
+.if (tcpip!AleRedirectRecordFree+0x76 == tcpip!AleRedirectRecordFree+0x76) { .printf "PBKD_PROBE ALLOCATOR_FREE_CALL thread=%p stack=%p slot=%p record=%p allocator_return=%p\n", @$thread, @rsp, 0, 0, tcpip!WfpPoolFree+0x1f }
+.if (tcpip!AleRedirectRecordFree+0x76 == tcpip!AleRedirectRecordFree+0x76) { .printf "PBKD_PROBE ALLOCATOR_FREE_RETURN thread=%p stack=%p slot=%p former_record_address=%p\n", @$thread, @rsp, 0, 0 }
+.if (0x980000dd != 0x980000dd) { .echo PBKD_PROBE_UNEXPECTED_FALSE_BRANCH; }
+.echo PBKD_PROBE_END enter g separately

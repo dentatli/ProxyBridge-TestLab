@@ -1,5 +1,9 @@
 # Ручная установка отключённого журнала в WinDbg
 
+Текущий результат USER2026-10-08:14точек0..13установлены по ожидаемым адресам, все d; .bpcmds совпадает с14source CommandString. Отдельный g присутствует. Агент сохранил неизменным USER attachment и сверил каждую строку; audit `artifacts/diagnostics/pb-kd-stage-review-20261008/validation.json`. Регистрация точек подтверждена, исполнение их действий на соединениях — нет. Инструкции установки ниже теперь исторические: **повторно файл установки не загружать**, иначе появятся дубли и новые точки вне отключаемого диапазона.
+
+Две ошибки при чтении первоначального файла относятся к комментариям агента: semicolon завершил $$, оставшийся текст стал командой. Это ошибка подготовленного файла, комментарии исправлены без изменения14bp действий. Правило явно описано [Microsoft $$](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-----comment-specifier-). Исходный ZIP/USER вывод сохранены, повторная установка ради исправления комментариев не нужна.
+
 2026-10-08 USER bl пуст, WfpPoolFree разрешилась, затем отдельный g продолжил VM. Код WfpPoolFree: RBX сохраняет адрес ячейки; RCX получает record; при nonnull вызывается nt!ExFreePoolWithTag, затем ячейка заменяется BADBADFABADBADFA.14инструкций:12точно совпали с PE, одна пара import-call отличается структурно так же, как ранее. Исполнение free при отказанном SYN не наблюдалось. Audit только локально `artifacts/diagnostics/pb-kd-pool-free-review-20261008/validation.json`.
 
 Подготовлен [файл установки](../scripts/debugger/pb-context-lifecycle-candidate.wdbg),14точек. Первые12границ побайтово совпадают с PE; новые две находятся на явно выведенных живых call/return границах WfpPoolFree+1a/+1f. Условие poi(RSP+28h)==AleRedirectRecordFree+76 связывает события allocator с конкретным вызовом освобождения Windows record: push RBX+sub RSP20h перемещают caller return address на RSP28h. Эти поля ещё необходимо проверить при runtime baseline. Событие ALLOCATOR_FREE_RETURN читает ячейку, а не содержимое освобождённого record. Непарные или неоднозначные события не считать доказанной жизнью объекта.
@@ -21,7 +25,22 @@ CREATE_PRE добавляет family/port/address двух sockaddr, скопи�
 
 ## После проверки установки
 
+### Текущий следующий шаг без трафика
+
+Подготовлен [read-only format probe](../scripts/debugger/pb-context-lifecycle-format-probe.wdbg). Он печатает14PBKD_PROBE строк с искусственными значениями, использует только constants/текущие @$thread и @rsp/два уже разрешённых символа. Не разыменовывает память соединения, не меняет регистры, точки, состояние службы и не запускает трафик. Все14format fields совпали с установленными CommandString, arg count совпадает с %p/%I64x/%x. Отдельно выполняются3trueусловия и1falseусловие. Форматы и грамматика .if соответствуют [Microsoft printf](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-printf) и [Microsoft if](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-if); реальное исполнение WinDbg ещё ожидается.
+
+1. Перенести только новый probe на физический ПК в C:\PB-KD\pb-context-lifecycle-format-probe.wdbg. Не загружать заново stage файл, существующие14точек оставить d.
+2. **До Break предупредить: VM/Codex/RDP остановятся.** Команды сохранить на физическом хосте заранее.
+3. По одной/Enter: `$<C:\PB-KD\pb-context-lifecycle-format-probe.wdbg`, затем bl, затем **g отдельно даже при ошибке**. be не выполнять.
+4. Передать вывод после продолжения. Ожидаются14строк PBKD_PROBE и PBKD_PROBE_END без ошибок и без PBKD_PROBE_UNEXPECTED_FALSE_BRANCH; bl должен сохранить14d.
+
+Этот probe проверяет formats, базовые pseudo-register reads и synthetic condition parsing. Он не проверяет разворачивание quoted bp string во время trap, корректность памяти callee, caller-return condition на реальном вызове, стек, авто-g или принадлежность объектов. Синтетические строки имеют отдельный PBKD_PROBE префикс и не являются metadata живых соединений. Финальный pb-kd-format-probe-final.zip (1792 байта) содержит только probe/README/hash manifest; SHA/CRC roundtrip сохранены в ignored stage audit/probe-validation-final.json. Старый stage ZIP не заменён.
+
+### Затем собственные соединения и нагрузка
+
 Включение14точек и owned baseline требует отдельного согласованного шага с проверенным контроллером, QPC/tuple/endpoint жизнью и исходными ошибками. Ни baseline, ни полный workload пока не готовы к Run. Производительность исключена. Serial pipe и количество traps могут существенно удлинить опыт; прежние2–4мин не гарантируются. Если после включения встретится ошибка CommandString, VM может остаться остановленной; команды отключения и отдельный g должны быть заранее приготовлены на хосте.
+
+Проверенный модуль ConnectionLoad сейчас всегда строит полную серию4→64/256/640→4дляHIGH. Нельзя выдавать существующий Run за одну baseline4или применять прежний использованный frozen kit. Для нового контролируемого baseline нужны freshfiles/manifest/binding исходных CLI/Core/driver/native engine, четыре GUID/data-verified соединения и штатная очистка; совпадениеrecord tupleA/B с native/query проверить явно до полной нагрузки. Existing benchmark verdicts не менять ради logger. В этом этапе модуль/контроллер/драйвер не изменялись и Run не выполнялся.
 
 Аварийное отключение только после подтверждения назначения номеров0..13:
 
