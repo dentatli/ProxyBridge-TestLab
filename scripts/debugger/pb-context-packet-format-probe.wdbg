@@ -1,0 +1,35 @@
+$$ FORMAT PROBE ONLY - synthetic pointers and values plus current debugger IDs.
+$$ No memory dereferences or point changes or target function calls.
+$$ Prepare on physical host before Break pauses VM and Codex and RDP.
+$$ USER must enter g separately even after any error.
+.echo PBKDP_PROBE_BEGIN synthetic values only
+.expr
+.printf "PBKDP_PROBE CURRENT_IDS thread=%p pid=%I64x tid=%I64x stack=%p\n", @$thread, @$tpid, @$tid, @rsp
+.printf "PBKDP_PROBE CREATE_PRE thread=%p stack=%p ep=%p previous=%p record=%p context=%p size=%I64x refs=%x familyA=%x portA=%x addrA=%x familyB=%x portB=%x addrB=%x\n", @$thread, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+.printf "PBKDP_PROBE CREATE_POST thread=%p pid=%I64x tid=%I64x scope=%p ep=%p assigned=%p record=%p context=%p size=%I64x refs=%x familyA=%x portA=%x addrA=%x familyB=%x portB=%x addrB=%x\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+.printf "PBKDP_PROBE ACCEPT_RETRIEVE_PRE thread=%p pid=%I64x tid=%I64x scope=%p ep=%p previous=%p nbl=%p key=%I64x raw_flag=%x raw_arg4=%I64x output=%p\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 0, 5, 0, 0, 0
+.printf "PBKDP_PROBE TRANSFER_PRE thread=%p stack=%p child=%p parent=%p record=%p child_record=%p\n", @$thread, 0, 0, 0, 0, 0
+.printf "PBKDP_PROBE TRANSFER_POST thread=%p stack=%p child=%p parent=%p child_record=%p parent_record=%p\n", @$thread, 0, 0, 0, 0, 0
+.printf "PBKDP_PROBE DEREF_PRE thread=%p stack=%p record=%p refs=%x\n", @$thread, 0, 0, 0
+.printf "PBKDP_PROBE DEREF_POST thread=%p stack=%p record=%p previous_refs=%x refs=%x\n", @$thread, 0, 0, 0, 0
+.printf "PBKDP_PROBE FREE_ENTER thread=%p stack=%p slot=%p record=%p refs=%x context=%p size=%I64x\n", @$thread, 0, 0, 0, 0, 0, 0
+.printf "PBKDP_PROBE FREE_POOL_PRE thread=%p stack=%p slot=%p record=%p\n", @$thread, 0, 0, 0
+.printf "PBKDP_PROBE FREE_POOL_RETURN thread=%p stack=%p former_record_address=%p\n", @$thread, 0, 0
+.if (5 == 5) { .printf "PBKDP_PROBE QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 0x980000dd; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE QUERY_STATUS thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p status=%x\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 0xc0000225; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE ALLOCATOR_FREE_CALL thread=%p stack=%p slot=%p record=%p allocator_return=%p\n", @$thread, 0, 0, 0, 0; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE ALLOCATOR_FREE_RETURN thread=%p stack=%p slot=%p former_record_address=%p\n", @$thread, 0, 0, 0; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.printf "PBKDP_PROBE ACCEPT_RETRIEVE_RESULT thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p status=%x output_record=%p previous=%p\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 0xc0000225, 0, 0
+.printf "PBKDP_PROBE ACCEPT_AFTER_STORE thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p assigned=%p raw_flags=%x raw_esi=%x\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 0, 0, 0
+.if (5 == 5) { .printf "PBKDP_PROBE ASSOCIATE_ENTRY thread=%p pid=%I64x tid=%I64x scope=%p caller=%p raw_arg1=%x nbl=%p raw_flags=%x record=%p key=%I64x callback=%p\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 0, 0, 0, 5, 0; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE ASSOCIATE_RETURN thread=%p pid=%I64x tid=%I64x scope=%p caller=%p nbl=%p key=%I64x status=%I64x\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 5, 0xc0000225; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE NBL_CALLBACK thread=%p pid=%I64x tid=%I64x scope=%p caller=%p raw_event=%x nbl=%p peer_nbl=%p raw_flags=%x record=%p key=%I64x\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 0, 0, 0, 0, 5; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE RETRIEVE_MATCH thread=%p pid=%I64x tid=%I64x scope=%p caller=%p nbl=%p tag=%p record=%p key=%I64x raw_flag=%x inactive=%x\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 0, 0, 5, 0, 0; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE RETRIEVE_OUTPUT thread=%p pid=%I64x tid=%I64x scope=%p caller=%p tag_address=%p output=%p record=%p\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 0, 0; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE RETRIEVE_RETURN thread=%p pid=%I64x tid=%I64x scope=%p caller=%p key=%I64x status=%x\n", @$thread, @$tpid, @$tid, @rsp, 0, 5, 0xc0000225; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE RETRIEVE_SCAN_RESULT thread=%p pid=%I64x tid=%I64x scope=%p caller=%p key=%I64x matched=%x\n", @$thread, @$tpid, @$tid, @rsp, 0, 5, 0; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE RETRIEVE_ENTRY thread=%p pid=%I64x tid=%I64x scope=%p caller=%p nbl=%p key=%I64x raw_flag=%x raw_arg4=%I64x output=%p\n", @$thread, @$tpid, @$tid, @rsp, 0, 0, 5, 0, 0, 0; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 == 5) { .printf "PBKDP_PROBE RETRIEVE_ALTERNATE_RETURN thread=%p pid=%I64x tid=%I64x scope=%p caller=%p key=%I64x status=%x\n", @$thread, @$tpid, @$tid, @rsp, 0, 5, 0xc0000225; } .else { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; }
+.if (5 != 5) { .echo PBKDP_PROBE_UNEXPECTED_BRANCH; } .else { .echo PBKDP_PROBE_FALSE_PATH_OK; }
+bl
+.echo PBKDP_PROBE_END enter g separately even after errors
