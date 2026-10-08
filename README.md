@@ -1,8 +1,10 @@
 # ProxyBridge-TestLab
 
-Development direction (2026-09-28): see [current plan](docs/DEVELOPMENT_PLAN.md).
-Local/remote proxy selection and the simplified benchmark flow are planned changes;
-the runtime documentation below describes the existing implementation.
+Current application: bilingual **Builds → Testing → Run → Results**, selected
+tests with individual presets, saved named suites and validated launch history.
+See [UI guide](ui/README.md), [functional inventory](docs/DEVELOPMENT_FUNCTIONAL_STATUS.md)
+and [development handoff](docs/CHAT_HANDOFF_DEVELOPMENT.md). TCP failure diagnosis
+continues separately; its working copy and frozen kits are not development inputs.
 
 Independent deterministic test and evidence-collection framework for
 [ProxyBridge](https://github.com/InterceptSuite/ProxyBridge).
@@ -13,7 +15,7 @@ known regressions, and externally verifiable route evidence.
 
 This repository does not contain or modify ProxyBridge product code.
 
-## Current status
+## Historical harness results
 
 The framework has completed real IPv4 execution against ProxyBridge
 4.1.0-Beta WFP in an isolated Windows VM.
@@ -61,20 +63,23 @@ The repository intentionally does not include:
 
 ### Local web UI
 
-The release-candidate interface includes an English local dashboard, authoritative catalog browser,
-Run Builder, live fixture-job progress, sanitized report viewer, UI-managed
-configuration and guarded server setup. Fixture preview uses the authoritative
-runner without ProxyBridge, SSH or network access. Real traffic remains
-fail-closed until an exact immutable-preflight receipt can authorize it.
+The default page is the RU/EN laboratory. Add named builds, select tests and their
+individual settings, save reusable suites, explicitly prepare/start a queue and
+inspect Comparison/History. The retired technical dashboard is no longer shipped.
+Source builds do not establish product correctness; runtime evidence gates remain.
 
 ```powershell
 & 'C:\Program Files\dotnet\dotnet.exe' run `
     --project '.\ui\ProxyBridge.TestLab.Ui\ProxyBridge.TestLab.Ui.csproj'
 ```
 
-Open `http://127.0.0.1:5178`. See [Local web UI](ui/README.md). UI-managed
-configuration replaces manual environment editing. Server provisioning uses
-explicit SSH-key actions and does not by itself unlock real test execution.
+Open `http://127.0.0.1:5178/`. See [Local web UI](ui/README.md). Unknown/relocated
+builds, 4.0.0 adapters and the remote Ubuntu wizard remain pending.
+
+The standalone harness and its technical backend are retained below. They are
+separate from the laboratory workflow; their historical verification is not proof
+of the current checkout. Ordinary development does not require running a full
+diagnostic suite.
 
 ### 1. Clone
 
@@ -96,21 +101,19 @@ Output:
 bin\pb_net_client.exe
 ```
 
-### 3. Open Environment Setup
+### 3. Configure the current laboratory
 
-Start the local UI and select `Environment Setup`. Enter product, proxy, server,
-capability and timeout settings there. The traffic client path and binary
-integrity values are derived automatically. Sensitive paths, hostnames,
-addresses and the SSH private-key path are encrypted for the current Windows
-user and are never returned by the API; the SSH user is a normal public setting.
+Use Builds, Testing and Run as described in [the operator guide](docs/OPERATOR_GUIDE.md).
+The previous Environment Setup screen has been removed. Shared settings and SSH
+backend services remain for development and existing probes; they do not provide
+the pending remote wizard or remove its runtime blocker.
 
 ### 4. Configure the tester
 
-All configuration is performed in the UI. Do not create or edit a repository
-`.env` file. The controller stores non-secret settings in the per-user
-application directory and sensitive values in a DPAPI CurrentUser envelope.
-The existing runner's flat environment input is an internal temporary adapter
-and is never a user-facing file.
+The laboratory stores choices in the per-user application directory and protects
+build paths with DPAPI. Templates do not store credentials or runtime readiness.
+The retained technical runner uses its own guarded configuration adapter; do not
+manually alter old `.env` files or diagnostic preparations as a development step.
 
 ### 5. Validate TestLab itself
 

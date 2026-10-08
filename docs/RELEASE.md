@@ -22,4 +22,6 @@ source only to restore the SDK-matched Windows runtime packs required for a
 self-contained controller.
 
 Use `-AllowMissingClient` only for an interface/fixture evaluation package. Such
-a package is intentionally blocked from real traffic by Environment Setup.
+a package cannot establish runtime readiness: the laboratory's selected-kit,
+controller and evidence checks remain mandatory. The retired Environment Setup
+screen is no longer shipped; see the current operator guide.

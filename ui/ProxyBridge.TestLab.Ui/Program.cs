@@ -111,7 +111,10 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.UseDefaultFiles();
+var defaultFiles = new DefaultFilesOptions();
+defaultFiles.DefaultFileNames.Clear();
+defaultFiles.DefaultFileNames.Add("lab.html");
+app.UseDefaultFiles(defaultFiles);
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache"
@@ -476,16 +479,7 @@ app.MapHub<RunHub>("/hubs/runs");
 
 app.MapGet("/favicon.ico", () => Results.NoContent());
 
-app.MapFallback(async context =>
-{
-    if (context.Request.Path.StartsWithSegments("/api"))
-    {
-        context.Response.StatusCode = StatusCodes.Status404NotFound;
-        return;
-    }
-
-    context.Response.ContentType = "text/html; charset=utf-8";
-    await context.Response.SendFileAsync(Path.Combine(app.Environment.WebRootPath, "index.html"));
-});
+// Preserve existing bookmarks without retaining the retired technical frontend.
+app.MapGet("/index.html", (HttpRequest request) => Results.Redirect("/lab.html" + request.QueryString));
 
 app.Run();

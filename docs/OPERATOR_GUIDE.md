@@ -1,66 +1,50 @@
 # ProxyBridge TestLab operator guide
 
-## Supported environment
+Current application workflow, 2026-10-08. The default page is the bilingual
+laboratory; the retired technical dashboard is no longer shipped.
 
-- Windows x64 test machine.
-- ProxyBridge product and driver installed separately on the Windows machine.
-- Debian or Ubuntu server using systemd.
-- SSH private-key authentication. SSH passwords are not supported.
-- The Windows machine may be behind NAT; it only needs outbound connectivity.
-  The server still needs a public, forwarded or overlay-routable address.
+## Supported scope
 
-## Start
+- Windows x64 test machine; product/driver installed and managed separately.
+- Current GUI runtime: the known driver kit at its original checkout-bound path.
+- Selected tests: TCP RTT, combined upload/download, separate three-mode RTT,
+  and TCP connection load/recovery. Evidence and cleanup checks remain mandatory.
+- Unknown/relocated kits and 4.0.0 need further runtime-adapter integration.
+- The remote wizard targets Ubuntu Server 22.04/24.04/26.04 LTS; remote GUI
+  execution remains blocked until platform, components and route are verified.
 
-Run `packaging\Start-ProxyBridge-TestLab.ps1`. The controller binds only to
-`127.0.0.1:5178` and opens the local browser. Configuration is entered only in
-the UI. Do not create or edit an `.env` file.
+## Start and choose a run
 
-## First-time workflow
+For a source checkout, follow [UI startup instructions](../ui/README.md).
+For a published package, use `packaging\Start-ProxyBridge-TestLab.ps1`.
+Open `http://127.0.0.1:5178/`. Real GUI execution requires an administrator UI.
+Starting the UI does not install a driver or configure the system proxy.
 
-1. Open **Environment Setup**. Verify the standard ProxyBridge locations and
-   complete the requested local, proxy, endpoint and capability fields.
-2. Open **Server Setup**. Enter the Debian/Ubuntu address, SSH user and private
-   key. Validate the host key independently before accepting it.
-3. Review the exact server plan and apply it. TestLab installs its versioned
-   endpoint, dedicated account, systemd service and bounded log rotation.
-4. Return to **Run Tests**, select executable tests and choose **Real traffic**.
-5. Select **Review selected run**. This performs the bounded immutable preflight
-   but does not execute a selected scenario.
-6. Only after every gate passes, confirm and start the run.
+1. **Builds:** select the product files, inspect them and save the build under
+   a user name. A successful files-only inspection is not runtime readiness.
+2. **Testing:** choose tests and set their individual duration/load. Use a
+   saved named suite to repeat the same choices on another build.
+3. **Run:** prepare a fresh plan, review build/tests/conditions/estimated time,
+   then explicitly start it. A blocker must be resolved, not bypassed.
+4. **Stop:** request stop after the current run, then wait for verification
+   and cleanup. Navigation and refresh do not stop a running job.
+5. **Results:** inspect Comparison and History. Errors, cancellations and
+   incomplete evidence remain visible. A failed latest attempt is not replaced
+   by an older successful result.
 
-## Result interpretation
+CPU/private RAM refer to the sampled CLI process, not the driver. Connection
+counts do not establish internal-table overflow or maximum capacity. Data-only
+transfer profiles do not prove normal TCP close. Conditions keys do not prove
+full comparability of hardware and background activity.
 
-- `PASS`: all mandatory evidence satisfied the scenario contract.
-- `FAIL_PRODUCT`: complete evidence proves a product-path contradiction.
-- `EXPECTED_FAIL`: the product failure matched a structured known-defect
-  signature. It is not a pass.
-- `HOLD_AMBIGUOUS`: evidence is incomplete; no product verdict is valid.
-- `FAIL_HARNESS` or `FAIL_INFRASTRUCTURE`: correct the test environment and
-  rerun. These are not product failures.
-- `CONTAMINATED`: stop. Shared state was not proven clean.
+## Validation
 
-Each test expands into a plain-English explanation, expected/observed behavior,
-separate error classes, evidence channels, assertion timeline and sanitized
-technical artifacts. The audit download excludes private configuration,
-credentials, transcripts and generated profiles.
-
-## VM validation checklist
-
-Perform this only in a disposable VM or snapshot after installing the product
-and building/restoring `bin\pb_net_client.exe`:
-
-1. Verify the package with `packaging\Repair-ProxyBridge-TestLab.ps1`.
-2. Configure the UI and provision the server.
-3. Run fixture preview first; fixture results must not claim product coverage.
-4. Run the three IPv4 TCP smoke scenarios individually.
-5. Run IPv4 UDP DIRECT, BLOCK and PROXY individually.
-6. Run the complete executable IPv4 diagnostic suite and confirm that one
-   product failure does not stop independent later tests.
-7. Confirm contamination or failed cleanup stops the remaining chain.
-8. Download an audit and confirm it contains no key path, host value,
-   credential, `.env`, generated profile or raw transcript.
-9. Enable IPv6 only after the Windows host, server, firewall and proxy route are
-   independently verified end to end.
+Source build and UI checks do not establish product/runtime correctness.
+Use [the functional inventory](DEVELOPMENT_FUNCTIONAL_STATUS.md) for the current
+verification boundary and [development handoff](CHAT_HANDOFF_DEVELOPMENT.md)
+for remaining work. Product/traffic checks on the shared VM must be coordinated
+with diagnostic work. Do not start them while debugger points or diagnostic
+workloads are active; heavy/long runs require their own authorization.
 
 ## Stop, repair and remove local data
 
@@ -70,7 +54,10 @@ and building/restoring `bin\pb_net_client.exe`:
   default data directory.
 - `packaging\Uninstall-ProxyBridge-TestLabData.ps1 -ConfirmRemoval` irreversibly
   removes the current user's saved settings, protected secrets, jobs and local
-  evidence after stopping this exact package instance.
+  evidence after stopping this exact package instance. UI source cleanup does
+  not run this command or delete that data.
 
-Remote upgrade, repair and rollback are performed through **Server Setup** and
-remain bound to the trusted host fingerprint and exact artifact hashes.
+Shared settings, SSH trust/provisioning, catalog and safety APIs remain available
+for development and existing probes; their prior technical dashboard has been
+removed. The future Ubuntu wizard will provide the remote user workflow without
+weakening host-key, data/route, readiness and cleanup gates.

@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>ProxyBridge TestLab</title>
-  <link rel="stylesheet" href="/styles.css">
+  <link rel="stylesheet" href="/base.css">
   <link rel="stylesheet" href="/lab.css">
   <script src="/lab-results.js" defer></script>
   <script src="/lab.js" defer></script>
@@ -39,7 +39,7 @@
           <label><span data-i18n="folder">Папка ProxyBridge</span><input id="product-folder" type="text" placeholder="C:\Program Files\ProxyBridge" autocomplete="off" required></label>
           <label id="driver-path-label"><span data-i18n="driverPath">Файл драйвера, если находится в другой папке</span><input id="product-driver-path" type="text" placeholder="C:\Windows\System32\drivers\ProxyBridgeDrv.sys" autocomplete="off"></label>
         </div>
-        <div class="server-actions">
+        <div class="lab-actions">
           <button id="inspect-product" class="button secondary" type="submit" data-i18n="inspect">Проверить файлы</button>
           <button id="save-product-selection" class="button primary" type="button" disabled data-i18n="select">Выбрать комплект</button>
         </div>
@@ -63,7 +63,7 @@
           <label><span data-i18n="savedSuites">Сохранённые наборы</span><select id="lab-saved-suite"><option value="" data-i18n="chooseSuite">Выберите набор</option></select></label>
           <label><span data-i18n="suiteName">Название набора</span><input id="lab-suite-name" type="text" maxlength="64" autocomplete="off"></label>
         </div>
-        <div class="server-actions">
+        <div class="lab-actions">
           <button id="lab-suite-apply" type="button" class="button secondary" data-i18n="applySuite">Выбрать набор</button>
           <button id="lab-suite-save" type="button" class="button primary" data-i18n="saveNewSuite">Сохранить новый</button>
           <button id="lab-suite-update" type="button" class="button secondary" data-i18n="updateSuite">Обновить выбранный</button>
@@ -123,7 +123,7 @@
       <p data-i18n="launchHelp">Подготовка повторно проверяет сохранённый комплект. Она не запускает ProxyBridge или трафик. Команду запуска выполняйте в PowerShell от администратора.</p>
       <button id="prepare-lab-launch" class="button primary" type="button" data-i18n="prepareLaunch" disabled>Подготовить запуск</button>
       <div id="lab-plan-status" class="lab-status" role="status" aria-live="polite"></div>
-      <div class="server-actions">
+      <div class="lab-actions">
         <button id="start-lab-run" class="button primary" type="button" data-i18n="startRun" disabled>Запустить проверку</button>
         <button id="stop-lab-run" class="button secondary" type="button" data-i18n="stopRun" disabled>Остановить после текущего прогона</button>
       </div>
@@ -162,7 +162,6 @@
         </details>
       </div>
     </section>
-    <footer><a href="/index.html" data-i18n="existingUi">Открыть прежний технический интерфейс</a></footer>
   </main>
 </body>
 </html>
