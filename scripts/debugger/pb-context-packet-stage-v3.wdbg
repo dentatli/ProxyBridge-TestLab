@@ -1,0 +1,9 @@
+$$ V3 checks only existing point addresses. It never reads nonexistent bp pseudo-registers.
+$$ USER must confirm bl has EXACTLY 14 reviewed disabled points 0..13 and no additional IDs.
+$$ USER ONLY STAGE. BEFORE loading confirm bl contains exactly known 0..13 all d and .expr is MASM.
+$$ Existing points must have the reviewed bodies. Never run twice or load an internal file directly.
+$$ Break and later enabled points stop the entire VM including Codex and RDP.
+$$ No enable command and no workload and no outer g. Resume separately even after errors.
+.echo PBKDP_STAGE_BEGIN USER must have checked all 14 points disabled and MASM
+.if ((@$bp0 == tcpip!AlepCreateRedirectRecord+0x38f) and (@$bp1 == tcpip!AlepCreateRedirectRecord+0x396) and (@$bp2 == tcpip!InitializeEndpointContextFromParentContext+0x174) and (@$bp3 == tcpip!InitializeEndpointContextFromParentContext+0x1d7) and (@$bp4 == tcpip!InitializeEndpointContextFromParentContext+0x1e6) and (@$bp5 == tcpip!AleRedirectRecordDereference+0xc) and (@$bp6 == tcpip!AleRedirectRecordDereference+0x14) and (@$bp7 == tcpip!AleRedirectRecordFree+0xd) and (@$bp8 == tcpip!AleRedirectRecordFree+0x71) and (@$bp9 == tcpip!AleRedirectRecordFree+0x76) and (@$bp10 == tcpip!WfpAleProcessSocketOption+0x2c4) and (@$bp11 == tcpip!WfpAleProcessSocketOption+0x47b) and (@$bp12 == tcpip!WfpPoolFree+0x1a) and (@$bp13 == tcpip!WfpPoolFree+0x1f)) { $$<C:\PB-KD-Packet-Logger-V3-20261008\commands\pb-context-packet-stage-code-gate-v3.wdbg; } .else { .echo PBKDP_STAGE_REFUSED_POINT_LAYOUT no points changed }
+.echo PBKDP_STAGE_REVIEW_REQUIRED use bl then bpcmds and resume separately
