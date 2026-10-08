@@ -1,0 +1,26 @@
+$$ READ ONLY code inspection - no target functions executed and no points changed.
+$$ USER must prepare on physical host before Break pauses the entire guest VM.
+$$ Load with dollar-less-than to run separate lines - never concatenate commands.
+$$ No symbol reload or download commands - preserve current symbol configuration.
+$$ Even on any error USER must issue g separately after this file returns.
+.echo PBKD_PACKET_CODE_BEGIN
+bl
+.echo PBKD_PACKET_CODE_MODULE
+lmvm fwpkclnt
+.echo PBKD_PACKET_CODE_RETRIEVE
+uf fwpkclnt!FwpsNetBufferListRetrieveContext0
+.echo PBKD_PACKET_CODE_ASSOCIATE
+uf fwpkclnt!FwppNetBufferListAssociateContext
+.echo PBKD_PACKET_CODE_NOTIFY
+uf fwpkclnt!FwppNetBufferListEventNotify
+.echo PBKD_PACKET_CODE_TCP_CALLBACK
+uf tcpip!TlShimNblEventNotifyFn
+.echo PBKD_PACKET_CODE_LOOPBACK_ASSOCIATE
+uf tcpip!WfpTlShimInspectFastLoopbackSendDatagram
+.echo PBKD_PACKET_CODE_COLD_ASSOCIATE_A
+u tcpip+0x1c03fc L0n34
+.echo PBKD_PACKET_CODE_COLD_ASSOCIATE_B
+u tcpip+0x1c0656 L0n30
+.echo PBKD_PACKET_CODE_QUERY_THREAD_TYPE
+dt nt!_ETHREAD Cid
+.echo PBKD_PACKET_CODE_END
