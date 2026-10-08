@@ -96,15 +96,37 @@ WinDbg должен установить kernel connection. Если остан�
 
 ## 4. Сохранить лог и проверить загруженные символы
 
-После загрузки гостя в WinDbg физического хоста нажать Break и дождаться `kd>` (при необходимости Ctrl+Break). VM/RDP/Codex при этом остановятся. **Не вводить следующие команды в PowerShell**: это команды окна Command самого WinDbg. Одна строка; последний `g` продолжает VM после чтения и загрузки символов:
+**Перед каждым Break/breakpoint/пошаговым выполнением предупреждать: остановится вся VM, включая находящийся в ней Codex и RDP.** Все команды и отдельный `g` для продолжения подготовить заранее на физическом ПК; нельзя рассчитывать на ответ агента из остановленного гостя.
+
+2026-10-08 USER выполнил прежнюю составную строку. Она оказалась некорректной для этого сеанса: после .symfix появилось10 Whitespace at start of path element; tcpip/AFD no symbols, NETIO export symbols; uf получил аргумент `tcpip!InitializeEndpointContextFromParentContext; g`. Автоматический g не выполнен, USER продолжил VM отдельным g. Лог открыт в частном профиле Administrator с timestamp13-16-51. Записанная ошибка команды не является product failure и не доказывает проблему доступа к Microsoft symbol server. Эту составную строку больше не использовать. На данном этапе **одна команда на один Enter, никаких цепочек через `;` и никакого общего paste блока**; g всегда отдельный.
+
+Чтобы не загружать PDB из сети при остановленной VM, подготовлен ignored архив `artifacts/diagnostics/pb-kd-symbol-recovery-20261008/windows-network-pdb.zip` (739303байта, только tcpip.pdb/afd.pdb/netio.pdb). Все3 PE CodeView GUID+age сопоставлены с PDB GUID+DBI age; PDB stream save age учитывается отдельно. Timestamp/ImageSize/CheckSum всех3 текущих файлов точно совпали с присланным lmvm. ZIP CRC/побайтовый roundtrip проверены. Audit `validation.json` хранит SHA и ограничения: loaded memory hash/PDB load ещё не проверены; это не symbols PASS на физическом хосте.
+
+**До Break**, пока VM работает, перенести архив из VM на физический ПК и распаковать в `C:\PB-KD-Symbols`. Три PDB должны лежать непосредственно в этой папке, без дополнительного вложенного каталога. Прежний лог WinDbg оставлять открытым; не перезаписывать. При новом сеансе открывать новый лог отдельной командой `.logopen /t C:\Users\Administrator\pb-context-kd.log` (существующий частный каталог профиля физического хоста).
+
+После предупреждения об остановке VM нажать Break на физическом хосте и дождаться `kd>`. В окне Command самого WinDbg выполнить **каждую строку отдельно**:
 
 ```text
-.logopen /t C:\Users\Administrator\pb-context-kd.log; .symfix C:\Symbols; .reload /f tcpip.sys; .reload /f afd.sys; .reload /f netio.sys; vertarget; lmvm tcpip; lmvm afd; lmvm netio; x tcpip!*InitializeEndpointContextFromParentContext*; uf tcpip!InitializeEndpointContextFromParentContext; g
+.sympath C:\PB-KD-Symbols
+.reload /f tcpip.sys
+.reload /f afd.sys
+.reload /f netio.sys
+lmvm tcpip
+lmvm afd
+lmvm netio
+x tcpip!*InitializeEndpointContextFromParentContext*
+uf tcpip!InitializeEndpointContextFromParentContext
 ```
 
-На физическом хосте ранее USER использовал профиль Administrator, откуда выбран существующий каталог лога. Если WinDbg работает под другим профилем, выбрать существующий частный каталог того пользователя. `/t` добавляет timestamp/PID, не перезаписывает старый лог с фиксированным именем. Дождаться окончания загрузки символов; не нажимать Restart VM из-за остановки ядра. При ошибке до `g` продолжить отдельно через `g`, сохранить ошибку без обхода проверки PDB (`/i` не использовать). Пустой x или ошибка uf означает неподтверждённую точку наблюдения, не отсутствие исполнения функции.
+Это локальная symbol path вместо загрязнённого пути, без сети и без `/i`. Дождаться завершения каждого reload. Ниже **отдельная команда для продолжения VM**, даже если symbols/x/uf дали ошибку:
 
-Передать вывод этой строки в чат. Это только лог, символы, сведения о модулях и disassembly; ни breakpoint/watchpoint, ни нагрузка не устанавливаются/запускаются. Target files на диске агент read-only проверил: tcpip/AFD10.0.26100.8875, NETIO10.0.26100.9444. Их SHA сохранены в ignored audit `pb-kd-connection-review-20261008`; файлы на диске не заменяют проверку загруженных модулей и соответствующего PDB. Проверка точных инструкций в live output нужна до назначения offset/регистров.
+```text
+g
+```
+
+Передать вывод в чат после продолжения VM. Пустой x, ошибка uf, no symbols или только export symbols означают неподтверждённую точку наблюдения, не отсутствие исполнения функции; при ошибке не задавать смещения или breakpoint вслепую.
+
+Это только символы, сведения о модулях и disassembly; breakpoint/watchpoint и нагрузка не задаются. Target files на диске tcpip/AFD10.0.26100.8875, NETIO10.0.26100.9444; SHA также в ignored `pb-kd-connection-review-20261008`. Нужны live output/точные инструкции до назначения offset/регистров. Копирование PDB на физический хост и новая проверка пока не выполнены/не подтверждены.
 
 [Microsoft .logopen](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-logopen--open-log-file-) / [.symfix](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-symfix--set-symbol-store-path-) / [.reload](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-reload--reload-module-) / [x](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/x--examine-symbols-).
 
