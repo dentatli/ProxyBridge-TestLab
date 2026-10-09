@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "method": "controlled-traffic-v1",
+  "duration_seconds": { "SHORT": 6, "NORMAL": 30, "LONG": 120 },
+  "loads": {
+    "LOW": { "connections": 4, "connection_steps": [8, 32, 128], "packets_per_second": 100, "flow_workers": 2 },
+    "HIGH": { "connections": 16, "connection_steps": [64, 256, 640], "packets_per_second": 1000, "flow_workers": 8 }
+  },
+  "cases": [
+    { "id": "three-modes", "ru": "Три режима: OFF / UNRULED / SOCKS5", "en": "Three modes: OFF / UNRULED / SOCKS5", "recipe": "echo" },
+    { "id": "tcp-rtt", "ru": "Задержка TCP", "en": "TCP latency", "recipe": "echo" },
+    { "id": "tcp-upload", "ru": "Скорость TCP: отправка", "en": "TCP upload speed", "recipe": "upload" },
+    { "id": "tcp-download", "ru": "Скорость TCP: получение", "en": "TCP download speed", "recipe": "download" },
+    { "id": "tcp-duplex", "ru": "TCP в обе стороны одновременно", "en": "Simultaneous TCP duplex", "recipe": "duplex" },
+    { "id": "tcp-multistream", "ru": "Скорость TCP по числу потоков", "en": "TCP concurrency speed sweep", "recipe": "multistream" },
+    { "id": "loaded-rtt", "ru": "Задержка TCP под нагрузкой", "en": "TCP latency under load", "recipe": "loaded" },
+    { "id": "tcp-connections", "ru": "Соединения TCP и восстановление", "en": "TCP connections and recovery", "recipe": "connections" },
+    { "id": "flow-rate", "ru": "Новые TCP-соединения в секунду", "en": "TCP connection churn rate", "recipe": "flow_rate" },
+    { "id": "udp-connected", "ru": "UDP connected: потери и задержка", "en": "Connected UDP loss and latency", "recipe": "udp" },
+    { "id": "udp-unconnected", "ru": "UDP unconnected: потери и задержка", "en": "Unconnected UDP loss and latency", "recipe": "udp_unconnected" },
+    { "id": "udp-sweep", "ru": "UDP: размер пакета и темп", "en": "UDP packet size and rate sweep", "recipe": "udp_sweep" },
+    { "id": "udp-connections", "ru": "Потоки UDP и восстановление", "en": "UDP flows and recovery", "recipe": "udp_connections" },
+    { "id": "mixed", "ru": "Одновременные TCP и UDP", "en": "Concurrent TCP and UDP", "recipe": "mixed" },
+    { "id": "stability", "ru": "Стабильность, нагрузка и восстановление", "en": "Stability, load and recovery", "recipe": "stability" },
+    { "id": "soak", "ru": "Длительный прогон 24/48/72 часа", "en": "24/48/72 hour soak", "recipe": "soak" }
+  ],
+  "scope": "Process CPU/RAM/handles/threads, validated application bytes, observed goodput, signed origin counters and bounded route samples. No claim of driver resource attribution, internal table overflow or absolute capacity."
+}

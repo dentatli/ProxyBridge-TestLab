@@ -73,8 +73,12 @@ Source builds do not establish product correctness; runtime evidence gates remai
     --project '.\ui\ProxyBridge.TestLab.Ui\ProxyBridge.TestLab.Ui.csproj'
 ```
 
-Open `http://127.0.0.1:5178/`. See [Local web UI](ui/README.md). Unknown/relocated
-builds, 4.0.0 adapters and the remote Ubuntu wizard remain pending.
+Open `http://127.0.0.1:5178/`. See [Local web UI](ui/README.md). The Ubuntu wizard
+and a separate 16-case traffic catalog are implemented; see [traffic workloads,
+evidence and acceptance limits](docs/TRAFFIC_LAB.md). Real product checks require
+an administrator UI (`scripts/Start-TestLabUi.ps1 -Administrator`, after building).
+Driver file identity and owned cleanup remain mandatory. The v4.0.0 adapter and
+acceptance of arbitrary/relocated product bundles remain pending.
 
 The standalone harness and its technical backend are retained below. They are
 separate from the laboratory workflow; their historical verification is not proof
@@ -105,8 +109,9 @@ bin\pb_net_client.exe
 
 Use Builds, Testing and Run as described in [the operator guide](docs/OPERATOR_GUIDE.md).
 The previous Environment Setup screen has been removed. Shared settings and SSH
-backend services remain for development and existing probes; they do not provide
-the pending remote wizard or remove its runtime blocker.
+backend services remain for development and existing probes. Testing → remote
+contains its own Ubuntu wizard and traffic runtime; it does not remove evidence
+gates or grant readiness to the older remote launch adapter.
 
 ### 4. Configure the tester
 

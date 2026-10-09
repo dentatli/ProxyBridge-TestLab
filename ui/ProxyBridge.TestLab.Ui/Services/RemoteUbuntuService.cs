@@ -136,6 +136,25 @@ public sealed class RemoteUbuntuService
         lock (_stateGate) { _verified = result.State == "READY"; _apply = result; _plan = null; _validation = null; }
     });
 
+    internal async Task<T> WithTrafficContextAsync<T>(Func<ServerTarget, AppStoragePaths, CancellationToken, Task<T>> action)
+    {
+        T result = default!;
+        var completed = false;
+        var view = await OperateAsync("TRAFFIC", async () =>
+        {
+            var validation = await _server.ValidateAsync(new ServerValidationRequest(), _stopping, ubuntuOnly: true);
+            lock (_stateGate) { _verified = validation.State == "READY"; _validation = validation; }
+            if (validation.State != "READY") throw new InvalidOperationException("REMOTE_FRESH_CHECK_REQUIRED");
+            var snapshot = await _settings.LoadAsync(_stopping);
+            var target = new ServerTarget(snapshot.ProtectedValues["server_connection.host"], snapshot.Settings.ServerConnection.SshPort,
+                "root", snapshot.ProtectedValues["server_connection.private_key_path"]);
+            result = await action(target, _storage, _stopping);
+            completed = true;
+        });
+        if (!completed) throw new InvalidOperationException(view.Error ?? "TRAFFIC_OPERATION_FAILED");
+        return result;
+    }
+
     private async Task<RemoteUbuntuView> OperateAsync(string stage, Func<Task> action)
     {
         if (!await _gate.WaitAsync(0, _stopping)) throw new InvalidOperationException("REMOTE_OPERATION_ACTIVE");

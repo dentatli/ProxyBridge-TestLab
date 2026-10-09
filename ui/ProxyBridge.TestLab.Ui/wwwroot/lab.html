@@ -9,6 +9,7 @@
   <script src="/lab-results.js" defer></script>
   <script src="/lab.js" defer></script>
   <script src="/lab-remote.js" defer></script>
+  <script src="/lab-traffic.js" defer></script>
   <script src="/lab-suites.js" defer></script>
 </head>
 <body>
@@ -143,6 +144,12 @@
       </div>
       </fieldset>
       <p id="lab-testing-time" class="lab-testing-time" role="status" aria-live="polite"></p>
+      <section id="traffic-testing" class="lab-suite-catalog" hidden>
+        <h3 data-i18n="trafficHeading"></h3><p data-i18n="trafficScope"></p>
+        <div class="lab-test-settings"><button id="traffic-plan" class="button secondary" type="button" data-i18n="trafficPrepare"></button><button id="traffic-apply" class="button primary" type="button" data-i18n="trafficApply" disabled></button></div>
+        <p id="traffic-runtime-status" role="status" aria-live="polite"></p><pre id="traffic-runtime-plan" hidden></pre>
+        <div id="traffic-cases"></div><p id="traffic-estimate" role="status"></p>
+      </section>
       <p data-i18n="suiteHelp">Выбранные тесты выполняются последовательно. При ошибке очередь останавливается. Остановка дожидается текущего прогона и очистки, остальные тесты не запускаются.</p>
       <p data-i18n="suiteProfileHelp">Длительность и нагрузка задаются отдельно для каждого теста.</p>
       <p data-i18n="controlled">В каждом режиме используется контролируемый получатель. Прямой трафик служит базой для сравнения выбранного пути через SOCKS5.</p>
@@ -150,7 +157,15 @@
       <div class="lab-page-actions"><a class="button secondary" href="/lab.html?page=builds" data-lab-page="builds" data-i18n="connection">Сборки</a><a class="button primary" href="/lab.html?page=run" data-lab-page="run" data-i18n="toRun">К запуску</a></div>
     </section>
     <section id="launch" class="panel" data-lab-view="run" aria-labelledby="run-heading" hidden>
+      <section id="traffic-run" class="lab-suite-catalog" hidden>
+        <h3 data-i18n="trafficHeading"></h3><p data-i18n="trafficRunHelp"></p>
+        <label><input id="traffic-debugger-inactive" type="checkbox"><span data-i18n="trafficDebugger"></span></label>
+        <label><input id="traffic-long-run" type="checkbox"><span data-i18n="trafficLongRun"></span></label>
+        <div class="lab-test-settings"><button id="traffic-start" type="button" class="button primary" data-i18n="trafficStart"></button><button id="traffic-stop" type="button" class="button secondary" data-i18n="trafficStop" disabled></button></div>
+        <p id="traffic-run-status" role="status" aria-live="polite"></p><p id="traffic-error" class="lab-warning" role="alert"></p>
+      </section>
       <h2 id="run-heading" tabindex="-1" data-i18n="launch">Запуск</h2>
+      <div id="lab-local-launch">
       <div id="lab-launch-summary" class="lab-launch-summary"></div>
       <p id="lab-selection-required" class="lab-warning" hidden><span data-i18n="SELECTION_REQUIRED">Сначала выберите и сохраните комплект.</span> <a href="/lab.html?page=builds" data-lab-page="builds" data-i18n="connection">Сборки</a></p>
       <p id="lab-launch-status" role="status"></p>
@@ -165,9 +180,21 @@
       <div id="lab-run-status" class="lab-status" role="status" aria-live="polite"></div>
       <div id="lab-run-error" class="lab-warning" role="alert"></div>
       <details id="lab-plan-command-block" hidden><summary data-i18n="adminCommand">Команда для PowerShell от администратора</summary><pre id="lab-plan-command"></pre></details>
+      </div>
       <div class="lab-page-actions"><a class="button secondary" href="/lab.html?page=testing" data-lab-page="testing" data-i18n="changeTesting">Изменить тестирование</a><a class="button secondary" href="/lab.html?page=results" data-lab-page="results" data-i18n="toResults">Посмотреть результаты</a></div>
     </section>
     <section id="results" class="panel" data-lab-view="results" aria-labelledby="results-heading" hidden>
+      <section id="traffic-results" class="lab-suite-catalog">
+        <h3 data-i18n="trafficResults"></h3><p data-i18n="trafficResultsHelp"></p>
+        <h4 data-i18n="trafficCompare"></h4>
+        <label><span data-i18n="trafficConditions"></span><select id="traffic-comparison-filter"><option value=""></option></select></label>
+        <div id="traffic-comparison-builds" class="lab-test-settings"></div>
+        <details><summary data-i18n="trafficMetrics"></summary><div id="traffic-comparison-metrics" class="lab-test-settings"></div></details>
+        <div id="traffic-comparison"></div>
+        <label><span data-i18n="trafficConditions"></span><select id="traffic-filter"><option value="all"></option></select></label>
+        <div id="traffic-history"></div>
+        <button id="traffic-history-more" class="button secondary" type="button" data-i18n="trafficMore" hidden></button>
+      </section>
       <div class="lab-header"><h2 id="results-heading" tabindex="-1" data-i18n="results">Результаты</h2><button id="refresh-lab" class="button secondary" type="button" data-i18n="refresh">Обновить</button></div>
       <nav class="lab-result-tabs" data-i18n-aria="resultSections" aria-label="Разделы результатов">
         <a href="/lab.html?page=results&amp;tab=compare" data-results-tab="compare" data-i18n="compareResults">Сравнение</a>

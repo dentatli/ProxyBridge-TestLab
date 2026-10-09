@@ -13,7 +13,9 @@ var storagePaths = new AppStoragePaths(string.IsNullOrWhiteSpace(requestedStorag
     : requestedStorageRoot);
 storagePaths.ScavengeStaleRuntimeDirectories();
 
-builder.WebHost.UseUrls("http://127.0.0.1:5178");
+var uiPort = builder.Configuration.GetValue<int?>("UiPort") ?? 5178;
+if (uiPort is < 1024 or > 65535) throw new InvalidOperationException("UI_PORT_INVALID");
+builder.WebHost.UseUrls($"http://127.0.0.1:{uiPort}");
 builder.WebHost.ConfigureKestrel(options => options.Limits.MaxRequestBodySize = 64 * 1024);
 builder.Services.AddSingleton(paths);
 builder.Services.AddSingleton(storagePaths);
@@ -42,6 +44,8 @@ builder.Services.AddSingleton<ServerArtifactBuilder>();
 builder.Services.AddSingleton<IServerTransport, OpenSshServerTransport>();
 builder.Services.AddSingleton<ServerProvisioningService>();
 builder.Services.AddSingleton<RemoteUbuntuService>();
+builder.Services.AddSingleton<TrafficRuntimeService>();
+builder.Services.AddHostedService(services => services.GetRequiredService<TrafficRuntimeService>());
 builder.Services.AddSingleton<RuntimeCapabilityService>();
 builder.Services.AddSingleton<IRuntimeCapabilityService>(services => services.GetRequiredService<RuntimeCapabilityService>());
 builder.Services.AddSingleton<RunCapabilityFileService>();
@@ -124,6 +128,14 @@ app.UseStaticFiles(new StaticFileOptions
 var api = app.MapGroup("/api/v1");
 
 api.MapGet("/lab/remote", async (RemoteUbuntuService remote, CancellationToken token) => Results.Ok(await remote.StateAsync(token)));
+api.MapGet("/lab/traffic/catalog", (TrafficRuntimeService service) => Results.Ok(service.Catalog()));
+api.MapGet("/lab/traffic/state", (TrafficRuntimeService service) => Results.Ok(new { runtime = service.State(), execution = service.Progress() }));
+api.MapGet("/lab/traffic/history", (int? skip, int? take, TrafficRuntimeService service) => Results.Ok(service.History(skip ?? 0, take ?? 10)));
+api.MapGet("/lab/traffic/comparison", (TrafficRuntimeService service) => Results.Ok(service.Comparison()));
+api.MapPost("/lab/traffic/plan", async (TrafficRuntimeService service) => await TrafficAction(async () => await service.PlanAsync()));
+api.MapPost("/lab/traffic/apply", async (TrafficRuntimeApplyRequest request, TrafficRuntimeService service) => await TrafficAction(() => service.ApplyAsync(request)));
+api.MapPost("/lab/traffic/start", async (TrafficRunRequest request, TrafficRuntimeService service) => await TrafficAction(() => service.StartAsync(request)));
+api.MapPost("/lab/traffic/stop", (TrafficRuntimeService service) => TrafficAction(() => Task.FromResult(service.Stop())));
 api.MapPost("/lab/remote/configure", async (RemoteUbuntuConfiguration request, RemoteUbuntuService remote) =>
     await RemoteAction(() => remote.ConfigureAsync(request)));
 api.MapPost("/lab/remote/identity", async (RemoteUbuntuService remote) => await RemoteAction(remote.IdentityAsync));
@@ -505,5 +517,16 @@ static async Task<IResult> RemoteAction(Func<Task<RemoteUbuntuView>> action)
     catch (InvalidOperationException exception) when (exception.Message == "REMOTE_OPERATION_ACTIVE")
     {
         return Results.Conflict(new { error = "REMOTE_OPERATION_ACTIVE" });
+    }
+}
+
+static async Task<IResult> TrafficAction(Func<Task<object>> action)
+{
+    try { return Results.Ok(await action()); }
+    catch (Exception error) when (error is InvalidOperationException or IOException or UnauthorizedAccessException or JsonException)
+    {
+        var code = error is InvalidOperationException && System.Text.RegularExpressions.Regex.IsMatch(error.Message, "^[A-Z][A-Z0-9_]{0,100}$")
+            ? error.Message : "TRAFFIC_OPERATION_FAILED";
+        return Results.BadRequest(new { error = code });
     }
 }

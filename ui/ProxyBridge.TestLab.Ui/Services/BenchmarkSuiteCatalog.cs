@@ -9,10 +9,18 @@ public sealed record BenchmarkSuiteTemplate(string Id, string Name, string Mode,
     DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc);
 
 /// <summary>Reusable choices only. A template never grants readiness or reuses a frozen launch plan.</summary>
-public sealed class BenchmarkSuiteCatalog(AppStoragePaths storage)
+public sealed class BenchmarkSuiteCatalog(AppStoragePaths storage, AppPaths app)
 {
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web);
     private static readonly string[] Scenarios = ["tcp_rtt", "tcp_transfer", "tcp_rtt_three_modes", "tcp_connections"];
+    private string[] TrafficScenarios
+    {
+        get
+        {
+            using var document = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(app.RepositoryRoot, "config", "traffic-workloads.json")));
+            return document.RootElement.GetProperty("cases").EnumerateArray().Select(row => row.GetProperty("id").GetString()!).ToArray();
+        }
+    }
     private readonly SemaphoreSlim _gate = new(1, 1);
     private string CatalogPath => Path.Combine(storage.ConfigRoot, "benchmark-suites.json");
     private sealed record Catalog(int SchemaVersion, List<BenchmarkSuiteTemplate> Items);
@@ -27,10 +35,13 @@ public sealed class BenchmarkSuiteCatalog(AppStoragePaths storage)
         return value;
     }
 
-    private static void Validate(string mode, BenchmarkTestRequest[]? tests)
+    private void Validate(string mode, BenchmarkTestRequest[]? tests)
     {
-        if (mode is not ("local" or "remote") || tests is null || tests.Length is < 1 or > 4 ||
-            tests.Any(test => test is null || !Scenarios.Contains(test.Scenario) ||
+        var remoteCases = TrafficScenarios;
+        var traffic = tests?.Any(test => test is not null && remoteCases.Contains(test.Scenario)) == true;
+        var allowed = traffic && mode == "remote" ? remoteCases : Scenarios;
+        if (mode is not ("local" or "remote") || tests is null || tests.Length < 1 || tests.Length > allowed.Length ||
+            tests.Any(test => test is null || !allowed.Contains(test.Scenario) ||
                 test.Duration is not ("SHORT" or "NORMAL" or "LONG") || test.Load is not ("LOW" or "HIGH")) ||
             tests.Select(test => test.Scenario).Distinct(StringComparer.Ordinal).Count() != tests.Length)
             throw new InvalidOperationException("SUITE_SELECTION_INVALID");
@@ -64,7 +75,7 @@ public sealed class BenchmarkSuiteCatalog(AppStoragePaths storage)
             if (old is null && items.Count >= 100) throw new InvalidOperationException("SUITE_CATALOG_LIMIT_REACHED");
             var now = DateTimeOffset.UtcNow;
             var entry = new BenchmarkSuiteTemplate(old?.Id ?? "preset-" + Guid.NewGuid().ToString("N"), name, request.Mode,
-                request.Tests.OrderBy(test => Array.IndexOf(Scenarios, test.Scenario)).ToArray(), old?.CreatedAtUtc ?? now, now);
+                request.Tests.OrderBy(test => Array.IndexOf(Scenarios.Concat(TrafficScenarios).ToArray(), test.Scenario)).ToArray(), old?.CreatedAtUtc ?? now, now);
             items.RemoveAll(item => item.Id == entry.Id);
             items.Add(entry);
             await WriteAsync(items, token);
@@ -94,7 +105,7 @@ public sealed class BenchmarkSuiteCatalog(AppStoragePaths storage)
     {
         AssertLocal(CatalogPath);
         if (!File.Exists(CatalogPath)) return [];
-        if (new FileInfo(CatalogPath).Length > 131072) throw new InvalidOperationException("SUITE_CATALOG_UNAVAILABLE");
+        if (new FileInfo(CatalogPath).Length > 262144) throw new InvalidOperationException("SUITE_CATALOG_UNAVAILABLE");
         await using var file = new FileStream(CatalogPath, FileMode.Open, FileAccess.Read, FileShare.Read | FileShare.Delete);
         var catalog = await JsonSerializer.DeserializeAsync<Catalog>(file, Json, token);
         if (catalog is null || catalog.SchemaVersion != 1 || catalog.Items is null || catalog.Items.Count > 100 ||
@@ -109,7 +120,7 @@ public sealed class BenchmarkSuiteCatalog(AppStoragePaths storage)
     private async Task WriteAsync(List<BenchmarkSuiteTemplate> items, CancellationToken token)
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(new Catalog(1, items), Json);
-        if (bytes.Length > 131072) throw new InvalidOperationException("SUITE_CATALOG_LIMIT_REACHED");
+        if (bytes.Length > 262144) throw new InvalidOperationException("SUITE_CATALOG_LIMIT_REACHED");
         var temporary = CatalogPath + "." + Guid.NewGuid().ToString("N") + ".tmp";
         try
         {
