@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint QUIC / HTTP/3 — 2026-10-11
+## Текущий checkpoint SMTP / IMAP / MQTT — 2026-10-11
+
+Добавлены SMTP/SMTPS, IMAP/IMAPS и MQTT/MQTTS: всего 34 сценария. Ordinary TCP sockets, закреплённый TLS leaf/CA/имя и ALPN для защищённых вариантов, per-run/flow AUTH PLAIN или MQTT credentials на HMAC. SMTP принимает только фиксированного TestLab recipient, DATA/MIME base64, выдаёт подписанную квитанцию (RX payload goodput=0, это приём, не echo/внешняя доставка). IMAP — virtual INBOX с одной записью на connection, APPEND/FETCH exact RFC message bytes/подписанная квитанция/STORE Deleted/EXPUNGE. MQTT 3.1.1 — clean session, точные request/result topics, QoS1/PUBACK в обе стороны, финальный PINGRESP и DISCONNECT. Ни OS/filesystem, ни внешние mail/broker destinations не используются. Пределы и непокрытые расширения в TRAFFIC_LAB.md.
+
+Runtime .180 bundle `3c955c2dfe0218c74d11b6201280aad1099936ee1b123a14076378a7acf87720` READY, 18 TCP/5 UDP listeners; новые TCP 42522–42527. Компонентная приёмка Windows→Ubuntu: 12 новых direct/explicit SOCKS5 cases по 12 транзакций, 15 negative checks auth/pin/replay/cancel; три native SDK interop SMTP/IMAP stdlib и Paho MQTT 2.1.0 (только ignored SDK). QUIC/H3 regression 4 cases по 12; предыдущие 20 application cases по 20 и пять negative. Signed runtime/proxy idle 0/0, driver Stopped, product не запускался. .NET 0 errors/warnings, 21 unit tests, Python AST 28 files, JS syntax. GUI RU/EN показывает 34 cases и сохраняет выбор при переключении языка; console errors=[]; screenshot ignored `artifacts/development-remote-wizard/mail-messaging-final.png`. Own GUI 5190, DLL `artifacts/development-remote-wizard/ui-mail-messaging/ProxyBridge.TestLab.Ui.dll`.
+
+При первом component прогоне MQTTS direct/proxy сохранили FAIL из-за SSLEOFError после успешных transactions; исправлен порядок PUBACK/PINGRESP/DISCONNECT и чтения server close_notify перед unwrap, повторная приёмка PASS. Native SMTP SDK выявил регистр verbs; исправлен case-insensitive command verb, SDK PASS. Raw/private reports, SDK и credentials вне Git. Diagnostic checkout/kits не изменены. QUIC этап уже запушен `033cd34`; текущий этап commit идентифицируется Git. Следующие задачи: POP3/AMQP и другие прикладные семейства, расширенные профили, infrastructure acceptance, v4/reboot/bundles; долгие и успешные продуктовые проверки остаются отдельной приёмкой.
+
+## Предыдущий checkpoint QUIC / HTTP/3 — 2026-10-11
 
 Добавлены `app-quic` и `app-http3`, всего 28 сценариев. Native ordinary UDP sockets, QUIC v1/TLS 1.3, отдельный ALPN, проверка цепочки/имени/закреплённого leaf, HTTP/3 POST/QPACK; один запрос на bidirectional stream, ограниченные payload/headers/одновременные streams. Порты UDP 42520/42521. SOCKS5 relay передаёт непрозрачные QUIC datagrams, привязывает run/flow только после проверки decrypted proof на origin и сверяет каждый поток и число фактически отправленных datagrams. Logical request loss не смешан с transport retransmission. Idle counters учитывают QUIC до завершения close timer. Migration/0-RTT/внешние сайты не заявлены.
 

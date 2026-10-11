@@ -124,6 +124,10 @@ class ApplicationOrigins:
             self.agent.active += 1
             admitted = True
             peer = list(writer.get_extra_info("peername")[:2])
+            if kind in ('smtp', 'smtps', 'imap', 'imaps', 'mqtt', 'mqtts'):
+                from trafficlab.messaging_origin import serve
+                await asyncio.wait_for(serve(self, reader, writer, kind, session, peer), 150)
+                return
             if kind in ('http2', 'grpc'):
                 from trafficlab.http_two import serve
                 await asyncio.wait_for(serve(self, reader, writer, kind, session, peer), 150)
@@ -215,11 +219,12 @@ class ApplicationOrigins:
                 self.servers.append(transport)
                 continue
             context = None
-            if kind in ("tls", "https", "http2", "grpc"):
+            if kind in ("tls", "https", "http2", "grpc", "smtps", "imaps", "mqtts"):
                 context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                 context.minimum_version = ssl.TLSVersion.TLSv1_2
                 context.load_cert_chain(self.certificate, self.key)
-                context.set_alpn_protocols(['h2' if kind in ('http2', 'grpc') else "http/1.1" if kind == "https" else "testlab/1"])
+                context.set_alpn_protocols(['h2' if kind in ('http2', 'grpc') else "http/1.1" if kind == "https" else
+                    'mqtt' if kind == 'mqtts' else 'testlab-mail/1' if kind in ('smtps','imaps') else "testlab/1"])
             self.servers.append(await asyncio.start_server(lambda reader, writer, kind=kind: self.connection(reader, writer, kind), bind, port, ssl=context, limit=MAX_LINE + 1))
 
     async def close(self) -> None:

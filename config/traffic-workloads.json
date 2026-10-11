@@ -34,7 +34,13 @@
     { "id": "app-http2", "ru": "HTTP/2: TLS, потоки запросов и данные", "en": "HTTP/2: TLS, request streams and payload", "recipe": "application", "application": "http2", "family": "http2" },
     { "id": "app-grpc", "ru": "gRPC: unary RPC, protobuf и trailers", "en": "gRPC: unary RPC, protobuf and trailers", "recipe": "application", "application": "grpc", "family": "grpc" },
     { "id": "app-quic", "ru": "QUIC: TLS 1.3, потоки и целостность", "en": "QUIC: TLS 1.3, streams and integrity", "recipe": "application", "application": "quic", "family": "quic-http3" },
-    { "id": "app-http3", "ru": "HTTP/3: QUIC, POST и данные", "en": "HTTP/3: QUIC, POST and payload", "recipe": "application", "application": "http3", "family": "quic-http3" }
+    { "id": "app-http3", "ru": "HTTP/3: QUIC, POST и данные", "en": "HTTP/3: QUIC, POST and payload", "recipe": "application", "application": "http3", "family": "quic-http3" },
+    { "id": "app-smtp", "ru": "SMTP: приём почты и подписанная квитанция", "en": "SMTP: mail acceptance and signed receipt", "recipe": "application", "application": "smtp", "family": "mail" },
+    { "id": "app-smtps", "ru": "SMTPS: TLS и приём почты", "en": "SMTPS: TLS and mail acceptance", "recipe": "application", "application": "smtps", "family": "mail" },
+    { "id": "app-imap", "ru": "IMAP: APPEND, FETCH и целостность", "en": "IMAP: APPEND, FETCH and integrity", "recipe": "application", "application": "imap", "family": "mail" },
+    { "id": "app-imaps", "ru": "IMAPS: TLS, APPEND и FETCH", "en": "IMAPS: TLS, APPEND and FETCH", "recipe": "application", "application": "imaps", "family": "mail" },
+    { "id": "app-mqtt", "ru": "MQTT: подписка, QoS 1 и данные", "en": "MQTT: subscription, QoS 1 and payload", "recipe": "application", "application": "mqtt", "family": "mqtt" },
+    { "id": "app-mqtts", "ru": "MQTTS: TLS, QoS 1 и данные", "en": "MQTTS: TLS, QoS 1 and payload", "recipe": "application", "application": "mqtts", "family": "mqtt" }
   ],
   "scope": "Process CPU/RAM/handles/threads, validated application bytes, observed goodput, signed origin counters and bounded route samples. No claim of driver resource attribution, internal table overflow or absolute capacity."
 }

@@ -9,7 +9,8 @@ from trafficlab.protocol import ID, MAX_LINE, json_bytes, mac, verify_mac
 
 APPLICATION_PORTS = {"http": 42511, "tls": 42512, "https": 42513, "websocket": 42514,
                      "dns-tcp": 42515, "dns-udp": 42515, "ssh": 42516, "sftp": 42517,
-                     "http2": 42518, "grpc": 42519, "quic": 42520, "http3": 42521}
+                     "http2": 42518, "grpc": 42519, "quic": 42520, "http3": 42521,
+                     "smtp": 42522, "smtps": 42523, "imap": 42524, "imaps": 42525, "mqtt": 42526, "mqtts": 42527}
 SERVER_NAME = "traffic.testlab.invalid"
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
