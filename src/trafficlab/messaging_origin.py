@@ -190,6 +190,10 @@ async def mqtt(origins, reader, writer, kind, session, peer):
 
 
 async def serve(origins, reader, writer, kind, session, peer):
+    if kind in ('amqp','amqps'):
+        from trafficlab.amqp_origin import serve as amqp_serve
+        await amqp_serve(origins,reader,writer,kind,session,peer)
+        return
     handler = smtp if kind in ('smtp','smtps') else imap if kind in ('imap','imaps') else pop if kind in ('pop3','pop3s') else mqtt
     await handler(origins,reader,writer,kind,session,peer)
 

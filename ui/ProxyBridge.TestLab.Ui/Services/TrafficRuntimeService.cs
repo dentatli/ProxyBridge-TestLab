@@ -54,7 +54,7 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
                 var payload = BuildPayload(target, paths, "inspect");
                 var observed = await ExecuteAsync(target, paths, payload, token);
                 var plan = new TrafficRuntimePlan(Guid.NewGuid().ToString("N"), payload.Bundle,
-                    payload.Hashes.Keys.Order(StringComparer.Ordinal).ToArray(), [42501,42502,42503,42511,42512,42513,42514,42515,42516,42517,42518,42519,42522,42523,42524,42525,42526,42527,42528,42529], [42501,42502,42515,42520,42521], "22.04",
+                    payload.Hashes.Keys.Order(StringComparer.Ordinal).ToArray(), [42501,42502,42503,42511,42512,42513,42514,42515,42516,42517,42518,42519,42522,42523,42524,42525,42526,42527,42528,42529,42530,42531], [42501,42502,42515,42520,42521], "22.04",
                     DateTimeOffset.UtcNow.AddMinutes(10), observed.GetProperty("state").GetString()!);
                 lock (_stateGate) { _plan = plan; _binding = Binding(target); _state = plan.State; _checked = DateTimeOffset.UtcNow; _error = null; }
                 return plan;
@@ -134,7 +134,7 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
                     ["websocket"] = 42514, ["dns-tcp"] = 42515, ["dns-udp"] = 42515,
                     ["ssh"] = 42516, ["sftp"] = 42517, ["http2"] = 42518, ["grpc"] = 42519, ["quic"] = 42520, ["http3"] = 42521,
                     ["smtp"] = 42522, ["smtps"] = 42523, ["imap"] = 42524, ["imaps"] = 42525, ["mqtt"] = 42526, ["mqtts"] = 42527,
-                    ["pop3"] = 42528, ["pop3s"] = 42529 },
+                    ["pop3"] = 42528, ["pop3s"] = 42529, ["amqp"] = 42530, ["amqps"] = 42531 },
                 tls_certificate_file = "pki/server.pem", tls_key_file = "pki/server.key", tls_ca_file = "pki/ca.pem", ssh_host_key_file = "pki/ssh_host.key" });
             var configHash = Hash(configuration);
             var bundle = Hash(JsonSerializer.SerializeToUtf8Bytes(new { hashes, configHash, target = Binding(target) }));

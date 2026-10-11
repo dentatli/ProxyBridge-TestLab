@@ -10,6 +10,7 @@ import struct
 import time
 from trafficlab.application_wire import APPLICATION_PORTS, SERVER_NAME, request, verify_response
 from trafficlab.protocol import MAX_LINE, Histogram, json_bytes
+from trafficlab.amqp_client import AmqpClient
 from trafficlab.messaging_wire import (auth_plain, mail_encode, mqtt_length, mqtt_packet, mqtt_publish,
     mqtt_string, REQUEST_TOPIC, RESPONSE_TOPIC, POP_PAYLOAD, pop_fixture)
 
@@ -218,24 +219,24 @@ def messaging_flow(job,flow_id):
             negotiate(sock,target)
         else:
             sock.connect((job['host'],target['port']))
-        secure=kind in ('smtps','imaps','mqtts','pop3s')
+        secure=kind in ('smtps','imaps','mqtts','pop3s','amqps')
         if secure:
             identity=job['application_identity']
             context=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             context.minimum_version=ssl.TLSVersion.TLSv1_2
             context.load_verify_locations(cadata=identity['tls_ca_pem'])
-            context.set_alpn_protocols(['mqtt' if kind=='mqtts' else 'testlab-mail/1'])
+            context.set_alpn_protocols(['mqtt' if kind=='mqtts' else 'amqp' if kind=='amqps' else 'testlab-mail/1'])
             sock=context.wrap_socket(sock,server_hostname=SERVER_NAME)
             observed=hashlib.sha256(sock.getpeercert(binary_form=True)).hexdigest()
-            expected='mqtt' if kind=='mqtts' else 'testlab-mail/1'
+            expected='mqtt' if kind=='mqtts' else 'amqp' if kind=='amqps' else 'testlab-mail/1'
             if observed!=identity['tls_certificate_sha256'] or sock.selected_alpn_protocol()!=expected:
                 raise ValueError('APPLICATION_TLS_IDENTITY_OR_ALPN_CHANGED')
             result.update(tls_version=sock.version(),cipher=sock.cipher()[0],certificate_sha256=observed,
                 certificate_verified=True,server_name=SERVER_NAME,alpn=expected)
         stream=sock.makefile('rb')
-        client_type=SmtpClient if kind in ('smtp','smtps') else ImapClient if kind in ('imap','imaps') else PopClient if kind in ('pop3','pop3s') else MqttClient
+        client_type=SmtpClient if kind in ('smtp','smtps') else ImapClient if kind in ('imap','imaps') else PopClient if kind in ('pop3','pop3s') else AmqpClient if kind in ('amqp','amqps') else MqttClient
         client=client_type(sock,stream,auth_plain(secret,job['run_id'],flow_id))
-        result['messaging_protocol']='SMTP' if client_type is SmtpClient else 'IMAP4rev1' if client_type is ImapClient else 'POP3' if client_type is PopClient else 'MQTT 3.1.1 QoS1'
+        result['messaging_protocol']='SMTP' if client_type is SmtpClient else 'IMAP4rev1' if client_type is ImapClient else 'POP3' if client_type is PopClient else 'AMQP 0-9-1 confirm/get/ack' if client_type is AmqpClient else 'MQTT 3.1.1 QoS1'
         connection_latency.add((time.perf_counter()-started)*1000)
         deadline,next_send,sequence=time.perf_counter()+job['seconds'],time.perf_counter(),0
         while time.perf_counter()<deadline and not cancelled(job):
@@ -246,7 +247,7 @@ def messaging_flow(job,flow_id):
             message=json_bytes({'identity':value,'payload':base64.b64encode(payload).decode()})
             stamp=time.perf_counter()
             returned=client.exchange(message)
-            if client_type is MqttClient and base64.b64decode(returned.get('payload',''),validate=True)!=payload:
+            if client_type in (MqttClient,AmqpClient) and base64.b64decode(returned.get('payload',''),validate=True)!=payload:
                 raise ValueError('APPLICATION_ECHO_PAYLOAD_MISMATCH')
             peer=verify_response(secret,value,returned)
             if result['peer_observed_by_origin'] not in (None,peer):

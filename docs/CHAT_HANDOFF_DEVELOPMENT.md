@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint POP3 / POP3S — 2026-10-11
+## Текущий checkpoint AMQP / AMQPS — 2026-10-11
+
+Добавлены AMQP/AMQPS 0-9-1: всего 38 сценариев, TCP 42530/42531. HMAC PLAIN run/flow auth, vhost `/`, один channel, уникальная transient/exclusive/auto-delete queue `testlab.<flow>`, confirm.select, Basic.Publish, точный publisher Ack tag, подписанный Basic.Get body и consumer Ack, channel/connection close. Frame/content/string bounded 8 KiB, negotiated frame_max 16 KiB; память per connection содержит максимум один outstanding message. Nack/replay/чужая queue/неверный consumer ack/oversized frame завершают FAIL. TLS CA/name/pin/ALPN/close_notify. AMQP1.0, durable/external broker, subscriptions, multi-channel, transactions/requeue не заявлены.
+
+Runtime .180 bundle `3003c95317559cbccbcd6c26ea0c74c9cbe19e2deb4518c569a8bd2f086b530d` READY, 22 TCP/5 UDP listeners. Четыре direct/explicit SOCKS5 component cases по 12 транзакций, 8 negative checks, Pika 1.4.4 direct plain/TLS SDK interop с empty queue до/после обмена. SDK сначала получил FAIL на Connection.Open insist=True; допустимый флаг принят и повторный interop PASS. 4 POP3 и 12 SMTP/IMAP/MQTT regression cases по 12 прошли. 25 unit tests, .NET 0 warnings/errors, Python AST 31 files; source diff check clean. Signed idle 0/0 и driver Stopped; product не запускался, diagnostic checkout/kits не менялись. GUI 5192, ignored DLL `artifacts/development-remote-wizard/ui-amqp/ProxyBridge.TestLab.Ui.dll`. Предыдущий POP3 этап запушен `6c14f44`.
+
+Далее независимые проверки cleanup/infrastructure и расширенные profiles; дополнительные protocol families остаются вне нового traffic catalog. Успешная продуктовая приёмка/HIGH/длительные прогоны не доказаны. Не исследовать диагностический TCP defect и не обходить старые runtime restrictions.
+
+## Предыдущий checkpoint POP3 / POP3S — 2026-10-11
 
 Добавлены POP3/POP3S, всего 36 сценариев, TCP 42528/42529. HMAC USER/PASS привязывает connection к run/flow; постоянное письмо в memory mailbox (512 bytes logical payload) читается RETR 1, подписанный status receipt связывает каждое чтение с последовательностью, hash и origin peer. STAT/LIST/UIDL/DELE/RSET/NOOP/QUIT, удалённая запись не читается до RSET. Только download goodput (TX logical payload=0), mailbox не меняется между RETR; disk/persistence/APOP/STLS/external mail не заявлены. POP3S — CA/name/pin/ALPN/close_notify.
 

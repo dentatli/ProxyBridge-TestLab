@@ -52,7 +52,7 @@ def ws_read(sock: Any) -> tuple[int, bytes]:
 def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
     from trafficlab.worker import cancelled
     kind = job["application"]
-    if kind in ('smtp', 'smtps', 'imap', 'imaps', 'mqtt', 'mqtts', 'pop3', 'pop3s'):
+    if kind in ('smtp', 'smtps', 'imap', 'imaps', 'mqtt', 'mqtts', 'pop3', 'pop3s', 'amqp', 'amqps'):
         from trafficlab.messaging_client import messaging_flow
         return messaging_flow(job, flow_id)
     if kind in ('quic', 'http3'):
