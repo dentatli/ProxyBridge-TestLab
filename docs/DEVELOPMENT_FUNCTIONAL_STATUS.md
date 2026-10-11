@@ -17,6 +17,8 @@
 | Результаты | Paging истории, последняя попытка каждой сборки/теста/полных условий; failure/cancel без fallback; выбираемые сборки/метрики, application count/TLS/errno | Реальные сохранённые FAIL/CANCELLED просматриваются; прикладные summary проверены компонентно; нет успешного SOCKS5 benchmark |
 | Ресурсы | Worker/CLI/origin process и обе ОС отдельно; CPU/RAM/handles/threads, unavailable/identity changes, bounded timeline | Windows/Linux counters проверены; ресурсам драйвера не приписываются |
 
+Последняя реальная попытка 2026-10-11 17:06 +05:00: пользователь подтвердил закрытый WinDbg, набор из шести новых cases SHORT/LOW запущен на «актуал». OFF/UNRULED controls прошли, CLI READY; SOCKS5 control exchange оборван с ConnectionAbortedError до прикладного этапа. Первый DNS TCP case FAIL, пять остальных SKIPPED_AFTER_FAILURE; прикладных продуктовых измерений нет. История/сравнение и cleanup=true проверены; service Stopped, product processes=0, active=false. Подписанный control после очистки доступен. Причина продукта не исследовалась; подробности и run ID в [TRAFFIC_LAB.md](TRAFFIC_LAB.md).
+
 Остались: остальные прикладные семейства общего protocol catalog (HTTP/2, HTTP/3/QUIC, gRPC, SSH/SFTP, mail/messaging и другие); v4.0.0/reboot и приёмка произвольных/перемещённых driver bundles; успешный реальный SOCKS5 на работоспособном продукте; отдельная приёмка HIGH/long/product cancel-during-load; расширенные SSH host-key/port-conflict/rollback cases. HTTP CONNECT, Ubuntu 24.04/26.04 и IPv6 отложены. Продуктовый TCP дефект остаётся в диагностическом чате. Диагностические исходники/комплекты не изменены.
 
 ## Предыдущая инвентаризация до transport catalog

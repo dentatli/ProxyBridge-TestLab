@@ -60,7 +60,15 @@ LOW/HIGH дают 4/16 потоков и предложенный темп 100/1
 - Ubuntu: 16 облегчённых component cases (шесть прикладных + TCP RTT/UDP connected, direct/explicit SOCKS5), полные ответы и route reconciliation проверены. Windows → установленный Ubuntu runtime: 12/12 новых component cases, по два потока и 20 проверенных транзакций. Это короткие профили 0.2/0.25 s, не HIGH/длительная приёмка и не продуктовый PASS.
 - 12 отрицательных проверок: неверный leaf pin, отсутствующий CA, недоверенная CA chain, неправильное TLS-имя, неверные прикладная/DNS подписи, повтор HTTP transaction, JSON неправильного типа, обрезанный DNS name, unmasked/64-bit-length WebSocket client frame и cancel during HTTP exchange. Отказы подтверждены; свежий signed control остаётся доступен.
 - Первичная проверка TLS выявила непроверенное завершение: EOF при unwrap. Исправлен authenticated terminal echo и close_notify; TLS/HTTPS теперь требуют завершения. После финальной правки повреждённых запросов, WebSocket bounds и HTTPS close повторены Windows 12/12 и все 12 отрицательных проверок.
-- Финальный runtime bundle `0a86b630b75c488611b6e2dddb44a7bd528e984f3a4e0821e18a23cc55434b8c`: READY, hashes/active/enabled/main process/listeners проверены. Автотесты кода не добавлялись. ProxyBridge/драйвер не запускались; служба продукта оставалась Stopped, системный прокси/BCD/WinDbg не менялись. Компонентные отчёты остаются вне пользовательской продуктовой истории и Git.
+- Финальный runtime bundle `0a86b630b75c488611b6e2dddb44a7bd528e984f3a4e0821e18a23cc55434b8c`: READY, hashes/active/enabled/main process/listeners проверены. Автотесты кода не добавлялись. Эта компонентная приёмка выполнялась без запуска ProxyBridge/драйвера; служба продукта оставалась Stopped, системный прокси/BCD/WinDbg не менялись. Компонентные отчёты остаются вне пользовательской продуктовой истории и Git.
+
+## Реальная продуктовая попытка 2026-10-11, 17:06 +05:00
+
+По отдельному запросу пользователя и после свежего подтверждения «WinDbg закрыт» запущен SHORT/LOW набор шести новых сценариев, оценка 156 секунд. Сборка «актуал»: bundle `a677580820ee370bef9aad59e3de6cf9eb7d5c672ccf9ec4c9b112753983ab2c`. Попытка `20261011-120624-387770ba5b664114b9ef5d2ee778d55a` сохранена в пользовательской истории.
+
+OFF и UNRULED controls complete/route verified, ProxyBridge CLI достиг READY. В SOCKS5 подписанный control exchange дал `ConnectionAbortedError:TRAFFIC_SCHEDULE_FAILED` до первого прикладного этапа (stages=0); это не доказательство ошибки DNS payload. Первый case `app-dns-tcp` получил FAIL с TRANSPORT_INCOMPLETE/ROUTE_UNVERIFIED. Остальные пять SKIPPED_AFTER_FAILURE; TLS/HTTP/HTTPS/WebSocket и DNS UDP в этой очереди реально не измерены. Итог FAILED виден в GUI/сравнении, отсутствующие показатели показаны как недоступные.
+
+CLI штатно завершён (child exit 0, forced stop=false, capture complete=true), own service restoration и OFF after verified: service Stopped, product processes=0, active=false, cleanup=true. Подписанный control после очистки снова доступен, bundle и сертификат прежние. Продуктовый отказ не расследовался; драйвер не переустанавливался, system proxy/BCD/signing/WinDbg/диагностическая копия/комплекты не менялись. Отчёты и GUI screenshot сохранены локально вне Git. Повторять тот же failing набор без нового основания не требуется.
 
 ## Жизненный цикл
 
