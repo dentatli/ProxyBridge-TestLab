@@ -28,6 +28,8 @@
 .lab-container h2:focus { outline: none; }
 .lab-container a:focus-visible, .lab-container button:focus-visible { outline: 2px solid var(--teal); outline-offset: 3px; }
 .lab-container [hidden] { display: none !important; }
+.traffic-group { margin-top: 24px; }
+.traffic-group > h4 { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
 .lab-build-catalog { margin-top: 24px; border-top: 1px solid var(--line); padding-top: 12px; }
 .lab-build-row { padding: 16px 0; border-bottom: 1px solid var(--line); display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px; }
 .lab-build-row small { display: block; margin-top: 6px; color: var(--muted); }

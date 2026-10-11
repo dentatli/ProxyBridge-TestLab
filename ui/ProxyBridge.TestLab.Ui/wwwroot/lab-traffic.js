@@ -19,6 +19,32 @@ Object.assign(labText.ru,{trafficContinue:"Продолжать после ош�
 Object.assign(labText.en,{trafficContinue:"Continue after a failed case when recovery is verified",trafficContinueHelp:"After a case fails, the controller verifies graceful CLI shutdown, the driver being off, signed origin identity and no remaining connections. Cancellation, changed files, disconnection or unverified cleanup stop the queue. Failed cases retain FAIL.",trafficQueuePolicy:"Continue after failure",trafficRecovery:"Recovery check",trafficRecoveryOk:"Continuation allowed",trafficRecoveryBlocked:"Continuation blocked"});
 let trafficCatalog=null, trafficState=null, trafficHistory=[], trafficActionActive=false, trafficError="", trafficChoice={};
 let trafficCardsKey="", trafficHistoryKey="", trafficLoading=false;
+let trafficCategoryKey="";
+Object.assign(labText.ru,{trafficSearch:"Найти тест",trafficCategory:"Группа тестов",trafficSearchHelp:"Поиск и группа скрывают карточки, сохраняя выбранные тесты и их параметры.",trafficCategoriesAll:"Все группы",trafficSelectedOnly:"Выбранные тесты",trafficShown:"Показано",trafficSelected:"Выбрано",trafficHiddenSelected:"Скрыто фильтром",trafficNoMatches:"Подходящих тестов нет. Измените поиск или группу.",trafficGroup_transport:"Транспорт, скорость и стабильность",trafficGroup_web:"HTTP, WebSocket и gRPC",trafficGroup_security:"TLS и QUIC",trafficGroup_dns:"DNS",trafficGroup_ssh:"SSH и SFTP",trafficGroup_mail:"Почта: SMTP, IMAP и POP3",trafficGroup_messaging:"Сообщения: MQTT и AMQP",trafficGroup_other:"Прочие протоколы"});
+Object.assign(labText.en,{trafficSearch:"Find a test",trafficCategory:"Test group",trafficSearchHelp:"Search and group filters hide cards while preserving selected tests and their settings.",trafficCategoriesAll:"All groups",trafficSelectedOnly:"Selected tests",trafficShown:"Shown",trafficSelected:"Selected",trafficHiddenSelected:"Hidden by filters",trafficNoMatches:"No matching tests. Change the search or group.",trafficGroup_transport:"Transport, speed and stability",trafficGroup_web:"HTTP, WebSocket and gRPC",trafficGroup_security:"TLS and QUIC",trafficGroup_dns:"DNS",trafficGroup_ssh:"SSH and SFTP",trafficGroup_mail:"Mail: SMTP, IMAP and POP3",trafficGroup_messaging:"Messaging: MQTT and AMQP",trafficGroup_other:"Other protocols"});
+const trafficGroups=["transport","web","security","dns","ssh","mail","messaging","other"];
+function trafficGroup(row){
+  if(row.recipe!=="application")return "transport";
+  if(["http","https","http2","http3","grpc","websocket"].includes(row.application))return "web";
+  if(["tls","quic"].includes(row.application))return "security";
+  return {"dns-classic":"dns",ssh:"ssh",sftp:"ssh",mail:"mail",mqtt:"messaging",amqp:"messaging"}[row.family]||"other";
+}
+function filterTrafficCards(){
+  const rows=trafficCatalog?.cases||[], category=lab("traffic-category").value;
+  const words=lab("traffic-search").value.normalize("NFKC").trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
+  let shown=0,hiddenSelected=0;
+  for(const card of lab("traffic-cases").querySelectorAll("[data-traffic-card]")){
+    const row=rows.find(item=>item.id===card.dataset.trafficCard), group=trafficGroup(row);
+    const selected=!!trafficChoice[row.id]?.selected;
+    const haystack=[row.id,row.ru,row.en,row.application,row.family].join(" ").normalize("NFKC").toLocaleLowerCase();
+    card.hidden=!(category==="all"||category==="selected"&&selected||category===group)||!words.every(word=>haystack.includes(word));
+    if(!card.hidden)shown++;else if(selected)hiddenSelected++;
+  }
+  for(const section of lab("traffic-cases").querySelectorAll("[data-traffic-group]")){
+    section.hidden=![...section.querySelectorAll("[data-traffic-card]")].some(card=>!card.hidden);
+  }
+  lab("traffic-search-status").textContent=`${t("trafficShown")}: ${shown}/${rows.length} · ${t("trafficSelected")}: ${trafficCases().length} · ${t("trafficHiddenSelected")}: ${hiddenSelected}${shown?"":` · ${t("trafficNoMatches")}`}`;
+}
 let trafficComparison=[],trafficComparisonKey="",trafficNextSkip=0,trafficHasMore=false,trafficCompareChoice={builds:{},metrics:{}};
 Object.assign(labText.ru,{trafficMetrics:"Показатели",trafficCompare:"Последняя попытка каждой сборки при одинаковых условиях",trafficMore:"Ещё попытки",trafficSystemCpu:"Windows CPU, % ПК",trafficSystemRam:"Windows RAM, MiB",trafficOriginCpu:"Ubuntu CPU, % узла",trafficOriginRam:"Ubuntu RAM, MiB",trafficUdpP99:"UDP RTT p99, мс",trafficPeak:"Пик соединений TCP",trafficCleanup:"Очистка",trafficCliResident:"CLI working set, MiB",trafficWorkerCpu:"Работник CPU, % ПК",trafficWorkerRam:"Работник private commit, MiB",trafficOriginProcessCpu:"Origin/proxy CPU, % узла",trafficOriginProcessRam:"Origin/proxy RSS, MiB",trafficCliHandles:"CLI handles",trafficCliThreads:"CLI threads",trafficAllStages:"Сводные показатели включают все этапы: исходный, нагрузку и восстановление. CPU/RAM ОС включают фоновую работу. Пустое значение означает отсутствие подтверждённого измерения."});
 Object.assign(labText.en,{trafficMetrics:"Metrics",trafficCompare:"Latest attempt for each build under matching conditions",trafficMore:"More attempts",trafficSystemCpu:"Windows CPU, % of PC",trafficSystemRam:"Windows RAM, MiB",trafficOriginCpu:"Ubuntu CPU, % of host",trafficOriginRam:"Ubuntu RAM, MiB",trafficUdpP99:"UDP RTT p99, ms",trafficPeak:"Peak TCP connections",trafficCleanup:"Cleanup",trafficCliResident:"CLI working set, MiB",trafficWorkerCpu:"Worker CPU, % of PC",trafficWorkerRam:"Worker private commit, MiB",trafficOriginProcessCpu:"Origin/proxy CPU, % of host",trafficOriginProcessRam:"Origin/proxy RSS, MiB",trafficCliHandles:"CLI handles",trafficCliThreads:"CLI threads",trafficAllStages:"Aggregates include every stage: baseline, load and recovery. Whole-OS CPU/RAM include background work. An empty value means no verified measurement is available."});
@@ -55,11 +81,34 @@ function renderTraffic(){
   const run=trafficState?.execution?.run, progress=trafficState?.execution?.progress;
   lab("traffic-run-status").textContent=[labState.builds.find(build=>build.id===labState.observation?.build_id)?.display_name,run?.state,progress?.stage,progress?.index!==undefined?`${progress.index+1}/${progress.total}`:"",run?.id].filter(Boolean).join(" · ");
   lab("traffic-error").textContent=trafficError||run?.error||(!trafficState?.runtime?.administrator?t("trafficAdmin"):"");
-  const cardsKey=JSON.stringify([trafficCatalog,trafficChoice,labLanguage,busy]);
-  if(trafficCatalog && cardsKey!==trafficCardsKey) {trafficCardsKey=cardsKey;lab("traffic-cases").innerHTML=trafficCatalog.cases.map(row=>{
+  const selectedView=lab("traffic-category").value==="selected";
+  const cardsKey=JSON.stringify([trafficCatalog,trafficChoice,labLanguage,busy,selectedView]);
+  let restoreFocus=null;
+  if(cardsKey!==trafficCardsKey&&lab("traffic-cases").contains(document.activeElement)){
+    for(const attribute of ["data-traffic-case","data-traffic-duration","data-traffic-load"]){
+      const value=document.activeElement.getAttribute(attribute);
+      if(value!==null){restoreFocus=`[${attribute}="${CSS.escape(value)}"]`;break;}
+    }
+  }
+  const categoryKey=JSON.stringify([trafficCatalog,labLanguage]);
+  if(trafficCatalog&&categoryKey!==trafficCategoryKey){
+    trafficCategoryKey=categoryKey;
+    const chosen=lab("traffic-category").value;
+    lab("traffic-category").innerHTML=`<option value="all">${t("trafficCategoriesAll")}</option><option value="selected">${t("trafficSelectedOnly")}</option>`+trafficGroups.filter(group=>trafficCatalog.cases.some(row=>trafficGroup(row)===group)).map(group=>`<option value="${group}">${t(`trafficGroup_${group}`)} (${trafficCatalog.cases.filter(row=>trafficGroup(row)===group).length})</option>`).join("");
+    if([...lab("traffic-category").options].some(option=>option.value===chosen))lab("traffic-category").value=chosen;
+  }
+  if(trafficCatalog && cardsKey!==trafficCardsKey) {trafficCardsKey=cardsKey;lab("traffic-cases").innerHTML=(selectedView?["selected"]:trafficGroups).map(group=>{
+    // Selected view follows the catalog order used by the execution queue.
+    const rows=group==="selected"?trafficCatalog.cases:trafficCatalog.cases.filter(row=>trafficGroup(row)===group);
+    return rows.length?`<section class="traffic-group" data-traffic-group="${group}"><h4>${t(group==="selected"?"trafficSelectedOnly":`trafficGroup_${group}`)}</h4>`+rows.map(row=>{
     const choice=trafficChoice[row.id]||{selected:false,duration:"SHORT",load:"LOW"};
-    return `<div class="lab-test-card${choice.selected?" is-selected":""}"><label class="lab-test-toggle"><input type="checkbox" data-traffic-case="${row.id}" ${choice.selected?"checked":""} ${busy?"disabled":""}><span>${html(row[labLanguage])}</span></label><div class="lab-test-settings"><label>${t("duration")}<select data-traffic-duration="${row.id}" ${busy?"disabled":""}>${["SHORT","NORMAL","LONG"].map(value=>`<option value="${value}" ${value===choice.duration?"selected":""}>${row.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[value]+" h":t(value)}</option>`).join("")}</select></label><label>${t("load")}<select data-traffic-load="${row.id}" ${busy?"disabled":""}>${["LOW","HIGH"].map(value=>`<option value="${value}" ${value===choice.load?"selected":""}>${t(value)}</option>`).join("")}</select></label></div><p>${t("trafficEstimate")}: ≈ ${number(trafficCaseEstimate({id:row.id,duration:choice.duration})/60,1)} ${t("trafficMinutes")}</p></div>`;
-  }).join("");}
+    return `<div data-traffic-card="${html(row.id)}" class="lab-test-card${choice.selected?" is-selected":""}"><label class="lab-test-toggle"><input type="checkbox" data-traffic-case="${row.id}" ${choice.selected?"checked":""} ${busy?"disabled":""}><span>${html(row[labLanguage])}</span></label><div class="lab-test-settings"><label>${t("duration")}<select data-traffic-duration="${row.id}" ${busy?"disabled":""}>${["SHORT","NORMAL","LONG"].map(value=>`<option value="${value}" ${value===choice.duration?"selected":""}>${row.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[value]+" h":t(value)}</option>`).join("")}</select></label><label>${t("load")}<select data-traffic-load="${row.id}" ${busy?"disabled":""}>${["LOW","HIGH"].map(value=>`<option value="${value}" ${value===choice.load?"selected":""}>${t(value)}</option>`).join("")}</select></label></div><p>${t("trafficEstimate")}: ≈ ${number(trafficCaseEstimate({id:row.id,duration:choice.duration})/60,1)} ${t("trafficMinutes")}</p></div>`;
+  }).join("")+"</section>":"";}).join("");}
+  filterTrafficCards();
+  if(restoreFocus){
+    const control=lab("traffic-cases").querySelector(restoreFocus);
+    if(control&&!control.disabled&&!control.closest("[hidden]"))control.focus({preventScroll:true});
+  }
   renderTrafficHistory();
   renderTrafficComparison();
   if (typeof renderSavedSuites === "function") renderSavedSuites(busy);
@@ -159,6 +208,8 @@ for(const action of ["plan","apply","start","stop"])lab(`traffic-${action}`).add
 lab("traffic-continue-after-failure").addEventListener("change",renderTraffic);
 for(const id of ["traffic-debugger-inactive","traffic-long-run","lab-mode"])lab(id).addEventListener("change",renderTraffic);
 lab("traffic-filter").addEventListener("change",renderTrafficHistory);
+lab("traffic-search").addEventListener("input",filterTrafficCards);
+lab("traffic-category").addEventListener("change",renderTraffic);
 const renderLabBeforeTraffic=renderLab;
 renderLab=function(){renderLabBeforeTraffic();renderTraffic();};
 loadTraffic();setInterval(()=>{if(!trafficActionActive)loadTraffic();},3000);

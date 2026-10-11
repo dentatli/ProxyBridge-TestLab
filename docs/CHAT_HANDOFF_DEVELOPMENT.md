@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint установки / отката — 2026-10-11
+## Текущий checkpoint поиска / групп каталога — 2026-10-11
+
+38 traffic cases организованы в семь групп; добавлены поиск по RU/EN названию/ID/protocol и фильтр группы. Режим «Выбранные тесты» показывает фактический catalog order очереди. Фильтры не меняют selection/duration/load, общий estimate и queue; показаны visible/total/selected/hidden-selected counts и empty state. Клавиатурный focus карточки сохраняется при её обновлении. Поиск/группа — временный вид страницы, selection/условия продолжают храниться прежним draft/presets.
+
+GUI 5192 проверен: точный MQTT search (2 cases), mail group (6), несовпадающее сочетание/empty state, скрытые выбранные POP3S/AMQPS, selected-view order TLS→HTTP3→POP3S→AMQPS, снятие выбора, duration NORMAL→SHORT/estimate, RU→EN→RU и сохранение focus после keyboard Tab/select. Console errors=[], JS syntax PASS, screenshots ignored `artifacts/development-remote-wizard/catalog-search-final.png`. HTML/CSS/JS только; DLL и runtime bundle `5a6188e` не менялись, повторные build/install/traffic не требовались. Служба ProxyBridgeDrv Stopped; product не запускался. Установщик запушен `7617018`; текущую ревизию смотреть Git.
+
+Далее независимые extended profiles/protocol families и administrative host-key/network-loss acceptance. Успешные продуктовые/HIGH/длительные проверки, v4/reboot/bundles остаются отдельной приёмкой. Diagnostic scope не менять.
+
+## Предыдущий checkpoint установки / отката — 2026-10-11
 
 Установщик traffic runtime больше не прерывает прежнюю службу при ошибках подготовки source/dependencies/PKI. Активация использует уникальные временные symlinks и атомарную запись unit. Перед заменой активного runtime проверяются его исходники, process/listeners и manifest; при откате восстанавливаются exact unit/current, прежние active/enabled, frozen manifest (включая PKI/dependency hashes), проверяется состояние службы. Неподтверждённый откат возвращает отдельный `TRAFFIC_ROLLBACK_VERIFICATION_FAILED`. Failed versions сохраняются; чужие listeners не останавливаются. Nonblocking flock предотвращает конкурирующие apply из разных UI экземпляров. Обрыв SSH/kill установщика во время активации этим набором ещё не доказан.
 

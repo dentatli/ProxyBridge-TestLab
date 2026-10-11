@@ -14,6 +14,7 @@
 | AMQP / AMQPS | Native 0-9-1 auth/confirm/get/ack и transient queue | 4 component cases, 8 negative, Pika plain/TLS interop, 25 unit tests; product не запускался |
 | Global idle | Owned accepted origin TCP sockets, pre-TLS, QUIC; unknown не равен zero | 4 held TCP + QUIC busy→idle, 44 application component cases, 28 unit tests; driver Stopped |
 | Установка / откат traffic runtime | Подготовка без прерывания старой службы, атомарная активация, verified rollback, apply flock | 8 Linux unit checks; реальные PKI/preparation failure, failed bind rollback и TCP/UDP port conflict на .180; новый API apply READY |
+| Поиск / группы | Семь групп, RU/EN поиск, selected queue order, счётчик hidden selection | GUI search/group/empty state/params/language/focus проверены; queue и estimate включают скрытые выбранные cases |
 | Каталог | 38 независимых пунктов, индивидуальные длительность/нагрузка, оценка каждого/набора, named suites | GUI RU/EN/save/apply/refresh для четырёх новых сценариев; базовые throughput вместо заявления об абсолютном максимуме |
 | Remote runtime | Отдельная Ubuntu 22.04 IPv4 служба, exact plan/hash/manifest/process/listeners/PKI, HMAC TCP/UDP/SOCKS5, runtime lease | Новый сервер 192.168.0.180 READY; отдельная установка без старого endpoint, fresh SSH/trust/platform gate сохранён |
 | Нагрузка / скорость / стабильность | RTT, upload/download/duplex/multistream/loaded RTT, connections/churn, UDP обоих типов/sweep/flows, mixed/stability/soak | 30 облегчённых component cases; HIGH и реальные 24–72 часа не выполнялись |
