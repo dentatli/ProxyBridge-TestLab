@@ -74,7 +74,8 @@ Source builds do not establish product correctness; runtime evidence gates remai
 ```
 
 Open `http://127.0.0.1:5178/`. See [Local web UI](ui/README.md). The Ubuntu wizard
-and a separate 16-case traffic catalog are implemented; see [traffic workloads,
+and a separate 22-case traffic catalog (transport plus DNS, TLS, HTTP/HTTPS and
+WebSocket) are implemented; see [traffic workloads,
 evidence and acceptance limits](docs/TRAFFIC_LAB.md). Real product checks require
 an administrator UI (`scripts/Start-TestLabUi.ps1 -Administrator`, after building).
 Driver file identity and owned cleanup remain mandatory. The v4.0.0 adapter and

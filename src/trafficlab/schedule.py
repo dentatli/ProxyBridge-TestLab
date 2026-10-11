@@ -35,6 +35,9 @@ def origin_metrics(job: dict[str, Any]) -> dict[str, Any]:
         expected = job.get("remote_bundle_sha256")
         if expected and (not result.get("identity", {}).get("verified") or result["identity"].get("bundle_sha256") != expected):
             raise ValueError("TRAFFIC_REMOTE_ARTIFACT_IDENTITY_CHANGED")
+        certificate = job.get("application_tls_sha256")
+        if certificate and result.get("identity", {}).get("application", {}).get("tls_certificate_sha256") != certificate:
+            raise ValueError("APPLICATION_TLS_IDENTITY_CHANGED")
         return result
     finally:
         stream.close()
@@ -59,6 +62,9 @@ def recipes(job: dict[str, Any], catalog: dict[str, Any]) -> list[dict[str, Any]
     baseline = phase("baseline", workload("echo"))
     recovery = phase("recovery", workload("echo"))
     recipe = case["recipe"]
+    if recipe == "application":
+        return [phase(case["application"], workload("udp" if case["application"] == "dns-udp" else "echo", n,
+                      application=case["application"], warmup_count=0))]
     if recipe in ("echo", "upload", "download", "duplex"):
         return [phase(recipe, workload(recipe, (1 if job["load"] == "LOW" else 4) if recipe == "echo" else n))]
     if recipe == "multistream":
@@ -146,6 +152,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 report["skipped_stage_count"] += 1
                 continue
             stage_job = {**job, "run_id": f"{job['run_id']}.{index}"}
+            if any(workload.get("application") for workload in stage["workloads"]):
+                origin_metrics(stage_job)  # Register the session before native DNS encodes its opaque run tag.
             current["job"] = stage_job
             atomic(progress, {"run_id": job["run_id"], "stage": stage["phase"], "index": index, "total": len(stages),
                               "elapsed_seconds": time.perf_counter() - started, "state": "RUNNING"})

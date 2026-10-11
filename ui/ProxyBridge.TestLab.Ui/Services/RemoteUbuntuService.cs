@@ -144,7 +144,9 @@ public sealed class RemoteUbuntuService
         {
             var validation = await _server.ValidateAsync(new ServerValidationRequest(), _stopping, ubuntuOnly: true);
             lock (_stateGate) { _verified = validation.State == "READY"; _validation = validation; }
-            if (validation.State != "READY") throw new InvalidOperationException("REMOTE_FRESH_CHECK_REQUIRED");
+            // PLAN_READY proves SSH/trust/platform checks; this runtime verifies its own service independently.
+            // It does not mark the separate legacy endpoint or its controller ready.
+            if (validation.State is not ("READY" or "PLAN_READY")) throw new InvalidOperationException("REMOTE_FRESH_CHECK_REQUIRED");
             var snapshot = await _settings.LoadAsync(_stopping);
             var target = new ServerTarget(snapshot.ProtectedValues["server_connection.host"], snapshot.Settings.ServerConnection.SshPort,
                 "root", snapshot.ProtectedValues["server_connection.private_key_path"]);

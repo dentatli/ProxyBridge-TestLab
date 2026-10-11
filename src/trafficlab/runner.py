@@ -45,12 +45,12 @@ def validate_route(report: dict[str, Any], proxied: bool) -> bool:
     return all(stage_route(stage, proxied) for stage in report["stages"])
 
 
-def profile(binding: dict[str, Any], run_id: str, mode: str) -> dict[str, Any]:
+def profile(binding: dict[str, Any], run_id: str, mode: str, target_port: int | None = None) -> dict[str, Any]:
     return {"Version": "1.0", "LocalhostViaProxy": True, "IsTrafficLoggingEnabled": True,
         "ProxyConfigs": [{"Id": 1, "Name": "TestLab traffic", "Type": "SOCKS5", "Host": binding["host"], "Port": binding["proxy_port"],
             "Username": run_id, "Password": mac(bytes.fromhex(binding["secret"]), b"socks:", run_id.encode()), "SendDomainToProxy": False}],
         "ProxyRules": [{"Name": "Controlled traffic", "ProcessName": Path(binding["python"]).name if mode == "SOCKS5" else "pb-unruled-control-never.exe",
-            "TargetHosts": binding["host"], "TargetPorts": str(binding["port"]), "TargetDomains": "", "Protocol": "BOTH", "Action": "PROXY", "ProxyConfigId": 1, "IsEnabled": True}]}
+            "TargetHosts": binding["host"], "TargetPorts": str(target_port or binding["port"]), "TargetDomains": "", "Protocol": "BOTH", "Action": "PROXY", "ProxyConfigId": 1, "IsEnabled": True}]}
 
 
 def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], output: str, progress: str) -> dict[str, Any]:
@@ -80,6 +80,10 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
         if not validate_route(observed, False):
             raise ValueError("TRAFFIC_DIRECT_CONTROL_FAILED")
         result["off_control_verified"] = True
+        application_identity = observed["stages"][0]["origin"].get("identity", {}).get("application", {})
+        if application_identity:
+            job["application_tls_sha256"] = application_identity["tls_certificate_sha256"]
+            result["conditions"]["application_tls_sha256"] = job["application_tls_sha256"]
         result["conditions"]["origin_logical_cpus"] = observed["stages"][0]["origin"]["cpu_count"]
         result["conditions"]["origin_physical_memory_bytes"] = observed["stages"][0]["origin"]["system_resources"].get("physical_total_bytes")
         from trafficlab.resources import system_sample
@@ -101,6 +105,9 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
         if cancelled(job):
             return result
         modes = ("OFF", "UNRULED", "SOCKS5") if case["case_id"] == "three-modes" else ("SOCKS5",)
+        specification = next(row for row in catalog["cases"] if row["id"] == case["case_id"])
+        from trafficlab.application_wire import APPLICATION_PORTS
+        target_port = APPLICATION_PORTS[specification["application"]] if specification.get("application") else binding["port"]
         for mode in modes:
             raw = directory / (case["case_id"] + "." + mode + ".raw.json")
             idle(binding_path, binding)
@@ -109,7 +116,7 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
                 measured = run(measured_job, catalog, str(raw), progress)
                 lifecycle = {"product_started": False, "cleanup_verified": True, "route_events": {}}
             else:
-                atomic(str(private_profile), profile(binding, run_id, mode))
+                atomic(str(private_profile), profile(binding, run_id, mode, target_port))
                 product = Product(binding, str(private_profile))
                 with product:
                     measured_job["resource_processes"] = {"product_cli": {"pid": product.pid, "path": binding["cli"]}}

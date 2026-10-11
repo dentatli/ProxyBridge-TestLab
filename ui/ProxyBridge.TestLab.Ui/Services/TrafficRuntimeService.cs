@@ -54,7 +54,7 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
                 var payload = BuildPayload(target, paths, "inspect");
                 var observed = await ExecuteAsync(target, paths, payload, token);
                 var plan = new TrafficRuntimePlan(Guid.NewGuid().ToString("N"), payload.Bundle,
-                    payload.Hashes.Keys.Order(StringComparer.Ordinal).ToArray(), [42501,42502,42503], [42501,42502], "22.04",
+                    payload.Hashes.Keys.Order(StringComparer.Ordinal).ToArray(), [42501,42502,42503,42511,42512,42513,42514,42515], [42501,42502,42515], "22.04",
                     DateTimeOffset.UtcNow.AddMinutes(10), observed.GetProperty("state").GetString()!);
                 lock (_stateGate) { _plan = plan; _binding = Binding(target); _state = plan.State; _checked = DateTimeOffset.UtcNow; _error = null; }
                 return plan;
@@ -119,7 +119,10 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
             files["traffic-workloads.json"] = Convert.ToBase64String(catalog);
             hashes["traffic-workloads.json"] = Hash(catalog);
             var configuration = JsonSerializer.SerializeToUtf8Bytes(new { secret = Convert.ToHexString(secret).ToLowerInvariant(), bind = "0.0.0.0",
-                port = 42501, proxy_port = 42502, control_port = 42503, max_connections = 2048, origin_addresses = new[] { target.Host, "127.0.0.1" } });
+                port = 42501, proxy_port = 42502, control_port = 42503, max_connections = 2048, origin_addresses = new[] { target.Host, "127.0.0.1" },
+                application_ports = new Dictionary<string,int> { ["http"] = 42511, ["tls"] = 42512, ["https"] = 42513,
+                    ["websocket"] = 42514, ["dns-tcp"] = 42515, ["dns-udp"] = 42515 },
+                tls_certificate_file = "pki/server.pem", tls_key_file = "pki/server.key", tls_ca_file = "pki/ca.pem" });
             var configHash = Hash(configuration);
             var bundle = Hash(JsonSerializer.SerializeToUtf8Bytes(new { hashes, configHash, target = Binding(target) }));
             return new(bundle, hashes, files, Convert.ToBase64String(configuration), configHash, Convert.ToHexString(secret).ToLowerInvariant(), action);

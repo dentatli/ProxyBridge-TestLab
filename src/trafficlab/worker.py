@@ -314,6 +314,9 @@ def validate_job(job: dict[str, Any]) -> None:
 
 def execute(job: dict[str, Any]) -> dict[str, Any]:
     validate_job(job)
+    if job.get("application"):
+        from trafficlab.application_client import execute_application
+        return execute_application(job)
     started = time.perf_counter()
     with concurrent.futures.ThreadPoolExecutor(max_workers=job.get("connections", 1)) as pool:
         futures = []

@@ -17,7 +17,29 @@ from typing import Any
 ROOT = Path("/opt/proxybridge-testlab-traffic")
 UNIT = Path("/etc/systemd/system/proxybridge-testlab-traffic.service")
 SERVICE = "proxybridge-testlab-traffic.service"
-PORTS = {42501, 42502, 42503}
+PORTS = {42501, 42502, 42503, 42511, 42512, 42513, 42514, 42515}
+UDP_PORTS = {42501, 42502, 42515}
+
+
+def provision_pki(stage: Path) -> dict[str, str]:
+    directory = stage / "pki"
+    directory.mkdir(mode=0o700)
+    ca_key, ca, leaf_key, leaf = (directory / name for name in ("ca.key", "ca.pem", "server.key", "server.pem"))
+    command("openssl", "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "365", "-sha256",
+            "-subj", "/CN=ProxyBridge-TestLab isolated application CA", "-keyout", str(ca_key), "-out", str(ca),
+            "-addext", "basicConstraints=critical,CA:TRUE", "-addext", "keyUsage=critical,keyCertSign,cRLSign")
+    csr = directory / "server.csr"
+    command("openssl", "req", "-newkey", "rsa:2048", "-nodes", "-subj", "/CN=traffic.testlab.invalid",
+            "-keyout", str(leaf_key), "-out", str(csr))
+    extensions = directory / "server.ext"
+    extensions.write_text("basicConstraints=critical,CA:FALSE\nkeyUsage=critical,digitalSignature,keyEncipherment\nextendedKeyUsage=serverAuth\nsubjectAltName=DNS:traffic.testlab.invalid\n")
+    command("openssl", "x509", "-req", "-in", str(csr), "-CA", str(ca), "-CAkey", str(ca_key), "-set_serial", "1",
+            "-days", "365", "-sha256", "-extfile", str(extensions), "-out", str(leaf))
+    # The CA signing key is temporary; neither trust stores nor existing certificates are changed.
+    ca_key.unlink()
+    csr.unlink()
+    extensions.unlink()
+    return {name: digest((directory / name).read_bytes()) for name in ("ca.pem", "server.pem", "server.key")}
 
 
 def command(*args: str, required: bool = True) -> str:
@@ -54,22 +76,25 @@ def state(payload: dict[str, Any]) -> dict[str, Any]:
             config = version / "agent-private.json"
             matches = matches and config.is_file() and digest(config.read_bytes()) == payload["config_sha256"]
             manifest = version / "runtime-manifest.json"
+            matches = matches and all((version / "pki" / name).is_file() and not (version / "pki" / name).is_symlink()
+                                      for name in ("ca.pem", "server.pem", "server.key"))
             matches = matches and manifest.is_file() and json.loads(manifest.read_bytes()) == {
-                "hashes": payload["hashes"], "config_sha256": payload["config_sha256"], "bundle_sha256": payload["bundle_sha256"]}
+                "hashes": payload["hashes"], "config_sha256": payload["config_sha256"], "bundle_sha256": payload["bundle_sha256"],
+                "pki_hashes": {name: digest((version / "pki" / name).read_bytes()) for name in ("ca.pem", "server.pem", "server.key")}}
     active = command("systemctl", "is-active", SERVICE, required=False) == "active"
     enabled = command("systemctl", "is-enabled", SERVICE, required=False) == "enabled"
     tcp = command("ss", "-H", "-lnt")
     udp = command("ss", "-H", "-lnu")
     def listening(text: str, port: int) -> bool:
         return any(re.search(r":" + str(port) + r"(?:\s|$)", line) for line in text.splitlines())
-    listeners = all(listening(tcp, port) for port in PORTS) and all(listening(udp, port) for port in (42501, 42502))
+    listeners = all(listening(tcp, port) for port in PORTS) and all(listening(udp, port) for port in UDP_PORTS)
     if matches and active:
         pid = command("systemctl", "show", SERVICE, "--property=MainPID", "--value")
         argv = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0") if pid.isdecimal() and pid != "0" else []
         matches = str(version / "agent-private.json").encode() in argv
     return {"state": "READY" if matches and active and enabled and listeners else "SETUP_REQUIRED",
             "hashes_match": matches, "service_active": active, "service_enabled": enabled, "listeners": listeners,
-            "bundle_sha256": payload["bundle_sha256"], "verified_ubuntu": "22.04", "tcp_ports": sorted(PORTS), "udp_ports": [42501, 42502]}
+            "bundle_sha256": payload["bundle_sha256"], "verified_ubuntu": "22.04", "tcp_ports": sorted(PORTS), "udp_ports": sorted(UDP_PORTS)}
 
 
 def apply(payload: dict[str, Any]) -> dict[str, Any]:
@@ -146,12 +171,13 @@ WantedBy=multi-user.target
             target.write_bytes(base64.b64decode(encoded, validate=True))
         config = stage / "agent-private.json"
         config.write_bytes(base64.b64decode(payload["configuration"], validate=True))
-        (stage / "runtime-manifest.json").write_text(json.dumps({"hashes":payload["hashes"], "config_sha256":payload["config_sha256"], "bundle_sha256":payload["bundle_sha256"]},sort_keys=True))
+        pki_hashes = provision_pki(stage)
+        (stage / "runtime-manifest.json").write_text(json.dumps({"hashes":payload["hashes"], "config_sha256":payload["config_sha256"], "bundle_sha256":payload["bundle_sha256"], "pki_hashes":pki_hashes},sort_keys=True))
         for folder, _dirs, files in os.walk(stage):
             os.chmod(folder, 0o755)
             for filename in files:
                 file = Path(folder) / filename
-                os.chmod(file, 0o640 if file == config else 0o644)
+                os.chmod(file, 0o640 if file == config or file.name == "server.key" else 0o644)
                 os.chown(file, 0, account.pw_gid)
         if version.exists():
             # Matching versions are immutable; repair uses a fresh owned directory, preserving the old evidence.

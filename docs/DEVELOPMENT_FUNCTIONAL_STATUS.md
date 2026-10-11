@@ -1,22 +1,23 @@
 # Функциональная инвентаризация TestLab
 
-Проверка 2026-10-09 в `testlab-development/ProxyBridge-TestLab`, ветка `codex/development-functional-completion`. Статусы ниже относятся к исходникам текущей ветки. Старые пользовательские испытания продукта не подтверждают этот checkout. Диагностические исходники, рабочая копия, комплекты и журналы не менялись.
+Проверка 2026-10-11 в `testlab-development/ProxyBridge-TestLab`, ветка `codex/development-functional-completion`. Статусы ниже относятся к исходникам текущей ветки. Старые пользовательские испытания продукта не подтверждают этот checkout. Диагностические исходники, рабочая копия, комплекты и журналы не менялись.
 
-## Актуальный срез transport catalog — 2026-10-09
+## Актуальный срез transport/application catalog — 2026-10-11
 
 Полные методы/параметры/приёмка: [TRAFFIC_LAB.md](TRAFFIC_LAB.md). Новый transport путь не заменяет прежний общий protocol runner и его gates.
 
 | Путь | Готово по реализации | Фактическая проверка / предел |
 | --- | --- | --- |
-| Каталог | 16 независимых пунктов, индивидуальные длительность/нагрузка, оценка каждого/набора, named suites | GUI RU/EN/save/apply/delete собственной записи/refresh; базовые throughput вместо заявления об абсолютном максимуме |
-| Remote runtime | Отдельная Ubuntu 22.04 IPv4 служба, exact plan/hash/manifest/process/listeners, HMAC TCP/UDP/SOCKS5, runtime lease | Установка/повторная проверка; signed identity, tamper, wrong keys и disconnect; старый endpoint сохранён |
+| Каталог | 22 независимых пункта, индивидуальные длительность/нагрузка, оценка каждого/набора, named suites | GUI RU/EN/save/apply/refresh для шести новых сценариев; базовые throughput вместо заявления об абсолютном максимуме |
+| Remote runtime | Отдельная Ubuntu 22.04 IPv4 служба, exact plan/hash/manifest/process/listeners/PKI, HMAC TCP/UDP/SOCKS5, runtime lease | Новый сервер 192.168.0.180 READY; отдельная установка без старого endpoint, fresh SSH/trust/platform gate сохранён |
 | Нагрузка / скорость / стабильность | RTT, upload/download/duplex/multistream/loaded RTT, connections/churn, UDP обоих типов/sweep/flows, mixed/stability/soak | 30 облегчённых component cases; HIGH и реальные 24–72 часа не выполнялись |
+| Прикладные сценарии | DNS TCP/UDP, TLS, HTTP/1.1, HTTPS, WebSocket; native framing, HMAC/replay gates, per-case product port, TLS chain/name/pin/ALPN/close | Ubuntu 16 component cases с транспортной регрессией; Windows → Ubuntu 12/12 direct/explicit SOCKS5 и 12 отрицательных проверок; это не реальный продуктовый PASS |
 | Длительная история | Streaming JSONL полных этапов + SHA/count, compact stage history и all-sample totals | Две короткие десятиэтапные симуляции direct/SOCKS5; не являются сутками нагрузки |
 | Реальный продукт / очередь | OFF/UNRULED controls, нормальные OS sockets, signed all-flow reconciliation + product PID route event, штатное закрытие/own service restoration, cancel/skipped | OFF/UNRULED успешны; реальные TCP/UDP SOCKS5 FAIL сохранены; service Stopped/cleanup gates; PREPARING cancel verified |
-| Результаты | Paging истории, последняя попытка каждой сборки/теста/полных условий; failure/cancel без fallback; выбираемые сборки/метрики | Реальные сохранённые FAIL/CANCELLED просматриваются; нет успешного SOCKS5 benchmark |
+| Результаты | Paging истории, последняя попытка каждой сборки/теста/полных условий; failure/cancel без fallback; выбираемые сборки/метрики, application count/TLS/errno | Реальные сохранённые FAIL/CANCELLED просматриваются; прикладные summary проверены компонентно; нет успешного SOCKS5 benchmark |
 | Ресурсы | Worker/CLI/origin process и обе ОС отдельно; CPU/RAM/handles/threads, unavailable/identity changes, bounded timeline | Windows/Linux counters проверены; ресурсам драйвера не приписываются |
 
-Остались: прикладные семейства общего protocol catalog; v4.0.0/reboot и приёмка произвольных/перемещённых driver bundles; успешный реальный SOCKS5 на работоспособном продукте; отдельная приёмка HIGH/long/cancel-during-load; расширенные SSH host-key/port-conflict/rollback cases. Ubuntu 24.04/26.04 и IPv6 отложены. Продуктовый TCP дефект остаётся в диагностическом чате. Диагностические исходники/комплекты не изменены.
+Остались: остальные прикладные семейства общего protocol catalog (HTTP/2, HTTP/3/QUIC, gRPC, SSH/SFTP, mail/messaging и другие); v4.0.0/reboot и приёмка произвольных/перемещённых driver bundles; успешный реальный SOCKS5 на работоспособном продукте; отдельная приёмка HIGH/long/product cancel-during-load; расширенные SSH host-key/port-conflict/rollback cases. HTTP CONNECT, Ubuntu 24.04/26.04 и IPv6 отложены. Продуктовый TCP дефект остаётся в диагностическом чате. Диагностические исходники/комплекты не изменены.
 
 ## Предыдущая инвентаризация до transport catalog
 

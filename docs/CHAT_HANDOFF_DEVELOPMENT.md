@@ -2,7 +2,23 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint трафика — 2026-10-09
+## Текущий checkpoint прикладных проверок — 2026-10-11
+
+Пользователь попросил продолжать. В собственный traffic runtime добавлены шесть native application cases: DNS TCP/UDP, TLS, HTTP/1.1, HTTPS, WebSocket; всего 22 пункта. Галочки/условия/оценка, named suites, очередь, history/comparison и resource scopes подключены. Условия содержат фиксированный leaf fingerprint; обычные OS sockets, подписанный all-flow route и product PID event остаются обязательными для продукта. Порт продуктового правила выбирается для каждого сценария, synthetic TCP preface перед прикладным протоколом отсутствует. Ограниченные controlled profiles и реальные пределы приёмки описаны в [TRAFFIC_LAB.md](TRAFFIC_LAB.md).
+
+Пользователь сменил сервер на `192.168.0.180`, root/22 и добавил публичный ключ уже существующего отдельного wizard-development key. SSH подтверждён: Ubuntu 22.04.5/Python 3.10.12/OpenSSL 3.0.2. Новый host fingerprint `ssh-ed25519 SHA256:yrZJIYMFIRbufx6iYsKLQzMTwBc5B/c0ZLf1RK91PAk` сверён и закреплён в собственной конфигурации. Прежние диагностические ключи/known_hosts, копия и комплекты не изменены. На новом сервере старый 18-plugin endpoint не установлен: его controller остаётся blocked. `WithTrafficContextAsync` принимает fresh READY/PLAN_READY как доказательство SSH/trust/platform, затем новый runtime отдельно проверяет свои файлы/службу/обмен; `_verified` старого endpoint не подменён.
+
+Собственная `proxybridge-testlab-traffic.service` на .180 active/enabled, current version hashes/manifest/PKI/main process/listeners проверены. TCP 42501/42502/42503/42511/42512/42513/42514/42515, UDP 42501/42502/42515. Отдельные CA/leaf создаются в версии runtime, CA private key удаляется после выпуска, системный trust store не меняется. Финальный bundle `0a86b630b75c488611b6e2dddb44a7bd528e984f3a4e0821e18a23cc55434b8c` применён и READY. Старый .248 не настраивался.
+
+Проверены .NET build 0 warnings/errors, Python AST 16 файлов, JS syntax; Ubuntu 16 облегчённых component cases с транспортной регрессией, Windows → installed Ubuntu 12/12 новых direct/explicit SOCKS5 cases (по 20 verified transactions), 12 отрицательных проверок certificate/proof/replay/malformed framing/cancellation. GUI RU/EN показывает 22 пункта, сохраняет/восстанавливает suite с новыми сценариями и индивидуальными параметрами после refresh. TLS close первоначально дал EOF: исправлен authenticated terminal exchange и close_notify, затем повторная приёмка прошла. Компонентные отчёты вне Git/продуктовой истории. Автотесты кода не добавлялись; HIGH/long не выполнялись.
+
+На этом срезе ProxyBridge и драйвер не запускались, `ProxyBridgeDrv` оставалась Stopped; system proxy/BCD/signing/WinDbg не изменялись. Исторические TCP/UDP product FAIL не расследовались и не заменялись component PASS. Перед любым новым продуктовым трафиком проверить свежие gates и отсутствие диагностической нагрузки/точек: последнее сообщение пользователя «WinDbg не запущен» было 2026-10-09.
+
+Текущая проверочная сборка GUI: `http://127.0.0.1:5185`, ignored `artifacts/development-remote-wizard/ui-applications-final/ProxyBridge.TestLab.Ui.dll`; 5184 может занимать предыдущий собственный экземпляр этого среза. Они запущены стандартным launcher, административный API проверен. Старый запрет инструмента на Stop-Process не обходить; скрытый stop endpoint не добавлять. Настройки UAC не менять. Рабочая копия/ветка прежние: `C:\Users\LabAdmin\.codex\worktrees\testlab-development\ProxyBridge-TestLab`, `codex/development-functional-completion`.
+
+Следующие независимые задачи: остальные прикладные семейства (HTTP/2, HTTP/3/QUIC, gRPC, SSH/SFTP, mail/messaging и другие), v4.0.0/reboot/произвольные комплекты, успешная продуктовая приёмка на работоспособной сборке, затем отдельно разрешённые HIGH/long/product cancel-during-load и port-conflict/rollback cases. HTTP CONNECT и другие Ubuntu/IPv6 отложены. Диагностический дефект продукта не входит в работу этого чата.
+
+## Предыдущий checkpoint трафика — 2026-10-09
 
 Добавлен отдельный полный transport catalog из 16 проверок: независимые TCP upload/download, RTT/duplex/multistream/loaded RTT, connection steps/churn, connected/unconnected UDP/sweep/flows, mixed/stability/24–72h. Runtime, очередь, cancel, own cleanup, signed payload/route evidence, CPU/RAM процессов и обеих ОС, именованные наборы, paging истории и сравнение последних попыток по условиям интегрированы в новый GUI RU/EN. Подробные условия, фактическая приёмка и ограничения: [TRAFFIC_LAB.md](TRAFFIC_LAB.md). Общие диагностические контроллеры/копия/комплекты не изменены.
 

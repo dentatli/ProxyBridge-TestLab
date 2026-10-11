@@ -17,7 +17,7 @@ public sealed partial class TrafficRuntimeService
         if (!request.DebuggerInactive) throw new InvalidOperationException("TRAFFIC_DEBUGGER_STATE_REQUIRED");
         var catalog = Catalog();
         var known = catalog.GetProperty("cases").EnumerateArray().Select(row => row.GetProperty("id").GetString()).ToHashSet();
-        if (request.Cases is null || request.Cases.Length is < 1 or > 16 || request.Cases.Any(row => row is null || !known.Contains(row.Id) ||
+        if (request.Cases is null || request.Cases.Length < 1 || request.Cases.Length > known.Count || request.Cases.Any(row => row is null || !known.Contains(row.Id) ||
             row.Duration is not ("SHORT" or "NORMAL" or "LONG") || row.Load is not ("LOW" or "HIGH")) ||
             request.Cases.Select(row => row.Id).Distinct().Count() != request.Cases.Length)
             throw new InvalidOperationException("TRAFFIC_CASE_SELECTION_INVALID");

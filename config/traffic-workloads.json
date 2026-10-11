@@ -22,7 +22,13 @@
     { "id": "udp-connections", "ru": "Потоки UDP и восстановление", "en": "UDP flows and recovery", "recipe": "udp_connections" },
     { "id": "mixed", "ru": "Одновременные TCP и UDP", "en": "Concurrent TCP and UDP", "recipe": "mixed" },
     { "id": "stability", "ru": "Стабильность, нагрузка и восстановление", "en": "Stability, load and recovery", "recipe": "stability" },
-    { "id": "soak", "ru": "Длительный прогон 24/48/72 часа", "en": "24/48/72 hour soak", "recipe": "soak" }
+    { "id": "soak", "ru": "Длительный прогон 24/48/72 часа", "en": "24/48/72 hour soak", "recipe": "soak" },
+    { "id": "app-dns-tcp", "ru": "DNS по TCP: ответы и задержка", "en": "DNS over TCP: answers and latency", "recipe": "application", "application": "dns-tcp", "family": "dns-classic" },
+    { "id": "app-dns-udp", "ru": "DNS по UDP: ответы, потери и задержка", "en": "DNS over UDP: answers, loss and latency", "recipe": "application", "application": "dns-udp", "family": "dns-classic" },
+    { "id": "app-tls", "ru": "TLS: сертификат, ALPN и обмен", "en": "TLS: certificate, ALPN and exchange", "recipe": "application", "application": "tls", "family": "tls" },
+    { "id": "app-http", "ru": "HTTP/1.1: POST, keep-alive и данные", "en": "HTTP/1.1: POST, keep-alive and payload", "recipe": "application", "application": "http", "family": "http1" },
+    { "id": "app-https", "ru": "HTTPS: сертификат, POST и данные", "en": "HTTPS: certificate, POST and payload", "recipe": "application", "application": "https", "family": "http1" },
+    { "id": "app-websocket", "ru": "WebSocket: upgrade, сообщения и закрытие", "en": "WebSocket: upgrade, messages and close", "recipe": "application", "application": "websocket", "family": "websocket" }
   ],
   "scope": "Process CPU/RAM/handles/threads, validated application bytes, observed goodput, signed origin counters and bounded route samples. No claim of driver resource attribution, internal table overflow or absolute capacity."
 }

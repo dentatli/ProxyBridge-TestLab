@@ -27,6 +27,7 @@ class Agent:
         self.runs: collections.OrderedDict[str, dict[str, Any]] = collections.OrderedDict()
         self.tasks: set[asyncio.Task[Any]] = set()
         self.configuration_path: Path | None = None
+        self.applications: Any = None
 
     def identity(self) -> dict[str, Any]:
         if self.configuration_path is None:
@@ -43,7 +44,14 @@ class Agent:
                     raise ValueError("TRAFFIC_IDENTITY_MISMATCH")
             if hashlib.sha256(self.configuration_path.read_bytes()).hexdigest() != manifest["config_sha256"]:
                 raise ValueError("TRAFFIC_CONFIG_MISMATCH")
-            return {"verified": True, "bundle_sha256": manifest["bundle_sha256"], "scope": "current-runtime-files-and-private-configuration"}
+            if self.applications and self.applications.ports:
+                for name in ("ca.pem", "server.pem", "server.key"):
+                    path = root / "pki" / name
+                    if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != manifest.get("pki_hashes", {}).get(name):
+                        raise ValueError("APPLICATION_PKI_IDENTITY_CHANGED")
+            return {"verified": True, "bundle_sha256": manifest["bundle_sha256"],
+                    "application": self.applications.tls_identity() if self.applications else {},
+                    "scope": "current-runtime-files-private-configuration-and-application-PKI"}
         except (OSError, ValueError, KeyError, TypeError):
             return {"verified": False, "scope": "current-runtime-files-and-private-configuration"}
 
@@ -284,6 +292,12 @@ async def serve(config: dict[str, Any]) -> None:
     control = await asyncio.start_server(lambda reader, writer: agent.tcp(reader, writer, True), bind, control_port, limit=MAX_LINE + 1)
     from trafficlab.proxy import SocksProxy, ProxyDatagram
     proxy = SocksProxy(agent, port, config.get("origin_addresses", ["127.0.0.1"]))
+    agent.proxy = proxy
+    from trafficlab.application_origin import ApplicationOrigins
+    agent.applications = ApplicationOrigins(agent, config)
+    proxy.application_ports = set(agent.applications.ports.values())
+    proxy.application_dns_port = agent.applications.ports.get("dns-udp")
+    await agent.applications.start(bind)
     proxy.port = config.get("proxy_port", 42502)
     proxy_server = await asyncio.start_server(proxy.tcp, bind, proxy.port, limit=MAX_LINE + 1)
     await loop.create_datagram_endpoint(lambda: ProxyDatagram(proxy), local_addr=(bind, proxy.port))
@@ -304,6 +318,7 @@ async def serve(config: dict[str, Any]) -> None:
         await control.wait_closed()
         await proxy_server.wait_closed()
         await proxy.close()
+        await agent.applications.close()
         transport.close()
         for task in list(agent.tasks):
             task.cancel()

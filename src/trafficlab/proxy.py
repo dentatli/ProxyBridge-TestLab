@@ -26,6 +26,24 @@ class SocksProxy:
         self.udp_transport: asyncio.DatagramTransport | None = None
         self.port = 0
         self.udp_seen: dict[str, set[str]] = {}
+        self.application_ports: set[int] = set()
+        self.application_dns_port: int | None = None
+        self.application_connections: dict[tuple[str, int], dict[str, Any]] = {}
+
+    def observe_application(self, run_id: str, flow_id: str, peer: list[Any]) -> None:
+        connection = self.application_connections.get(tuple(peer))
+        if connection is None:
+            return
+        username = connection["username"]
+        if connection.get("counters") is not None or not (run_id == username or run_id.startswith(username + ".")):
+            raise ValueError("SOCKS_APPLICATION_IDENTITY_INVALID")
+        counters = self.counters(run_id)
+        connection["counters"] = counters
+        counters["tcp_flows"] += 1
+        counters["tcp_active"] += 1
+        counters["tcp_origin_fingerprint"] = f"{int(counters['tcp_origin_fingerprint'], 16) ^ fingerprint(flow_id, peer):064x}"
+        if len(counters["samples"]) < 256:
+            counters["samples"].append({"flow_id": flow_id, "origin_peer": peer})
 
     def counters(self, run_id: str) -> dict[str, Any]:
         row = self.agent.metrics(run_id)
@@ -53,6 +71,8 @@ class SocksProxy:
         counters = None
         association = None
         children = []
+        application_connection = None
+        application_peer = None
         try:
             if len(self.pending) > self.agent.max_connections:
                 raise ValueError("SOCKS_CONNECTION_LIMIT")
@@ -98,14 +118,30 @@ class SocksProxy:
                 await writer.drain()
                 await asyncio.wait_for(reader.read(1), 72 * 3600 + 60)
                 return
-            if destination[0] not in self.addresses or destination[1] != self.origin_port:
+            if destination[0] not in self.addresses or destination[1] not in {self.origin_port, *self.application_ports}:
                 writer.write(b"\x05\x02\x00\x01\x00\x00\x00\x00\x00\x00")
                 await writer.drain()
                 raise ValueError("SOCKS_DESTINATION_DENIED")
-            upstream_reader, upstream = await asyncio.wait_for(asyncio.open_connection("127.0.0.1", self.origin_port), 10)
+            upstream_reader, upstream = await asyncio.wait_for(asyncio.open_connection("127.0.0.1", destination[1]), 10)
             local = upstream.get_extra_info("sockname")
             writer.write(b"\x05\x00\x00" + self.wire_address(str(local[0]), local[1]))
             await writer.drain()
+            if destination[1] in self.application_ports:
+                # Native bytes, including ClientHello, are relayed without a synthetic TCP preface.
+                application_peer = tuple(local[:2])
+                application_connection = {"username": username, "counters": None}
+                self.application_connections[application_peer] = application_connection
+                async def relay(source: asyncio.StreamReader, sink: asyncio.StreamWriter) -> None:
+                    while data := await source.read(65536):
+                        sink.write(data)
+                        await sink.drain()
+                    if sink.can_write_eof():
+                        sink.write_eof()
+                children = [asyncio.create_task(relay(reader, upstream)), asyncio.create_task(relay(upstream_reader, writer))]
+                await asyncio.wait_for(asyncio.gather(*children), 155)
+                if application_connection["counters"] is not None:
+                    application_connection["counters"]["tcp_finished"] += 1
+                return
             line = await asyncio.wait_for(reader.readline(), 10)
             request = json.loads(line)
             run_id, flow_id = request.get("run_id", ""), request.get("flow_id", "")
@@ -138,6 +174,9 @@ class SocksProxy:
             for child in children:
                 child.cancel()
             await asyncio.gather(*children, return_exceptions=True)
+            if application_connection is not None:
+                self.application_connections.pop(application_peer, None)
+                counters = application_connection["counters"]
             if counters is not None:
                 counters["tcp_active"] -= 1
             if association is not None:
@@ -164,14 +203,19 @@ class SocksProxy:
                 return
             host = str(ipaddress.ip_address(packet[4:4 + size]))
             port = struct.unpack("!H", packet[4 + size:6 + size])[0]
-            if host not in self.addresses or port != self.origin_port:
+            if host not in self.addresses or port not in (self.origin_port, self.application_dns_port):
                 return
             association = self.associations.get(association_key)
             if association is None or client[0] != association["client_ip"] or association["client"] not in (None, client) or association["client_port"] not in (0, client[1]):
                 return
             association["client"] = client
             data = packet[6 + size:]
-            header = json.loads(data.split(b"\n", 1)[0])
+            if port == self.application_dns_port:
+                from trafficlab.application_wire import dns_decode, validate
+                header, _question = dns_decode(data, self.agent.runs)
+                validate(self.agent.secret, header, "dns")
+            else:
+                header = json.loads(data.split(b"\n", 1)[0])
             run_id = header["run_id"]
             username = association["username"]
             if not ID.fullmatch(run_id) or not (run_id == username or run_id.startswith(username + ".")):
@@ -193,7 +237,7 @@ class SocksProxy:
                 counters["udp_origin_fingerprint"] = f"{int(counters['udp_origin_fingerprint'], 16) ^ fingerprint(flow_id, list(peer[:2])):064x}"
             counters["udp_sent"] += 1
             association["run_id"] = run_id
-            association["transport"].sendto(data, ("127.0.0.1", self.origin_port))
+            association["transport"].sendto(data, ("127.0.0.1", port))
         except (ValueError, KeyError, TypeError, IndexError, OSError, struct.error):
             return
 
@@ -222,12 +266,16 @@ class RelayDatagram(asyncio.DatagramProtocol):
 
     def datagram_received(self, packet: bytes, sender: tuple[str, int]) -> None:
         association = self.proxy.associations.get(self.key)
-        if sender != ("127.0.0.1", self.proxy.origin_port) or association is None or association["client"] is None:
+        if sender[0] != "127.0.0.1" or sender[1] not in (self.proxy.origin_port, self.proxy.application_dns_port) or association is None or association["client"] is None:
             return
         try:
-            run_id = json.loads(packet.split(b"\n", 1)[0])["run_id"]
+            if sender[1] == self.proxy.application_dns_port:
+                # The query established this authenticated association's session binding.
+                run_id = association["run_id"]
+            else:
+                run_id = json.loads(packet.split(b"\n", 1)[0])["run_id"]
             self.proxy.counters(run_id)["udp_received"] += 1
-            response = b"\x00\x00\x00" + self.proxy.wire_address(next(iter(sorted(self.proxy.addresses))), self.proxy.origin_port) + packet
+            response = b"\x00\x00\x00" + self.proxy.wire_address(next(iter(sorted(self.proxy.addresses))), sender[1]) + packet
             association["ingress"].sendto(response, association["client"])
         except (ValueError, KeyError, TypeError, OSError):
             pass

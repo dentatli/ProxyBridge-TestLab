@@ -47,6 +47,12 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
             "tcp_offered": sum(flow.get("offered", 1) for row in values if row["task"] != "udp" for flow in row["flows"]),
             "tcp_completed": sum(row["successful_tcp_flows"] for row in values),
             "tcp_failed": sum(flow.get("failures", int(not flow["complete"])) for row in values if row["task"] != "udp" for flow in row["flows"]),
+            "application": next((row["application"] for row in values if row.get("application")), None),
+            "application_transactions": sum(flow.get("verified_transactions", 0) for row in values for flow in row["flows"]),
+            "application_tls_sessions": [{key: flow.get(key) for key in ("tls_version", "cipher", "certificate_sha256",
+                "certificate_verified", "server_name", "alpn", "close_verified")} for row in values for flow in row["flows"] if flow.get("tls_version")],
+            "application_socket_errors": [{"errno": flow.get("socket_errno"), "winerror": flow.get("socket_winerror")}
+                for row in values for flow in row["flows"] if "socket_errno" in flow],
             "errors": sorted(set(error for row in values for flow in row["flows"] for error in flow.get("errors", [])))})
     resources = {role: {key:value for key,value in row.items() if key != "timeline"} for role,row in report.get("resources", {}).items()}
     elapsed = sum(row["elapsed_seconds"] for row in rows)
@@ -57,6 +63,7 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
         "probe_latency": {key: value for key, value in all_latency.view().items() if key not in ("bins", "sum_ms")},
         "udp_latency": {key: value for key, value in all_udp_latency.view().items() if key not in ("bins", "sum_ms")},
         "udp_loss_fraction": (sent - sum(row["udp_received"] for row in rows)) / sent if sent else None,
+        "application_transactions": sum(row["application_transactions"] for row in rows) if any(row["application"] for row in rows) else None,
         "tcp_completed": sum(row["tcp_completed"] for row in rows), "tcp_offered": sum(row["tcp_offered"] for row in rows)}
     return {"stages": rows, "resources": resources, "skipped_stage_count": report.get("skipped_stage_count", 0),
             "schedule_errors": report.get("errors", []), "metric_scope": "identified-processes-separate-whole-OS-and-validated-payload",
