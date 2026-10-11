@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint поиска / групп каталога — 2026-10-11
+## Текущий checkpoint SSH failures — 2026-10-11
+
+Добавлен opt-in acceptance helper `tests/fixtures/traffic-ssh/TrafficSshProbe.csproj`; использует реальный internal `ExecuteTrafficPythonAsync` через reflection, отдельное scratch AppStoragePaths/trust, фиксированный read-only Python JSON control. В общий offline suite не включён. Аргументы: HOST PORT PRIVATE_KEY KNOWN_HOSTS SCRATCH_PARENT; приватный ключ не копируется/не печатается/не коммитится. Scratch имеет уникальный префикс/защищённые directories и удаляется с проверкой absolute parent.
+
+На .180: correct trust control PASS; wrong trusted Ed25519 key (использован публичный клиентский ключ в disposable known_hosts) → TRAFFIC_SSH_OPERATION_FAILED; missing trust → TRAFFIC_SSH_TRUST_REQUIRED; closed loopback endpoint → TRAFFIC_SSH_OPERATION_FAILED; silent loopback TCP peer + cancellation → OperationCanceledException; final correct trust control PASS, исходные key/trust hashes unchanged. Шесть checks, build 0 warnings/errors. Administrative SSH keys/config/server не менялись; это не физическое отключение сети VM и не обрыв активного installer/traffic run. Нет заявления о приёмке всего старого wizard. Служба ProxyBridge/product/diagnostic kits не затрагивались. UI поиск запушен `b258c08`; текущую ревизию смотреть Git.
+
+Далее: прикладные расширения/другие семейства; успешная продуктовая работа и длительные нагрузки остаются неподтверждёнными.
+
+## Предыдущий checkpoint поиска / групп каталога — 2026-10-11
 
 38 traffic cases организованы в семь групп; добавлены поиск по RU/EN названию/ID/protocol и фильтр группы. Режим «Выбранные тесты» показывает фактический catalog order очереди. Фильтры не меняют selection/duration/load, общий estimate и queue; показаны visible/total/selected/hidden-selected counts и empty state. Клавиатурный focus карточки сохраняется при её обновлении. Поиск/группа — временный вид страницы, selection/условия продолжают храниться прежним draft/presets.
 
