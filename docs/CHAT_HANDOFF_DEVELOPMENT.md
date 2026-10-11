@@ -2,7 +2,17 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint global idle / pre-TLS — 2026-10-11
+## Текущий checkpoint установки / отката — 2026-10-11
+
+Установщик traffic runtime больше не прерывает прежнюю службу при ошибках подготовки source/dependencies/PKI. Активация использует уникальные временные symlinks и атомарную запись unit. Перед заменой активного runtime проверяются его исходники, process/listeners и manifest; при откате восстанавливаются exact unit/current, прежние active/enabled, frozen manifest (включая PKI/dependency hashes), проверяется состояние службы. Неподтверждённый откат возвращает отдельный `TRAFFIC_ROLLBACK_VERIFICATION_FAILED`. Failed versions сохраняются; чужие listeners не останавливаются. Nonblocking flock предотвращает конкурирующие apply из разных UI экземпляров. Обрыв SSH/kill установщика во время активации этим набором ещё не доказан.
+
+Восемь Linux unit fault-injection tests PASS (Windows пропускает только эти filesystem checks). На выделенной .180 фактически: ошибка PKI сохранила прежний PID; новая конфигурация с отсутствующим локальным bind address не прошла post-apply, verified rollback восстановил bundle `8513544`; собственные временные foreign TCP 42501 / UDP 42520 listeners дали `TRAFFIC_PORT_CONFLICT`, прежний runtime восстановлен. Служба только TestLab кратко перезапускалась; admin SSH/другие службы/diagnostic kits не менялись.
+
+Штатные API plan/apply на GUI 5192 установили READY bundle `5a6188e824172bca51e5638a84a75d9b88dc6c68ac3490647ed6ef892dfcbd8f`, applied=true, rollback_attempted=false. После применения четыре AMQP/AMQPS direct/explicit SOCKS5 component cases по 12 transactions и пять signed TCP/pre-TLS/QUIC busy→idle checks PASS. Предыдущие 44 application regression относятся к bundle `8513544`; прикладной код не менялся. GUI RU/EN показывает 38 cases, выбор POP3S/AMQPS сохранён, console errors=[]; ignored screenshot `artifacts/development-remote-wizard/catalog-38-final.png`. C# не менялся, новая build не требуется. Product не запускался, driver Stopped, execution inactive. Предыдущий checkpoint запушен `93ee18eb`; текущую ревизию смотреть Git.
+
+Далее: удобство большого каталога, расширенные controlled profiles/другие protocol families; administrative host-key/network-loss, v4/reboot/bundles и успешная продуктовая приёмка остаются. HTTP CONNECT, другие Ubuntu и IPv6 отложены.
+
+## Предыдущий checkpoint global idle / pre-TLS — 2026-10-11
 
 Фактическая component проверка выявила недосчёт: подключённый TCP к SMTPS до ClientHello дал signed runtime_connections=0, поскольку asyncio ещё не вызвал application callback. Исправлено `socket_idle.py`: owned FDs сверяются с bounded `/proc/self/net/tcp{,6}` на origin/control/application TCP ports, текущий metrics socket исключён, LISTEN/CLOSE не считаются живым transport, buffered logical callbacks и QUIC protocols дополнительно сохраняют busy. Proxy pending sessions проверяются отдельно. Missing/malformed proc evidence возвращает null (unknown), recovery gate требует именно integer=0 и блокирует unknown/bool/busy. Административный SSH и unrelated sockets не включаются.
 

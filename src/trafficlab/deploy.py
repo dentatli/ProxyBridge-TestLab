@@ -6,11 +6,11 @@ import hashlib
 import ipaddress
 import json
 import os
-import pwd
 import re
 import shutil
 import subprocess
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +21,56 @@ PORTS = {42501, 42502, 42503, 42511, 42512, 42513, 42514, 42515, 42516, 42517, 4
          42522, 42523, 42524, 42525, 42526, 42527, 42528, 42529, 42530, 42531}
 UDP_PORTS = {42501, 42502, 42515, 42520, 42521}
 PKI_NAMES = ('ca.pem', 'server.pem', 'server.key', 'ssh_host.key')
+
+
+class RollbackFailure(ValueError):
+    """Recovery did not prove restoration; never report the original install error alone."""
+
+
+def replace_link(target: str | Path, destination: Path) -> None:
+    temporary = destination.parent / ('link-' + uuid.uuid4().hex)
+    try:
+        temporary.symlink_to(target)
+        temporary.replace(destination)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def replace_unit(content: bytes) -> None:
+    descriptor, name = tempfile.mkstemp(prefix='.testlab-unit-', dir=UNIT.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(descriptor, 'wb') as stream:
+            stream.write(content)
+        temporary.chmod(0o644)
+        temporary.replace(UNIT)
+    finally:
+        temporary.unlink(missing_ok=True)
+
+
+def restored(old_link: str | None, old_unit: bytes | None, active: bool, enabled: bool,
+             old_payload: dict[str, Any] | None) -> bool:
+    current = ROOT / 'current'
+    if old_link is None:
+        if current.exists() or current.is_symlink():
+            return False
+    elif not current.is_symlink() or os.readlink(current) != old_link:
+        return False
+    if (UNIT.read_bytes() if UNIT.exists() else None) != old_unit:
+        return False
+    if (command('systemctl', 'is-active', SERVICE, required=False) == 'active') != active:
+        return False
+    if (command('systemctl', 'is-enabled', SERVICE, required=False) == 'enabled') != enabled:
+        return False
+    # A previously active service must recover its exact sources, PKI, process and listeners.
+    if not active:
+        return True
+    if old_payload is None:
+        return False
+    if digest((current / 'runtime-manifest.json').read_bytes()) != old_payload['manifest_sha256']:
+        return False
+    observed = state(old_payload)
+    return all(observed[key] is True for key in ('hashes_match', 'service_active', 'listeners'))
 
 
 def provision_pki(stage: Path) -> dict[str, str]:
@@ -131,6 +181,7 @@ def apply(payload: dict[str, Any]) -> dict[str, Any]:
         # Existing networking policy is not silently widened by a new runtime installer.
         raise ValueError("TRAFFIC_FIREWALL_REVIEW_REQUIRED")
     try:
+        import pwd
         account = pwd.getpwnam("proxybridge-testlab")
     except KeyError:
         command("useradd", "--system", "--home", "/nonexistent", "--shell", "/usr/sbin/nologin", "proxybridge-testlab")
@@ -149,6 +200,17 @@ def apply(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("TRAFFIC_CURRENT_PATH_NOT_OWN_LINK")
     if old_unit is not None and b"# ProxyBridge-TestLab owned traffic runtime" not in old_unit:
         raise ValueError("TRAFFIC_SERVICE_NOT_OWNED")
+    old_payload = None
+    if own_active:
+        if old_link is None or old_unit is None:
+            raise ValueError('TRAFFIC_PREVIOUS_RUNTIME_UNVERIFIED')
+        manifest_bytes = (ROOT / 'current' / 'runtime-manifest.json').read_bytes()
+        manifest = json.loads(manifest_bytes)
+        old_payload = {key: manifest[key] for key in ('hashes', 'config_sha256', 'bundle_sha256')}
+        old_payload['manifest_sha256'] = digest(manifest_bytes)
+        previous = state(old_payload)
+        if not all(previous[key] is True for key in ('hashes_match', 'service_active', 'listeners')):
+            raise ValueError('TRAFFIC_PREVIOUS_RUNTIME_UNVERIFIED')
     unit = f"""# ProxyBridge-TestLab owned traffic runtime
 [Unit]
 Description=ProxyBridge TestLab authenticated traffic origin and proxy
@@ -173,6 +235,7 @@ IPAddressAllow={source_ip}
 WantedBy=multi-user.target
 """.encode()
     stage = Path(tempfile.mkdtemp(prefix="stage-", dir=ROOT))
+    activation_started = False
     try:
         for name, encoded in payload["sources"].items():
             target = stage / name
@@ -198,9 +261,9 @@ WantedBy=multi-user.target
             version = ROOT / "versions" / (payload["bundle_sha256"] + "-" + stage.name)
             unit = unit.replace(str(ROOT / "versions" / payload["bundle_sha256"]).encode(), str(version).encode())
         stage.rename(version)
-        (ROOT / "next").symlink_to(version)
-        (ROOT / "next").replace(ROOT / "current")
-        UNIT.write_bytes(unit)
+        activation_started = True
+        replace_link(version, ROOT / 'current')
+        replace_unit(unit)
         command("systemctl", "daemon-reload")
         command("systemctl", "enable", SERVICE)
         command("systemctl", "restart", SERVICE)
@@ -212,22 +275,33 @@ WantedBy=multi-user.target
             time.sleep(0.1)
         raise ValueError("TRAFFIC_POST_APPLY_VERIFICATION_FAILED")
     except Exception:
-        command("systemctl", "stop", SERVICE, required=False)
-        if old_unit is None:
-            UNIT.unlink(missing_ok=True)
-            command("systemctl", "disable", SERVICE, required=False)
-        else:
-            UNIT.write_bytes(old_unit)
-            if not old_enabled:
-                command("systemctl", "disable", SERVICE, required=False)
-        if old_link is not None:
-            (ROOT / "rollback").symlink_to(old_link)
-            (ROOT / "rollback").replace(ROOT / "current")
-        else:
-            (ROOT / "current").unlink(missing_ok=True)
-        command("systemctl", "daemon-reload", required=False)
-        if own_active:
-            command("systemctl", "start", SERVICE, required=False)
+        if not activation_started:
+            # Source/dependency/PKI preparation cannot interrupt the existing runtime.
+            raise
+        try:
+            command("systemctl", "stop", SERVICE)
+            if old_unit is None:
+                command("systemctl", "disable", SERVICE)
+                UNIT.unlink(missing_ok=True)
+            else:
+                replace_unit(old_unit)
+                command("systemctl", "enable" if old_enabled else "disable", SERVICE)
+            if old_link is not None:
+                replace_link(old_link, ROOT / 'current')
+            else:
+                (ROOT / "current").unlink(missing_ok=True)
+            command("systemctl", "daemon-reload")
+            if own_active:
+                command("systemctl", "start", SERVICE)
+            import time
+            for _ in range(30):
+                if restored(old_link, old_unit, own_active, old_enabled, old_payload):
+                    break
+                time.sleep(0.1)
+            else:
+                raise RollbackFailure('TRAFFIC_ROLLBACK_VERIFICATION_FAILED')
+        except Exception as recovery_error:
+            raise RollbackFailure('TRAFFIC_ROLLBACK_VERIFICATION_FAILED') from recovery_error
         raise
     finally:
         if stage.exists() and stage.parent == ROOT and stage.name.startswith("stage-"):
@@ -236,7 +310,20 @@ WantedBy=multi-user.target
 
 def invoke(payload: dict[str, Any]) -> dict[str, Any]:
     try:
-        return apply(payload) if payload["action"] == "apply" else state(payload)
+        if payload['action'] != 'apply':
+            return state(payload)
+        platform()
+        ROOT.mkdir(mode=0o755, exist_ok=True)
+        import fcntl
+        descriptor = os.open(ROOT / 'operation.lock', os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+        try:
+            try:
+                fcntl.flock(descriptor, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                raise ValueError('TRAFFIC_OPERATION_ACTIVE') from None
+            return apply(payload)
+        finally:
+            os.close(descriptor)
     except (OSError, ValueError, KeyError, subprocess.TimeoutExpired):
         # Exceptions may include private configuration or filesystem paths; return only known codes.
         import sys
