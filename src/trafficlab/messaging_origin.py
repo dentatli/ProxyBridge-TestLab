@@ -3,11 +3,12 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import hashlib
 import re
-from trafficlab.application_wire import response
+from trafficlab.application_wire import response, request
 from trafficlab.protocol import MAX_LINE, json_bytes
 from trafficlab.messaging_wire import (authenticate, mail_decode, mqtt_length, mqtt_packet, mqtt_publish,
-    mqtt_string, mqtt_take, REQUEST_TOPIC, RESPONSE_TOPIC)
+    mqtt_string, mqtt_take, REQUEST_TOPIC, RESPONSE_TOPIC, POP_PAYLOAD, pop_fixture)
 
 
 async def line(reader, limit=1024):
@@ -189,5 +190,51 @@ async def mqtt(origins, reader, writer, kind, session, peer):
 
 
 async def serve(origins, reader, writer, kind, session, peer):
-    handler = smtp if kind in ('smtp','smtps') else imap if kind in ('imap','imaps') else mqtt
+    handler = smtp if kind in ('smtp','smtps') else imap if kind in ('imap','imaps') else pop if kind in ('pop3','pop3s') else mqtt
     await handler(origins,reader,writer,kind,session,peer)
+
+
+async def pop(origins, reader, writer, kind, session, peer):
+    await send(writer,b'+OK TestLab POP3\r\n')
+    username, user, deleted, sequence = None, None, False, 0
+    fixture = pop_fixture()
+    while True:
+        raw = await line(reader,512)
+        verb, separator, argument = raw.partition(b' ')
+        command = verb.upper() + separator + argument
+        if command.startswith(b'USER ') and user is None:
+            username = command[5:]
+            await send(writer,b'+OK Password required\r\n')
+        elif command.startswith(b'PASS ') and username is not None and user is None:
+            user = authenticate(origins.agent.secret,b'\0'+username+b'\0'+command[5:])
+            await send(writer,b'+OK Maildrop ready\r\n')
+        elif command == b'CAPA':
+            await send(writer,b'+OK Capabilities\r\nUSER\r\nUIDL\r\n.\r\n')
+        elif command == b'STAT' and user:
+            await send(writer,b'+OK '+(b'0 0' if deleted else b'1 '+str(len(fixture)).encode())+b'\r\n')
+        elif command in (b'LIST',b'UIDL') and user:
+            value = b'' if deleted else b'1 '+(str(len(fixture)).encode() if command==b'LIST' else hashlib.sha256(fixture).hexdigest().encode())+b'\r\n'
+            await send(writer,b'+OK Listing\r\n'+value+b'.\r\n')
+        elif command in (b'LIST 1',b'UIDL 1') and user and not deleted:
+            await send(writer,b'+OK 1 '+(str(len(fixture)).encode() if command==b'LIST 1' else hashlib.sha256(fixture).hexdigest().encode())+b'\r\n')
+        elif command == b'RETR 1' and user and not deleted:
+            value = request(origins.agent.secret,kind,*user,sequence,hashlib.sha256(POP_PAYLOAD).hexdigest())
+            message = {'identity':value,'payload':base64.b64encode(POP_PAYLOAD).decode()}
+            identity, row, _ = origins.authenticate(message,kind,peer,session)
+            row['tx_bytes'] += len(POP_PAYLOAD)
+            receipt = response(origins.agent.secret,identity,peer)
+            await send(writer,b'+OK '+base64.b64encode(json_bytes(receipt))+b'\r\n'+fixture+b'.\r\n')
+            sequence += 1
+        elif command == b'DELE 1' and user and not deleted:
+            deleted = True
+            await send(writer,b'+OK Marked deleted\r\n')
+        elif command == b'RSET' and user:
+            deleted = False
+            await send(writer,b'+OK Reset\r\n')
+        elif command == b'NOOP' and user:
+            await send(writer,b'+OK\r\n')
+        elif command == b'QUIT':
+            await send(writer,b'+OK Closing\r\n')
+            return
+        else:
+            await send(writer,b'-ERR Unsupported command or message\r\n')

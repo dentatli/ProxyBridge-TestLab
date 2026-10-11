@@ -4,7 +4,9 @@
 
 ## Каталог и условия
 
-Все 34 пункта имеют отдельные галочки и SHORT/NORMAL/LONG, LOW/HIGH; доступны сохраняемые именованные наборы. Оценка показывается для каждого теста и всей очереди. Обычные этапы: 6/30/120 секунд нагрузки плюс подготовка, соединение и завершение. Это оценка, а не жёсткий срок всего задания.
+Все 36 пунктов имеют отдельные галочки и SHORT/NORMAL/LONG, LOW/HIGH; доступны сохраняемые именованные наборы. Оценка показывается для каждого теста и всей очереди. Обычные этапы: 6/30/120 секунд нагрузки плюс подготовка, соединение и завершение. Это оценка, а не жёсткий срок всего задания.
+
+POP3/POP3S (TCP 42528/42529): memory-only mailbox с одним неизменным RFC/MIME письмом и фиксированным logical payload 512 bytes. USER/PASS HMAC credentials связывают run/flow; RETR 1 имеет подписанную квитанцию в status line с новым transaction sequence/hash/peer, а содержимое письма полностью сверяется. Считается download goodput, TX logical payload=0. STAT/LIST/UIDL/DELE/RSET/NOOP/QUIT; DELE запрещает чтение до RSET. Команды повторного RETR допустимы и читают то же письмо, не имитируют загрузку новых писем; файловая система не используется. APOP/STLS/TOP, persistence и внешние mailboxes не реализованы. POP3S проверяет CA/name/leaf/ALPN и close_notify. Проверки: 4 direct/explicit SOCKS5 cases по 12, stdlib POP3 native interop и DELE→denied→RSET, 4 negative auth/pin/cancel; signed idle 0/0, 22 unit tests, build 0 errors/warnings. Component PASS не является ProxyBridge PASS. Формат команд: [RFC 1939](https://www.rfc-editor.org/rfc/rfc1939.html).
 
 SMTP/SMTPS, IMAP/IMAPS и MQTT/MQTTS — шесть независимых controlled profiles на TCP 42522–42527. Per-flow HMAC credentials, ordinary OS sockets и signed all-flow route/PID events обязательны. 4/16 connections LOW/HIGH, 512 bytes logical payload, 100/1000 предложенных transactions/sec/flow, одна транзакция одновременно на connection. TLS варианты проверяют CA/имя/leaf/ALPN и close_notify; cleartext варианты тоже проверяют signed proof. Сервер ограничивает connection до 150 секунд и command read до 5 секунд, message/literal/packet до 8 KiB; память не накапливает сообщения.
 

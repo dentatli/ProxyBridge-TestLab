@@ -11,7 +11,7 @@ import time
 from trafficlab.application_wire import APPLICATION_PORTS, SERVER_NAME, request, verify_response
 from trafficlab.protocol import MAX_LINE, Histogram, json_bytes
 from trafficlab.messaging_wire import (auth_plain, mail_encode, mqtt_length, mqtt_packet, mqtt_publish,
-    mqtt_string, REQUEST_TOPIC, RESPONSE_TOPIC)
+    mqtt_string, REQUEST_TOPIC, RESPONSE_TOPIC, POP_PAYLOAD, pop_fixture)
 
 
 def exact(stream, size):
@@ -160,6 +160,46 @@ class MqttClient:
             raise ValueError('APPLICATION_MQTT_CLOSE_INVALID')
 
 
+class PopClient:
+    def __init__(self,sock,stream,auth):
+        self.sock,self.stream=sock,stream
+        self.reply()
+        _,username,password=auth.split(b'\0')
+        self.command(b'USER '+username)
+        self.command(b'PASS '+password)
+        if self.command(b'STAT')!=b'1 '+str(len(pop_fixture())).encode():
+            raise ValueError('APPLICATION_POP_MAILDROP_INVALID')
+
+    def reply(self):
+        value=line(self.stream,512)
+        if value[:3]!=b'+OK' or value[3:4] not in (b'',b' '):
+            raise ValueError('APPLICATION_POP_STATUS_INVALID')
+        return value[4:]
+
+    def command(self,command):
+        self.sock.sendall(command+b'\r\n')
+        return self.reply()
+
+    def exchange(self,message):
+        receipt=self.command(b'RETR 1')
+        raw=bytearray()
+        while True:
+            part=line(self.stream,512)
+            if part==b'.':
+                break
+            if part.startswith(b'..'):
+                part=part[1:]
+            raw.extend(part+b'\r\n')
+            if len(raw)>MAX_LINE:
+                raise ValueError('APPLICATION_POP_MAIL_TOO_LARGE')
+        if raw!=pop_fixture():
+            raise ValueError('APPLICATION_POP_MAIL_CHANGED')
+        return json.loads(base64.b64decode(receipt,validate=True))
+
+    def close(self):
+        self.command(b'QUIT')
+
+
 def messaging_flow(job,flow_id):
     from trafficlab.worker import cancelled
     kind,secret=job['application'],bytes.fromhex(job['secret'])
@@ -178,7 +218,7 @@ def messaging_flow(job,flow_id):
             negotiate(sock,target)
         else:
             sock.connect((job['host'],target['port']))
-        secure=kind in ('smtps','imaps','mqtts')
+        secure=kind in ('smtps','imaps','mqtts','pop3s')
         if secure:
             identity=job['application_identity']
             context=ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
@@ -193,13 +233,15 @@ def messaging_flow(job,flow_id):
             result.update(tls_version=sock.version(),cipher=sock.cipher()[0],certificate_sha256=observed,
                 certificate_verified=True,server_name=SERVER_NAME,alpn=expected)
         stream=sock.makefile('rb')
-        client_type=SmtpClient if kind in ('smtp','smtps') else ImapClient if kind in ('imap','imaps') else MqttClient
+        client_type=SmtpClient if kind in ('smtp','smtps') else ImapClient if kind in ('imap','imaps') else PopClient if kind in ('pop3','pop3s') else MqttClient
         client=client_type(sock,stream,auth_plain(secret,job['run_id'],flow_id))
-        result['messaging_protocol']='SMTP' if client_type is SmtpClient else 'IMAP4rev1' if client_type is ImapClient else 'MQTT 3.1.1 QoS1'
+        result['messaging_protocol']='SMTP' if client_type is SmtpClient else 'IMAP4rev1' if client_type is ImapClient else 'POP3' if client_type is PopClient else 'MQTT 3.1.1 QoS1'
         connection_latency.add((time.perf_counter()-started)*1000)
         deadline,next_send,sequence=time.perf_counter()+job['seconds'],time.perf_counter(),0
         while time.perf_counter()<deadline and not cancelled(job):
-            payload=bytes((i+sequence)%256 for i in range(job.get('message_bytes',512)))
+            if client_type is PopClient and job.get('message_bytes',512)!=len(POP_PAYLOAD):
+                raise ValueError('APPLICATION_POP_FIXTURE_SIZE_REQUIRED')
+            payload=POP_PAYLOAD if client_type is PopClient else bytes((i+sequence)%256 for i in range(job.get('message_bytes',512)))
             value=request(secret,kind,job['run_id'],flow_id,sequence,hashlib.sha256(payload).hexdigest())
             message=json_bytes({'identity':value,'payload':base64.b64encode(payload).decode()})
             stamp=time.perf_counter()
@@ -211,7 +253,7 @@ def messaging_flow(job,flow_id):
                 raise ValueError('APPLICATION_ORIGIN_PEER_CHANGED')
             result['peer_observed_by_origin']=peer
             result['verified_transactions']+=1
-            result['tx_bytes']+=len(payload)
+            result['tx_bytes']+=0 if client_type is PopClient else len(payload)
             result['rx_bytes']+=0 if client_type is SmtpClient else len(payload)
             histogram.add((time.perf_counter()-stamp)*1000)
             sequence+=1

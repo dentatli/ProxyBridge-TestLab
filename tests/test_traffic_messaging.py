@@ -3,7 +3,7 @@ import io
 import unittest
 from trafficlab.messaging_wire import (authenticate,auth_plain,mail_decode,mail_encode,mqtt_length,
     mqtt_packet,mqtt_publish,mqtt_string,mqtt_take,REQUEST_TOPIC)
-from trafficlab.messaging_client import MqttClient
+from trafficlab.messaging_client import MqttClient,PopClient
 from trafficlab.protocol import MAX_LINE
 
 
@@ -44,6 +44,14 @@ class MessagingSafetyTests(unittest.TestCase):
             client=MqttClient.__new__(MqttClient)
             client.sock,client.stream,client.sequence=Capture(),io.BytesIO(raw),1
             with self.assertRaises((ValueError,EOFError)):
+                client.exchange(b'{}')
+
+    def test_pop_rejects_changed_or_truncated_mail(self):
+        for raw in (b'+OK e30=\r\nchanged\r\n.\r\n',b'+OK e30=\r\ntruncated\r\n',
+                    b'+OK e30=\r\n'+(b'a'*510+b'\r\n')*17+b'.\r\n'):
+            client=PopClient.__new__(PopClient)
+            client.sock,client.stream=Capture(),io.BytesIO(raw)
+            with self.assertRaises(ValueError):
                 client.exchange(b'{}')
 
 

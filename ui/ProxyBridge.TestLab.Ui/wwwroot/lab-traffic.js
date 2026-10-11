@@ -162,4 +162,3 @@ lab("traffic-filter").addEventListener("change",renderTrafficHistory);
 const renderLabBeforeTraffic=renderLab;
 renderLab=function(){renderLabBeforeTraffic();renderTraffic();};
 loadTraffic();setInterval(()=>{if(!trafficActionActive)loadTraffic();},3000);
-

@@ -10,6 +10,7 @@ MAIL_HEADER = (b'From: testlab@traffic.testlab.invalid\r\nTo: echo@traffic.testl
     b'Subject: TestLab\r\nMIME-Version: 1.0\r\nContent-Type: application/json\r\nContent-Transfer-Encoding: base64\r\n\r\n')
 REQUEST_TOPIC = b'testlab/echo'
 RESPONSE_TOPIC = b'testlab/echo/result'
+POP_PAYLOAD = bytes(range(256)) * 2
 
 
 def user_name(run_id, flow_id):
@@ -48,6 +49,10 @@ def mail_decode(message):
     if any(len(line)>76 for line in lines):
         raise ValueError('APPLICATION_MAIL_LINE_TOO_LARGE')
     return json.loads(base64.b64decode(b''.join(lines),validate=True))
+
+
+def pop_fixture():
+    return mail_encode(json_bytes({'payload':base64.b64encode(POP_PAYLOAD).decode()}))
 
 
 def mqtt_string(data):

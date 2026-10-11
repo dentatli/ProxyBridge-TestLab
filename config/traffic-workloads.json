@@ -40,7 +40,9 @@
     { "id": "app-imap", "ru": "IMAP: APPEND, FETCH и целостность", "en": "IMAP: APPEND, FETCH and integrity", "recipe": "application", "application": "imap", "family": "mail" },
     { "id": "app-imaps", "ru": "IMAPS: TLS, APPEND и FETCH", "en": "IMAPS: TLS, APPEND and FETCH", "recipe": "application", "application": "imaps", "family": "mail" },
     { "id": "app-mqtt", "ru": "MQTT: подписка, QoS 1 и данные", "en": "MQTT: subscription, QoS 1 and payload", "recipe": "application", "application": "mqtt", "family": "mqtt" },
-    { "id": "app-mqtts", "ru": "MQTTS: TLS, QoS 1 и данные", "en": "MQTTS: TLS, QoS 1 and payload", "recipe": "application", "application": "mqtts", "family": "mqtt" }
+    { "id": "app-mqtts", "ru": "MQTTS: TLS, QoS 1 и данные", "en": "MQTTS: TLS, QoS 1 and payload", "recipe": "application", "application": "mqtts", "family": "mqtt" },
+    { "id": "app-pop3", "ru": "POP3: чтение письма и целостность", "en": "POP3: mail retrieval and integrity", "recipe": "application", "application": "pop3", "family": "mail" },
+    { "id": "app-pop3s", "ru": "POP3S: TLS и чтение письма", "en": "POP3S: TLS and mail retrieval", "recipe": "application", "application": "pop3s", "family": "mail" }
   ],
   "scope": "Process CPU/RAM/handles/threads, validated application bytes, observed goodput, signed origin counters and bounded route samples. No claim of driver resource attribution, internal table overflow or absolute capacity."
 }

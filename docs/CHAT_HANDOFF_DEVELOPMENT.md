@@ -2,7 +2,13 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint SMTP / IMAP / MQTT — 2026-10-11
+## Текущий checkpoint POP3 / POP3S — 2026-10-11
+
+Добавлены POP3/POP3S, всего 36 сценариев, TCP 42528/42529. HMAC USER/PASS привязывает connection к run/flow; постоянное письмо в memory mailbox (512 bytes logical payload) читается RETR 1, подписанный status receipt связывает каждое чтение с последовательностью, hash и origin peer. STAT/LIST/UIDL/DELE/RSET/NOOP/QUIT, удалённая запись не читается до RSET. Только download goodput (TX logical payload=0), mailbox не меняется между RETR; disk/persistence/APOP/STLS/external mail не заявлены. POP3S — CA/name/pin/ALPN/close_notify.
+
+Runtime .180 `ff25c90f0984549c4c48e65487cb0c839cba0377ec2b10e05c2cd761347f60ec` READY, 20 TCP/5 UDP ports. Четыре новых direct/explicit SOCKS5 component cases по 12 транзакций, stdlib POP3 interop со STAT/LIST/UIDL/RETR и DELE→denied→RSET, wrong-auth обоих вариантов, wrong TLS pin и cancel-after-exchange; signed idle 0/0. Regression шести SMTP/IMAP/MQTT direct/explicit вариантов (12 cases), три SDK interop прошли. 22 unit tests, .NET 0 errors/warnings. Own GUI 5191, ignored `artifacts/development-remote-wizard/ui-pop/ProxyBridge.TestLab.Ui.dll`. Product не запускался, driver Stopped. Предыдущие этапы запушены `033cd34` и `b9a948c`; текущий commit смотреть Git. Далее AMQP и другие семейства/расширенные профили/infrastructure acceptance; диагностический TCP дефект не входит в работу.
+
+## Предыдущий checkpoint SMTP / IMAP / MQTT — 2026-10-11
 
 Добавлены SMTP/SMTPS, IMAP/IMAPS и MQTT/MQTTS: всего 34 сценария. Ordinary TCP sockets, закреплённый TLS leaf/CA/имя и ALPN для защищённых вариантов, per-run/flow AUTH PLAIN или MQTT credentials на HMAC. SMTP принимает только фиксированного TestLab recipient, DATA/MIME base64, выдаёт подписанную квитанцию (RX payload goodput=0, это приём, не echo/внешняя доставка). IMAP — virtual INBOX с одной записью на connection, APPEND/FETCH exact RFC message bytes/подписанная квитанция/STORE Deleted/EXPUNGE. MQTT 3.1.1 — clean session, точные request/result topics, QoS1/PUBACK в обе стороны, финальный PINGRESP и DISCONNECT. Ни OS/filesystem, ни внешние mail/broker destinations не используются. Пределы и непокрытые расширения в TRAFFIC_LAB.md.
 
