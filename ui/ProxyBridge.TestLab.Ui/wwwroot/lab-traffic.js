@@ -15,6 +15,8 @@ Object.assign(labText.en, {
 });
 labText.ru.remoteTestGate='Для сетевых измерений используйте каталог ниже. Перед каждым тестом контроллер проверяет обмен и маршрут; неподтверждённый маршрут сохраняется как ошибка.';
 labText.en.remoteTestGate='Use the traffic catalog below. The controller validates exchange and route before each case; an unverified route is saved as a failure.';
+Object.assign(labText.ru,{trafficContinue:"Продолжать после ошибки при подтверждённом восстановлении",trafficContinueHelp:"После ошибки теста контроллер проверяет штатное закрытие CLI, выключенный драйвер, подписанную идентичность и отсутствие соединений получателя. Отмена, смена файлов, потеря связи или непроверенная очистка останавливают очередь. Неудачные тесты сохраняют FAIL.",trafficQueuePolicy:"Продолжение после ошибки",trafficRecovery:"Проверка восстановления",trafficRecoveryOk:"Продолжение разрешено",trafficRecoveryBlocked:"Продолжение заблокировано"});
+Object.assign(labText.en,{trafficContinue:"Continue after a failed case when recovery is verified",trafficContinueHelp:"After a case fails, the controller verifies graceful CLI shutdown, the driver being off, signed origin identity and no remaining connections. Cancellation, changed files, disconnection or unverified cleanup stop the queue. Failed cases retain FAIL.",trafficQueuePolicy:"Continue after failure",trafficRecovery:"Recovery check",trafficRecoveryOk:"Continuation allowed",trafficRecoveryBlocked:"Continuation blocked"});
 let trafficCatalog=null, trafficState=null, trafficHistory=[], trafficActionActive=false, trafficError="", trafficChoice={};
 let trafficCardsKey="", trafficHistoryKey="", trafficLoading=false;
 let trafficComparison=[],trafficComparisonKey="",trafficNextSkip=0,trafficHasMore=false,trafficCompareChoice={builds:{},metrics:{}};
@@ -29,7 +31,8 @@ trafficCompareChoice.builds=trafficCompareChoice.builds&&typeof trafficCompareCh
 trafficCompareChoice.metrics=trafficCompareChoice.metrics&&typeof trafficCompareChoice.metrics==='object'?trafficCompareChoice.metrics:{};
 const trafficCases=()=> (trafficCatalog?.cases||[]).filter(row=>trafficChoice[row.id]?.selected).map(row=>({id:row.id,duration:trafficChoice[row.id].duration,load:trafficChoice[row.id].load}));
 const trafficCaseEstimate=row=>row.id==="soak"?({SHORT:24,NORMAL:48,LONG:72}[row.duration]*3600+300):({SHORT:6,NORMAL:30,LONG:120}[row.duration]*({"tcp-multistream":3,"loaded-rtt":3,"flow-rate":3,"mixed":3,"three-modes":3,"tcp-connections":5,"udp-connections":5,"udp-sweep":6,"stability":10}[row.id]||1)+20);
-const trafficEstimate=()=>trafficCases().reduce((sum,row)=>sum+trafficCaseEstimate(row),0);
+const trafficSafeContinue=()=>trafficState?.runtime?.supports_safe_continuation===true&&lab("traffic-continue-after-failure").checked;
+const trafficEstimate=()=>trafficCases().reduce((sum,row)=>sum+trafficCaseEstimate(row),0)+(trafficSafeContinue()?Math.max(0,trafficCases().length-1)*20:0);
 const trafficName=id=>trafficCatalog?.cases.find(row=>row.id===id)?.[labLanguage]||id;
 function renderTraffic(){
   const remote=lab("lab-mode").value==="remote", active=!!trafficState?.execution?.active;
@@ -42,6 +45,8 @@ function renderTraffic(){
   lab("traffic-apply").disabled=busy||!trafficState?.runtime?.plan;
   lab("traffic-start").disabled=busy||!trafficState?.runtime?.administrator||!labState.observation?.build_id||!trafficCases().length||!lab("traffic-debugger-inactive").checked||trafficEstimate()>300&&!lab("traffic-long-run").checked;
   lab("traffic-stop").disabled=!active||trafficActionActive;
+  lab("traffic-recovery-option").hidden=trafficState?.runtime?.supports_safe_continuation!==true;
+  lab("traffic-continue-after-failure").disabled=busy||trafficState?.runtime?.supports_safe_continuation!==true;
   const plan=trafficState?.runtime?.plan;
   lab("traffic-runtime-status").textContent=`${t("trafficReady")}: ${trafficState?.runtime?.state||"VALIDATION_REQUIRED"}`;
   lab("traffic-runtime-plan").hidden=!plan;
@@ -70,7 +75,7 @@ function renderTrafficHistory(){
   lab("traffic-history").innerHTML=trafficHistory.filter(attempt=>selected==="all"||(attempt.cases||[]).some(row=>`${row.Id||row.id}|${row.Duration||row.duration}|${row.Load||row.load}`===selected)).map(attempt=>{
     const name=labState.builds.find(build=>build.id===attempt.build_id)?.display_name||attempt.build_id;
     const rows=(attempt.results||[]).filter(row=>selected==="all"||`${row.case_id}|${row.duration}|${row.load}`===selected);
-    return `<article class="lab-test-card"><h4>${html(name||"")} · ${html(attempt.state)} · ${html(attempt.id)}</h4><p>${html(attempt.error||"")}</p>${rows.map(row=>`<details><summary>${html(trafficName(row.case_id))} · ${html(row.duration)} / ${html(row.load)} · ${row.complete?"PASS":row.skipped?"SKIPPED":row.cancelled?"CANCELLED":"FAIL"}</summary><p>${t("trafficCleanup")}: ${row.cleanup_verified?"PASS":"UNVERIFIED"} · ${html((row.errors||[]).join(" · "))}</p>${(row.measurements||[]).map(measurement=>{
+    return `<article class="lab-test-card"><h4>${html(name||"")} · ${html(attempt.state)} · ${html(attempt.id)}</h4><p>${html(attempt.error||"")}</p>${attempt.continue_after_failure?`<p>${t("trafficQueuePolicy")}: ${t("trafficContinue")}</p>${(attempt.recovery_checks||[]).map(check=>`<p>${t("trafficRecovery")} · ${html(trafficName(check.case_id))}: ${check.safe_to_continue?t("trafficRecoveryOk"):t("trafficRecoveryBlocked")} · ${html(check.reason)}</p>`).join("")}`:""}${rows.map(row=>`<details><summary>${html(trafficName(row.case_id))} · ${html(row.duration)} / ${html(row.load)} · ${row.complete?"PASS":row.skipped?"SKIPPED":row.cancelled?"CANCELLED":"FAIL"}</summary><p>${t("trafficCleanup")}: ${row.cleanup_verified?"PASS":"UNVERIFIED"} · ${html((row.errors||[]).join(" · "))}</p>${(row.measurements||[]).map(measurement=>{
       const cpu=measurement.resources?.product_cli?.counters?.cpu_percent_of_pc?.mean,ram=measurement.resources?.product_cli?.counters?.private_bytes?.max;
       return `<h5>${html(measurement.mode)} · ${measurement.route_verified?t("trafficRouteOk"):t("trafficRouteBad")}</h5><p>${t("trafficSkippedStages")}: ${measurement.skipped_stage_count||0} · ${html((measurement.schedule_errors||[]).join(" · "))}</p><p>${t("trafficCpu")}: ${number(cpu)} · ${t("trafficRam")}: ${number(typeof ram==="number"?ram/1048576:null)}</p><p>${t("trafficSystemCpu")}: ${number(measurement.resources?.windows_system?.counters?.cpu_percent_of_pc?.mean)} · ${t("trafficOriginCpu")}: ${number(measurement.resources?.origin_system?.counters?.cpu_percent_of_pc?.mean)}</p><div class="lab-table-scroll"><table><thead><tr>${["trafficPhase","trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficConnections","trafficPeak","trafficErrors"].map(key=>`<th>${t(key)}</th>`).join("")}</tr></thead><tbody>${measurement.stages.map(stage=>`<tr><td>${html(stage.phase)} · ${stage.complete?"PASS":"FAIL"}</td><td>${number(stage.tcp_tx_bytes_per_second/1048576)}</td><td>${number(stage.tcp_rx_bytes_per_second/1048576)}</td><td>${number(stage.probe_p99_ms)}</td><td>${number(stage.udp_latency?.p99_ms)}</td><td>${number(typeof stage.udp_loss_fraction==="number"?stage.udp_loss_fraction*100:null)}</td><td>${stage.tcp_completed}/${stage.tcp_offered}</td><td>${number(stage.tcp_active_peak)}</td><td>${html((stage.errors||[]).join(" · "))}</td></tr>`).join("")}</tbody></table></div>${measurement.stages.filter(stage=>stage.application).map(stage=>`<details><summary>${t("trafficApplicationEvidence")} · ${html(stage.application)}</summary><p>${t("trafficTransactions")}: ${stage.application_transactions||0}</p><pre>${html(JSON.stringify({tls:stage.application_tls_sessions||[],socket_errors:stage.application_socket_errors||[]},null,2))}</pre></details>`).join("")}`;
     }).join("")||`<p>${t("trafficEmpty")}</p>`}</details>`).join("")}</article>`;
@@ -140,7 +145,7 @@ async function trafficAction(action){
   if(trafficActionActive)return;
   trafficActionActive=true;trafficError="";renderTraffic();
   try{
-    const body=action==="apply"?{planId:trafficState.runtime.plan.planId}:action==="start"?{buildId:labState.observation.build_id,cases:trafficCases(),debuggerInactive:lab("traffic-debugger-inactive").checked,allowLongRun:lab("traffic-long-run").checked}:{};
+    const body=action==="apply"?{planId:trafficState.runtime.plan.planId}:action==="start"?{buildId:labState.observation.build_id,cases:trafficCases(),debuggerInactive:lab("traffic-debugger-inactive").checked,allowLongRun:lab("traffic-long-run").checked,continueAfterFailure:trafficSafeContinue()}:{};
     const response=await fetch(`/api/v1/lab/traffic/${action}`,{method:"POST",headers:{"Content-Type":"application/json","X-TestLab-CSRF":labState.csrf},body:JSON.stringify(body)});
     const data=await response.json();if(!response.ok)throw new Error(data.error||"TRAFFIC_REQUEST_FAILED");
   }catch(error){trafficError=error.message;}finally{trafficActionActive=false;await loadTraffic();}
@@ -151,6 +156,7 @@ lab("traffic-cases").addEventListener("change",event=>{
   localStorage.setItem("testlab-traffic-choice",JSON.stringify(trafficChoice));renderTraffic();
 });
 for(const action of ["plan","apply","start","stop"])lab(`traffic-${action}`).addEventListener("click",()=>trafficAction(action));
+lab("traffic-continue-after-failure").addEventListener("change",renderTraffic);
 for(const id of ["traffic-debugger-inactive","traffic-long-run","lab-mode"])lab(id).addEventListener("change",renderTraffic);
 lab("traffic-filter").addEventListener("change",renderTrafficHistory);
 const renderLabBeforeTraffic=renderLab;

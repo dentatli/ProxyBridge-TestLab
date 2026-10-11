@@ -114,6 +114,8 @@ class Agent:
                 result["system_resources"] = system_sample()
                 result["cpu_count"] = os.cpu_count() or 1
                 result["identity"] = self.identity()
+                result["runtime_connections"] = self.active - 1  # Exclude this authenticated metrics connection.
+                result["proxy_connections"] = len(self.proxy.pending) if hasattr(self, "proxy") else 0
                 result["proof"] = mac(self.secret, b"result:", challenge.encode() + raw + json_bytes(result))
                 writer.write(json_bytes(result) + b"\n")
                 await writer.drain()

@@ -21,7 +21,7 @@ public sealed partial class TrafficRuntimeService
             row.Duration is not ("SHORT" or "NORMAL" or "LONG") || row.Load is not ("LOW" or "HIGH")) ||
             request.Cases.Select(row => row.Id).Distinct().Count() != request.Cases.Length)
             throw new InvalidOperationException("TRAFFIC_CASE_SELECTION_INVALID");
-        if (Estimate(request.Cases) > 300 && !request.AllowLongRun) throw new InvalidOperationException("TRAFFIC_LONG_RUN_CONFIRMATION_REQUIRED");
+        if (Estimate(request.Cases, request.ContinueAfterFailure) > 300 && !request.AllowLongRun) throw new InvalidOperationException("TRAFFIC_LONG_RUN_CONFIRMATION_REQUIRED");
         if (!await _gate.WaitAsync(0, Token)) throw new InvalidOperationException("TRAFFIC_OPERATION_ACTIVE");
         try
         {
@@ -32,7 +32,8 @@ public sealed partial class TrafficRuntimeService
             var directory = Path.Combine(Root, id);
             AppStoragePaths.EnsureSecureDirectory(directory);
             var attempt = new { id, state = "PREPARING", started_at_utc = DateTimeOffset.UtcNow, build_id = request.BuildId,
-                cases = request.Cases, estimate_seconds = Estimate(request.Cases), complete = false, cleanup_verified = false };
+                cases = request.Cases, estimate_seconds = Estimate(request.Cases, request.ContinueAfterFailure),
+                continue_after_failure = request.ContinueAfterFailure, complete = false, cleanup_verified = false };
             await WriteAsync(Path.Combine(directory, "attempt.json"), attempt);
             lock (_stateGate) { _run = attempt; _activeDirectory = directory; _checked = null; }
             _execution = Task.Run(async () =>
@@ -206,12 +207,14 @@ public sealed partial class TrafficRuntimeService
                     remote_bundle_sha256 = payload.Bundle, root = app.RepositoryRoot, cli, driver, driver_sha256 = hashes[driver],
                     console_host = Path.Combine(app.RepositoryRoot, "bin", "pb_console_host.exe"), python, source_hashes = hashes,
                     cancellation_path = Path.Combine(directory, "cancel.requested"), debugger_inactive = request.DebuggerInactive,
+                    continue_after_failure = request.ContinueAfterFailure,
                     cases = request.Cases.Select(row => new { case_id = row.Id, duration = row.Duration, load = row.Load }).ToArray() };
                 var bindingPath = Path.Combine(directory, "binding-private.json");
                 await WriteAsync(bindingPath, binding);
                 await WriteAsync(Path.Combine(directory, "attempt.json"), new { id, state = "RUNNING", build_id = build.Id,
                     build_sha256 = build.BundleSha256, started_at_utc = DateTimeOffset.UtcNow, cases = request.Cases,
-                    complete = false, cleanup_verified = false, remote_bundle_sha256 = payload.Bundle });
+                    complete = false, cleanup_verified = false, remote_bundle_sha256 = payload.Bundle,
+                    continue_after_failure = request.ContinueAfterFailure });
                 using (var running = JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(directory, "attempt.json"))))
                     lock (_stateGate) _run = running.RootElement.Clone();
                 var start = new ProcessStartInfo("powershell.exe") { UseShellExecute = false, CreateNoWindow = true,
@@ -243,7 +246,8 @@ public sealed partial class TrafficRuntimeService
         if (final is null)
         {
             await WriteAsync(Path.Combine(directory, "attempt.json"), new { id, state = "FAILED", build_id = request.BuildId,
-                cases = request.Cases, complete = false, cleanup_verified = false, error, completed_at_utc = DateTimeOffset.UtcNow });
+                cases = request.Cases, continue_after_failure = request.ContinueAfterFailure,
+                complete = false, cleanup_verified = false, error, completed_at_utc = DateTimeOffset.UtcNow });
             using var document = JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(directory, "attempt.json")));
             final = document.RootElement.Clone();
         }
@@ -274,7 +278,8 @@ public sealed partial class TrafficRuntimeService
         await File.WriteAllBytesAsync(temporary, JsonSerializer.SerializeToUtf8Bytes(value, Pretty));
         File.Move(temporary, path, true);
     }
-    private static double Estimate(IEnumerable<TrafficCaseRequest> cases) => cases.Sum(row => row.Id == "soak"
+    private static double Estimate(IReadOnlyCollection<TrafficCaseRequest> cases, bool continueAfterFailure = false) =>
+        (continueAfterFailure ? Math.Max(0, cases.Count - 1) * 20 : 0) + cases.Sum(row => row.Id == "soak"
         ? (row.Duration == "SHORT" ? 24 : row.Duration == "NORMAL" ? 48 : 72) * 3600d + 300
         : (row.Duration == "SHORT" ? 6 : row.Duration == "NORMAL" ? 30 : 120) * (row.Id switch
             { "tcp-multistream" or "loaded-rtt" or "flow-rate" or "mixed" or "three-modes" => 3, "tcp-connections" or "udp-connections" => 5,

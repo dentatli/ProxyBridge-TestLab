@@ -6,7 +6,7 @@ namespace ProxyBridge.TestLab.Ui.Services;
 
 public sealed record TrafficRuntimeApplyRequest(string PlanId);
 public sealed record TrafficCaseRequest(string Id, string Duration, string Load);
-public sealed record TrafficRunRequest(string BuildId, TrafficCaseRequest[] Cases, bool DebuggerInactive, bool AllowLongRun = false);
+public sealed record TrafficRunRequest(string BuildId, TrafficCaseRequest[] Cases, bool DebuggerInactive, bool AllowLongRun = false, bool ContinueAfterFailure = false);
 public sealed record TrafficRuntimePlan(string PlanId, string BundleSha256, string[] Files, int[] TcpPorts, int[] UdpPorts,
     string UbuntuVersion, DateTimeOffset ExpiresUtc, string State);
 
@@ -34,7 +34,7 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
     {
         lock (_stateGate) return new { state = _checked is null || DateTimeOffset.UtcNow - _checked > TimeSpan.FromMinutes(2) ? "VALIDATION_REQUIRED" : _state,
             error = _error, plan = _plan, checkedAtUtc = _checked, run = _run, busy = _gate.CurrentCount == 0,
-            administrator = Administrator() };
+            administrator = Administrator(), supports_safe_continuation = true };
     }
 
     private static bool Administrator()
