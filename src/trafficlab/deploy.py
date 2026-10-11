@@ -18,7 +18,7 @@ ROOT = Path("/opt/proxybridge-testlab-traffic")
 UNIT = Path("/etc/systemd/system/proxybridge-testlab-traffic.service")
 SERVICE = "proxybridge-testlab-traffic.service"
 PORTS = {42501, 42502, 42503, 42511, 42512, 42513, 42514, 42515, 42516, 42517, 42518, 42519}
-UDP_PORTS = {42501, 42502, 42515}
+UDP_PORTS = {42501, 42502, 42515, 42520, 42521}
 PKI_NAMES = ('ca.pem', 'server.pem', 'server.key', 'ssh_host.key')
 
 
@@ -121,7 +121,7 @@ def apply(payload: dict[str, Any]) -> dict[str, Any]:
     own_active = command("systemctl", "is-active", SERVICE, required=False) == "active"
     occupied = command("ss", "-H", "-lntup")
     for line in occupied.splitlines():
-        if any(re.search(r":" + str(port) + r"(?:\s|$)", line) for port in PORTS):
+        if any(re.search(r":" + str(port) + r"(?:\s|$)", line) for port in PORTS | UDP_PORTS):
             # Do not assume any listener on a reserved port belongs to this service.
             pid_match = re.search(r"pid=(\d+)", line)
             if not own_active or pid_match is None or SERVICE not in Path(f"/proc/{pid_match[1]}/cgroup").read_text():

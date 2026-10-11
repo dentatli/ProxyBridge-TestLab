@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint SSH/SFTP, HTTP/2 и gRPC — 2026-10-11
+## Текущий checkpoint QUIC / HTTP/3 — 2026-10-11
+
+Добавлены `app-quic` и `app-http3`, всего 28 сценариев. Native ordinary UDP sockets, QUIC v1/TLS 1.3, отдельный ALPN, проверка цепочки/имени/закреплённого leaf, HTTP/3 POST/QPACK; один запрос на bidirectional stream, ограниченные payload/headers/одновременные streams. Порты UDP 42520/42521. SOCKS5 relay передаёт непрозрачные QUIC datagrams, привязывает run/flow только после проверки decrypted proof на origin и сверяет каждый поток и число фактически отправленных datagrams. Logical request loss не смешан с transport retransmission. Idle counters учитывают QUIC до завершения close timer. Migration/0-RTT/внешние сайты не заявлены.
+
+aioquic 1.3.0 выбран для Python 3.10 на проверенной Ubuntu 22.04; 1.4.0 требует 3.11. pylsqpack 0.3.23 и supporting libraries добавлены только в отдельный traffic wheelhouse/lock; exact PyPI SHA/size и offline extraction verified, лицензии сохранены. Старые protocol wheels/lock не менялись. Runtime bundle `ac8dcf4734b5056df918505c83723d854a62565d29a39a615720ebf7d15e3bb9` READY, 12 TCP/5 UDP listeners. Собственный GUI 5189, ignored `artifacts/development-remote-wizard/ui-quic/ProxyBridge.TestLab.Ui.dll`.
+
+Проверки: .NET 0 warnings/errors; 17 unit tests; 4 QUIC/H3 component cases direct/explicit SOCKS5 по 12 транзакций, затем по 20 в regression; 20 прежних application cases по 20, 5 прежних negative и 8 новых negative (wrong pin/missing CA/proof/cancel after exchange). Все component checks прошли; signed global idle 0/0 подтверждён. API RU/EN содержит новые cases. ProxyBridge и драйвер не запускались; прежние продуктовые FAIL сохранены. Diagnostic checkout/kits не изменены. Следующие задачи: mail/messaging, расширенные профили и infrastructure acceptance; успешные продуктовые measurements всё ещё требуют работоспособного продукта.
+
+## Предыдущий checkpoint SSH/SFTP, HTTP/2 и gRPC — 2026-10-11
 
 По запросу пользователя добавлены четыре native cases: SSH, SFTP, HTTP/2, gRPC; всего 26 пунктов. Individual presets/named suites/history/comparison/ресурсы подключены. SSH pin после OFF входит в условия и recovery; normal OS sockets, signed all-flow reconciliation и product PID event остаются обязательными. SSH/SFTP endpoints не дают OS shell/PTY/forwarding/произвольный filesystem; HTTP/2/gRPC используют TLS/ALPN h2, unary protobuf и обязательный grpc-status trailer. Условия и пределы — [TRAFFIC_LAB.md](TRAFFIC_LAB.md), контракт — [traffic-echo.proto](../config/traffic-echo.proto).
 

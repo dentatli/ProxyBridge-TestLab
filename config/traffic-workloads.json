@@ -32,7 +32,9 @@
     { "id": "app-ssh", "ru": "SSH: ключ сервера, exec-канал и данные", "en": "SSH: host key, exec channel and payload", "recipe": "application", "application": "ssh", "family": "ssh" },
     { "id": "app-sftp", "ru": "SFTP: запись, чтение и целостность", "en": "SFTP: write, read and integrity", "recipe": "application", "application": "sftp", "family": "sftp" },
     { "id": "app-http2", "ru": "HTTP/2: TLS, потоки запросов и данные", "en": "HTTP/2: TLS, request streams and payload", "recipe": "application", "application": "http2", "family": "http2" },
-    { "id": "app-grpc", "ru": "gRPC: unary RPC, protobuf и trailers", "en": "gRPC: unary RPC, protobuf and trailers", "recipe": "application", "application": "grpc", "family": "grpc" }
+    { "id": "app-grpc", "ru": "gRPC: unary RPC, protobuf и trailers", "en": "gRPC: unary RPC, protobuf and trailers", "recipe": "application", "application": "grpc", "family": "grpc" },
+    { "id": "app-quic", "ru": "QUIC: TLS 1.3, потоки и целостность", "en": "QUIC: TLS 1.3, streams and integrity", "recipe": "application", "application": "quic", "family": "quic-http3" },
+    { "id": "app-http3", "ru": "HTTP/3: QUIC, POST и данные", "en": "HTTP/3: QUIC, POST and payload", "recipe": "application", "application": "http3", "family": "quic-http3" }
   ],
   "scope": "Process CPU/RAM/handles/threads, validated application bytes, observed goodput, signed origin counters and bounded route samples. No claim of driver resource attribution, internal table overflow or absolute capacity."
 }

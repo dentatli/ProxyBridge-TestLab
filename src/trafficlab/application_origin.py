@@ -20,6 +20,7 @@ class ApplicationOrigins:
         if self.ports and (set(self.ports) != set(APPLICATION_PORTS) or any(type(port) is not int or not 1 <= port <= 65535 for port in self.ports.values())):
             raise ValueError("APPLICATION_PORTS_INVALID")
         self.servers: list[Any] = []
+        self.quic = None
         self.certificate = config.get("tls_certificate_file")
         self.key = config.get("tls_key_file")
         self.ca = config.get("tls_ca_file")
@@ -197,6 +198,12 @@ class ApplicationOrigins:
 
     async def start(self, bind: str) -> None:
         for kind, port in self.ports.items():
+            if kind in ('quic', 'http3'):
+                if self.quic is None:
+                    from trafficlab.quic_origin import QuicOrigin
+                    self.quic = QuicOrigin(self)
+                self.servers.append(await self.quic.start(bind, port, kind))
+                continue
             if kind in ('ssh', 'sftp'):
                 if self.ssh is None:
                     from trafficlab.ssh_origin import SshOrigin
@@ -216,6 +223,8 @@ class ApplicationOrigins:
             self.servers.append(await asyncio.start_server(lambda reader, writer, kind=kind: self.connection(reader, writer, kind), bind, port, ssl=context, limit=MAX_LINE + 1))
 
     async def close(self) -> None:
+        if self.quic is not None:
+            self.quic.close()
         if self.ssh is not None:
             await self.ssh.close()
         for server in self.servers:

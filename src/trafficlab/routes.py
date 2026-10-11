@@ -16,6 +16,6 @@ def stage_route(stage: dict[str, Any], proxied: bool) -> bool:
         udp_fingerprint ^= int(result["udp_origin_fingerprint"], 16)
         if result["task"] == "udp":
             udp_flows += sum(flow.get("received", 0) > 0 for flow in result["flows"])
-            packets += sum(flow.get("sent", 0) for flow in result["flows"])
+            packets += sum(flow.get("quic_datagrams_sent", flow.get("sent", 0)) for flow in result["flows"])
     return (proxy.get("tcp_flows", 0) == tcp_flows and int(proxy.get("tcp_origin_fingerprint", "0"), 16) == tcp_fingerprint and
             proxy.get("udp_flows", 0) == udp_flows and int(proxy.get("udp_origin_fingerprint", "0"), 16) == udp_fingerprint and proxy.get("udp_sent", 0) == packets)

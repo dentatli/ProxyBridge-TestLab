@@ -11,6 +11,7 @@ WebTransport protocol stack used by Milestone 13.
 
 The traffic runtime uses a separate `traffic-dependencies.lock.json` and
 `traffic-wheelhouse/{win-x64,linux-x64}` for AsyncSSH, hyper-h2 and their locked
-dependencies. It does not expand or replace the original protocol wheel set.
+dependencies, plus aioquic 1.3.0/pylsqpack 0.3.23 and their supporting libraries
+for the Python 3.10-compatible QUIC/HTTP3 origins. It does not expand or replace the original protocol wheel set.
 Both runtimes verify exact wheel hashes before offline extraction. Package
 licenses are recorded in the lock and retained in wheel metadata.

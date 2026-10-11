@@ -28,6 +28,7 @@ class SocksProxy:
         self.udp_seen: dict[str, set[str]] = {}
         self.application_ports: set[int] = set()
         self.application_dns_port: int | None = None
+        self.quic_ports: set[int] = set()
         self.application_connections: dict[tuple[str, int], dict[str, Any]] = {}
 
     def observe_application(self, run_id: str, flow_id: str, peer: list[Any]) -> None:
@@ -50,6 +51,22 @@ class SocksProxy:
         return row.setdefault("proxy", {"tcp_flows": 0, "tcp_finished": 0, "tcp_active": 0, "tcp_errors": 0,
             "tcp_origin_fingerprint": "0" * 64, "udp_sent": 0, "udp_received": 0, "udp_flows": 0,
             "udp_origin_fingerprint": "0" * 64, "samples": []})
+
+    def observe_quic(self, run_id: str, flow_id: str, peer: list[Any]) -> None:
+        # The origin authenticates decrypted application bytes before binding opaque UDP to a run.
+        for association in self.associations.values():
+            if list(association['transport'].get_extra_info('sockname')[:2]) != peer:
+                continue
+            username = association['username']
+            if association.get('quic_identity') is not None or not (run_id == username or run_id.startswith(username + '.')):
+                raise ValueError('SOCKS_QUIC_IDENTITY_INVALID')
+            counters = self.counters(run_id)
+            association.update(quic_identity=(run_id, flow_id), run_id=run_id)
+            counters['udp_flows'] += 1
+            counters['udp_sent'] += association.get('quic_sent', 0)
+            counters['udp_received'] += association.get('quic_received', 0)
+            counters['udp_origin_fingerprint'] = f"{int(counters['udp_origin_fingerprint'],16) ^ fingerprint(flow_id,peer):064x}"
+            return
 
     async def address(self, reader: asyncio.StreamReader) -> tuple[str, int]:
         kind = (await reader.readexactly(1))[0]
@@ -203,13 +220,24 @@ class SocksProxy:
                 return
             host = str(ipaddress.ip_address(packet[4:4 + size]))
             port = struct.unpack("!H", packet[4 + size:6 + size])[0]
-            if host not in self.addresses or port not in (self.origin_port, self.application_dns_port):
+            if host not in self.addresses or port not in {self.origin_port, self.application_dns_port, *self.quic_ports}:
                 return
             association = self.associations.get(association_key)
             if association is None or client[0] != association["client_ip"] or association["client"] not in (None, client) or association["client_port"] not in (0, client[1]):
                 return
             association["client"] = client
             data = packet[6 + size:]
+            if port in self.quic_ports:
+                if association.get('quic_port', port) != port or association.get('run_id') and not association.get('quic_identity'):
+                    return
+                association['quic_port'] = port
+                association['quic_sent'] = association.get('quic_sent', 0) + 1
+                if association.get('quic_identity'):
+                    self.counters(association['run_id'])['udp_sent'] += 1
+                association['transport'].sendto(data, ('127.0.0.1', port))
+                return
+            if association.get('quic_port'):
+                return
             if port == self.application_dns_port:
                 from trafficlab.application_wire import dns_decode, validate
                 header, _question = dns_decode(data, self.agent.runs)
@@ -266,9 +294,18 @@ class RelayDatagram(asyncio.DatagramProtocol):
 
     def datagram_received(self, packet: bytes, sender: tuple[str, int]) -> None:
         association = self.proxy.associations.get(self.key)
-        if sender[0] != "127.0.0.1" or sender[1] not in (self.proxy.origin_port, self.proxy.application_dns_port) or association is None or association["client"] is None:
+        if sender[0] != "127.0.0.1" or sender[1] not in {self.proxy.origin_port, self.proxy.application_dns_port, *self.proxy.quic_ports} or association is None or association["client"] is None:
             return
         try:
+            if sender[1] in self.proxy.quic_ports:
+                if association.get('quic_port') != sender[1]:
+                    return
+                association['quic_received'] = association.get('quic_received', 0) + 1
+                if association.get('quic_identity'):
+                    self.proxy.counters(association['run_id'])['udp_received'] += 1
+                response = b'\0\0\0' + self.proxy.wire_address(next(iter(sorted(self.proxy.addresses - {'127.0.0.1'} or self.proxy.addresses))), sender[1]) + packet
+                association['ingress'].sendto(response, association['client'])
+                return
             if sender[1] == self.proxy.application_dns_port:
                 # The query established this authenticated association's session binding.
                 run_id = association["run_id"]

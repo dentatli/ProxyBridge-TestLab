@@ -4,7 +4,11 @@
 
 ## Каталог и условия
 
-Все 26 пунктов имеют отдельные галочки и SHORT/NORMAL/LONG, LOW/HIGH; доступны сохраняемые именованные наборы. Оценка показывается для каждого теста и всей очереди. Обычные этапы: 6/30/120 секунд нагрузки плюс подготовка, соединение и завершение. Это оценка, а не жёсткий срок всего задания.
+Все 28 пунктов имеют отдельные галочки и SHORT/NORMAL/LONG, LOW/HIGH; доступны сохраняемые именованные наборы. Оценка показывается для каждого теста и всей очереди. Обычные этапы: 6/30/120 секунд нагрузки плюс подготовка, соединение и завершение. Это оценка, а не жёсткий срок всего задания.
+
+QUIC и HTTP/3 — два пункта по UDP 42520/42521, QUIC v1, TLS 1.3 с проверкой CA/имени/leaf pin и ALPN. QUIC использует подписанный JSON echo на отдельном bidirectional stream; HTTP/3 — POST `/testlab` с QPACK и JSON echo. Один outstanding request на connection, 4/16 connections LOW/HIGH, 512 bytes payload, 100/1000 предложенных requests/sec на flow. Измеряются verified logical bytes/transactions/RTT, handshake и UDP datagram counts; retransmission не объявляется logical request loss. Старые имена `tcp_*_bytes_per_second` в общей summary содержат validated payload goodput всех workload transports. Миграция, 0-RTT, datagram application extension и внешние серверы не проверяются. `close_verified` для QUIC означает local close timer; удалённый idle отдельно подтверждается signed stage metrics. SOCKS5 all-flow proof включает authenticated origin peer/fingerprint и полный счётчик wire datagrams, включая handshake/retransmission/close.
+
+Приёмка QUIC/H3 2026-10-11: 4 component cases Windows→Ubuntu direct/explicit SOCKS5, сначала по 12, затем по 20 транзакций; 8 negative checks wrong pin/missing CA/wrong proof/cancel after first exchange. Signed final runtime/proxy idle 0/0. Дополнительно 20 прежних application component cases и 5 прежних negative checks. 17 unit tests, .NET 0 warnings/errors. Component PASS не подтверждает ProxyBridge; продукт в этом срезе не запускался.
 
 | Проверка | Измерения и этапы |
 | --- | --- |

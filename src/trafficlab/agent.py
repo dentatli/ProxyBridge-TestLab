@@ -301,6 +301,7 @@ async def serve(config: dict[str, Any]) -> None:
     agent.applications = ApplicationOrigins(agent, config)
     proxy.application_ports = set(agent.applications.ports.values())
     proxy.application_dns_port = agent.applications.ports.get("dns-udp")
+    proxy.quic_ports = {agent.applications.ports[kind] for kind in ('quic', 'http3') if kind in agent.applications.ports}
     await agent.applications.start(bind)
     proxy.port = config.get("proxy_port", 42502)
     proxy_server = await asyncio.start_server(proxy.tcp, bind, proxy.port, limit=MAX_LINE + 1)

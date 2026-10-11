@@ -52,6 +52,9 @@ def ws_read(sock: Any) -> tuple[int, bytes]:
 def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
     from trafficlab.worker import cancelled
     kind = job["application"]
+    if kind in ('quic', 'http3'):
+        from trafficlab.quic_client import quic_flow
+        return quic_flow(job, flow_id)
     if kind in ('ssh', 'sftp'):
         from trafficlab.ssh_client import ssh_flow
         return ssh_flow(job, flow_id)

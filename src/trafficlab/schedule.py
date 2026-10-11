@@ -66,7 +66,7 @@ def recipes(job: dict[str, Any], catalog: dict[str, Any]) -> list[dict[str, Any]
     recovery = phase("recovery", workload("echo"))
     recipe = case["recipe"]
     if recipe == "application":
-        return [phase(case["application"], workload("udp" if case["application"] == "dns-udp" else "echo", n,
+        return [phase(case["application"], workload("udp" if case["application"] in ("dns-udp", "quic", "http3") else "echo", n,
                       application=case["application"], warmup_count=0))]
     if recipe in ("echo", "upload", "download", "duplex"):
         return [phase(recipe, workload(recipe, (1 if job["load"] == "LOW" else 4) if recipe == "echo" else n))]
