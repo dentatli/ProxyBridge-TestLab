@@ -54,7 +54,7 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
                 var payload = BuildPayload(target, paths, "inspect");
                 var observed = await ExecuteAsync(target, paths, payload, token);
                 var plan = new TrafficRuntimePlan(Guid.NewGuid().ToString("N"), payload.Bundle,
-                    payload.Hashes.Keys.Order(StringComparer.Ordinal).ToArray(), [42501,42502,42503,42511,42512,42513,42514,42515], [42501,42502,42515], "22.04",
+                    payload.Hashes.Keys.Order(StringComparer.Ordinal).ToArray(), [42501,42502,42503,42511,42512,42513,42514,42515,42516,42517,42518,42519], [42501,42502,42515], "22.04",
                     DateTimeOffset.UtcNow.AddMinutes(10), observed.GetProperty("state").GetString()!);
                 lock (_stateGate) { _plan = plan; _binding = Binding(target); _state = plan.State; _checked = DateTimeOffset.UtcNow; _error = null; }
                 return plan;
@@ -118,16 +118,46 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
             var catalog = File.ReadAllBytes(Path.Combine(app.RepositoryRoot, "config", "traffic-workloads.json"));
             files["traffic-workloads.json"] = Convert.ToBase64String(catalog);
             hashes["traffic-workloads.json"] = Hash(catalog);
+            var dependencyLock = File.ReadAllBytes(Path.Combine(app.RepositoryRoot, "vendor", "traffic-dependencies.lock.json"));
+            files["traffic-dependencies.lock.json"] = Convert.ToBase64String(dependencyLock);
+            hashes["traffic-dependencies.lock.json"] = Hash(dependencyLock);
+            foreach (var file in TrafficDependencyFiles("linux-x64"))
+            {
+                var bytes = File.ReadAllBytes(file);
+                var name = "wheels/" + Path.GetFileName(file);
+                files[name] = Convert.ToBase64String(bytes);
+                hashes[name] = Hash(bytes);
+            }
             var configuration = JsonSerializer.SerializeToUtf8Bytes(new { secret = Convert.ToHexString(secret).ToLowerInvariant(), bind = "0.0.0.0",
                 port = 42501, proxy_port = 42502, control_port = 42503, max_connections = 2048, origin_addresses = new[] { target.Host, "127.0.0.1" },
                 application_ports = new Dictionary<string,int> { ["http"] = 42511, ["tls"] = 42512, ["https"] = 42513,
-                    ["websocket"] = 42514, ["dns-tcp"] = 42515, ["dns-udp"] = 42515 },
-                tls_certificate_file = "pki/server.pem", tls_key_file = "pki/server.key", tls_ca_file = "pki/ca.pem" });
+                    ["websocket"] = 42514, ["dns-tcp"] = 42515, ["dns-udp"] = 42515,
+                    ["ssh"] = 42516, ["sftp"] = 42517, ["http2"] = 42518, ["grpc"] = 42519 },
+                tls_certificate_file = "pki/server.pem", tls_key_file = "pki/server.key", tls_ca_file = "pki/ca.pem", ssh_host_key_file = "pki/ssh_host.key" });
             var configHash = Hash(configuration);
             var bundle = Hash(JsonSerializer.SerializeToUtf8Bytes(new { hashes, configHash, target = Binding(target) }));
             return new(bundle, hashes, files, Convert.ToBase64String(configuration), configHash, Convert.ToHexString(secret).ToLowerInvariant(), action);
         }
         finally { CryptographicOperations.ZeroMemory(secret); }
+    }
+
+    private IEnumerable<string> TrafficDependencyFiles(string platform)
+    {
+        using var document = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(app.RepositoryRoot, "vendor", "traffic-dependencies.lock.json")));
+        var data = document.RootElement;
+        if (data.GetProperty("schema_version").GetInt32() != 1 || data.GetProperty("network_installation_allowed").GetBoolean())
+            throw new InvalidOperationException("TRAFFIC_DEPENDENCY_LOCK_INVALID");
+        var artifacts = data.GetProperty("artifacts").EnumerateArray().Where(row => row.GetProperty("platform").GetString() == platform).ToArray();
+        if (artifacts.Length != data.GetProperty("packages").GetArrayLength()) throw new InvalidOperationException("TRAFFIC_DEPENDENCY_SET_INCOMPLETE");
+        foreach (var row in artifacts)
+        {
+            var name = row.GetProperty("file").GetString()!;
+            if (!System.Text.RegularExpressions.Regex.IsMatch(name, @"\A[A-Za-z0-9_.-]+\.whl\z")) throw new InvalidOperationException("TRAFFIC_DEPENDENCY_NAME_INVALID");
+            var path = Path.Combine(app.RepositoryRoot, "vendor", "traffic-wheelhouse", platform, name);
+            if (!File.Exists(path) || File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) || new FileInfo(path).Length != row.GetProperty("bytes").GetInt64() ||
+                Hash(File.ReadAllBytes(path)) != row.GetProperty("sha256").GetString()) throw new InvalidOperationException("TRAFFIC_DEPENDENCY_HASH_MISMATCH");
+            yield return path;
+        }
     }
 
     private async Task<JsonElement> ExecuteAsync(ServerTarget target, AppStoragePaths paths, Payload payload, CancellationToken token)

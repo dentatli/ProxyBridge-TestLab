@@ -52,6 +52,9 @@ def ws_read(sock: Any) -> tuple[int, bytes]:
 def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
     from trafficlab.worker import cancelled
     kind = job["application"]
+    if kind in ('ssh', 'sftp'):
+        from trafficlab.ssh_client import ssh_flow
+        return ssh_flow(job, flow_id)
     udp = kind == "dns-udp"
     secret = bytes.fromhex(job["secret"])
     sock = stream = control = None
@@ -76,18 +79,22 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                 negotiate(sock, target)
         elif not udp:
             sock.connect(destination)
-        if kind in ("tls", "https"):
+        if kind in ("tls", "https", "http2", "grpc"):
             identity = job["application_identity"]
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             context.minimum_version = ssl.TLSVersion.TLSv1_2
             context.load_verify_locations(cadata=identity["tls_ca_pem"])
-            context.set_alpn_protocols(["http/1.1" if kind == "https" else "testlab/1"])
+            alpn = 'h2' if kind in ('http2', 'grpc') else "http/1.1" if kind == "https" else "testlab/1"
+            context.set_alpn_protocols([alpn])
             sock = context.wrap_socket(sock, server_hostname=SERVER_NAME)
             observed = hashlib.sha256(sock.getpeercert(binary_form=True)).hexdigest()
-            if observed != identity["tls_certificate_sha256"] or sock.selected_alpn_protocol() != ("http/1.1" if kind == "https" else "testlab/1"):
+            if observed != identity["tls_certificate_sha256"] or sock.selected_alpn_protocol() != alpn:
                 raise ValueError("APPLICATION_TLS_IDENTITY_OR_ALPN_CHANGED")
             result.update(tls_version=sock.version(), cipher=sock.cipher()[0], certificate_sha256=observed,
                           certificate_verified=True, server_name=SERVER_NAME, alpn=sock.selected_alpn_protocol())
+        if kind in ('http2', 'grpc'):
+            from trafficlab.http_two import H2Client
+            h2_client = H2Client(sock, kind == 'grpc')
         if kind in ("http", "https", "tls"):
             stream = sock.makefile("rb")
         if kind == "websocket":
@@ -138,6 +145,8 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                     if len(raw) != length:
                         raise EOFError("APPLICATION_HTTP_BODY_TRUNCATED")
                     response = json.loads(raw)
+                elif kind in ('http2', 'grpc'):
+                    response = h2_client.exchange(message)
                 elif kind == "websocket":
                     sock.sendall(websocket_frame(message, True))
                     opcode, raw = ws_read(sock)
@@ -172,6 +181,14 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
             if opcode != 8 or returned != close:
                 raise ValueError("APPLICATION_WEBSOCKET_CLOSE_UNVERIFIED")
             result["close_verified"] = True
+        if kind in ('http2', 'grpc'):
+            h2_client.close()
+            sock = sock.unwrap()
+            result['close_verified'] = True
+            if kind == 'grpc':
+                result['grpc_status_verified'] = True
+            from trafficlab.dependencies import verify
+            verify()
         if kind in ("tls", "https"):
             terminal = b"close"
             value = request(secret, kind, job["run_id"], flow_id, sequence, hashlib.sha256(terminal).hexdigest())

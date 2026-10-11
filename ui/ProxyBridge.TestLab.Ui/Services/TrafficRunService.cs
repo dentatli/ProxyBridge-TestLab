@@ -192,8 +192,9 @@ public sealed partial class TrafficRuntimeService
                 }
                 var sourceFiles = Directory.EnumerateFiles(Path.Combine(app.RepositoryRoot, "src", "trafficlab"), "*.py")
                     .Concat(new[] { "scripts/Invoke-TrafficLabRun.ps1", "scripts/Assert-TrafficLabIdle.ps1", "modules/InterceptionState.psm1",
-                        "modules/ProcessAdapter.psm1", "src/pb_service_query.cs", "src/pb_loaded_drivers.cs", "config/traffic-workloads.json", "bin/pb_console_host.exe", "bin/pb_wfp_state.exe" }
-                        .Select(path => Path.Combine(app.RepositoryRoot, path))).Append(python).Append(typeof(TrafficRuntimeService).Assembly.Location);
+                        "modules/ProcessAdapter.psm1", "src/pb_service_query.cs", "src/pb_loaded_drivers.cs", "config/traffic-workloads.json", "vendor/traffic-dependencies.lock.json",
+                        "config/traffic-echo.proto", "bin/pb_console_host.exe", "bin/pb_wfp_state.exe" }
+                        .Select(path => Path.Combine(app.RepositoryRoot, path))).Concat(TrafficDependencyFiles("win-x64")).Append(python).Append(typeof(TrafficRuntimeService).Assembly.Location);
                 foreach (var file in sourceFiles)
                 {
                     if (!File.Exists(file) || File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint)) throw new InvalidOperationException("TRAFFIC_LOCAL_ARTIFACT_MISSING_OR_REPARSE_POINT");

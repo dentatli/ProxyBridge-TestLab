@@ -84,6 +84,9 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
         if application_identity:
             job["application_tls_sha256"] = application_identity["tls_certificate_sha256"]
             result["conditions"]["application_tls_sha256"] = job["application_tls_sha256"]
+            if application_identity.get('ssh_host_key_sha256'):
+                job['application_ssh_sha256'] = application_identity['ssh_host_key_sha256']
+                result['conditions']['application_ssh_sha256'] = job['application_ssh_sha256']
         result["conditions"]["origin_logical_cpus"] = observed["stages"][0]["origin"]["cpu_count"]
         result["conditions"]["origin_physical_memory_bytes"] = observed["stages"][0]["origin"]["system_resources"].get("physical_total_bytes")
         from trafficlab.resources import system_sample

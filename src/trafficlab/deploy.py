@@ -17,8 +17,9 @@ from typing import Any
 ROOT = Path("/opt/proxybridge-testlab-traffic")
 UNIT = Path("/etc/systemd/system/proxybridge-testlab-traffic.service")
 SERVICE = "proxybridge-testlab-traffic.service"
-PORTS = {42501, 42502, 42503, 42511, 42512, 42513, 42514, 42515}
+PORTS = {42501, 42502, 42503, 42511, 42512, 42513, 42514, 42515, 42516, 42517, 42518, 42519}
 UDP_PORTS = {42501, 42502, 42515}
+PKI_NAMES = ('ca.pem', 'server.pem', 'server.key', 'ssh_host.key')
 
 
 def provision_pki(stage: Path) -> dict[str, str]:
@@ -39,7 +40,9 @@ def provision_pki(stage: Path) -> dict[str, str]:
     ca_key.unlink()
     csr.unlink()
     extensions.unlink()
-    return {name: digest((directory / name).read_bytes()) for name in ("ca.pem", "server.pem", "server.key")}
+    import asyncssh
+    (directory / 'ssh_host.key').write_bytes(asyncssh.generate_private_key('ssh-ed25519').export_private_key('openssh'))
+    return {name: digest((directory / name).read_bytes()) for name in PKI_NAMES}
 
 
 def command(*args: str, required: bool = True) -> str:
@@ -77,10 +80,15 @@ def state(payload: dict[str, Any]) -> dict[str, Any]:
             matches = matches and config.is_file() and digest(config.read_bytes()) == payload["config_sha256"]
             manifest = version / "runtime-manifest.json"
             matches = matches and all((version / "pki" / name).is_file() and not (version / "pki" / name).is_symlink()
-                                      for name in ("ca.pem", "server.pem", "server.key"))
-            matches = matches and manifest.is_file() and json.loads(manifest.read_bytes()) == {
+                                      for name in PKI_NAMES)
+            document = json.loads(manifest.read_bytes()) if manifest.is_file() else {}
+            dependencies = document.get('dependency_hashes', {})
+            matches = matches and bool(dependencies) and all(not (version / 'dependencies' / name).is_symlink()
+                and (version / 'dependencies' / name).is_file() and digest((version / 'dependencies' / name).read_bytes()) == expected
+                for name, expected in dependencies.items())
+            matches = matches and document == {
                 "hashes": payload["hashes"], "config_sha256": payload["config_sha256"], "bundle_sha256": payload["bundle_sha256"],
-                "pki_hashes": {name: digest((version / "pki" / name).read_bytes()) for name in ("ca.pem", "server.pem", "server.key")}}
+                "pki_hashes": {name: digest((version / "pki" / name).read_bytes()) for name in PKI_NAMES}, 'dependency_hashes': dependencies}
     active = command("systemctl", "is-active", SERVICE, required=False) == "active"
     enabled = command("systemctl", "is-enabled", SERVICE, required=False) == "enabled"
     tcp = command("ss", "-H", "-lnt")
@@ -102,7 +110,7 @@ def apply(payload: dict[str, Any]) -> dict[str, Any]:
     if before["state"] == "READY":
         return {**before, "applied": False}
     for name in payload["sources"]:
-        if not re.fullmatch(r"(?:trafficlab/[a-z_]+\.py|traffic-workloads\.json)", name):
+        if not re.fullmatch(r"(?:trafficlab/[a-z_]+\.py|traffic-workloads\.json|traffic-dependencies\.lock\.json|wheels/[A-Za-z0-9_.-]+\.whl)", name):
             raise ValueError("TRAFFIC_ARTIFACT_NAME_INVALID")
     if any(digest(base64.b64decode(encoded, validate=True)) != payload["hashes"][name] for name, encoded in payload["sources"].items()):
         raise ValueError("TRAFFIC_ARTIFACT_HASH_MISMATCH")
@@ -171,13 +179,18 @@ WantedBy=multi-user.target
             target.write_bytes(base64.b64decode(encoded, validate=True))
         config = stage / "agent-private.json"
         config.write_bytes(base64.b64decode(payload["configuration"], validate=True))
+        import sys
+        sys.path.insert(0, str(stage))
+        from trafficlab.dependencies import extract
+        dependency_hashes = extract(stage / 'traffic-dependencies.lock.json', stage / 'wheels', stage / 'dependencies', 'linux-x64')
+        sys.path.insert(0, str(stage / 'dependencies'))
         pki_hashes = provision_pki(stage)
-        (stage / "runtime-manifest.json").write_text(json.dumps({"hashes":payload["hashes"], "config_sha256":payload["config_sha256"], "bundle_sha256":payload["bundle_sha256"], "pki_hashes":pki_hashes},sort_keys=True))
+        (stage / "runtime-manifest.json").write_text(json.dumps({"hashes":payload["hashes"], "config_sha256":payload["config_sha256"], "bundle_sha256":payload["bundle_sha256"], "pki_hashes":pki_hashes, 'dependency_hashes': dependency_hashes},sort_keys=True))
         for folder, _dirs, files in os.walk(stage):
             os.chmod(folder, 0o755)
             for filename in files:
                 file = Path(folder) / filename
-                os.chmod(file, 0o640 if file == config or file.name == "server.key" else 0o644)
+                os.chmod(file, 0o640 if file == config or file.name in ("server.key", 'ssh_host.key') else 0o644)
                 os.chown(file, 0, account.pw_gid)
         if version.exists():
             # Matching versions are immutable; repair uses a fresh owned directory, preserving the old evidence.

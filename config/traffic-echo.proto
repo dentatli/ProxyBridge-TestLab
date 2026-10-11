@@ -1,0 +1,4 @@
+syntax = "proto3";
+package testlab;
+message Envelope { bytes json = 1; }
+service Echo { rpc Exchange(Envelope) returns (Envelope); }

@@ -37,7 +37,7 @@ class Agent:
             manifest = json.loads((root / "runtime-manifest.json").read_text())
             import re
             for name, expected in manifest["hashes"].items():
-                if not re.fullmatch(r"(?:trafficlab/[a-z_]+\.py|traffic-workloads\.json)", name):
+                if not re.fullmatch(r"(?:trafficlab/[a-z_]+\.py|traffic-workloads\.json|traffic-dependencies\.lock\.json|wheels/[A-Za-z0-9_.-]+\.whl)", name):
                     raise ValueError("TRAFFIC_MANIFEST_PATH_INVALID")
                 path = root / name
                 if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != expected:
@@ -45,10 +45,12 @@ class Agent:
             if hashlib.sha256(self.configuration_path.read_bytes()).hexdigest() != manifest["config_sha256"]:
                 raise ValueError("TRAFFIC_CONFIG_MISMATCH")
             if self.applications and self.applications.ports:
-                for name in ("ca.pem", "server.pem", "server.key"):
+                for name in ("ca.pem", "server.pem", "server.key", 'ssh_host.key'):
                     path = root / "pki" / name
                     if path.is_symlink() or hashlib.sha256(path.read_bytes()).hexdigest() != manifest.get("pki_hashes", {}).get(name):
                         raise ValueError("APPLICATION_PKI_IDENTITY_CHANGED")
+            from trafficlab.dependencies import verify
+            verify()
             return {"verified": True, "bundle_sha256": manifest["bundle_sha256"],
                     "application": self.applications.tls_identity() if self.applications else {},
                     "scope": "current-runtime-files-private-configuration-and-application-PKI"}

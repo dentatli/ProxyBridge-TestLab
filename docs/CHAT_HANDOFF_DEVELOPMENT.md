@@ -2,7 +2,19 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint прикладных проверок — 2026-10-11
+## Текущий checkpoint SSH/SFTP, HTTP/2 и gRPC — 2026-10-11
+
+По запросу пользователя добавлены четыре native cases: SSH, SFTP, HTTP/2, gRPC; всего 26 пунктов. Individual presets/named suites/history/comparison/ресурсы подключены. SSH pin после OFF входит в условия и recovery; normal OS sockets, signed all-flow reconciliation и product PID event остаются обязательными. SSH/SFTP endpoints не дают OS shell/PTY/forwarding/произвольный filesystem; HTTP/2/gRPC используют TLS/ALPN h2, unary protobuf и обязательный grpc-status trailer. Условия и пределы — [TRAFFIC_LAB.md](TRAFFIC_LAB.md), контракт — [traffic-echo.proto](../config/traffic-echo.proto).
+
+Зависимости поставлены в отдельный `vendor/traffic-wheelhouse` и lock, offline/hash verified; прежний protocol wheelhouse/lock не изменён. AsyncSSH 2.24.1, cryptography 50.0.2, cffi 2.0.0, h2/hpack/hyperframe и supporting libraries, licenses сохранены. На Ubuntu .180 current runtime bundle `4a264c7051d313c593a5c3986bc0551202cb2074cb4963fbf7d05f2f2844fad1` READY: 12 TCP/3 UDP listeners, source/dependency/PKI hashes. Изолированные SSH key и CA/leaf только внутри собственной версии службы; административный SSH/22/ключи/trust stores не менялись.
+
+Проверки: .NET 0 warnings/errors, Python AST 22 files, JS syntax; 14 unit tests; 8 новых и 12 прежних application component cases Windows→Ubuntu direct/explicit SOCKS5 по 20 транзакций; 14 новых и 5 прежних отрицательных component checks; официальный grpcio 1.84.0 unary interop. Component PASS не продуктовый PASS. SFTP read limit исправлен по фактическому отказу. Первый plan заблокирован exact-set gate старого wheelhouse; новые зависимости перенесены в отдельный комплект, старый gate сохранён. Временная собственная suite проверена RU/EN/refresh/apply и удалена через API.
+
+Реальная очередь новых четырёх SHORT/LOW: `20261011-142619-1d8874adccfb4536b6e16b11babf320c`, continue_after_failure=true, около 54 секунд с подготовкой, skipped=0, три VERIFIED recovery. Все controls успешны, CLI READY/capture/cleanup=true, child exit=0, forced_stop=false; SOCKS5 control exchange прерван до stages, итог FAILED. Driver Stopped, product processes=0, execution inactive; подписанный post-health подтвердил прежние TLS/SSH identities и нулевые соединения. Не повторять без нового основания и fresh gates; продуктовый дефект не исследовать здесь. HIGH/long/product cancel-during-load не проверялись.
+
+Текущий собственный GUI: `http://127.0.0.1:5188`, ignored `artifacts/development-remote-wizard/ui-extended-applications-final/ProxyBridge.TestLab.Ui.dll`. 5184–5187 могут занимать прежние собственные экземпляры; старый запрет инструмента на Stop-Process не обходить. Raw/private reports, SDK и screenshot остаются вне Git; диагностическая копия/комплекты не менялись. Ветка и worktree прежние. Следующие независимые задачи: HTTP/3/QUIC, mail/messaging, расширенные профили, v4.0.0/reboot/bundles, infrastructure fault acceptance. HTTP CONNECT, другие Ubuntu и IPv6 отложены.
+
+## Предыдущий checkpoint прикладных проверок — 2026-10-11
 
 Пользователь попросил продолжать. В собственный traffic runtime добавлены шесть native application cases: DNS TCP/UDP, TLS, HTTP/1.1, HTTPS, WebSocket; всего 22 пункта. Галочки/условия/оценка, named suites, очередь, history/comparison и resource scopes подключены. Условия содержат фиксированный leaf fingerprint; обычные OS sockets, подписанный all-flow route и product PID event остаются обязательными для продукта. Порт продуктового правила выбирается для каждого сценария, synthetic TCP preface перед прикладным протоколом отсутствует. Ограниченные controlled profiles и реальные пределы приёмки описаны в [TRAFFIC_LAB.md](TRAFFIC_LAB.md).
 

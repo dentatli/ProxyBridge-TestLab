@@ -4,7 +4,7 @@
 
 ## Каталог и условия
 
-Все 22 пункта имеют отдельные галочки и SHORT/NORMAL/LONG, LOW/HIGH; доступны сохраняемые именованные наборы. Оценка показывается для каждого теста и всей очереди. Обычные этапы: 6/30/120 секунд нагрузки плюс подготовка, соединение и завершение. Это оценка, а не жёсткий срок всего задания.
+Все 26 пунктов имеют отдельные галочки и SHORT/NORMAL/LONG, LOW/HIGH; доступны сохраняемые именованные наборы. Оценка показывается для каждого теста и всей очереди. Обычные этапы: 6/30/120 секунд нагрузки плюс подготовка, соединение и завершение. Это оценка, а не жёсткий срок всего задания.
 
 | Проверка | Измерения и этапы |
 | --- | --- |
@@ -26,6 +26,10 @@
 | TLS | Цепочка/имя сертификата, leaf SHA-256, SNI, ALPN, версия/cipher, обмен и close_notify |
 | HTTP / HTTPS | Два отдельных пункта: HTTP/1.1 POST, keep-alive, полная проверка echo; HTTPS дополнительно проверяет TLS |
 | WebSocket | HTTP upgrade, Sec-WebSocket-Accept, masked client binary messages, проверка echo и close 1000 |
+| SSH | SSHv2, закреплённый Ed25519 host key, per-run password proof, exec-канал testlab-echo, данные и exit status 0 |
+| SFTP | SSH host key/auth, SFTP v3: bounded write/close/stat/read, полная проверка данных и подписанного ответа |
+| HTTP/2 | TLS chain/name/pin, ALPN h2, HPACK/SETTINGS/flow control, последовательные POST streams на одном соединении, GOAWAY и TLS close_notify |
+| gRPC | TLS/ALPN h2, protobuf Envelope, unary Echo/Exchange, length-prefixed message и обязательный grpc-status=0 в trailers |
 
 LOW/HIGH обычно дают 4/16 потоков, 100/1000 UDP datagrams/s на поток и 2/8 работников создания TCP-соединений. UDP tempo является предложенным темпом; отчёт содержит фактически достигнутый. Размер datagram включает дополнительные служебные данные сверх payload. Потери определяются отсутствием проверенного ответа в пределах двух секунд; порог успешности — не более 1% для каждого потока. Отказы сохраняются, а не превращаются в прежний успех.
 
@@ -39,6 +43,10 @@ TCP/UDP origin — 42501; SOCKS5 — TCP/UDP 42502 с отдельными UDP a
 
 Прикладные origins: HTTP 42511/TCP, TLS 42512/TCP, HTTPS 42513/TCP, WebSocket 42514/TCP, DNS 42515/TCP+UDP. Продуктовое правило выбирает порт конкретного сценария; control 42503 исключён. На каждой версии создаётся отдельный CA/сертификат `traffic.testlab.invalid`; приватный CA-ключ после выпуска удаляется, leaf key остаётся только в защищённом каталоге службы. Системные trust stores не изменяются. Manifest включает PKI hashes; подписанный control публикует только CA/leaf fingerprint. После OFF control fingerprint фиксируется в условиях задания, смена сертификата отзывает допуск.
 
+Новые TCP origins: SSH 42516, SFTP 42517, HTTP/2 42518, gRPC 42519. Отдельный Ed25519 host key создаётся внутри версии службы; public key/fingerprint опубликованы подписанным control, fingerprint фиксируется после OFF и повторно проверяется при восстановлении очереди. Административный SSH на порту 22 и его ключи/known_hosts не меняются. Ни CLI, ни библиотека не принимают неизвестный host key автоматически.
+
+Библиотеки нового runtime поставляются отдельным `vendor/traffic-wheelhouse` и `traffic-dependencies.lock.json`, с точными размером/SHA-256 и лицензиями. Установка и тесты не обращаются к package index. Сервер использует versioned dependencies и manifest hashes; Windows — собственный cache по хэшу lock. Архивы проверяются перед использованием, извлечённые файлы повторно проверяются; локальная идентичность задания включает Windows lock/wheels. Старый protocol wheelhouse/lock сохранён: его exact-set gate нельзя расширять новыми файлами. Native DLL в Windows остаются в собственном cache, без глобальной pip-установки.
+
 Private configuration передаётся через SSH stdin, а не argv; ключ обмена хранится на Windows под DPAPI в отдельной конфигурации remote wizard. Private jobs/profile имеют пользовательский ACL и удаляются после работы. SSH private key, пароли и private captures в Git не включаются.
 
 TCP: nonce challenge, HMAC-SHA256 клиента/получателя, проверка offsets, всех байтов и SHA-256 двух направлений, сверка подписанных счётчиков. UDP: подписанные сообщения/ответы, sequence, payload и наблюдённый peer. Control port исключён из продуктового правила. Manifest и текущие hashes проверяются также при подписанном опросе metrics; подмена файлов отзывает допуск.
@@ -49,11 +57,23 @@ TCP: nonce challenge, HMAC-SHA256 клиента/получателя, пров�
 
 Native DNS/ClientHello/HTTP/upgrade идут с первого байта; служебного TCP preface перед ними нет. HMAC внутри прикладного запроса/ответа связывает run, flow, sequence, payload digest и peer получателя. Повтор sequence либо смена peer/identity отвергается. Подписанные all-flow counters используются и для TLS: proxy связывает исходящий сокет с authenticated origin flow, не расшифровывает relay.
 
-Шесть сценариев проверяют собственные ограниченные endpoints, а не совместимость со всеми сторонними серверами или полное соответствие стандартам. DNS использует обычное wire framing, A `192.0.2.10` и дополнительный TXT proof в answer; это не рекурсивный resolver, DNSSEC, DoT или DoH. HTTP/1.1 использует Content-Length и POST; chunked/compression/redirects отсутствуют. TLS допускает 1.2+, проверяет цепочку/имя и leaf pin; ALPN — `testlab/1` либо `http/1.1`. WebSocket ограничен binary FIN frames и проверенным close; fragmentation/extensions/WSS пока отсутствуют. Форматы: [DNS RFC 1035](https://www.rfc-editor.org/rfc/rfc1035), [WebSocket RFC 6455](https://www.rfc-editor.org/rfc/rfc6455).
+Базовые шесть сценариев проверяют собственные ограниченные endpoints, а не совместимость со всеми сторонними серверами или полное соответствие стандартам. DNS использует обычное wire framing, A `192.0.2.10` и дополнительный TXT proof в answer; это не рекурсивный resolver, DNSSEC, DoT или DoH. HTTP/1.1 использует Content-Length и POST; chunked/compression/redirects отсутствуют. TLS допускает 1.2+, проверяет цепочку/имя и leaf pin; ALPN — `testlab/1` либо `http/1.1`. WebSocket ограничен binary FIN frames и проверенным close; fragmentation/extensions/WSS пока отсутствуют. Форматы: [DNS RFC 1035](https://www.rfc-editor.org/rfc/rfc1035), [WebSocket RFC 6455](https://www.rfc-editor.org/rfc/rfc6455).
 
 LOW/HIGH дают 4/16 потоков и предложенный темп 100/1000 транзакций в секунду на поток. У каждого потока один запрос ожидает ответ; фактический темп ограничен RTT. TCP echo payload — 512 байт, проверяется полностью. Goodput считает проверенные payload bytes, исключая JSON/base64/TLS/framing; DNS не получает выдуманную payload-скорость. TLS terminal echo/close_notify проверяется отдельно и исключается из количества измеренных транзакций, payload goodput и RTT. Серверные counters включают terminal echo. В истории доступны verified transaction count, TLS evidence и числовые errno/winerror; счётчик транзакций выбирается в сравнении. Отмена во время обмена сохраняет incomplete, даже если часть ответов успела пройти.
 
 ## Фактическая приёмка 2026-10-11
+
+### SSH/SFTP, HTTP/2 и gRPC
+
+SSH допускает только testlab-echo; OS shell/команды, PTY, forwarding и доступ к ssh-agent запрещены. SFTP обслуживает только /request и /response в памяти, с лимитами объектов/размера; произвольные пути и прежний ответ после неудачной записи отвергаются. Это проверка протокола и целостности controlled objects, а не производительности диска Ubuntu. SSH/SFTP latency включает полный обмен; connection/auth latency записана отдельно.
+
+HTTP/2 проверяет повторные последовательные streams; multiplexing нескольких outstanding streams на одном TCP пока не испытывается. gRPC — один uncompressed protobuf Envelope на unary RPC, контракт [traffic-echo.proto](../config/traffic-echo.proto); streaming RPC, compression, retry/deadline metadata и произвольные сервисы не заявляются. Требуется статус в trailers, отсутствие/ненулевой статус, reset, обрезанный либо лишний frame не дают PASS. Основы реализации: [AsyncSSH API](https://asyncssh.readthedocs.io/en/latest/api.html), [hyper-h2 API](https://python-hyper.org/projects/hyper-h2/en/stable/api.html), [официальный gRPC HTTP/2 protocol](https://github.com/grpc/grpc/blob/master/doc/PROTOCOL-HTTP2.md).
+
+Проверены 8 новых component cases Windows → установленная Ubuntu, direct/explicit SOCKS5, по 20 проверенных транзакций; signed all-flow route reconciliation успешна. Дополнительно 12 прежних application component cases и 5 прежних отрицательных проверок прошли. Новые 14 отрицательных проверок включают неверные SSH key/auth, TLS pin, frozen SSH identity, OS exec/forwarding, три запрещённых SFTP пути, replay/stale response и отмену SSH/gRPC во время обмена. Отдельный официальный grpcio 1.84.0 подтвердил совместимость unary endpoint; SDK установлен только в ignored testing directory. Это компонентная приёмка без продуктового PASS.
+
+14 unit tests (9 queue guards + 5 protocol/dependency boundaries) прошли без продукта/сети. .NET build: 0 warnings/errors. GUI RU/EN показывает 26 пунктов, новая собственная временная suite сохраняет/восстанавливает четыре сценария и разные длительность/нагрузку после refresh/apply. Runtime bundle `4a264c7051d313c593a5c3986bc0551202cb2074cb4963fbf7d05f2f2844fad1` READY на Ubuntu .180; 12 TCP/3 UDP listeners и source/dependency/PKI hashes проверены.
+
+Реальная SHORT/LOW очередь четырёх новых cases с безопасным продолжением: `20261011-142619-1d8874adccfb4536b6e16b11babf320c`, оценка 164 секунды, около 54 секунд с подготовкой. Четыре попытки, skipped=0, три recovery_checks VERIFIED. Каждый OFF/UNRULED control успешен, CLI READY, capture/cleanup=true, child exit=0, forced_stop=false; SSH fingerprint зафиксирован в условиях и передан в recovery. Все SOCKS5 measurements имеют stages=0: SSH/SFTP ConnectionAbortedError, HTTP/2/gRPC ConnectionResetError:TRAFFIC_SCHEDULE_FAILED на control exchange. Итог FAILED/TRANSPORT_INCOMPLETE/ROUTE_UNVERIFIED, успешных продуктовых прикладных измерений нет. Driver Stopped, product processes=0, execution inactive; отдельный подписанный post-health подтвердил тот же bundle/TLS/SSH key и origin/proxy connections=0. Продуктовый дефект не исследовался.
 
 - Новый выделенный сервер пользователя `192.168.0.180`, root/22: Ubuntu 22.04.5/Python 3.10.12/OpenSSL 3.0.2. Собственные wizard settings/trust/runtime настроены; старый 18-plugin endpoint на нём не установлен и не объявляется READY. Прежние диагностические ключи/known_hosts/копия/комплекты не изменены.
 - .NET: 0 warnings/errors; Python AST 16 файлов и `node --check` прошли. GUI RU/EN показывает 22 пункта; собственная временная suite восстанавливает шесть новых сценариев и разные параметры после refresh, затем удалена через API. Карточки и сравнение используют обычные компактные checkbox; выбранные карточки выделены. Сохранённые продуктовые FAIL/CANCELLED видны, browser console без ошибок.
@@ -110,4 +130,4 @@ Runtime bundle `eaba1db569a54393021dbf4becf136b08faa3a5f2e91f117c3d3f0b518d87399
 - Cancel во время PREPARING: CANCELLED, оба пункта skipped, cleanup verified, без запуска продукта. CSRF 403; invalid case/debugger/long-run gates 400.
 - GUI RU/EN, полный каталог, разные параметры, save/apply/delete собственной временной suite, refresh и сохранённые реальные ошибки проверены. Private данные и диагностическая копия не изменены.
 
-Остались: успешная приёмка реального SOCKS5 на работоспособной сборке продукта, HIGH/длинные наборы с отдельным разрешением, реальная отмена продуктового задания во время нагрузки, v4.0.0/reboot adapter, остальные прикладные семейства общего protocol catalog (в том числе HTTP/2, HTTP/3/QUIC, gRPC, SSH/SFTP, mail/messaging), расширенная приёмка port-conflict/rollback/смены SSH host key. HTTP CONNECT отложен пользователем. Продуктовый TCP дефект ведётся отдельным чатом.
+Остались: успешная приёмка реального SOCKS5 на работоспособной сборке продукта, HIGH/длинные наборы с отдельным разрешением, реальная отмена продуктового задания во время нагрузки, v4.0.0/reboot adapter, остальные прикладные семейства (HTTP/3/QUIC, mail/messaging и другие), расширение текущих controlled profiles и приёмка port-conflict/rollback/смены административного SSH host key. HTTP CONNECT отложен пользователем. Продуктовый TCP дефект ведётся отдельным чатом.

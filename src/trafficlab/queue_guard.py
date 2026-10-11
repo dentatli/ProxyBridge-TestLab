@@ -63,6 +63,8 @@ def recover(binding_path: str, binding: dict[str, Any], report: dict[str, Any]) 
         return evidence
     job = {**binding, "run_id": binding["id"] + "." + report["case_id"],
            "application_tls_sha256": report["conditions"]["application_tls_sha256"]}
+    if report['conditions'].get('application_ssh_sha256'):
+        job['application_ssh_sha256'] = report['conditions']['application_ssh_sha256']
     deadline = time.monotonic() + 2
     try:
         while True:

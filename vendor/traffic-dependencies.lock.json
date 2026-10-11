@@ -1,0 +1,146 @@
+{
+  "schema_version": 1,
+  "dependency_set": "traffic-applications-1",
+  "source": "https://pypi.org/simple",
+  "network_installation_allowed": false,
+  "packages": [
+    {
+      "name": "asyncssh",
+      "version": "2.24.1",
+      "license": "EPL-2.0 OR GPL-2.0-or-later"
+    },
+    {
+      "name": "cryptography",
+      "version": "50.0.2",
+      "license": "Apache-2.0 OR BSD-3-Clause"
+    },
+    {
+      "name": "cffi",
+      "version": "2.0.0",
+      "license": "MIT"
+    },
+    {
+      "name": "typing-extensions",
+      "version": "4.16.0",
+      "license": "PSF-2.0"
+    },
+    {
+      "name": "pycparser",
+      "version": "3.0",
+      "license": "BSD-3-Clause"
+    },
+    {
+      "name": "h2",
+      "version": "4.4.1",
+      "license": "MIT"
+    },
+    {
+      "name": "hpack",
+      "version": "4.2.0",
+      "license": "MIT"
+    },
+    {
+      "name": "hyperframe",
+      "version": "6.1.0",
+      "license": "MIT"
+    }
+  ],
+  "artifacts": [
+    {
+      "platform": "win-x64",
+      "file": "asyncssh-2.24.1-py3-none-any.whl",
+      "sha256": "fc560b4f43be0f0c602d184783e5e3876f5d24d933a25359d86e5a50a5f46fe5",
+      "bytes": 382514
+    },
+    {
+      "platform": "linux-x64",
+      "file": "asyncssh-2.24.1-py3-none-any.whl",
+      "sha256": "fc560b4f43be0f0c602d184783e5e3876f5d24d933a25359d86e5a50a5f46fe5",
+      "bytes": 382514
+    },
+    {
+      "platform": "win-x64",
+      "file": "cryptography-50.0.2-cp311-abi3-win_amd64.whl",
+      "sha256": "7afa5a6602a9f29af1f3a2965f831bae7c9d5d597b7cbb716d41ab3b7d89879c",
+      "bytes": 3824692
+    },
+    {
+      "platform": "linux-x64",
+      "file": "cryptography-50.0.2-cp39-abi3-manylinux_2_28_x86_64.whl",
+      "sha256": "f21e8a22c8605750c7af886bab299a363721264061b4ac0a30efb73cfd58efc5",
+      "bytes": 4781387
+    },
+    {
+      "platform": "win-x64",
+      "file": "cffi-2.0.0-cp311-cp311-win_amd64.whl",
+      "sha256": "66f011380d0e49ed280c789fbd08ff0d40968ee7b665575489afa95c98196ab5",
+      "bytes": 182820
+    },
+    {
+      "platform": "linux-x64",
+      "file": "cffi-2.0.0-cp310-cp310-manylinux2014_x86_64.manylinux_2_17_x86_64.whl",
+      "sha256": "fc7de24befaeae77ba923797c7c87834c73648a05a4bde34b3b7e5588973a453",
+      "bytes": 216475
+    },
+    {
+      "platform": "win-x64",
+      "file": "typing_extensions-4.16.0-py3-none-any.whl",
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+      "bytes": 45571
+    },
+    {
+      "platform": "linux-x64",
+      "file": "typing_extensions-4.16.0-py3-none-any.whl",
+      "sha256": "481caa481374e813c1b176ada14e97f1f67a4539ce9cfeb3f350d78d6370c2e8",
+      "bytes": 45571
+    },
+    {
+      "platform": "win-x64",
+      "file": "pycparser-3.0-py3-none-any.whl",
+      "sha256": "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992",
+      "bytes": 48172
+    },
+    {
+      "platform": "linux-x64",
+      "file": "pycparser-3.0-py3-none-any.whl",
+      "sha256": "b727414169a36b7d524c1c3e31839a521725078d7b2ff038656844266160a992",
+      "bytes": 48172
+    },
+    {
+      "platform": "win-x64",
+      "file": "h2-4.4.1-py3-none-any.whl",
+      "sha256": "0e25f1462b23c9cb82d9eb02e28bc706dac2a68cb457c6a0d74d63c8a2a5d0e6",
+      "bytes": 62636
+    },
+    {
+      "platform": "linux-x64",
+      "file": "h2-4.4.1-py3-none-any.whl",
+      "sha256": "0e25f1462b23c9cb82d9eb02e28bc706dac2a68cb457c6a0d74d63c8a2a5d0e6",
+      "bytes": 62636
+    },
+    {
+      "platform": "win-x64",
+      "file": "hpack-4.2.0-py3-none-any.whl",
+      "sha256": "858ac0b02280fa582b5080d68db0899c62a80375e0e5413a74970c5e518b6986",
+      "bytes": 34246
+    },
+    {
+      "platform": "linux-x64",
+      "file": "hpack-4.2.0-py3-none-any.whl",
+      "sha256": "858ac0b02280fa582b5080d68db0899c62a80375e0e5413a74970c5e518b6986",
+      "bytes": 34246
+    },
+    {
+      "platform": "win-x64",
+      "file": "hyperframe-6.1.0-py3-none-any.whl",
+      "sha256": "b03380493a519fce58ea5af42e4a42317bf9bd425596f7a0835ffce80f1a42e5",
+      "bytes": 13007
+    },
+    {
+      "platform": "linux-x64",
+      "file": "hyperframe-6.1.0-py3-none-any.whl",
+      "sha256": "b03380493a519fce58ea5af42e4a42317bf9bd425596f7a0835ffce80f1a42e5",
+      "bytes": 13007
+    }
+  ]
+}

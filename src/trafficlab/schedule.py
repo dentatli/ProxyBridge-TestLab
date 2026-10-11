@@ -38,6 +38,9 @@ def origin_metrics(job: dict[str, Any]) -> dict[str, Any]:
         certificate = job.get("application_tls_sha256")
         if certificate and result.get("identity", {}).get("application", {}).get("tls_certificate_sha256") != certificate:
             raise ValueError("APPLICATION_TLS_IDENTITY_CHANGED")
+        ssh_key = job.get('application_ssh_sha256')
+        if ssh_key and result.get('identity', {}).get('application', {}).get('ssh_host_key_sha256') != ssh_key:
+            raise ValueError('APPLICATION_SSH_HOST_KEY_CHANGED')
         return result
     finally:
         stream.close()

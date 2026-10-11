@@ -23,6 +23,8 @@ class ApplicationOrigins:
         self.certificate = config.get("tls_certificate_file")
         self.key = config.get("tls_key_file")
         self.ca = config.get("tls_ca_file")
+        self.ssh_key = config.get('ssh_host_key_file')
+        self.ssh = None
 
     def tls_identity(self) -> dict[str, Any]:
         if not self.ports:
@@ -31,7 +33,15 @@ class ApplicationOrigins:
         ca = Path(self.ca).read_text(encoding="ascii")
         if len(cert) > 8192 or len(ca) > 8192:
             raise ValueError("APPLICATION_CERTIFICATE_INVALID")
-        return {"tls_ca_pem": ca, "tls_certificate_sha256": hashlib.sha256(ssl.PEM_cert_to_DER_cert(cert)).hexdigest()}
+        identity = {"tls_ca_pem": ca, "tls_certificate_sha256": hashlib.sha256(ssl.PEM_cert_to_DER_cert(cert)).hexdigest()}
+        if self.ssh_key:
+            from trafficlab.dependencies import enable
+            enable()
+            import asyncssh
+            key = asyncssh.read_private_key(self.ssh_key)
+            identity.update(ssh_host_public_key=key.export_public_key('openssh').decode().strip(),
+                            ssh_host_key_sha256=key.get_fingerprint('sha256'))
+        return identity
 
     def authenticate(self, message: dict[str, Any], kind: str, peer: list[Any], session: dict[str, Any] | None) -> tuple[dict[str, Any], dict[str, Any], bytes | None]:
         if not isinstance(message, dict) or not isinstance(message.get("identity"), dict):
@@ -113,6 +123,10 @@ class ApplicationOrigins:
             self.agent.active += 1
             admitted = True
             peer = list(writer.get_extra_info("peername")[:2])
+            if kind in ('http2', 'grpc'):
+                from trafficlab.http_two import serve
+                await asyncio.wait_for(serve(self, reader, writer, kind, session, peer), 150)
+                return
             async def exchange() -> None:
                 if kind == "websocket":
                     line, headers = await self.headers(reader)
@@ -183,19 +197,27 @@ class ApplicationOrigins:
 
     async def start(self, bind: str) -> None:
         for kind, port in self.ports.items():
+            if kind in ('ssh', 'sftp'):
+                if self.ssh is None:
+                    from trafficlab.ssh_origin import SshOrigin
+                    self.ssh = SshOrigin(self, self.ssh_key)
+                self.servers.append(await self.ssh.start(bind, port))
+                continue
             if kind == "dns-udp":
                 transport, _ = await asyncio.get_running_loop().create_datagram_endpoint(lambda: DnsDatagrams(self), local_addr=(bind, port))
                 self.servers.append(transport)
                 continue
             context = None
-            if kind in ("tls", "https"):
+            if kind in ("tls", "https", "http2", "grpc"):
                 context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                 context.minimum_version = ssl.TLSVersion.TLSv1_2
                 context.load_cert_chain(self.certificate, self.key)
-                context.set_alpn_protocols(["http/1.1" if kind == "https" else "testlab/1"])
+                context.set_alpn_protocols(['h2' if kind in ('http2', 'grpc') else "http/1.1" if kind == "https" else "testlab/1"])
             self.servers.append(await asyncio.start_server(lambda reader, writer, kind=kind: self.connection(reader, writer, kind), bind, port, ssl=context, limit=MAX_LINE + 1))
 
     async def close(self) -> None:
+        if self.ssh is not None:
+            await self.ssh.close()
         for server in self.servers:
             server.close()
         for server in self.servers:
