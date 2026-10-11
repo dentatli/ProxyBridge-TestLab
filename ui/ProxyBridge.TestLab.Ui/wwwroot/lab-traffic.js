@@ -25,7 +25,7 @@ Object.assign(labText.en,{trafficSearch:"Find a test",trafficCategory:"Test grou
 const trafficGroups=["transport","web","security","dns","ssh","mail","messaging","other"];
 function trafficGroup(row){
   if(row.recipe!=="application")return "transport";
-  if(["http","https","http2","http3","grpc","websocket"].includes(row.application))return "web";
+  if(["http","https","http2","http3","grpc","websocket","websocket-tls"].includes(row.application))return "web";
   if(["tls","quic"].includes(row.application))return "security";
   return {"dns-classic":"dns",ssh:"ssh",sftp:"ssh",mail:"mail",mqtt:"messaging",amqp:"messaging"}[row.family]||"other";
 }

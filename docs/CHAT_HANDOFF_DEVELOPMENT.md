@@ -2,7 +2,17 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint SSH failures — 2026-10-11
+## Остановлено по запросу пользователя / checkpoint WSS — 2026-10-11
+
+Пользователь попросил «зафиксируй и остановись» из-за лимита. После этого новые проверки/разработка не запускались; уже запущенная application regression завершилась, изменения сохранены. Продолжать только по новому запросу.
+
+Добавлен `app-websocket-tls`: каталог 39 cases (16 transport + 23 application), WSS TCP 42532. Native ordinary TCP + TLS CA/name/leaf pin/ALPN http/1.1, HTTP upgrade, masked binary frames, HMAC payload/sequence/peer receipts, WebSocket close 1000 и TLS unwrap/close_notify. Это bounded controlled echo; fragmentation/extensions/compression/browser trust не заявлены. Общий origin/client используют тот же профиль для WS/WSS. Поправлен installer state: при проверке прежнего hash-matched runtime берёт listener ports из его проверенной private configuration, поэтому добавление порта не блокирует проверку старой версии/rollback.
+
+Новый own GUI `http://127.0.0.1:5193`, ignored DLL `artifacts/development-remote-wizard/ui-wss/ProxyBridge.TestLab.Ui.dll`, build 0 errors/warnings. Только этот экземпляр имеет текущую C# application port configuration; старые UI не использовать для установки runtime. Штатные plan/apply: .180 READY bundle `8293f81245086ad3d76ed6e2fc7e702c4e108055744cf9baa1d3b917e6e2f107`, 23 TCP / 5 UDP. Проверены WS/WSS direct/explicit SOCKS5 четыре component cases по 12 transactions, пять negative wrong-auth/pin/cancel-after-exchange; signed TCP/pre-TLS/QUIC busy→idle PASS. Полная финальная regression: 23 applications × direct/explicit SOCKS5 = 46 component PASS по 12 transactions. Windows 28 unit checks PASS (8 тогдашних Linux tests skipped); финальные 9 Linux installer tests PASS, включая previous-version listener set. Product не запускался, driver Stopped, product processes=0, UI execution active=false. Diagnostic checkout/kits неизменны; private reports/keys вне Git. SSH checkpoint запушен `d31dcfd`; текущую ревизию смотреть Git.
+
+Точка продолжения: визуальная RU/EN приёмка WSS/39-case GUI 5193 ещё не выполнена (поиск/группы уже проверены на 38 cases). Затем extended profiles/другие protocol families и отдельная приёмка network-loss/installer interruption. Product PASS/HIGH/long, v4/reboot/bundles остаются; HTTP CONNECT/другие Ubuntu/IPv6 отложены. Не повторять известный failing product TCP control без нового основания; не заниматься диагностическим дефектом.
+
+## Предыдущий checkpoint SSH failures — 2026-10-11
 
 Добавлен opt-in acceptance helper `tests/fixtures/traffic-ssh/TrafficSshProbe.csproj`; использует реальный internal `ExecuteTrafficPythonAsync` через reflection, отдельное scratch AppStoragePaths/trust, фиксированный read-only Python JSON control. В общий offline suite не включён. Аргументы: HOST PORT PRIVATE_KEY KNOWN_HOSTS SCRATCH_PARENT; приватный ключ не копируется/не печатается/не коммитится. Scratch имеет уникальный префикс/защищённые directories и удаляется с проверкой absolute parent.
 

@@ -10,6 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from trafficlab import deploy
+actual_state = deploy.state
 
 
 @unittest.skipUnless(os.name == 'posix', 'Ubuntu installer filesystem checks')
@@ -143,6 +144,31 @@ class DeploymentTests(unittest.TestCase):
             fcntl.flock(held, fcntl.LOCK_EX | fcntl.LOCK_NB)
             self.assertEqual(deploy.invoke(self.payload)['error'], 'TRAFFIC_OPERATION_ACTIVE')
         self.assert_previous()
+
+    def test_previous_version_uses_its_verified_listener_configuration(self):
+        source = b'old source'
+        (self.old / 'old.py').write_bytes(source)
+        configuration = json.dumps({'port':42501, 'proxy_port':42502, 'control_port':42503,
+            'application_ports':{'tls':42512}}).encode()
+        (self.old / 'agent-private.json').write_bytes(configuration)
+        pki_hashes = self.pki(self.old)
+        (self.old / 'dependencies').mkdir()
+        (self.old / 'dependencies' / 'fixture').write_bytes(b'old dependency')
+        payload = {'hashes':{'old.py':deploy.digest(source)}, 'config_sha256':deploy.digest(configuration),
+                   'bundle_sha256':'a'*64}
+        manifest = {**payload, 'pki_hashes':pki_hashes, 'dependency_hashes':{'fixture':deploy.digest(b'old dependency')}}
+        (self.old / 'runtime-manifest.json').write_text(json.dumps(manifest))
+        self.active = False
+        def listeners(*args, **kwargs):
+            if args[0]=='ss':
+                ports=(42501,42502,42503,42512) if '-lnt' in args else (42501,42502)
+                return '\n'.join(f'LISTEN 0 128 0.0.0.0:{port} 0.0.0.0:*' for port in ports)
+            return self.command(*args, **kwargs)
+        with patch.object(deploy,'command',side_effect=listeners):
+            observed=actual_state(payload)
+        self.assertTrue(observed['hashes_match'] and observed['listeners'])
+        self.assertEqual(observed['tcp_ports'],[42501,42502,42503,42512])
+        self.assertNotIn(42532,observed['tcp_ports'])
 
 
 if __name__ == '__main__':

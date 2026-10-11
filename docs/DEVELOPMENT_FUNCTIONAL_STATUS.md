@@ -9,6 +9,7 @@
 | Путь | Готово по реализации | Фактическая проверка / предел |
 | --- | --- | --- |
 | QUIC / HTTP3 | Два native UDP сценария, TLS/ALPN/pin, bounded streams, signed all-flow wire counters | 4 direct/explicit SOCKS5 component cases, 8 negative; продукт не запускался |
+| WSS | Native TLS CA/name/pin, upgrade, binary messages, WS/TLS close | 4 WS/WSS component cases, 5 negative, финальная общая regression 46 application cases; GUI 39-case визуальная приёмка отложена на продолжение |
 | SMTP / IMAP / MQTT | Шесть cleartext/TLS profiles, память-only mail, MQTT QoS1, signed receipts | 12 component cases, 15 negative, stdlib/Paho interop, 21 unit tests; product не запускался |
 | POP3 / POP3S | Immutable memory maildrop, native commands, HMAC session и signed retrieval receipts | 4 component cases и stdlib interop, DELE/RSET/negative/cancel; 22 unit tests |
 | AMQP / AMQPS | Native 0-9-1 auth/confirm/get/ack и transient queue | 4 component cases, 8 negative, Pika plain/TLS interop, 25 unit tests; product не запускался |
@@ -16,7 +17,7 @@
 | Установка / откат traffic runtime | Подготовка без прерывания старой службы, атомарная активация, verified rollback, apply flock | 8 Linux unit checks; реальные PKI/preparation failure, failed bind rollback и TCP/UDP port conflict на .180; новый API apply READY |
 | Поиск / группы | Семь групп, RU/EN поиск, selected queue order, счётчик hidden selection | GUI search/group/empty state/params/language/focus проверены; queue и estimate включают скрытые выбранные cases |
 | Traffic SSH failures | Реальный транспорт, отдельный opt-in acceptance helper | Correct/final trust, changed/missing key, closed endpoint и cancellation silent peer: 6 checks PASS; физическая потеря сети не проверена |
-| Каталог | 38 независимых пунктов, индивидуальные длительность/нагрузка, оценка каждого/набора, named suites | GUI RU/EN/save/apply/refresh для четырёх новых сценариев; базовые throughput вместо заявления об абсолютном максимуме |
+| Каталог | 39 независимых пунктов, индивидуальные длительность/нагрузка, оценка каждого/набора, named suites | GUI RU/EN/save/apply/refresh проверены на прежних этапах; WSS/39-case GUI визуально ещё не проверен; базовые throughput вместо заявления об абсолютном максимуме |
 | Remote runtime | Отдельная Ubuntu 22.04 IPv4 служба, exact plan/hash/manifest/process/listeners/PKI, HMAC TCP/UDP/SOCKS5, runtime lease | Новый сервер 192.168.0.180 READY; отдельная установка без старого endpoint, fresh SSH/trust/platform gate сохранён |
 | Нагрузка / скорость / стабильность | RTT, upload/download/duplex/multistream/loaded RTT, connections/churn, UDP обоих типов/sweep/flows, mixed/stability/soak | 30 облегчённых component cases; HIGH и реальные 24–72 часа не выполнялись |
 | Прикладные сценарии | DNS TCP/UDP, TLS, HTTP/1.1, HTTPS, WebSocket, SSH/SFTP, HTTP/2, unary gRPC; native framing, HMAC/replay gates, per-case port, TLS/SSH pins | Новые 8 и прежние 12 direct/explicit SOCKS5 component cases; 14 новых/5 прежних отрицательных checks, официальный grpcio interop; это не продуктовый PASS |

@@ -133,7 +133,7 @@ class ApplicationOrigins:
                 await asyncio.wait_for(serve(self, reader, writer, kind, session, peer), 150)
                 return
             async def exchange() -> None:
-                if kind == "websocket":
+                if kind in ("websocket", "websocket-tls"):
                     line, headers = await self.headers(reader)
                     key = headers.get("sec-websocket-key", "")
                     if line != "GET /testlab HTTP/1.1" or headers.get("upgrade", "").lower() != "websocket" or "upgrade" not in {token.strip() for token in headers.get("connection", "").lower().split(",")} or headers.get("sec-websocket-version") != "13" or len(base64.b64decode(key, validate=True)) != 16:
@@ -155,7 +155,7 @@ class ApplicationOrigins:
                             if line != "POST /testlab HTTP/1.1" or not 0 < size <= MAX_LINE or headers.get("content-type") != "application/json":
                                 raise ValueError("APPLICATION_HTTP_REQUEST_INVALID")
                             data = await reader.readexactly(size)
-                        elif kind == "websocket":
+                        elif kind in ("websocket", "websocket-tls"):
                             opcode, data = await self.ws_read(reader)
                             if opcode in (8, 9):
                                 writer.write(websocket_frame(data, False, 8 if opcode == 8 else 10))
@@ -177,7 +177,7 @@ class ApplicationOrigins:
                         if kind in ("http", "https"):
                             connection = "close" if kind == "https" and message.get("close") is True else "keep-alive"
                             writer.write(f"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {len(reply)}\r\nConnection: {connection}\r\n\r\n".encode() + reply)
-                        elif kind == "websocket":
+                        elif kind in ("websocket", "websocket-tls"):
                             writer.write(websocket_frame(reply, False))
                         else:
                             writer.write(reply + b"\n")
@@ -219,11 +219,11 @@ class ApplicationOrigins:
                 self.servers.append(transport)
                 continue
             context = None
-            if kind in ("tls", "https", "http2", "grpc", "smtps", "imaps", "mqtts", "pop3s", "amqps"):
+            if kind in ("tls", "https", "http2", "grpc", "smtps", "imaps", "mqtts", "pop3s", "amqps", "websocket-tls"):
                 context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                 context.minimum_version = ssl.TLSVersion.TLSv1_2
                 context.load_cert_chain(self.certificate, self.key)
-                context.set_alpn_protocols(['h2' if kind in ('http2', 'grpc') else "http/1.1" if kind == "https" else
+                context.set_alpn_protocols(['h2' if kind in ('http2', 'grpc') else "http/1.1" if kind in ("https", "websocket-tls") else
                     'mqtt' if kind == 'mqtts' else 'amqp' if kind == 'amqps' else 'testlab-mail/1' if kind in ('smtps','imaps','pop3s') else "testlab/1"])
             self.servers.append(await asyncio.start_server(lambda reader, writer, kind=kind: self.connection(reader, writer, kind), bind, port, ssl=context, limit=MAX_LINE + 1))
 

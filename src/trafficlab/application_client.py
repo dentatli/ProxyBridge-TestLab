@@ -85,12 +85,12 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                 negotiate(sock, target)
         elif not udp:
             sock.connect(destination)
-        if kind in ("tls", "https", "http2", "grpc"):
+        if kind in ("tls", "https", "http2", "grpc", "websocket-tls"):
             identity = job["application_identity"]
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             context.minimum_version = ssl.TLSVersion.TLSv1_2
             context.load_verify_locations(cadata=identity["tls_ca_pem"])
-            alpn = 'h2' if kind in ('http2', 'grpc') else "http/1.1" if kind == "https" else "testlab/1"
+            alpn = 'h2' if kind in ('http2', 'grpc') else "http/1.1" if kind in ("https", "websocket-tls") else "testlab/1"
             context.set_alpn_protocols([alpn])
             sock = context.wrap_socket(sock, server_hostname=SERVER_NAME)
             observed = hashlib.sha256(sock.getpeercert(binary_form=True)).hexdigest()
@@ -103,7 +103,7 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
             h2_client = H2Client(sock, kind == 'grpc')
         if kind in ("http", "https", "tls"):
             stream = sock.makefile("rb")
-        if kind == "websocket":
+        if kind in ("websocket", "websocket-tls"):
             key = base64.b64encode(secrets.token_bytes(16)).decode()
             sock.sendall(f"GET /testlab HTTP/1.1\r\nHost: {SERVER_NAME}:{target['port']}\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Key: {key}\r\nSec-WebSocket-Version: 13\r\n\r\n".encode())
             stream = sock.makefile("rb", buffering=0)
@@ -153,7 +153,7 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                     response = json.loads(raw)
                 elif kind in ('http2', 'grpc'):
                     response = h2_client.exchange(message)
-                elif kind == "websocket":
+                elif kind in ("websocket", "websocket-tls"):
                     sock.sendall(websocket_frame(message, True))
                     opcode, raw = ws_read(sock)
                     if opcode != 2:
@@ -180,12 +180,14 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
             next_send += 1 / job.get("rate_packets_per_second", 100)
             while time.perf_counter() < min(deadline, next_send) and not cancelled(job):
                 time.sleep(max(0, min(0.05, min(deadline, next_send) - time.perf_counter())))
-        if kind == "websocket":
+        if kind in ("websocket", "websocket-tls"):
             close = struct.pack("!H", 1000)
             sock.sendall(websocket_frame(close, True, 8))
             opcode, returned = ws_read(sock)
             if opcode != 8 or returned != close:
                 raise ValueError("APPLICATION_WEBSOCKET_CLOSE_UNVERIFIED")
+            if kind == "websocket-tls":
+                sock = sock.unwrap()
             result["close_verified"] = True
         if kind in ('http2', 'grpc'):
             h2_client.close()

@@ -18,7 +18,7 @@ ROOT = Path("/opt/proxybridge-testlab-traffic")
 UNIT = Path("/etc/systemd/system/proxybridge-testlab-traffic.service")
 SERVICE = "proxybridge-testlab-traffic.service"
 PORTS = {42501, 42502, 42503, 42511, 42512, 42513, 42514, 42515, 42516, 42517, 42518, 42519,
-         42522, 42523, 42524, 42525, 42526, 42527, 42528, 42529, 42530, 42531}
+         42522, 42523, 42524, 42525, 42526, 42527, 42528, 42529, 42530, 42531, 42532}
 UDP_PORTS = {42501, 42502, 42515, 42520, 42521}
 PKI_NAMES = ('ca.pem', 'server.pem', 'server.key', 'ssh_host.key')
 
@@ -122,6 +122,7 @@ def state(payload: dict[str, Any]) -> dict[str, Any]:
     platform()
     current = ROOT / "current"
     matches = False
+    tcp_ports, udp_ports = PORTS, UDP_PORTS
     if current.is_symlink():
         version = current.resolve(strict=True)
         if version.parent == ROOT / "versions" and version.is_dir():
@@ -140,20 +141,31 @@ def state(payload: dict[str, Any]) -> dict[str, Any]:
             matches = matches and document == {
                 "hashes": payload["hashes"], "config_sha256": payload["config_sha256"], "bundle_sha256": payload["bundle_sha256"],
                 "pki_hashes": {name: digest((version / "pki" / name).read_bytes()) for name in PKI_NAMES}, 'dependency_hashes': dependencies}
+            if matches:
+                # Rollback must verify the previous version's listeners, which may predate new cases.
+                configuration = json.loads(config.read_bytes())
+                application_ports = configuration.get('application_ports', {})
+                udp_kinds = {'dns-udp', 'quic', 'http3'}
+                tcp_ports = {configuration[key] for key in ('port', 'proxy_port', 'control_port')}
+                udp_ports = {configuration[key] for key in ('port', 'proxy_port')}
+                tcp_ports.update(port for kind, port in application_ports.items() if kind not in udp_kinds)
+                udp_ports.update(port for kind, port in application_ports.items() if kind in udp_kinds)
+                if any(type(port) is not int or not 1 <= port <= 65535 for port in tcp_ports | udp_ports):
+                    raise ValueError('TRAFFIC_CONFIGURATION_PORTS_INVALID')
     active = command("systemctl", "is-active", SERVICE, required=False) == "active"
     enabled = command("systemctl", "is-enabled", SERVICE, required=False) == "enabled"
     tcp = command("ss", "-H", "-lnt")
     udp = command("ss", "-H", "-lnu")
     def listening(text: str, port: int) -> bool:
         return any(re.search(r":" + str(port) + r"(?:\s|$)", line) for line in text.splitlines())
-    listeners = all(listening(tcp, port) for port in PORTS) and all(listening(udp, port) for port in UDP_PORTS)
+    listeners = all(listening(tcp, port) for port in tcp_ports) and all(listening(udp, port) for port in udp_ports)
     if matches and active:
         pid = command("systemctl", "show", SERVICE, "--property=MainPID", "--value")
         argv = Path(f"/proc/{pid}/cmdline").read_bytes().split(b"\0") if pid.isdecimal() and pid != "0" else []
         matches = str(version / "agent-private.json").encode() in argv
     return {"state": "READY" if matches and active and enabled and listeners else "SETUP_REQUIRED",
             "hashes_match": matches, "service_active": active, "service_enabled": enabled, "listeners": listeners,
-            "bundle_sha256": payload["bundle_sha256"], "verified_ubuntu": "22.04", "tcp_ports": sorted(PORTS), "udp_ports": sorted(UDP_PORTS)}
+            "bundle_sha256": payload["bundle_sha256"], "verified_ubuntu": "22.04", "tcp_ports": sorted(tcp_ports), "udp_ports": sorted(udp_ports)}
 
 
 def apply(payload: dict[str, Any]) -> dict[str, Any]:
