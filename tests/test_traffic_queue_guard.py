@@ -81,6 +81,8 @@ class RecoveryPolicyTests(unittest.TestCase):
     def test_missing_idle_witness_is_not_zero(self):
         self.assertFalse(self.check(origin={"identity": {"verified": True}})["safe_to_continue"])
         self.assertFalse(self.check(origin={**self.origin, "runtime_connections": False})["safe_to_continue"])
+        for field in ('runtime_connections','proxy_connections'):
+            self.assertFalse(self.check(origin={**self.origin,field:None})['safe_to_continue'])
 
     def test_missing_runtime_binding_is_rejected(self):
         self.binding.pop("local_runtime_sha256")

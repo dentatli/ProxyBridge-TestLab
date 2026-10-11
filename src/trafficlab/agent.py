@@ -24,6 +24,7 @@ class Agent:
         self.secret = secret
         self.max_connections = max_connections
         self.active = 0
+        self.origin_tcp_ports: set[int] = set()
         self.runs: collections.OrderedDict[str, dict[str, Any]] = collections.OrderedDict()
         self.tasks: set[asyncio.Task[Any]] = set()
         self.configuration_path: Path | None = None
@@ -116,7 +117,17 @@ class Agent:
                 result["system_resources"] = system_sample()
                 result["cpu_count"] = os.cpu_count() or 1
                 result["identity"] = self.identity()
-                result["runtime_connections"] = self.active - 1  # Exclude this authenticated metrics connection.
+                from trafficlab.socket_idle import owned_tcp_connections
+                observer = writer.get_extra_info('socket')
+                tcp_connections = owned_tcp_connections(self.origin_tcp_ports, observer.fileno() if observer else None)
+                quic = self.applications.quic if self.applications is not None else None
+                quic_connections = len(quic.protocols) if quic is not None else 0
+                logical_tcp = self.active - 1 - quic_connections
+                result['runtime_connections'] = (max(tcp_connections, logical_tcp) + quic_connections
+                    if tcp_connections is not None and logical_tcp >= 0 else None)
+                result['runtime_connections_method'] = 'owned-origin-TCP-sockets-and-QUIC-protocols'
+                result['runtime_tcp_connections'] = tcp_connections
+                result['runtime_quic_connections'] = quic_connections
                 result["proxy_connections"] = len(self.proxy.pending) if hasattr(self, "proxy") else 0
                 result["proof"] = mac(self.secret, b"result:", challenge.encode() + raw + json_bytes(result))
                 writer.write(json_bytes(result) + b"\n")
@@ -302,6 +313,7 @@ async def serve(config: dict[str, Any]) -> None:
     proxy.application_ports = set(agent.applications.ports.values())
     proxy.application_dns_port = agent.applications.ports.get("dns-udp")
     proxy.quic_ports = {agent.applications.ports[kind] for kind in ('quic', 'http3') if kind in agent.applications.ports}
+    agent.origin_tcp_ports = {port, control_port} | (set(agent.applications.ports.values()) - proxy.quic_ports)
     await agent.applications.start(bind)
     proxy.port = config.get("proxy_port", 42502)
     proxy_server = await asyncio.start_server(proxy.tcp, bind, proxy.port, limit=MAX_LINE + 1)

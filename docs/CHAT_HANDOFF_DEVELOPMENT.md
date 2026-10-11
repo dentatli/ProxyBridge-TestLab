@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint AMQP / AMQPS — 2026-10-11
+## Текущий checkpoint global idle / pre-TLS — 2026-10-11
+
+Фактическая component проверка выявила недосчёт: подключённый TCP к SMTPS до ClientHello дал signed runtime_connections=0, поскольку asyncio ещё не вызвал application callback. Исправлено `socket_idle.py`: owned FDs сверяются с bounded `/proc/self/net/tcp{,6}` на origin/control/application TCP ports, текущий metrics socket исключён, LISTEN/CLOSE не считаются живым transport, buffered logical callbacks и QUIC protocols дополнительно сохраняют busy. Proxy pending sessions проверяются отдельно. Missing/malformed proc evidence возвращает null (unknown), recovery gate требует именно integer=0 и блокирует unknown/bool/busy. Административный SSH и unrelated sockets не включаются.
+
+Bundle .180 `8513544c9627b290a52d74ebb5bcf4ffed8be2a53171dc13eb413c898c7aa590` READY; 38 cases, 22 TCP/5 UDP ports, GUI 5192 (прежняя DLL, C# не менялся). Подтверждены 4 held TCP/pre-TLS origin connections + native QUIC connection: signed busy≥1, после завершения idle=0/proxy=0. Полная новая application regression: 22 cases × direct/explicit SOCKS5 = 44 component PASS по 12 transactions. 28 unit tests (9 queue + protocol bounds + 3 socket idle), Python AST 32 files; последняя C# build 0 errors/warnings относится к той же DLL без изменений C#. Product не запускался, driver Stopped, product processes=0. SDK/raw/private reports вне Git, diagnostic checkout/kits не менялись. AMQP этап запушен `936e551`; текущий commit смотреть Git.
+
+Далее: независимые extended profiles/infrastructure acceptance и дополнительные protocol families. Успешная продуктовая работа, HIGH, cancel-during-product-load и 24–72 часа ещё не доказаны. Windows driver installation/reboot остаются отдельным scope и не разрешены как routine development.
+
+## Предыдущий checkpoint AMQP / AMQPS — 2026-10-11
 
 Добавлены AMQP/AMQPS 0-9-1: всего 38 сценариев, TCP 42530/42531. HMAC PLAIN run/flow auth, vhost `/`, один channel, уникальная transient/exclusive/auto-delete queue `testlab.<flow>`, confirm.select, Basic.Publish, точный publisher Ack tag, подписанный Basic.Get body и consumer Ack, channel/connection close. Frame/content/string bounded 8 KiB, negotiated frame_max 16 KiB; память per connection содержит максимум один outstanding message. Nack/replay/чужая queue/неверный consumer ack/oversized frame завершают FAIL. TLS CA/name/pin/ALPN/close_notify. AMQP1.0, durable/external broker, subscriptions, multi-channel, transactions/requeue не заявлены.
 

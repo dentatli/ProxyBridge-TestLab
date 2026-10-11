@@ -12,6 +12,7 @@
 | SMTP / IMAP / MQTT | Шесть cleartext/TLS profiles, память-only mail, MQTT QoS1, signed receipts | 12 component cases, 15 negative, stdlib/Paho interop, 21 unit tests; product не запускался |
 | POP3 / POP3S | Immutable memory maildrop, native commands, HMAC session и signed retrieval receipts | 4 component cases и stdlib interop, DELE/RSET/negative/cancel; 22 unit tests |
 | AMQP / AMQPS | Native 0-9-1 auth/confirm/get/ack и transient queue | 4 component cases, 8 negative, Pika plain/TLS interop, 25 unit tests; product не запускался |
+| Global idle | Owned accepted origin TCP sockets, pre-TLS, QUIC; unknown не равен zero | 4 held TCP + QUIC busy→idle, 44 application component cases, 28 unit tests; driver Stopped |
 | Каталог | 38 независимых пунктов, индивидуальные длительность/нагрузка, оценка каждого/набора, named suites | GUI RU/EN/save/apply/refresh для четырёх новых сценариев; базовые throughput вместо заявления об абсолютном максимуме |
 | Remote runtime | Отдельная Ubuntu 22.04 IPv4 служба, exact plan/hash/manifest/process/listeners/PKI, HMAC TCP/UDP/SOCKS5, runtime lease | Новый сервер 192.168.0.180 READY; отдельная установка без старого endpoint, fresh SSH/trust/platform gate сохранён |
 | Нагрузка / скорость / стабильность | RTT, upload/download/duplex/multistream/loaded RTT, connections/churn, UDP обоих типов/sweep/flows, mixed/stability/soak | 30 облегчённых component cases; HIGH и реальные 24–72 часа не выполнялись |
