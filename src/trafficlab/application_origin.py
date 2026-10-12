@@ -56,8 +56,17 @@ class ApplicationOrigins:
         if session and session.get("identity") not in (None, (run_id, flow_id)):
             raise ValueError("APPLICATION_CONNECTION_IDENTITY_CHANGED")
         existing = flows.get(flow_id)
-        if existing and (existing["peer"] != peer or identity["sequence"] <= existing["last_sequence"]):
+        if existing and existing['peer']!=peer:
             raise ValueError("APPLICATION_REPLAY_OR_PEER_CHANGED")
+        if kind=='http2':
+            # HTTP/2 streams may finish in a different order. Keep a bounded
+            # replay window anchored at the highest contiguous verified sequence.
+            contiguous=existing['last_sequence'] if existing else -1
+            pending=existing.get('http2_pending_sequences',[]) if existing else []
+            if not contiguous<identity['sequence']<=contiguous+16 or identity['sequence'] in pending:
+                raise ValueError('APPLICATION_REPLAY_OR_PEER_CHANGED')
+        elif existing and identity['sequence']<=existing['last_sequence']:
+            raise ValueError('APPLICATION_REPLAY_OR_PEER_CHANGED')
         payload = None
         if kind != "dns":
             payload = base64.b64decode(message["payload"], validate=True)
@@ -74,7 +83,14 @@ class ApplicationOrigins:
             else:
                 row["udp_flows"][flow_id] = True
         flows[flow_id]["transactions"] += 1
-        flows[flow_id]["last_sequence"] = identity["sequence"]
+        if kind=='http2':
+            pending=set(flows[flow_id].get('http2_pending_sequences',[]))
+            pending.add(identity['sequence'])
+            contiguous=flows[flow_id]['last_sequence']
+            while contiguous+1 in pending:
+                contiguous+=1;pending.remove(contiguous)
+            flows[flow_id].update(last_sequence=contiguous,http2_pending_sequences=sorted(pending))
+        else:flows[flow_id]["last_sequence"] = identity["sequence"]
         return identity, row, payload
 
     def dns(self, packet: bytes, peer: list[Any], session: dict[str, Any] | None = None,transport: str | None=None) -> bytes:

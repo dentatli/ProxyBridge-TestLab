@@ -2,7 +2,17 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint DoT / DoH — 2026-10-12
+## Текущий checkpoint HTTP/2 multiplexing — 2026-10-12
+
+Native HTTP/2 теперь открывает три streams на одном TLS/TCP и чередует DATA первых/вторых половин запросов; ответы demultiplexed по stream ID и сверяются с исходными sequence/payload/HMAC/peer. Profile `three-streams-with-interleaved-request-DATA-v1`, подписанный origin peak=3 и completed streams = measured transactions обязательны до route PASS; число transactions кратно трём, >=3. TLS CA/name/leaf pin/ALPN h2 и GOAWAY/close_notify сохраняются. Темп задаёт сумму transactions, batch pacing учитывает три запроса; latency — отдельные RTT от общей отправки batch до завершения каждого stream, это не максимальная пропускная способность.
+
+Origin принимает HTTP/2 sequence в другом порядке в bounded replay window из 16 positions после highest contiguous sequence; повтор/слишком далёкий jump/смена peer блокируются. Pending set хранится как bounded sorted list в signed flow; native route требует пустое окно и contiguous last_sequence=count-1. Другие протоколы сохранили прежнее monotonic правило. Per stream body <=8208 bytes, максимум 16 outstanding; header/trailer maps <=8192 bytes с +32 overhead per field, duplicates запрещены. Reset/unknown stream/truncation/oversized response/nonzero or missing gRPC trailers не дают partial PASS; старый unary gRPC сохранён.
+
+Runtime .180 READY bundle `5198717a838d55ac8611c0cbdebe4173ccdad3526106be01b02af43945dec789`, service/hashes/listeners checked, прежние 25 TCP/5 UDP, catalog41. Два native direct/explicit SOCKS5 HTTP/2 cases по 12 transactions PASS; independent .NET 10 HttpClient SDK forced HTTP2 и body barrier подтвердил три streams на ровно одном TCP, exact payload/HMAC/peer/signed counters/idle. Fixture `tests/fixtures/traffic-http2`, secret не передаётся .NET, только signed messages/public PKI. Девять malformed/reset/replay/window checks и три wrong-auth/wrong-pin/cancel-after-exchange negatives PASS. Полная новая 50-case application component regression по 12 transactions PASS. 68 unit tests: 59 PASS Windows +9 Linux-only skipped, семь новых H2 tests (reverse/interleaved replies, one-stream reset, unfinished/oversized replies, request bounds, headers, signed evidence, replay window). SDK build 0 warnings/errors; UI C# не менялся, предыдущая успешная build относится к той же DLL. GUI5195 RU/EN multiplex search/selection/hidden choices и READY, console errors=[], ignored `http2-multiplex-ui-final.png`. Driver Stopped; продукт не запускался, diagnostic checkout/kits не менялись.
+
+DoT/DoH checkpoint запушен `d3d89e5`; текущую ревизию смотреть Git. Далее gRPC streaming и controlled infrastructure interruptions/другие bounded profiles; successful product/HIGH/long/v4/reboot/bundles не доказаны. Продолжать независимо от диагностического TCP дефекта, до сообщения пользователя об остановке.
+
+## Предыдущий checkpoint DoT / DoH — 2026-10-12
 
 Добавлены два controlled DNS profiles: DoT TCP 42533, ALPN `dot`; DoH TCP 42535, ALPN `http/1.1`, только POST `/dns-query`, binary MIME `application/dns-message`, Content-Length 17–512 bytes, без chunked/compression, no-store. Всего 41 case, 25 application + 16 transport. Собственная CA/name/leaf pin; DNS A 192.0.2.10 + signed TXT proof, полный transaction ID/question/payload HMAC/sequence/origin peer. Это собственный bounded endpoint, не recursive resolver/DNSSEC/general DNS server; системные DNS/trust/proxy не менялись.
 

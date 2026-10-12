@@ -112,6 +112,31 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
         next_send, sequence = time.perf_counter(), 0
         while time.perf_counter() < deadline and not cancelled(job):
             stamp = time.perf_counter()
+            if kind=='http2':
+                from trafficlab.http_two import MULTIPLEX_PROFILE,MULTIPLEX_WIDTH
+                batch=[]
+                for offset in range(MULTIPLEX_WIDTH):
+                    payload=bytes((index+sequence+offset)%256 for index in range(job.get('message_bytes',512)))
+                    value=request(secret,kind,job['run_id'],flow_id,sequence+offset,hashlib.sha256(payload).hexdigest())
+                    batch.append((value,payload,json_bytes({'identity':value,'payload':base64.b64encode(payload).decode()})))
+                replies,rtts=h2_client.exchange_many([item[2] for item in batch])
+                for (value,payload,_),response,rtt in zip(batch,replies,rtts):
+                    if base64.b64decode(response.get('payload',''),validate=True)!=payload:
+                        raise ValueError('APPLICATION_ECHO_PAYLOAD_MISMATCH')
+                    peer=verify_response(secret,value,response)
+                    if result['peer_observed_by_origin'] not in (None,peer):
+                        raise ValueError('APPLICATION_ORIGIN_PEER_CHANGED')
+                    result['peer_observed_by_origin']=peer
+                    result['tx_bytes']+=len(payload);result['rx_bytes']+=len(payload)
+                    histogram.add(rtt);result['verified_transactions']+=1
+                if sequence==0:connection_latency.add((time.perf_counter()-started)*1000)
+                result.update(http2_profile=MULTIPLEX_PROFILE,http2_peak_streams=MULTIPLEX_WIDTH,
+                              http2_completed_streams=result['verified_transactions'])
+                sequence+=MULTIPLEX_WIDTH
+                next_send+=MULTIPLEX_WIDTH/job.get('rate_packets_per_second',100)
+                while time.perf_counter()<min(deadline,next_send) and not cancelled(job):
+                    time.sleep(max(0,min(.05,min(deadline,next_send)-time.perf_counter())))
+                continue
             if kind.startswith("dns-"):
                 packet, value = dns_request(secret, job["run_id"], flow_id, sequence)
                 if udp:

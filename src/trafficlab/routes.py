@@ -11,6 +11,18 @@ def stage_route(stage: dict[str, Any], proxied: bool) -> bool:
     proxy = stage["origin"].get("proxy", {})
     for result in stage['results']:
         for flow in result['flows']:
+            if flow.get('http2_profile'):
+                from trafficlab.http_two import MULTIPLEX_PROFILE,MULTIPLEX_WIDTH
+                observed=stage['origin'].get('application_flows',{}).get(flow['flow_id'],{})
+                if flow['http2_profile']!=MULTIPLEX_PROFILE or flow.get('certificate_verified') is not True or flow.get('close_verified') is not True:
+                    return False
+                for key,expected in [('http2_peak_streams',MULTIPLEX_WIDTH),('http2_completed_streams',flow.get('verified_transactions'))]:
+                    if type(expected) is not int or type(flow.get(key)) is not int or type(observed.get(key)) is not int or flow[key]!=expected or observed[key]!=expected:
+                        return False
+                if flow['http2_completed_streams']<MULTIPLEX_WIDTH or flow['http2_completed_streams']%MULTIPLEX_WIDTH or observed.get('transactions')!=flow['verified_transactions']:
+                    return False
+                if observed.get('http2_pending_sequences')!=[] or type(observed.get('last_sequence')) is not int or observed['last_sequence']!=flow['verified_transactions']-1:
+                    return False
             if flow.get('dns_encrypted_protocol'):
                 kind=flow['dns_encrypted_protocol']
                 observed=stage['origin'].get('application_flows',{}).get(flow['flow_id'],{})
