@@ -20,9 +20,11 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
     private string _state = "VALIDATION_REQUIRED";
     private string? _error;
     private DateTimeOffset? _checked;
+    private bool _applyInFlight;
     private readonly object _stateGate = new();
     private CancellationToken Token => lifetime.ApplicationStopping;
     internal string Root => Path.Combine(storage.Root, "traffic-lab");
+    private TrafficApplyCheckpoint ApplyCheckpoint => new(Root);
 
     public JsonElement Catalog()
     {
@@ -32,8 +34,10 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
 
     public object State()
     {
-        lock (_stateGate) return new { state = _checked is null || DateTimeOffset.UtcNow - _checked > TimeSpan.FromMinutes(2) ? "VALIDATION_REQUIRED" : _state,
-            error = _error, plan = _plan, checkedAtUtc = _checked, run = _run, busy = _gate.CurrentCount == 0,
+        lock (_stateGate) return new { state = ApplyCheckpoint.Pending ? (_applyInFlight ? "APPLYING" : "APPLY_UNKNOWN") :
+                _checked is null || DateTimeOffset.UtcNow - _checked > TimeSpan.FromMinutes(2) ? "VALIDATION_REQUIRED" : _state,
+            error = ApplyCheckpoint.Pending && !_applyInFlight ? "TRAFFIC_APPLY_OUTCOME_UNKNOWN" : _error,
+            plan = ApplyCheckpoint.Pending ? null : _plan, checkedAtUtc = _checked, run = _run, busy = _gate.CurrentCount == 0,
             administrator = Administrator(), supports_safe_continuation = true };
     }
 
@@ -53,10 +57,11 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
             {
                 var payload = BuildPayload(target, paths, "inspect");
                 var observed = await ExecuteAsync(target, paths, payload, token);
+                ApplyCheckpoint.ResolveInspection(observed.GetProperty("state").GetString()!,payload.Bundle,TargetIdentity(target,paths));
                 var plan = new TrafficRuntimePlan(Guid.NewGuid().ToString("N"), payload.Bundle,
                     payload.Hashes.Keys.Order(StringComparer.Ordinal).ToArray(), [42501,42502,42503,42511,42512,42513,42514,42515,42516,42517,42518,42519,42522,42523,42524,42525,42526,42527,42528,42529,42530,42531,42532,42533,42535], [42501,42502,42515,42520,42521], "22.04",
                     DateTimeOffset.UtcNow.AddMinutes(10), observed.GetProperty("state").GetString()!);
-                lock (_stateGate) { _plan = plan; _binding = Binding(target); _state = plan.State; _checked = DateTimeOffset.UtcNow; _error = null; }
+                lock (_stateGate) { _plan = plan; _binding = Binding(target,paths); _state = plan.State; _checked = DateTimeOffset.UtcNow; _error = null; }
                 return plan;
             });
         }
@@ -72,18 +77,28 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
             return await remote.WithTrafficContextAsync<object>(async (target, paths, token) =>
             {
                 TrafficRuntimePlan? plan;
-                lock (_stateGate) plan = _plan;
+                string? binding;
+                lock (_stateGate) { plan = _plan; binding = _binding; _plan = null; _binding = null; _checked = null; }
                 var payload = BuildPayload(target, paths, "apply");
                 if (plan is null || plan.PlanId != request.PlanId || plan.ExpiresUtc < DateTimeOffset.UtcNow ||
-                    _binding != Binding(target) || payload.Bundle != plan.BundleSha256)
+                    binding != Binding(target,paths) || payload.Bundle != plan.BundleSha256)
                     throw new InvalidOperationException("TRAFFIC_PLAN_STALE");
-                var observed = await ExecuteAsync(target, paths, payload, token);
+                using var checkpoint = ApplyCheckpoint.Begin(payload.Bundle,TargetIdentity(target,paths));
+                lock (_stateGate) _applyInFlight = true;
+                JsonElement observed;
+                try
+                {
+                    observed = await ExecuteAsync(target, paths, payload, token);
+                    checkpoint.Complete(observed.GetProperty("state").GetString()!);
+                }
+                catch (TrafficRemoteOperationFailure error) { checkpoint.Complete("ERROR",error.Message); throw; }
                 lock (_stateGate) { _state = observed.GetProperty("state").GetString()!; _checked = DateTimeOffset.UtcNow; _plan = null; _error = null; }
                 return observed;
             });
         }
-        catch (Exception) { lock (_stateGate) { _checked = null; } throw; }
-        finally { _gate.Release(); }
+        catch (Exception error) { lock (_stateGate) { _plan = null; _binding = null; _checked = null;
+            _error = System.Text.RegularExpressions.Regex.IsMatch(error.Message,@"\ATRAFFIC_[A-Z0-9_]+\z") ? error.Message : null; } throw; }
+        finally { lock (_stateGate) _applyInFlight = false; _gate.Release(); }
     }
 
     private Payload BuildPayload(ServerTarget target, AppStoragePaths paths, string action)
@@ -138,7 +153,7 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
                     ["pop3"] = 42528, ["pop3s"] = 42529, ["amqp"] = 42530, ["amqps"] = 42531 },
                 tls_certificate_file = "pki/server.pem", tls_key_file = "pki/server.key", tls_ca_file = "pki/ca.pem", ssh_host_key_file = "pki/ssh_host.key" });
             var configHash = Hash(configuration);
-            var bundle = Hash(JsonSerializer.SerializeToUtf8Bytes(new { hashes, configHash, target = Binding(target) }));
+            var bundle = Hash(JsonSerializer.SerializeToUtf8Bytes(new { hashes, configHash, target = PayloadBinding(target) }));
             return new(bundle, hashes, files, Convert.ToBase64String(configuration), configHash, Convert.ToHexString(secret).ToLowerInvariant(), action);
         }
         finally { CryptographicOperations.ZeroMemory(secret); }
@@ -172,7 +187,11 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
         return await new OpenSshServerTransport(paths).ExecuteTrafficPythonAsync(target, script, token);
     }
 
-    private static string Binding(ServerTarget target) => Hash(Encoding.UTF8.GetBytes($"{target.Host}\n{target.Port}\n{target.PrivateKeyPath}"));
+    private static string TargetIdentity(ServerTarget target,AppStoragePaths paths) =>
+        Hash(Encoding.UTF8.GetBytes($"{target.Host}\n{target.Port}\n{Hash(File.ReadAllBytes(paths.KnownHostsPath))}"));
+    private static string Binding(ServerTarget target,AppStoragePaths paths) =>
+        Hash(Encoding.UTF8.GetBytes($"{TargetIdentity(target,paths)}\n{target.PrivateKeyPath}"));
+    private static string PayloadBinding(ServerTarget target) => Hash(Encoding.UTF8.GetBytes($"{target.Host}\n{target.Port}\n{target.PrivateKeyPath}"));
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     private sealed record Payload(string Bundle, SortedDictionary<string,string> Hashes, SortedDictionary<string,string> Sources,
         string Configuration, string ConfigHash, string Secret, string Action);

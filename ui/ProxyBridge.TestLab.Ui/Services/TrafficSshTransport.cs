@@ -16,7 +16,7 @@ public sealed partial class OpenSshServerTransport
             throw new InvalidOperationException("TRAFFIC_SSH_OPERATION_FAILED");
         using var document = JsonDocument.Parse(result.StandardOutput);
         var value = document.RootElement.Clone();
-        if (value.TryGetProperty("error", out var error)) throw new InvalidOperationException(error.GetString() ?? "TRAFFIC_REMOTE_ERROR");
+        if (value.TryGetProperty("error", out var error)) throw new TrafficRemoteOperationFailure(error.GetString() ?? "TRAFFIC_REMOTE_ERROR");
         return value;
     }
 }

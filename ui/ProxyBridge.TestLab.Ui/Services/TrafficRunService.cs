@@ -13,6 +13,7 @@ public sealed partial class TrafficRuntimeService
 
     public async Task<object> StartAsync(TrafficRunRequest request)
     {
+        if (ApplyCheckpoint.Pending) throw new InvalidOperationException("TRAFFIC_APPLY_RECHECK_REQUIRED");
         if (!Administrator()) throw new InvalidOperationException("TRAFFIC_ADMINISTRATOR_REQUIRED");
         if (!request.DebuggerInactive) throw new InvalidOperationException("TRAFFIC_DEBUGGER_STATE_REQUIRED");
         var catalog = Catalog();

@@ -323,7 +323,20 @@ WantedBy=multi-user.target
 def invoke(payload: dict[str, Any]) -> dict[str, Any]:
     try:
         if payload['action'] != 'apply':
-            return state(payload)
+            platform()
+            import fcntl
+            try:
+                descriptor = os.open(ROOT / 'operation.lock', os.O_RDONLY | os.O_NOFOLLOW)
+            except FileNotFoundError:
+                return state(payload)
+            try:
+                try:
+                    fcntl.flock(descriptor, fcntl.LOCK_SH | fcntl.LOCK_NB)
+                except BlockingIOError:
+                    raise ValueError('TRAFFIC_OPERATION_ACTIVE') from None
+                return state(payload)
+            finally:
+                os.close(descriptor)
         platform()
         ROOT.mkdir(mode=0o755, exist_ok=True)
         import fcntl

@@ -145,6 +145,21 @@ class DeploymentTests(unittest.TestCase):
             self.assertEqual(deploy.invoke(self.payload)['error'], 'TRAFFIC_OPERATION_ACTIVE')
         self.assert_previous()
 
+    def test_inspection_cannot_confirm_state_during_an_active_installer(self):
+        import fcntl
+        with (self.root / 'operation.lock').open('w') as held:
+            fcntl.flock(held,fcntl.LOCK_EX|fcntl.LOCK_NB)
+            observed=deploy.invoke({**self.payload,'action':'inspect'})
+            self.assertEqual(observed['error'],'TRAFFIC_OPERATION_ACTIVE')
+        self.assert_previous()
+        self.assertFalse(any(args[1] in ('stop','start','restart','enable','disable','daemon-reload')
+            for args in self.commands if args[0]=='systemctl'))
+
+    def test_inspection_without_a_lock_never_creates_an_installation(self):
+        self.assertEqual(deploy.invoke({**self.old_payload,'action':'inspect'})['state'],'READY')
+        self.assertFalse((self.root/'operation.lock').exists())
+        self.assert_previous()
+
     def test_previous_version_uses_its_verified_listener_configuration(self):
         source = b'old source'
         (self.old / 'old.py').write_bytes(source)
