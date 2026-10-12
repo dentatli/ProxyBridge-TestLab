@@ -1,12 +1,29 @@
 """Reconcile every authenticated flow, including those outside bounded route samples."""
 from __future__ import annotations
 from typing import Any
+from trafficlab.websocket_wire import PROFILE
 
 
 def stage_route(stage: dict[str, Any], proxied: bool) -> bool:
     if not stage["complete"]:
         return False
     proxy = stage["origin"].get("proxy", {})
+    for result in stage['results']:
+        for flow in result['flows']:
+            if flow.get('websocket_profile'):
+                if flow['websocket_profile']!=PROFILE:
+                    return False
+                observed=stage['origin'].get('application_flows',{}).get(flow['flow_id'],{})
+                pairs=(('ws_fragmented_requests','ws_fragmented_requests'),
+                       ('ws_client_pongs_verified','ws_client_pings'),('ws_server_pings_answered','ws_server_pongs'))
+                if any(type(flow.get(local)) is not int or type(observed.get(remote)) is not int or
+                       flow[local]!=observed[remote] for local,remote in pairs):
+                    return False
+                fragments=flow['ws_fragmented_requests']
+                if flow.get('ws_fragmented_responses')!=fragments or fragments!=flow.get('verified_transactions',0)//2:
+                    return False
+                if fragments<1 or flow['ws_client_pongs_verified']!=fragments or flow['ws_server_pings_answered']!=fragments:
+                    return False
     if not proxied:
         return proxy.get("tcp_flows", 0) == 0 and proxy.get("udp_sent", 0) == 0
     tcp_fingerprint = udp_fingerprint = tcp_flows = udp_flows = packets = 0

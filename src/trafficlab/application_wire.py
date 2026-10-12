@@ -127,14 +127,6 @@ def dns_verify(packet: bytes, reply: bytes) -> dict[str, Any]:
     return json.loads(body[1:])
 
 
-def websocket_frame(payload: bytes, masked: bool, opcode: int = 2) -> bytes:
-    if len(payload) > MAX_LINE or opcode not in (2, 8, 9, 10):
-        raise ValueError("APPLICATION_WEBSOCKET_FRAME_INVALID")
-    length = len(payload)
-    header = bytes([0x80 | opcode, (0x80 if masked else 0) | (length if length < 126 else 126)])
-    if length >= 126:
-        header += struct.pack("!H", length)
-    if not masked:
-        return header + payload
-    key = secrets.token_bytes(4)
-    return header + key + bytes(byte ^ key[index % 4] for index, byte in enumerate(payload))
+def websocket_frame(payload: bytes, masked: bool, opcode: int = 2, final: bool = True) -> bytes:
+    from trafficlab.websocket_wire import frame
+    return frame(payload, masked, opcode, final)

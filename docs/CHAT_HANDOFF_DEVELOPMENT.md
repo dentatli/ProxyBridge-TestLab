@@ -2,7 +2,17 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Остановлено по запросу пользователя / checkpoint WSS — 2026-10-11
+## Текущий checkpoint WS/WSS fragments/control — 2026-10-12
+
+Пользователь возобновил разработку до следующего сообщения об остановке и подтвердил: WinDbg закрыт, диагностика не идёт. Рабочая копия/ветка прежние, чистая исходная ревизия `5e94ddb`. UI 5193 восстановлен штатным launcher из `ui-wss` после отсутствия listener; DLL/C# приложения не менялись. Завершена прежняя отложенная GUI WSS/39-case приёмка: поиск, выбор, estimate, RU→EN→RU, console errors=[], ignored `wss-ui-final.png`.
+
+WS/WSS теперь чередуют одиночное binary message и три фрагмента с Ping между фрагментами. Origin возвращает аналогичный fragmented response с собственным Ping; native client проверяет exact Pong и отвечает Pong. `websocket_wire.py`: mask/RSV/opcodes/canonical lengths, общий message <=8192 bytes, <=64 frames между завершёнными messages (включая controls), контроль Close code/UTF-8, отказ orphan continuation/interleaving/flood. Text/extensions/compression не заявлены. Close допустим посреди незавершённого сообщения; такой обмен не даёт PASS. Native profile обязан действительно выполнить fragment/control обмен. Signed origin counters сопоставляются с каждым flow до route PASS; unknown/bool/missing/counter mismatch/unknown profile блокируют. Report protocol sessions содержат profile и fragment/Pong counters; history comparison продолжает учитывать bundle/local runtime hashes, старые measurements не переписывались.
+
+Bundle .180 READY `fe43260ebfe4907d4f53a906e9c1b625de2b7df6f984b80f72d7a16f932ca274`, 23 TCP/5 UDP, catalog 39. Приёмка: WS/WSS direct/explicit SOCKS5 четыре component cases по 12 transactions; пять auth/pin/cancel negative; 20 raw malformed plain/TLS checks с peer close, отсутствием authenticated flows и signed idle; независимый `.NET 10 ClientWebSocket` plain/TLS SDK interop (3 sends, fragmented response/server Ping→Pong, CA/name/pin scoped to handler, close, signed idle). Opt-in SDK fixture `tests/fixtures/traffic-websocket`, никаких новых runtime dependencies/OS trust installs. Полная финальная application regression: все 46 cases по 12 transactions PASS. 37 Windows unit tests PASS + 9 Linux-only skipped (Linux installer checks ранее отдельно PASS); 9 новых WS safety tests. Python AST 33 files, JS syntax, SDK build 0 errors/warnings. Current GUI 5193 показывает обновлённые WS/WSS названия, console errors=[], ignored `ws-extended-ui-final.png`. Product не запускался, driver Stopped; diagnostic checkout/kits не менялись.
+
+Перед этапом GitHub DNS дал «Could not resolve host: github.com»; актуальный результат commit/push проверять по Git. Следующее: HTTP chunked/compression и другие bounded profiles/protocol families; network-loss/installer interruption, v4/reboot/bundles и успешные product/HIGH/long остаются. HTTP CONNECT/другие Ubuntu/IPv6 отложены. Не повторять известный product TCP failure без нового основания, не исследовать диагностический дефект здесь.
+
+## Предыдущая остановка по запросу пользователя / checkpoint WSS — 2026-10-11
 
 Пользователь попросил «зафиксируй и остановись» из-за лимита. После этого новые проверки/разработка не запускались; уже запущенная application regression завершилась, изменения сохранены. Продолжать только по новому запросу.
 

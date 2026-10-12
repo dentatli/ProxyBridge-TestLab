@@ -100,18 +100,40 @@ class ApplicationOrigins:
             raise ValueError("APPLICATION_HTTP_TRANSFER_ENCODING_UNSUPPORTED")
         return lines[0], headers
 
-    async def ws_read(self, reader: asyncio.StreamReader) -> tuple[int, bytes]:
-        first, second = await reader.readexactly(2)
-        if not first & 0x80 or first & 0x70 or not second & 0x80 or second & 127 == 127 or first & 15 not in (2, 8, 9, 10):
-            raise ValueError("APPLICATION_WEBSOCKET_FRAME_INVALID")
-        size = second & 127
-        if size == 126:
-            size = struct.unpack("!H", await reader.readexactly(2))[0]
-        if size > MAX_LINE or (first & 15 >= 8 and size > 125):
-            raise ValueError("APPLICATION_WEBSOCKET_FRAME_INVALID")
-        key = await reader.readexactly(4)
-        data = await reader.readexactly(size)
-        return first & 15, bytes(byte ^ key[index % 4] for index, byte in enumerate(data))
+    def ws_observe(self, session: dict[str, Any]) -> None:
+        if session.get('row') is not None:
+            flow=session['row']['application_flows'][session['identity'][1]]
+            flow.update(session['ws_stats'])
+
+    async def ws_message(self,reader: asyncio.StreamReader,writer: asyncio.StreamWriter,
+                         session: dict[str, Any]) -> tuple[int,bytes]:
+        from trafficlab.websocket_wire import MessageAssembler,read_frame_async
+        assembler=session.setdefault('ws_assembler',MessageAssembler())
+        stats=session.setdefault('ws_stats',{'ws_fragmented_requests':0,'ws_client_pings':0,'ws_server_pongs':0})
+        while True:
+            item=assembler.feed(*await read_frame_async(reader))
+            if item is None:
+                continue
+            opcode,data=item
+            if opcode==9:
+                writer.write(websocket_frame(data,False,10))
+                await writer.drain()
+                stats['ws_client_pings']+=1
+                self.ws_observe(session)
+            elif opcode==10:
+                expected=session.get('ws_expected_pong')
+                if expected is not None:
+                    if data!=expected:
+                        raise ValueError('APPLICATION_WEBSOCKET_PONG_UNVERIFIED')
+                    session['ws_expected_pong']=None
+                    stats['ws_server_pongs']+=1
+                    self.ws_observe(session)
+            else:
+                if opcode==2 and session.get('ws_expected_pong') is not None:
+                    raise ValueError('APPLICATION_WEBSOCKET_PONG_UNVERIFIED')
+                if opcode==2 and assembler.last_fragments>1:
+                    stats['ws_fragmented_requests']+=1
+                return opcode,data
 
     async def connection(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, kind: str) -> None:
         task = asyncio.current_task()
@@ -156,13 +178,11 @@ class ApplicationOrigins:
                                 raise ValueError("APPLICATION_HTTP_REQUEST_INVALID")
                             data = await reader.readexactly(size)
                         elif kind in ("websocket", "websocket-tls"):
-                            opcode, data = await self.ws_read(reader)
-                            if opcode in (8, 9):
-                                writer.write(websocket_frame(data, False, 8 if opcode == 8 else 10))
+                            opcode, data = await self.ws_message(reader, writer, session)
+                            if opcode == 8:
+                                writer.write(websocket_frame(data, False, 8))
                                 await writer.drain()
-                                if opcode == 8:
-                                    return
-                                continue
+                                return
                             if opcode != 2:
                                 raise ValueError("APPLICATION_WEBSOCKET_OPCODE_INVALID")
                         else:
@@ -171,6 +191,8 @@ class ApplicationOrigins:
                                 raise ValueError("APPLICATION_TLS_MESSAGE_INVALID")
                         message = json.loads(data)
                         value, row, payload = self.authenticate(message, kind, peer, session)
+                        if kind in ('websocket','websocket-tls'):
+                            self.ws_observe(session)
                         row["rx_bytes"] += len(payload)
                         reply = json_bytes(response(self.agent.secret, value, peer, message["payload"]))
                         row["tx_bytes"] += len(payload)
@@ -178,7 +200,14 @@ class ApplicationOrigins:
                             connection = "close" if kind == "https" and message.get("close") is True else "keep-alive"
                             writer.write(f"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {len(reply)}\r\nConnection: {connection}\r\n\r\n".encode() + reply)
                         elif kind in ("websocket", "websocket-tls"):
-                            writer.write(websocket_frame(reply, False))
+                            if session['ws_assembler'].last_fragments>1:
+                                from trafficlab.websocket_wire import fragmented_message
+                                import secrets
+                                ping=secrets.token_bytes(8)
+                                session['ws_expected_pong']=ping
+                                writer.write(fragmented_message(reply,False,ping))
+                            else:
+                                writer.write(websocket_frame(reply, False))
                         else:
                             writer.write(reply + b"\n")
                     await writer.drain()

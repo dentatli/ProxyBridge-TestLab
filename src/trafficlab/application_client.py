@@ -12,7 +12,7 @@ import time
 import uuid
 from typing import Any
 from trafficlab.application_wire import (APPLICATION_PORTS, SERVER_NAME, WS_GUID, dns_request, dns_verify,
-                                         request, verify_response, websocket_frame)
+                                         request, verify_response)
 from trafficlab.protocol import Histogram, MAX_LINE, json_bytes, read_json
 from trafficlab.proxy import fingerprint
 from trafficlab.socks_client import exact_socket
@@ -38,15 +38,8 @@ def headers(stream: Any) -> tuple[str, dict[str, str]]:
 
 
 def ws_read(sock: Any) -> tuple[int, bytes]:
-    first, second = exact_socket(sock, 2)
-    if not first & 0x80 or first & 0x70 or second & 0x80 or second & 127 == 127 or first & 15 not in (2, 8, 9, 10):
-        raise ValueError("APPLICATION_WEBSOCKET_RESPONSE_INVALID")
-    length = second & 127
-    if length == 126:
-        length = struct.unpack("!H", exact_socket(sock, 2))[0]
-    if length > MAX_LINE or (first & 15 >= 8 and length > 125):
-        raise ValueError("APPLICATION_WEBSOCKET_RESPONSE_INVALID")
-    return first & 15, exact_socket(sock, length)
+    from trafficlab.websocket_wire import WebSocketClient
+    return WebSocketClient(sock).receive()
 
 
 def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
@@ -112,6 +105,8 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                 raise ValueError("APPLICATION_WEBSOCKET_UPGRADE_REJECTED")
             stream.close()
             stream = None
+            from trafficlab.websocket_wire import WebSocketClient
+            ws_client = WebSocketClient(sock)
         deadline = time.perf_counter() + job["seconds"]
         next_send, sequence = time.perf_counter(), 0
         while time.perf_counter() < deadline and not cancelled(job):
@@ -154,11 +149,9 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                 elif kind in ('http2', 'grpc'):
                     response = h2_client.exchange(message)
                 elif kind in ("websocket", "websocket-tls"):
-                    sock.sendall(websocket_frame(message, True))
-                    opcode, raw = ws_read(sock)
-                    if opcode != 2:
-                        raise ValueError("APPLICATION_WEBSOCKET_OPCODE_INVALID")
+                    raw = ws_client.exchange(message, sequence % 2 == 1)
                     response = json.loads(raw)
+                    result.update(ws_client.stats)
                 else:
                     sock.sendall(message + b"\n")
                     response = read_json(stream)
@@ -181,11 +174,7 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
             while time.perf_counter() < min(deadline, next_send) and not cancelled(job):
                 time.sleep(max(0, min(0.05, min(deadline, next_send) - time.perf_counter())))
         if kind in ("websocket", "websocket-tls"):
-            close = struct.pack("!H", 1000)
-            sock.sendall(websocket_frame(close, True, 8))
-            opcode, returned = ws_read(sock)
-            if opcode != 8 or returned != close:
-                raise ValueError("APPLICATION_WEBSOCKET_CLOSE_UNVERIFIED")
+            ws_client.close()
             if kind == "websocket-tls":
                 sock = sock.unwrap()
             result["close_verified"] = True
@@ -217,6 +206,8 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
             stream = None
             sock = sock.unwrap()
             result["close_verified"] = True
+        if kind in ('websocket','websocket-tls') and result.get('ws_fragmented_requests',0)<1 and not cancelled(job):
+            raise ValueError('APPLICATION_WEBSOCKET_PROFILE_NOT_EXERCISED')
         result["complete"] = result["verified_transactions"] > 0 and not cancelled(job)
     except Exception as error:
         code = str(error) if isinstance(error, ValueError) and str(error).startswith("APPLICATION_") else "APPLICATION_TRANSPORT_FAILED"
