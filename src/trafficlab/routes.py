@@ -11,6 +11,20 @@ def stage_route(stage: dict[str, Any], proxied: bool) -> bool:
     proxy = stage["origin"].get("proxy", {})
     for result in stage['results']:
         for flow in result['flows']:
+            if flow.get('grpc_streaming_mode'):
+                from trafficlab.grpc_streaming import PATHS,WIDTH
+                mode=flow['grpc_streaming_mode'];rpc=flow.get('grpc_rpc_count')
+                observed=stage['origin'].get('application_flows',{}).get(flow['flow_id'],{})
+                if mode not in PATHS or observed.get('grpc_mode')!=mode or type(rpc) is not int or rpc<1 or flow.get('grpc_status_verified') is not True or flow.get('certificate_verified') is not True or flow.get('close_verified') is not True:
+                    return False
+                requests=rpc*(1 if mode=='server-stream' else WIDTH)
+                responses=rpc*(1 if mode=='client-stream' else WIDTH)
+                for key,expected in [('grpc_rpc_count',rpc),('grpc_request_messages',requests),
+                                     ('grpc_response_messages',responses),('grpc_receipts',rpc*WIDTH)]:
+                    if type(flow.get(key)) is not int or type(observed.get(key)) is not int or flow[key]!=expected or observed[key]!=expected:
+                        return False
+                if type(observed.get('transactions')) is not int or type(flow.get('verified_transactions')) is not int or observed['transactions']!=requests or flow['verified_transactions']!=requests:
+                    return False
             if flow.get('http2_profile'):
                 from trafficlab.http_two import MULTIPLEX_PROFILE,MULTIPLEX_WIDTH
                 observed=stage['origin'].get('application_flows',{}).get(flow['flow_id'],{})

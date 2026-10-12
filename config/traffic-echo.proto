@@ -1,4 +1,9 @@
 syntax = "proto3";
 package testlab;
 message Envelope { bytes json = 1; }
-service Echo { rpc Exchange(Envelope) returns (Envelope); }
+service Echo {
+  rpc Exchange(Envelope) returns (Envelope);
+  rpc ClientStream(stream Envelope) returns (Envelope);
+  rpc ServerStream(Envelope) returns (stream Envelope);
+  rpc BidiStream(stream Envelope) returns (stream Envelope);
+}

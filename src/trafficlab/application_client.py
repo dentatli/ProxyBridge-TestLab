@@ -112,6 +112,36 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
         next_send, sequence = time.perf_counter(), 0
         while time.perf_counter() < deadline and not cancelled(job):
             stamp = time.perf_counter()
+            if kind=='grpc' and job.get('grpc_mode','unary')!='unary':
+                from trafficlab.grpc_streaming import WIDTH,exchange
+                mode=job['grpc_mode'];batch=[]
+                for offset in range(1 if mode=='server-stream' else WIDTH):
+                    payload=bytes((index+sequence+offset)%256 for index in range(job.get('message_bytes',512)))
+                    value=request(secret,kind,job['run_id'],flow_id,sequence+offset,hashlib.sha256(payload).hexdigest())
+                    batch.append((value,payload,json_bytes({'identity':value,'payload':base64.b64encode(payload).decode()})))
+                replies,rtts=exchange(h2_client,mode,[item[2] for item in batch])
+                for index,(response,rtt) in enumerate(zip(replies,rtts)):
+                    value,payload,_=batch[0 if mode=='server-stream' else index]
+                    if response.get('grpc_mode')!=mode or type(response.get('grpc_message_index')) is not int or response['grpc_message_index']!=index or type(response.get('grpc_message_count')) is not int or response['grpc_message_count']!=WIDTH:
+                        raise ValueError('APPLICATION_GRPC_RECEIPT_INVALID')
+                    if base64.b64decode(response.get('payload',''),validate=True)!=payload:
+                        raise ValueError('APPLICATION_ECHO_PAYLOAD_MISMATCH')
+                    peer=verify_response(secret,value,response)
+                    if result['peer_observed_by_origin'] not in (None,peer):raise ValueError('APPLICATION_ORIGIN_PEER_CHANGED')
+                    result['peer_observed_by_origin']=peer
+                    result['rx_bytes']+=len(payload);histogram.add(rtt)
+                result['tx_bytes']+=sum(len(item[1]) for item in batch)
+                result['verified_transactions']+=len(batch)
+                result.update(grpc_streaming_mode=mode,grpc_status_verified=True,
+                    grpc_rpc_count=result.get('grpc_rpc_count',0)+1,
+                    grpc_request_messages=result.get('grpc_request_messages',0)+len(batch),
+                    grpc_response_messages=result.get('grpc_response_messages',0)+(1 if mode=='client-stream' else WIDTH),
+                    grpc_receipts=result.get('grpc_receipts',0)+WIDTH)
+                if sequence==0:connection_latency.add((time.perf_counter()-started)*1000)
+                sequence+=len(batch);next_send+=len(batch)/job.get('rate_packets_per_second',100)
+                while time.perf_counter()<min(deadline,next_send) and not cancelled(job):
+                    time.sleep(max(0,min(.05,min(deadline,next_send)-time.perf_counter())))
+                continue
             if kind=='http2':
                 from trafficlab.http_two import MULTIPLEX_PROFILE,MULTIPLEX_WIDTH
                 batch=[]

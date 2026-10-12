@@ -149,19 +149,28 @@ async def serve(origins: Any, reader: asyncio.StreamReader, writer: asyncio.Stre
                 if len(requests) >= 16:
                     raise ValueError('APPLICATION_HTTP2_REQUEST_LIMIT')
                 headers = header_map(event.headers)
-                if headers.get(':method') != 'POST' or headers.get(':path') != (GRPC_PATH if kind == 'grpc' else '/testlab') or headers.get('content-type') not in (('application/grpc', 'application/grpc+proto') if kind == 'grpc' else ('application/json',)):
+                from trafficlab.grpc_streaming import PATHS,ServerStream
+                paths=(GRPC_PATH,*PATHS.values()) if kind=='grpc' else ('/testlab',)
+                if headers.get(':method') != 'POST' or headers.get(':path') not in paths or headers.get('content-type') not in (('application/grpc', 'application/grpc+proto') if kind == 'grpc' else ('application/json',)):
                     raise ValueError('APPLICATION_HTTP2_REQUEST_INVALID')
                 if kind == 'grpc' and headers.get('te') != 'trailers':
                     raise ValueError('APPLICATION_GRPC_TRAILERS_REQUIRED')
-                requests[event.stream_id] = bytearray()
+                mode=next((mode for mode,path in PATHS.items() if path==headers.get(':path')),None) if kind=='grpc' else None
+                requests[event.stream_id] = ServerStream(origins,conn,event.stream_id,mode,session,peer) if mode else bytearray()
                 session['http2_peak_streams']=max(session.get('http2_peak_streams',0),len(requests))
             elif isinstance(event, DataReceived):
-                requests[event.stream_id].extend(event.data)
+                request=requests[event.stream_id]
                 conn.acknowledge_received_data(event.flow_controlled_length, event.stream_id)
-                if len(requests[event.stream_id]) > MAX_LINE + 16:
+                if isinstance(request,ServerStream):request.feed(event.data);continue
+                request.extend(event.data)
+                if len(request) > MAX_LINE + 16:
                     raise ValueError('APPLICATION_HTTP2_REQUEST_TOO_LARGE')
             elif isinstance(event, StreamEnded):
-                data = bytes(requests.pop(event.stream_id))
+                request=requests.pop(event.stream_id)
+                if isinstance(request,ServerStream):request.end();continue
+                if kind=='grpc' and session.get('grpc_mode') is not None:
+                    raise ValueError('APPLICATION_GRPC_MODE_CHANGED')
+                data = bytes(request)
                 message = json.loads(grpc_decode(data) if kind == 'grpc' else data)
                 identity, row, _ = origins.authenticate(message, kind, peer, session)
                 if kind=='http2':

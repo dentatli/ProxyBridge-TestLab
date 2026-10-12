@@ -59,7 +59,8 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
                 'websocket_profile','ws_fragmented_requests','ws_fragmented_responses','ws_client_pongs_verified',
                 'ws_server_pings_answered','http_profile','http_chunked_requests','http_gzip_requests',
                 'http_chunked_responses','http_gzip_responses','http_modes','dns_encrypted_protocol',
-                'http2_profile','http2_peak_streams','http2_completed_streams','close_scope', 'close_verified')}
+                'http2_profile','http2_peak_streams','http2_completed_streams',
+                'grpc_streaming_mode','grpc_rpc_count','grpc_request_messages','grpc_response_messages','grpc_receipts','close_scope', 'close_verified')}
                 for row in values for flow in row['flows'] if flow.get('ssh_host_key_verified') or flow.get('grpc_status_verified') or flow.get('quic_version') or flow.get('messaging_protocol') or flow.get('websocket_profile') or flow.get('http_profile') or flow.get('dns_encrypted_protocol') or flow.get('http2_profile')],
             "errors": sorted(set(error for row in values for flow in row["flows"] for error in flow.get("errors", [])))})
     resources = {role: {key:value for key,value in row.items() if key != "timeline"} for role,row in report.get("resources", {}).items()}
