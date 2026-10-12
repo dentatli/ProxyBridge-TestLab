@@ -96,8 +96,6 @@ class ApplicationOrigins:
             if key in headers:
                 raise ValueError("APPLICATION_HTTP_DUPLICATE_HEADER")
             headers[key] = value.strip()
-        if "transfer-encoding" in headers:
-            raise ValueError("APPLICATION_HTTP_TRANSFER_ENCODING_UNSUPPORTED")
         return lines[0], headers
 
     def ws_observe(self, session: dict[str, Any]) -> None:
@@ -158,7 +156,7 @@ class ApplicationOrigins:
                 if kind in ("websocket", "websocket-tls"):
                     line, headers = await self.headers(reader)
                     key = headers.get("sec-websocket-key", "")
-                    if line != "GET /testlab HTTP/1.1" or headers.get("upgrade", "").lower() != "websocket" or "upgrade" not in {token.strip() for token in headers.get("connection", "").lower().split(",")} or headers.get("sec-websocket-version") != "13" or len(base64.b64decode(key, validate=True)) != 16:
+                    if line != "GET /testlab HTTP/1.1" or any(name in headers for name in ('transfer-encoding','content-length','content-encoding')) or headers.get("upgrade", "").lower() != "websocket" or "upgrade" not in {token.strip() for token in headers.get("connection", "").lower().split(",")} or headers.get("sec-websocket-version") != "13" or len(base64.b64decode(key, validate=True)) != 16:
                         raise ValueError("APPLICATION_WEBSOCKET_UPGRADE_INVALID")
                     accept = base64.b64encode(hashlib.sha1((key + WS_GUID).encode()).digest()).decode()
                     writer.write(f"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n".encode())
@@ -173,10 +171,10 @@ class ApplicationOrigins:
                     else:
                         if kind in ("http", "https"):
                             line, headers = await self.headers(reader)
-                            size = int(headers.get("content-length", "-1"))
-                            if line != "POST /testlab HTTP/1.1" or not 0 < size <= MAX_LINE or headers.get("content-type") != "application/json":
+                            if line != "POST /testlab HTTP/1.1" or headers.get("content-type") != "application/json":
                                 raise ValueError("APPLICATION_HTTP_REQUEST_INVALID")
-                            data = await reader.readexactly(size)
+                            from trafficlab.http_body import read_async
+                            data,http_chunked,http_compressed=await read_async(reader,headers)
                         elif kind in ("websocket", "websocket-tls"):
                             opcode, data = await self.ws_message(reader, writer, session)
                             if opcode == 8:
@@ -193,12 +191,20 @@ class ApplicationOrigins:
                         value, row, payload = self.authenticate(message, kind, peer, session)
                         if kind in ('websocket','websocket-tls'):
                             self.ws_observe(session)
+                        if kind in ('http','https'):
+                            flow=row['application_flows'][value['flow_id']]
+                            for key,flag in (('http_chunked_requests',http_chunked),('http_gzip_requests',http_compressed)):
+                                flow[key]=flow.get(key,0)+int(flag)
                         row["rx_bytes"] += len(payload)
                         reply = json_bytes(response(self.agent.secret, value, peer, message["payload"]))
                         row["tx_bytes"] += len(payload)
                         if kind in ("http", "https"):
                             connection = "close" if kind == "https" and message.get("close") is True else "keep-alive"
-                            writer.write(f"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {len(reply)}\r\nConnection: {connection}\r\n\r\n".encode() + reply)
+                            from trafficlab.http_body import encode
+                            fields,body=encode(reply,http_chunked,http_compressed)
+                            writer.write(f"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: {connection}\r\n".encode()+fields+b'\r\n'+body)
+                            for key,flag in (('http_chunked_responses',http_chunked),('http_gzip_responses',http_compressed)):
+                                flow[key]=flow.get(key,0)+int(flag)
                         elif kind in ("websocket", "websocket-tls"):
                             if session['ws_assembler'].last_fragments>1:
                                 from trafficlab.websocket_wire import fragmented_message

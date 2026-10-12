@@ -58,6 +58,7 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
     secret = bytes.fromhex(job["secret"])
     sock = stream = control = None
     histogram, connection_latency = Histogram(), Histogram()
+    http_modes=[Histogram() for _ in range(4)] if kind in ('http','https') else None
     result: dict[str, Any] = {"flow_id": flow_id, "complete": False, "errors": [], "application": kind,
         "tx_bytes": 0, "rx_bytes": 0, "verified_transactions": 0, "peer_observed_by_origin": None}
     if udp:
@@ -137,15 +138,21 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                 value = request(secret, kind, job["run_id"], flow_id, sequence, hashlib.sha256(payload).hexdigest())
                 message = json_bytes({"identity": value, "payload": base64.b64encode(payload).decode()})
                 if kind in ("http", "https"):
-                    sock.sendall(f"POST /testlab HTTP/1.1\r\nHost: {SERVER_NAME}:{target['port']}\r\nContent-Type: application/json\r\nContent-Length: {len(message)}\r\nConnection: keep-alive\r\n\r\n".encode() + message)
+                    from trafficlab.http_body import PROFILE,MODES,encode,read
+                    chunked,compressed=MODES[sequence%len(MODES)]
+                    fields,body=encode(message,chunked,compressed)
+                    sock.sendall(f"POST /testlab HTTP/1.1\r\nHost: {SERVER_NAME}:{target['port']}\r\nContent-Type: application/json\r\nAccept-Encoding: gzip\r\nConnection: keep-alive\r\n".encode()+fields+b'\r\n'+body)
                     status, values = headers(stream)
-                    length = int(values.get("content-length", "-1"))
-                    if status != "HTTP/1.1 200 OK" or "transfer-encoding" in values or not 0 < length <= MAX_LINE:
-                        raise ValueError("APPLICATION_HTTP_STATUS_OR_LENGTH_INVALID")
-                    raw = stream.read(length)
-                    if len(raw) != length:
-                        raise EOFError("APPLICATION_HTTP_BODY_TRUNCATED")
+                    if status != "HTTP/1.1 200 OK" or values.get('content-type')!='application/json':
+                        raise ValueError('APPLICATION_HTTP_RESPONSE_INVALID')
+                    raw,returned_chunked,returned_compressed=read(stream,values)
+                    if (returned_chunked,returned_compressed)!=(chunked,compressed):
+                        raise ValueError('APPLICATION_HTTP_RESPONSE_PROFILE_INVALID')
                     response = json.loads(raw)
+                    result['http_profile']=PROFILE
+                    for key,flag in (('http_chunked_requests',chunked),('http_gzip_requests',compressed),
+                                      ('http_chunked_responses',returned_chunked),('http_gzip_responses',returned_compressed)):
+                        result[key]=result.get(key,0)+int(flag)
                 elif kind in ('http2', 'grpc'):
                     response = h2_client.exchange(message)
                 elif kind in ("websocket", "websocket-tls"):
@@ -166,6 +173,8 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
             if udp:
                 result["received"] += 1
             histogram.add((time.perf_counter() - stamp) * 1000)
+            if http_modes is not None:
+                http_modes[sequence%4].add((time.perf_counter()-stamp)*1000)
             result["verified_transactions"] += 1
             if sequence == 0:
                 connection_latency.add((time.perf_counter() - started) * 1000)
@@ -208,6 +217,8 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
             result["close_verified"] = True
         if kind in ('websocket','websocket-tls') and result.get('ws_fragmented_requests',0)<1 and not cancelled(job):
             raise ValueError('APPLICATION_WEBSOCKET_PROFILE_NOT_EXERCISED')
+        if kind in ('http','https') and result['verified_transactions']<4 and not cancelled(job):
+            raise ValueError('APPLICATION_HTTP_PROFILE_NOT_EXERCISED')
         result["complete"] = result["verified_transactions"] > 0 and not cancelled(job)
     except Exception as error:
         code = str(error) if isinstance(error, ValueError) and str(error).startswith("APPLICATION_") else "APPLICATION_TRANSPORT_FAILED"
@@ -224,6 +235,9 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
             control.close()
     result["elapsed_seconds"] = time.perf_counter() - started
     result["latency"] = histogram.view()
+    if http_modes is not None:
+        result['http_modes']=[{'mode':name,'latency':observed.view()} for name,observed in zip(
+            ('content-length','chunked','gzip','chunked-gzip'),http_modes)]
     result["connection_and_authentication_ms"] = connection_latency.view()
     if udp:
         result["loss_fraction"] = (result["sent"] - result["received"]) / result["sent"] if result["sent"] else None

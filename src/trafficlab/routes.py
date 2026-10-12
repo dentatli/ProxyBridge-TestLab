@@ -2,6 +2,7 @@
 from __future__ import annotations
 from typing import Any
 from trafficlab.websocket_wire import PROFILE
+from trafficlab.http_body import PROFILE as HTTP_PROFILE
 
 
 def stage_route(stage: dict[str, Any], proxied: bool) -> bool:
@@ -10,6 +11,17 @@ def stage_route(stage: dict[str, Any], proxied: bool) -> bool:
     proxy = stage["origin"].get("proxy", {})
     for result in stage['results']:
         for flow in result['flows']:
+            if flow.get('http_profile'):
+                observed=stage['origin'].get('application_flows',{}).get(flow['flow_id'],{})
+                fields=('http_chunked_requests','http_gzip_requests','http_chunked_responses','http_gzip_responses')
+                if flow['http_profile']!=HTTP_PROFILE or any(type(flow.get(key)) is not int or type(observed.get(key)) is not int or
+                    flow[key]!=observed[key] for key in fields):
+                    return False
+                transactions=flow.get('verified_transactions',0)
+                chunked=transactions//4*2+int(transactions%4>1)
+                gzip=transactions//4*2+int(transactions%4>2)
+                if transactions<4 or flow['http_chunked_requests']!=chunked or flow['http_gzip_requests']!=gzip:
+                    return False
             if flow.get('websocket_profile'):
                 if flow['websocket_profile']!=PROFILE:
                     return False

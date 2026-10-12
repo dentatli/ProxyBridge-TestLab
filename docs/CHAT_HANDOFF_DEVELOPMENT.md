@@ -2,7 +2,17 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий checkpoint WS/WSS fragments/control — 2026-10-12
+## Текущий checkpoint HTTP/HTTPS chunked/gzip — 2026-10-12
+
+Native HTTP/HTTPS чередуют четыре комбинации Content-Length/chunked и identity/gzip, включая chunked+gzip. Собственный origin отвечает в том же режиме; worker проверяет full decoded payload/HMAC/peer и exact response framing. В protocol session evidence сохранены profile `content-length-chunked-gzip-combinations-v1`, четыре mode RTT histograms и counters. Signed counters сверяются per flow с фактическим циклом modes до route PASS; минимум четыре transactions обязателен. Общий goodput относится к смеси режимов с pacing, а не к отдельному максимальному throughput каждого режима.
+
+`http_body.py`: отдельные sync/async readers, encoded и decoded body <=8192 bytes, максимум 64 chunks, strict CL/TE ambiguity/unsupported coding/CRLF/EOF; zlib bounded output без unbounded flush, обязательный gzip EOF/CRC, один member без extra bytes. Trailers/chunk extensions/другие compression codings/redirects не реализованы. WS upgrade по-прежнему запрещает HTTP body framing. HTTPS terminal close остаётся отдельным uncompressed Content-Length control и не включается в измеренные transactions/mode RTT.
+
+Bundle .180 READY `455e555b479e55cfa498742097adc2e527ca29c3f4f3d472082b1007c17bca51`, 23 TCP/5 UDP, catalog 39. Приёмка: четыре HTTP/HTTPS direct/explicit SOCKS5 component cases по 12 transactions; независимый `.NET 10 HttpClient` — восемь plain/TLS × четыре modes combinations с decoded payload/HMAC/CA/name/pin/подписанными counters/idle. 22 malformed plain/TLS requests: ambiguity/coding/chunk size/trailer/count/aggregate/gzip bomb/member/trailing/truncation/CRC; peer закрыт, authenticated flows отсутствуют, signed idle. Финальная regression всех 46 application component cases по 12 transactions PASS; пять TCP/pre-TLS/QUIC busy→idle checks PASS. 45 Windows unit tests PASS + 9 Linux-only skipped; 8 новых HTTP tests. Python AST 34 files, SDK build 0 warnings/errors, GUI 5193 RU/EN gzip search/selection/hidden choice, console errors=[], ignored `http-extended-ui-final.png`. UI DLL/C# приложения не менялись. Product не запускался; driver Stopped, product processes=0, execution inactive. SDK/raw/private reports вне Git; diagnostic checkout/kits не менялись.
+
+WS этап запушен `34762ed`, DNS GitHub восстановился без изменения сетевых настроек. Текущую ревизию смотреть Git. Продолжать независимые bounded profiles/families; DoT/DoH, gRPC streaming/H2 multiplexing и infrastructure interruption остаются. Успешные product/HIGH/long/v4/reboot/bundles ещё не доказаны. HTTP CONNECT/другие Ubuntu/IPv6 отложены; диагностический дефект не входит в scope.
+
+## Предыдущий checkpoint WS/WSS fragments/control — 2026-10-12
 
 Пользователь возобновил разработку до следующего сообщения об остановке и подтвердил: WinDbg закрыт, диагностика не идёт. Рабочая копия/ветка прежние, чистая исходная ревизия `5e94ddb`. UI 5193 восстановлен штатным launcher из `ui-wss` после отсутствия listener; DLL/C# приложения не менялись. Завершена прежняя отложенная GUI WSS/39-case приёмка: поиск, выбор, estimate, RU→EN→RU, console errors=[], ignored `wss-ui-final.png`.
 

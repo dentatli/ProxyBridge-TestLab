@@ -1,6 +1,6 @@
 # Функциональная инвентаризация TestLab
 
-Проверка 2026-10-11 в `testlab-development/ProxyBridge-TestLab`, ветка `codex/development-functional-completion`. Статусы ниже относятся к исходникам текущей ветки. Старые пользовательские испытания продукта не подтверждают этот checkout. Диагностические исходники, рабочая копия, комплекты и журналы не менялись.
+Проверка 2026-10-12 в `testlab-development/ProxyBridge-TestLab`, ветка `codex/development-functional-completion`. Статусы ниже относятся к исходникам текущей ветки. Старые пользовательские испытания продукта не подтверждают этот checkout. Диагностические исходники, рабочая копия, комплекты и журналы не менялись.
 
 ## Актуальный срез transport/application catalog — 2026-10-11
 
@@ -10,6 +10,7 @@
 | --- | --- | --- |
 | QUIC / HTTP3 | Два native UDP сценария, TLS/ALPN/pin, bounded streams, signed all-flow wire counters | 4 direct/explicit SOCKS5 component cases, 8 negative; продукт не запускался |
 | WS / WSS | Native TLS CA/name/pin, upgrade, single/fragmented binary messages, interleaved Ping/Pong, WS/TLS close | 4 component cases, 5 auth/pin/cancel negative, 20 malformed raw checks, .NET SDK interop, 46 application regression; GUI RU/EN/39 cases проверен 2026-10-12 |
+| HTTP / HTTPS | Четыре Content-Length/chunked/gzip combinations, bounded decoding, signed counters и per-mode RTT | 4 component cases, 8 .NET SDK combinations, 22 malformed checks, 46 application regression; GUI RU/EN/gzip search проверен |
 | SMTP / IMAP / MQTT | Шесть cleartext/TLS profiles, память-only mail, MQTT QoS1, signed receipts | 12 component cases, 15 negative, stdlib/Paho interop, 21 unit tests; product не запускался |
 | POP3 / POP3S | Immutable memory maildrop, native commands, HMAC session и signed retrieval receipts | 4 component cases и stdlib interop, DELE/RSET/negative/cancel; 22 unit tests |
 | AMQP / AMQPS | Native 0-9-1 auth/confirm/get/ack и transient queue | 4 component cases, 8 negative, Pika plain/TLS interop, 25 unit tests; product не запускался |
