@@ -11,7 +11,8 @@ APPLICATION_PORTS = {"http": 42511, "tls": 42512, "https": 42513, "websocket": 4
                      "dns-tcp": 42515, "dns-udp": 42515, "ssh": 42516, "sftp": 42517,
                      "http2": 42518, "grpc": 42519, "quic": 42520, "http3": 42521,
                      "smtp": 42522, "smtps": 42523, "imap": 42524, "imaps": 42525, "mqtt": 42526, "mqtts": 42527,
-                     "pop3": 42528, "pop3s": 42529, "amqp": 42530, "amqps": 42531, "websocket-tls": 42532}
+                     "pop3": 42528, "pop3s": 42529, "amqp": 42530, "amqps": 42531, "websocket-tls": 42532,
+                     "dns-tls": 42533, "dns-https": 42535}
 SERVER_NAME = "traffic.testlab.invalid"
 WS_GUID = "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
@@ -59,14 +60,15 @@ def run_tag(run_id: str) -> str:
     return hashlib.sha256(run_id.encode("ascii")).hexdigest()[:32]
 
 
-def dns_request(secret: bytes, run_id: str, flow_id: str, sequence: int) -> tuple[bytes, dict[str, Any]]:
+def dns_request(secret: bytes, run_id: str, flow_id: str, sequence: int,close: bool=False) -> tuple[bytes, dict[str, Any]]:
     tag = run_tag(run_id)
     name = f"{tag}.{flow_id}.{sequence:x}.pb.test"
-    digest = hashlib.sha256(json_bytes({"query_name": name, "query_type": "A"})).hexdigest()
+    query_type='TXT' if close else 'A'
+    digest = hashlib.sha256(json_bytes({"query_name": name, "query_type": query_type})).hexdigest()
     value = request(secret, "dns", run_id, flow_id, sequence, digest)
     labels = [tag, flow_id, f"{sequence:x}", value["proof"][:32], value["proof"][32:], "pb", "test"]
     qname = b"".join(bytes([len(label)]) + label.encode("ascii") for label in labels) + b"\0"
-    question = qname + struct.pack("!HH", 1, 1)
+    question = qname + struct.pack("!HH", 16 if close else 1, 1)
     return struct.pack("!6H", secrets.randbelow(65536), 0x0100, 1, 0, 0, 0) + question, value
 
 
@@ -86,7 +88,7 @@ def dns_decode(packet: bytes, runs: Any) -> tuple[dict[str, Any], bytes]:
             raise ValueError("APPLICATION_DNS_NAME_INVALID")
         labels.append(packet[offset:offset + size].decode("ascii"))
         offset += size
-    if len(labels) != 7 or labels[-2:] != ["pb", "test"] or packet[offset:] != b"\0\1\0\1":
+    if len(labels) != 7 or labels[-2:] != ["pb", "test"] or packet[offset:] not in (b"\0\1\0\1",b"\0\x10\0\1"):
         raise ValueError("APPLICATION_DNS_QUESTION_INVALID")
     run_id = next((key for key in runs if run_tag(key) == labels[0]), None)
     if run_id is None:
@@ -94,7 +96,7 @@ def dns_decode(packet: bytes, runs: Any) -> tuple[dict[str, Any], bytes]:
     sequence = int(labels[2], 16)
     name = f"{labels[0]}.{labels[1]}.{sequence:x}.pb.test"
     value = {"application": "dns", "run_id": run_id, "flow_id": labels[1], "sequence": sequence,
-             "payload_sha256": hashlib.sha256(json_bytes({"query_name": name, "query_type": "A"})).hexdigest(),
+             "payload_sha256": hashlib.sha256(json_bytes({"query_name": name, "query_type": 'TXT' if packet[offset:]==b'\0\x10\0\1' else 'A'})).hexdigest(),
              "proof": labels[3] + labels[4]}
     return value, packet[12:]
 

@@ -77,9 +77,11 @@ class ApplicationOrigins:
         flows[flow_id]["last_sequence"] = identity["sequence"]
         return identity, row, payload
 
-    def dns(self, packet: bytes, peer: list[Any], session: dict[str, Any] | None = None) -> bytes:
+    def dns(self, packet: bytes, peer: list[Any], session: dict[str, Any] | None = None,transport: str | None=None) -> bytes:
         identity, question = dns_decode(packet, self.agent.runs)
         value, row, _ = self.authenticate({"identity": identity}, "dns", peer, session)
+        if transport is not None:
+            row['application_flows'][value['flow_id']]['dns_transport']=transport
         if session is None:
             row["udp_received"] += 1
         return dns_response(packet, question, response(self.agent.secret, value, peer))
@@ -162,12 +164,26 @@ class ApplicationOrigins:
                     writer.write(f"HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: {accept}\r\n\r\n".encode())
                     await writer.drain()
                 while True:
-                    if kind == "dns-tcp":
+                    if kind in ('dns-tcp','dns-tls'):
                         size = struct.unpack("!H", await reader.readexactly(2))[0]
                         if size > 512:
                             raise ValueError("APPLICATION_DNS_LENGTH_INVALID")
-                        reply = self.dns(await reader.readexactly(size), peer, session)
+                        packet=await reader.readexactly(size)
+                        reply = self.dns(packet, peer, session,kind)
                         writer.write(struct.pack("!H", len(reply)) + reply)
+                        if kind=='dns-tls' and packet[-4:]==b'\0\x10\0\1':
+                            await writer.drain()
+                            return
+                    elif kind=='dns-https':
+                        from trafficlab.dns_http import body_length,PATH,MIME
+                        line,doh_headers=await self.headers(reader)
+                        if line!=f'POST {PATH} HTTP/1.1' or doh_headers.get('accept',MIME).lower()!=MIME:
+                            raise ValueError('APPLICATION_DOH_REQUEST_INVALID')
+                        reply=self.dns(await reader.readexactly(body_length(doh_headers)),peer,session,kind)
+                        close=doh_headers.get('connection','').lower()=='close'
+                        writer.write(f'HTTP/1.1 200 OK\r\nContent-Type: {MIME}\r\nContent-Length: {len(reply)}\r\nCache-Control: no-store\r\nConnection: {"close" if close else "keep-alive"}\r\n\r\n'.encode()+reply)
+                        await writer.drain()
+                        if close:return
                     else:
                         if kind in ("http", "https"):
                             line, headers = await self.headers(reader)
@@ -254,11 +270,11 @@ class ApplicationOrigins:
                 self.servers.append(transport)
                 continue
             context = None
-            if kind in ("tls", "https", "http2", "grpc", "smtps", "imaps", "mqtts", "pop3s", "amqps", "websocket-tls"):
+            if kind in ("tls", "https", "http2", "grpc", "smtps", "imaps", "mqtts", "pop3s", "amqps", "websocket-tls", "dns-tls", "dns-https"):
                 context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
                 context.minimum_version = ssl.TLSVersion.TLSv1_2
                 context.load_cert_chain(self.certificate, self.key)
-                context.set_alpn_protocols(['h2' if kind in ('http2', 'grpc') else "http/1.1" if kind in ("https", "websocket-tls") else
+                context.set_alpn_protocols(['h2' if kind in ('http2', 'grpc') else 'dot' if kind=='dns-tls' else "http/1.1" if kind in ("https", "websocket-tls", "dns-https") else
                     'mqtt' if kind == 'mqtts' else 'amqp' if kind == 'amqps' else 'testlab-mail/1' if kind in ('smtps','imaps','pop3s') else "testlab/1"])
             self.servers.append(await asyncio.start_server(lambda reader, writer, kind=kind: self.connection(reader, writer, kind), bind, port, ssl=context, limit=MAX_LINE + 1))
 

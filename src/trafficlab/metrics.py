@@ -58,8 +58,8 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
                 'handshake_complete', 'quic_datagrams_sent', 'quic_datagrams_received', 'migration_status', 'messaging_protocol',
                 'websocket_profile','ws_fragmented_requests','ws_fragmented_responses','ws_client_pongs_verified',
                 'ws_server_pings_answered','http_profile','http_chunked_requests','http_gzip_requests',
-                'http_chunked_responses','http_gzip_responses','http_modes','close_scope', 'close_verified')}
-                for row in values for flow in row['flows'] if flow.get('ssh_host_key_verified') or flow.get('grpc_status_verified') or flow.get('quic_version') or flow.get('messaging_protocol') or flow.get('websocket_profile') or flow.get('http_profile')],
+                'http_chunked_responses','http_gzip_responses','http_modes','dns_encrypted_protocol','close_scope', 'close_verified')}
+                for row in values for flow in row['flows'] if flow.get('ssh_host_key_verified') or flow.get('grpc_status_verified') or flow.get('quic_version') or flow.get('messaging_protocol') or flow.get('websocket_profile') or flow.get('http_profile') or flow.get('dns_encrypted_protocol')],
             "errors": sorted(set(error for row in values for flow in row["flows"] for error in flow.get("errors", [])))})
     resources = {role: {key:value for key,value in row.items() if key != "timeline"} for role,row in report.get("resources", {}).items()}
     elapsed = sum(row["elapsed_seconds"] for row in rows)

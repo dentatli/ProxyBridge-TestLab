@@ -27,7 +27,7 @@ function trafficGroup(row){
   if(row.recipe!=="application")return "transport";
   if(["http","https","http2","http3","grpc","websocket","websocket-tls"].includes(row.application))return "web";
   if(["tls","quic"].includes(row.application))return "security";
-  return {"dns-classic":"dns",ssh:"ssh",sftp:"ssh",mail:"mail",mqtt:"messaging",amqp:"messaging"}[row.family]||"other";
+  return {"dns-classic":"dns","dns-encrypted":"dns",ssh:"ssh",sftp:"ssh",mail:"mail",mqtt:"messaging",amqp:"messaging"}[row.family]||"other";
 }
 function filterTrafficCards(){
   const rows=trafficCatalog?.cases||[], category=lab("traffic-category").value;

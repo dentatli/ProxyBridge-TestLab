@@ -18,7 +18,7 @@ ROOT = Path("/opt/proxybridge-testlab-traffic")
 UNIT = Path("/etc/systemd/system/proxybridge-testlab-traffic.service")
 SERVICE = "proxybridge-testlab-traffic.service"
 PORTS = {42501, 42502, 42503, 42511, 42512, 42513, 42514, 42515, 42516, 42517, 42518, 42519,
-         42522, 42523, 42524, 42525, 42526, 42527, 42528, 42529, 42530, 42531, 42532}
+         42522, 42523, 42524, 42525, 42526, 42527, 42528, 42529, 42530, 42531, 42532, 42533, 42535}
 UDP_PORTS = {42501, 42502, 42515, 42520, 42521}
 PKI_NAMES = ('ca.pem', 'server.pem', 'server.key', 'ssh_host.key')
 

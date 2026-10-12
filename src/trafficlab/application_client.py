@@ -79,12 +79,12 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                 negotiate(sock, target)
         elif not udp:
             sock.connect(destination)
-        if kind in ("tls", "https", "http2", "grpc", "websocket-tls"):
+        if kind in ("tls", "https", "http2", "grpc", "websocket-tls", "dns-tls", "dns-https"):
             identity = job["application_identity"]
             context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
             context.minimum_version = ssl.TLSVersion.TLSv1_2
             context.load_verify_locations(cadata=identity["tls_ca_pem"])
-            alpn = 'h2' if kind in ('http2', 'grpc') else "http/1.1" if kind in ("https", "websocket-tls") else "testlab/1"
+            alpn = 'h2' if kind in ('http2', 'grpc') else "dot" if kind=='dns-tls' else "http/1.1" if kind in ("https", "websocket-tls", "dns-https") else "testlab/1"
             context.set_alpn_protocols([alpn])
             sock = context.wrap_socket(sock, server_hostname=SERVER_NAME)
             observed = hashlib.sha256(sock.getpeercert(binary_form=True)).hexdigest()
@@ -95,7 +95,7 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
         if kind in ('http2', 'grpc'):
             from trafficlab.http_two import H2Client
             h2_client = H2Client(sock, kind == 'grpc')
-        if kind in ("http", "https", "tls"):
+        if kind in ("http", "https", "tls", "dns-https"):
             stream = sock.makefile("rb")
         if kind in ("websocket", "websocket-tls"):
             key = base64.b64encode(secrets.token_bytes(16)).decode()
@@ -126,6 +126,9 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                         raise ValueError("APPLICATION_DNS_SOURCE_INVALID")
                     if job.get("test_proxy"):
                         reply = unwrap(reply)
+                elif kind=='dns-https':
+                    from trafficlab.dns_http import post
+                    reply=post(sock,stream,packet,SERVER_NAME,target['port'],headers)
                 else:
                     sock.sendall(struct.pack("!H", len(packet)) + packet)
                     length = struct.unpack("!H", exact_socket(sock, 2))[0]
@@ -195,6 +198,23 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                 result['grpc_status_verified'] = True
             from trafficlab.dependencies import verify
             verify()
+        if kind in ('dns-tls','dns-https'):
+            packet,value=dns_request(secret,job['run_id'],flow_id,sequence,close=kind=='dns-tls')
+            if kind=='dns-https':
+                reply=post(sock,stream,packet,SERVER_NAME,target['port'],headers,close=True)
+                stream.close();stream=None
+            else:
+                sock.sendall(struct.pack('!H',len(packet))+packet)
+                length=struct.unpack('!H',exact_socket(sock,2))[0]
+                if not 17<=length<=512:
+                    raise ValueError('APPLICATION_DNS_RESPONSE_TOO_LARGE')
+                reply=exact_socket(sock,length)
+            if verify_response(secret,value,dns_verify(packet,reply))!=result['peer_observed_by_origin']:
+                raise ValueError('APPLICATION_DNS_CLOSE_RESPONSE_INVALID')
+            if sock.recv(1)!=b'':
+                raise ValueError('APPLICATION_DNS_TLS_CLOSE_UNVERIFIED')
+            sock=sock.unwrap()
+            result.update(dns_encrypted_protocol=kind,close_verified=True)
         if kind in ("tls", "https"):
             terminal = b"close"
             value = request(secret, kind, job["run_id"], flow_id, sequence, hashlib.sha256(terminal).hexdigest())

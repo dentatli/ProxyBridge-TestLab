@@ -11,6 +11,14 @@ def stage_route(stage: dict[str, Any], proxied: bool) -> bool:
     proxy = stage["origin"].get("proxy", {})
     for result in stage['results']:
         for flow in result['flows']:
+            if flow.get('dns_encrypted_protocol'):
+                kind=flow['dns_encrypted_protocol']
+                observed=stage['origin'].get('application_flows',{}).get(flow['flow_id'],{})
+                if kind not in ('dns-tls','dns-https') or observed.get('dns_transport')!=kind or flow.get('certificate_verified') is not True or flow.get('close_verified') is not True:
+                    return False
+                count=observed.get('transactions')
+                if type(count) is not int or count!=flow.get('verified_transactions',0)+1:
+                    return False
             if flow.get('http_profile'):
                 observed=stage['origin'].get('application_flows',{}).get(flow['flow_id'],{})
                 fields=('http_chunked_requests','http_gzip_requests','http_chunked_responses','http_gzip_responses')
