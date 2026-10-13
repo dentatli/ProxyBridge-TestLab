@@ -66,9 +66,14 @@ def recipes(job: dict[str, Any], catalog: dict[str, Any]) -> list[dict[str, Any]
     recovery = phase("recovery", workload("echo"))
     recipe = case["recipe"]
     if recipe == "application":
-        return [phase(case["application"], workload("udp" if case["application"] in ("dns-udp", "quic", "http3") else "echo", n,
+        sizes = case.get('payload_sizes',[512])
+        if not isinstance(sizes,list) or not 1<=len(sizes)<=4 or any(type(value) is not int or not 1<=value<=4096 for value in sizes) or len(set(sizes))!=len(sizes) or \
+            ('payload_sizes' in case and case['application'] not in ('http','https','http2','websocket-tls','http3')):
+            raise ValueError('TRAFFIC_CATALOG_PAYLOAD_PROFILE_INVALID')
+        return [phase(f"{case['application']}-payload-{size}" if 'payload_sizes' in case else case['application'],
+                      workload("udp" if case["application"] in ("dns-udp", "quic", "http3") else "echo", n,
                       application=case["application"], warmup_count=0,grpc_mode=case.get('grpc_mode','unary'),
-                      quic_mode=case.get('quic_mode','single')))]
+                      quic_mode=case.get('quic_mode','single'),message_bytes=size)) for size in sizes]
     if recipe in ("echo", "upload", "download", "duplex"):
         return [phase(recipe, workload(recipe, (1 if job["load"] == "LOW" else 4) if recipe == "echo" else n))]
     if recipe == "multistream":

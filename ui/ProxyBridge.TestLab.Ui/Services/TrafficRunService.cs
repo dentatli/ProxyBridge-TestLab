@@ -343,10 +343,19 @@ public sealed partial class TrafficRuntimeService
         await File.WriteAllBytesAsync(temporary, JsonSerializer.SerializeToUtf8Bytes(value, Pretty));
         File.Move(temporary, path, true);
     }
-    private static double Estimate(IReadOnlyCollection<TrafficCaseRequest> cases, bool continueAfterFailure = false) =>
-        (continueAfterFailure ? Math.Max(0, cases.Count - 1) * 20 : 0) + cases.Sum(row => row.Id == "soak"
+    private double Estimate(IReadOnlyCollection<TrafficCaseRequest> cases, bool continueAfterFailure = false)
+    {
+        var payloadStages = Catalog().GetProperty("cases").EnumerateArray().ToDictionary(row=>row.GetProperty("id").GetString()!,row=>
+        {
+            if (!row.TryGetProperty("payload_sizes",out var sizes)) return 1;
+            var count = sizes.GetArrayLength();
+            if (count is < 1 or > 4) throw new InvalidOperationException("TRAFFIC_CATALOG_PAYLOAD_PROFILE_INVALID");
+            return count;
+        });
+        return (continueAfterFailure ? Math.Max(0, cases.Count - 1) * 20 : 0) + cases.Sum(row => row.Id == "soak"
         ? (row.Duration == "SHORT" ? 24 : row.Duration == "NORMAL" ? 48 : 72) * 3600d + 300
         : (row.Duration == "SHORT" ? 6 : row.Duration == "NORMAL" ? 30 : 120) * (row.Id switch
             { "tcp-multistream" or "loaded-rtt" or "flow-rate" or "mixed" or "three-modes" => 3, "tcp-connections" or "udp-connections" => 5,
-                "udp-sweep" => 6, "stability" => 10, _ => 1 }) + 20);
+                "udp-sweep" => 6, "stability" => 10, _ => payloadStages.GetValueOrDefault(row.Id,1) }) + 20);
+    }
 }

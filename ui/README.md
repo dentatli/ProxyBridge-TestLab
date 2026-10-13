@@ -27,7 +27,8 @@ and [operator guide](../docs/OPERATOR_GUIDE.md).
    remains separate from the name; paths are protected with DPAPI and are not
    returned by the API. Unknown, relocated and 4.0.0 runtime paths remain blocked.
 2. **Testing:** select transport, speed/load/stability or bounded application
-   cases from the traffic catalog (46 cases, including QUIC/HTTP3 multiplexing),
+   cases from the traffic catalog (51 cases, including QUIC/HTTP3 multiplexing
+   and application payload size sweeps),
    or use the local benchmark cases. Set duration and load
    independently for each test; estimates are shown per test and for the suite.
    Save/use/update/delete named suites to repeat the same choices on another

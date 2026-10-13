@@ -337,6 +337,7 @@ def execute_application(job: dict[str, Any]) -> dict[str, Any]:
             count += 1
     return {"schema_version": 1, "measurement_method": "controlled-traffic-v1", "run_id": job["run_id"],
         "task": job["task"], "application": job["application"], "flows": flows, "complete": all(flow["complete"] for flow in flows),
+        "application_payload_bytes": None if job['application'].startswith('dns-') else job.get('message_bytes',512),
         "elapsed_seconds": time.perf_counter() - started, "tx_bytes": sum(flow["tx_bytes"] for flow in flows),
         "rx_bytes": sum(flow["rx_bytes"] for flow in flows), "successful_tcp_flows": count,
         "tcp_origin_fingerprint": f"{tcp:064x}", "udp_origin_fingerprint": f"{udp:064x}", "product_route_confirmed": False}

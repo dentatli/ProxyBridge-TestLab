@@ -60,6 +60,7 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
             "tcp_completed": sum(row["successful_tcp_flows"] for row in values),
             "tcp_failed": sum(flow.get("failures", int(not flow["complete"])) for row in values if row["task"] != "udp" for flow in row["flows"]),
             "application": next((row["application"] for row in values if row.get("application")), None),
+            "application_payload_bytes": next((row.get('application_payload_bytes') for row in values if row.get('application')),None),
             "application_transactions": sum(flow.get("verified_transactions", 0) for row in values for flow in row["flows"]),
             "application_tls_sessions": [{key: flow.get(key) for key in ("tls_version", "cipher", "certificate_sha256",
                 "certificate_verified", "server_name", "alpn", "close_verified")} for row in values for flow in row["flows"] if flow.get("tls_version")],

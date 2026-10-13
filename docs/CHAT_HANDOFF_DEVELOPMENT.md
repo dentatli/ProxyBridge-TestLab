@@ -2,7 +2,13 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: перенос наборов — 2026-10-13
+## Текущий этап: размеры прикладных данных — 2026-10-13
+
+Добавлены пять separate application payload-sweep cases: HTTP/HTTPS/WSS/HTTP2/HTTP3 по64/512/4096 logical bytes, по одному stage на размер. Всего51 cases (35 application +16 transport), прежние25 TCP/5 UDP. HTTP2 и HTTP3 сохраняют три outstanding streams, HTTP3 — новый multiplex profile; HTTP/HTTPS сохраняют CL/chunked×identity/gzip, WSS — single/fragmented/control profile. Это logical request payload, не размер IP packet/TLS record/MTU и не max throughput. Recipe sizes bounded1..4096/<=4 unique stages, явный size sweep только для поддержанных пяти protocols; остальные defaults512 не менялись. Каждый новый phase/run identity и прежние full payload/HMAC/route/cleanup gates сохранены. После failed stage дальнейшая load по-прежнему останавливается.
+
+Worker/summary application_payload_bytes сохранён явно (DNS=null); GUI показывает его вместе с application evidence. UI и backend Estimate читают stage count payload_sizes из catalog: SHORT38s/NORMAL110s/LONG380s плюс existing guarded-continue overhead, LONG требует allow_long_run. Импорт suites использует dynamic catalog, новые IDs не требуют отдельного private binding. Python compilation трёх modules, JS syntax, UI build0 warnings/errors прошли; tests TestLab/GUI regression/новые product runs не выполнялись. Runtime acceptance пяти profiles не заявлена. Suites stage запушен `e7b403a`; текущую ревизию смотреть Git. Последний установленный Ubuntu bundle b320... предшествует этим Python/catalog changes: перед новым product run нужен fresh runtime plan/apply; elevated new UI review остаётся blocked, обычная UI5202 не допускает Start. Продолжать независимую разработку до остановки пользователя.
+
+## Предыдущий этап: перенос наборов — 2026-10-13
 
 Testing получил export текущего local/remote выбора и import файла формата proxybridge-testlab-suite/schema_version1: только name/mode/tests(scenario,duration,load). UTF8 strict decode, size<=64KiB, имя<=64 без C0/C1 controls, exact allowed keys, known case IDs, unique cases, enums/length проверяются до применения. Legacy remote four benchmark names поддерживают прежнее отображение в native traffic choices; mixed legacy/native sets отклоняются как backend. Импорт заменяет только текущие UI choices, очищает выбранную saved-suite ID и локальный launch plan, не запускает продукт и не пишет saved catalog. Для persistence используется существующий Save new; auto update/delete/overwrite нет. Queue order определяется текущим catalog, не порядком импортированного JSON. Export не включает пути, credentials, IDs каталога, certificates, confirmations, frozen plans или results.
 
