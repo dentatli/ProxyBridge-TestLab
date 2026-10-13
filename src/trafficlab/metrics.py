@@ -56,6 +56,7 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
             "application_protocol_sessions": [{key: flow.get(key) for key in ('ssh_host_key_sha256', 'ssh_host_key_verified',
                 'ssh_cipher', 'ssh_version', 'sftp_version', 'grpc_status_verified', 'quic_version', 'connection_id_sha256',
                 'handshake_complete', 'quic_datagrams_sent', 'quic_datagrams_received', 'migration_status', 'messaging_protocol',
+                'quic_profile','quic_peak_streams','quic_completed_streams',
                 'websocket_profile','ws_fragmented_requests','ws_fragmented_responses','ws_client_pongs_verified',
                 'ws_server_pings_answered','http_profile','http_chunked_requests','http_gzip_requests',
                 'http_chunked_responses','http_gzip_responses','http_modes','dns_encrypted_protocol',

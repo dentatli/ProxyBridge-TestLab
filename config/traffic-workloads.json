@@ -41,6 +41,8 @@
     { "id": "app-grpc-bidi-stream", "ru": "gRPC: двусторонний streaming и trailers", "en": "gRPC: bidirectional streaming and trailers", "recipe": "application", "application": "grpc", "family": "grpc", "grpc_mode": "bidi-stream" },
     { "id": "app-quic", "ru": "QUIC: TLS 1.3, потоки и целостность", "en": "QUIC: TLS 1.3, streams and integrity", "recipe": "application", "application": "quic", "family": "quic-http3" },
     { "id": "app-http3", "ru": "HTTP/3: QUIC, POST и данные", "en": "HTTP/3: QUIC, POST and payload", "recipe": "application", "application": "http3", "family": "quic-http3" },
+    { "id": "app-quic-multiplex", "ru": "QUIC: три параллельных потока", "en": "QUIC: three concurrent streams", "recipe": "application", "application": "quic", "family": "quic-http3", "quic_mode": "multiplex" },
+    { "id": "app-http3-multiplex", "ru": "HTTP/3: три параллельных POST", "en": "HTTP/3: three concurrent POST streams", "recipe": "application", "application": "http3", "family": "quic-http3", "quic_mode": "multiplex" },
     { "id": "app-smtp", "ru": "SMTP: приём почты и подписанная квитанция", "en": "SMTP: mail acceptance and signed receipt", "recipe": "application", "application": "smtp", "family": "mail" },
     { "id": "app-smtps", "ru": "SMTPS: TLS и приём почты", "en": "SMTPS: TLS and mail acceptance", "recipe": "application", "application": "smtps", "family": "mail" },
     { "id": "app-imap", "ru": "IMAP: APPEND, FETCH и целостность", "en": "IMAP: APPEND, FETCH and integrity", "recipe": "application", "application": "imap", "family": "mail" },

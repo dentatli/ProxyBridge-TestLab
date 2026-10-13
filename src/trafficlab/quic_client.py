@@ -9,7 +9,7 @@ import time
 from trafficlab.dependencies import enable, verify
 from trafficlab.application_wire import APPLICATION_PORTS, SERVER_NAME, request, verify_response
 from trafficlab.protocol import Histogram, json_bytes
-from trafficlab.quic_wire import append_body, h3_headers
+from trafficlab.quic_wire import append_body, h3_headers, MULTIPLEX_PROFILE, MULTIPLEX_WIDTH
 
 
 def quic_flow(job, flow_id):
@@ -30,11 +30,15 @@ def quic_flow(job, flow_id):
     sock, control, conn = None, None, None
     prefix = b''
     closed = handshake = False
-    stream = None
-    body, returned_headers = bytearray(), None
-    ended = False
+    pending = {}
+    multiplex = job.get('quic_mode','single') == 'multiplex'
+    width = MULTIPLEX_WIDTH if multiplex else 1
     http = None
     try:
+        if job.get('quic_mode','single') not in ('single','multiplex'):
+            raise ValueError('APPLICATION_QUIC_PROFILE_INVALID')
+        if multiplex:
+            result.update(quic_profile=MULTIPLEX_PROFILE, quic_peak_streams=0, quic_completed_streams=0)
         target = {**job, 'port':job.get('application_ports', APPLICATION_PORTS)[kind]}
         destination = (job['host'], target['port'])
         if job.get('test_proxy'):
@@ -54,7 +58,7 @@ def quic_flow(job, flow_id):
         http = H3Connection(conn) if kind == 'http3' else None
 
         def pump(timeout=.05):
-            nonlocal handshake, closed, ended, returned_headers
+            nonlocal handshake, closed
             now = time.monotonic()
             timer = conn.get_timer()
             if timer is not None and timer <= now:
@@ -95,20 +99,48 @@ def quic_flow(job, flow_id):
                     for value in http.handle_event(event):
                         if not isinstance(value, (HeadersReceived, DataReceived)):
                             continue
-                        if value.stream_id != stream:
+                        context = pending.get(value.stream_id)
+                        if context is None or context['ended']:
                             raise ValueError('APPLICATION_QUIC_STREAM_CHANGED')
                         if isinstance(value, HeadersReceived):
-                            if returned_headers is not None:
+                            if context['headers'] is not None:
                                 raise ValueError('APPLICATION_HTTP3_TRAILERS_UNSUPPORTED')
-                            returned_headers = h3_headers(value.headers, response=True)
+                            context['headers'] = h3_headers(value.headers, response=True)
                         else:
-                            append_body(body, value.data)
-                        ended |= value.stream_ended
+                            if context['headers'] is None:
+                                raise ValueError('APPLICATION_HTTP3_HEADERS_REQUIRED')
+                            append_body(context['body'], value.data)
+                        if value.stream_ended:
+                            complete(context)
                 elif isinstance(event, StreamDataReceived):
-                    if event.stream_id != stream:
+                    context = pending.get(event.stream_id)
+                    if context is None or context['ended']:
                         raise ValueError('APPLICATION_QUIC_STREAM_CHANGED')
-                    append_body(body, event.data)
-                    ended |= event.end_stream
+                    append_body(context['body'], event.data)
+                    if event.end_stream:
+                        complete(context)
+
+        def complete(context):
+            if http and context['headers'] is None:
+                raise ValueError('APPLICATION_HTTP3_HEADERS_REQUIRED')
+            returned = json.loads(context['body'])
+            if base64.b64decode(returned.get('payload',''),validate=True) != context['payload']:
+                raise ValueError('APPLICATION_ECHO_PAYLOAD_MISMATCH')
+            peer = verify_response(secret, context['identity'], returned)
+            if multiplex and (returned.get('quic_profile') != MULTIPLEX_PROFILE or
+                type(returned.get('quic_peak_streams')) is not int or returned['quic_peak_streams'] != width or
+                type(returned.get('quic_batch_index')) is not int or returned['quic_batch_index'] != context['identity']['sequence']//width):
+                raise ValueError('APPLICATION_QUIC_MULTIPLEX_PROOF_INVALID')
+            if result['peer_observed_by_origin'] not in ([], [peer]):
+                raise ValueError('APPLICATION_ORIGIN_PEER_CHANGED')
+            result['peer_observed_by_origin'] = [peer]
+            result['verified_transactions'] += 1
+            result['received'] += 1
+            result['tx_bytes'] += len(context['payload']); result['rx_bytes'] += len(context['payload'])
+            histogram.add((time.perf_counter() - context['stamp']) * 1000)
+            context['ended'] = True
+            if multiplex:
+                result['quic_completed_streams'] += 1
 
         deadline = time.perf_counter() + 5
         while not handshake:
@@ -118,37 +150,37 @@ def quic_flow(job, flow_id):
         connection_latency.add((time.perf_counter() - started) * 1000)
         deadline, next_send, sequence = time.perf_counter() + job['seconds'], time.perf_counter(), 0
         while time.perf_counter() < deadline and not cancelled(job):
-            payload = bytes((i + sequence) % 256 for i in range(job.get('message_bytes',512)))
-            value = request(secret, kind, job['run_id'], flow_id, sequence, hashlib.sha256(payload).hexdigest())
-            message = json_bytes({'identity':value,'payload':base64.b64encode(payload).decode()})
-            stream, body, returned_headers, ended = conn.get_next_available_stream_id(), bytearray(), None, False
-            if http:
-                http.send_headers(stream, [(b':method',b'POST'),(b':scheme',b'https'),(b':authority',SERVER_NAME.encode()),
-                    (b':path',b'/testlab'),(b'content-type',b'application/json')])
-                http.send_data(stream, message, end_stream=True)
-            else:
-                conn.send_stream_data(stream, message, end_stream=True)
-            result['sent'] += 1
-            stamp, exchange_deadline = time.perf_counter(), time.perf_counter() + 2
-            while not ended:
+            pending.clear()
+            stamp = time.perf_counter()
+            for offset in range(width):
+                current = sequence + offset
+                payload = bytes((i + current) % 256 for i in range(job.get('message_bytes',512)))
+                value = request(secret, kind, job['run_id'], flow_id, current, hashlib.sha256(payload).hexdigest())
+                envelope = {'identity':value,'payload':base64.b64encode(payload).decode()}
+                if multiplex:
+                    envelope['quic_profile'] = MULTIPLEX_PROFILE
+                message = json_bytes(envelope)
+                if len(message) > 8192:
+                    raise ValueError('APPLICATION_QUIC_BODY_TOO_LARGE')
+                stream = conn.get_next_available_stream_id()
+                pending[stream] = {'body':bytearray(), 'headers':None, 'ended':False,
+                                   'identity':value, 'payload':payload, 'stamp':stamp}
+                if http:
+                    http.send_headers(stream, [(b':method',b'POST'),(b':scheme',b'https'),(b':authority',SERVER_NAME.encode()),
+                        (b':path',b'/testlab'),(b'content-type',b'application/json')])
+                    http.send_data(stream, message, end_stream=True)
+                else:
+                    conn.send_stream_data(stream, message, end_stream=True)
+                result['sent'] += 1
+            if multiplex:
+                result['quic_peak_streams'] = max(result['quic_peak_streams'],len(pending))
+            exchange_deadline = time.perf_counter() + 2
+            while not all(context['ended'] for context in pending.values()):
                 if cancelled(job) or time.perf_counter() >= exchange_deadline:
                     raise ValueError('APPLICATION_QUIC_EXCHANGE_INCOMPLETE')
                 pump()
-            if http and returned_headers is None:
-                raise ValueError('APPLICATION_HTTP3_HEADERS_REQUIRED')
-            returned = json.loads(body)
-            if base64.b64decode(returned.get('payload',''),validate=True) != payload:
-                raise ValueError('APPLICATION_ECHO_PAYLOAD_MISMATCH')
-            peer = verify_response(secret, value, returned)
-            if result['peer_observed_by_origin'] not in ([], [peer]):
-                raise ValueError('APPLICATION_ORIGIN_PEER_CHANGED')
-            result['peer_observed_by_origin'] = [peer]
-            result['verified_transactions'] += 1
-            result['received'] += 1
-            result['tx_bytes'] += len(payload); result['rx_bytes'] += len(payload)
-            histogram.add((time.perf_counter() - stamp) * 1000)
-            sequence += 1
-            next_send += 1/job.get('rate_packets_per_second',100)
+            sequence += width
+            next_send += width/job.get('rate_packets_per_second',100)
             while time.perf_counter() < min(deadline,next_send) and not cancelled(job):
                 pump(min(.05, max(0,min(deadline,next_send)-time.perf_counter())))
         result['closing'] = True

@@ -11,6 +11,20 @@ def stage_route(stage: dict[str, Any], proxied: bool) -> bool:
     proxy = stage["origin"].get("proxy", {})
     for result in stage['results']:
         for flow in result['flows']:
+            if flow.get('quic_profile'):
+                from trafficlab.quic_wire import MULTIPLEX_PROFILE,MULTIPLEX_WIDTH
+                observed=stage['origin'].get('application_flows',{}).get(flow['flow_id'],{})
+                count=flow.get('verified_transactions')
+                if flow['quic_profile']!=MULTIPLEX_PROFILE or observed.get('quic_profile')!=MULTIPLEX_PROFILE or \
+                    flow.get('application') not in ('quic','http3') or flow.get('certificate_verified') is not True or \
+                    flow.get('close_verified') is not True or type(count) is not int or count<MULTIPLEX_WIDTH or count%MULTIPLEX_WIDTH:
+                    return False
+                for key,expected in [('quic_peak_streams',MULTIPLEX_WIDTH),('quic_completed_streams',count)]:
+                    if type(flow.get(key)) is not int or type(observed.get(key)) is not int or flow[key]!=expected or observed[key]!=expected:
+                        return False
+                if type(observed.get('transactions')) is not int or observed['transactions']!=count or \
+                    observed.get('quic_pending_sequences')!=[] or type(observed.get('last_sequence')) is not int or observed['last_sequence']!=count-1:
+                    return False
             if flow.get('grpc_streaming_mode'):
                 from trafficlab.grpc_streaming import PATHS,WIDTH
                 mode=flow['grpc_streaming_mode'];rpc=flow.get('grpc_rpc_count')

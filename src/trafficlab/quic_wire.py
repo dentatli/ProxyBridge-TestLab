@@ -3,6 +3,9 @@ from __future__ import annotations
 from typing import Any
 from trafficlab.protocol import MAX_LINE
 
+MULTIPLEX_PROFILE = 'three-streams-with-batch-barrier-v1'
+MULTIPLEX_WIDTH = 3
+
 
 def append_body(body: bytearray, data: bytes) -> None:
     if len(body) + len(data) > MAX_LINE:

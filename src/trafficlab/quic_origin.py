@@ -5,8 +5,8 @@ import base64
 import json
 from trafficlab.dependencies import enable
 from trafficlab.application_wire import response
-from trafficlab.protocol import json_bytes
-from trafficlab.quic_wire import append_body, h3_headers
+from trafficlab.protocol import json_bytes, mac
+from trafficlab.quic_wire import append_body, h3_headers, MULTIPLEX_PROFILE, MULTIPLEX_WIDTH
 
 enable()
 from aioquic.asyncio import serve
@@ -40,6 +40,9 @@ class OriginProtocol(QuicConnectionProtocol):
         self.owner, self.kind = owner, kind
         self.peer, self.identity, self.row = None, None, None
         self.bodies, self.headers = {}, {}
+        self.profile = None
+        self.batch_index = 0
+        self.pending_responses = {}
         self.http = H3Connection(self._quic) if kind == 'http3' else None
         self.admitted = owner.origins.agent.active < owner.origins.agent.max_connections
         if self.admitted:
@@ -68,6 +71,15 @@ class OriginProtocol(QuicConnectionProtocol):
 
     def finish(self, stream):
         message = json.loads(self.bodies.pop(stream))
+        if not isinstance(message,dict) or not isinstance(message.get('identity'),dict):
+            raise ValueError('APPLICATION_MESSAGE_INVALID')
+        profile = message.get('quic_profile','single')
+        if profile not in ('single',MULTIPLEX_PROFILE) or self.profile not in (None,profile):
+            raise ValueError('APPLICATION_QUIC_PROFILE_INVALID')
+        if profile == MULTIPLEX_PROFILE:
+            sequence = message['identity'].get('sequence')
+            if type(sequence) is not int or sequence//MULTIPLEX_WIDTH != self.batch_index or len(self.pending_responses) >= MULTIPLEX_WIDTH:
+                raise ValueError('APPLICATION_QUIC_BATCH_INVALID')
         if self.identity is not None and self.identity != (message['identity']['run_id'], message['identity']['flow_id']):
             raise ValueError('APPLICATION_QUIC_IDENTITY_CHANGED')
         if self.http:
@@ -80,15 +92,39 @@ class OriginProtocol(QuicConnectionProtocol):
             self.identity, self.row = pair, row
             row['active'] += 1
             self.owner.origins.agent.proxy.observe_quic(*pair, self.peer)
+        self.profile = profile
         row['rx_bytes'] += len(payload)
-        row['tx_bytes'] += len(payload)
-        returned = json_bytes(response(self.owner.origins.agent.secret, identity, self.peer, base64.b64encode(payload).decode()))
+        if profile == MULTIPLEX_PROFILE:
+            self.pending_responses[stream] = (identity,payload)
+            flow = row['application_flows'][identity['flow_id']]
+            flow['quic_profile'] = MULTIPLEX_PROFILE
+            flow['quic_peak_streams'] = max(flow.get('quic_peak_streams',0),len(self.pending_responses))
+            # Hold every completed request until this batch has three authenticated
+            # outstanding streams. Partial batches never become completed evidence.
+            if len(self.pending_responses) != MULTIPLEX_WIDTH:
+                return
+            for pending_stream,(pending_identity,pending_payload) in reversed(list(self.pending_responses.items())):
+                returned = {'peer':self.peer, 'payload_sha256':pending_identity['payload_sha256'],
+                    'payload':base64.b64encode(pending_payload).decode(), 'quic_profile':MULTIPLEX_PROFILE,
+                    'quic_peak_streams':len(self.pending_responses), 'quic_batch_index':self.batch_index}
+                returned['proof'] = mac(self.owner.origins.agent.secret,b'application-response:',
+                    json_bytes(pending_identity)+json_bytes(returned))
+                self.send_response(pending_stream,json_bytes(returned))
+                row['tx_bytes'] += len(pending_payload)
+            flow['quic_completed_streams'] = flow.get('quic_completed_streams',0)+MULTIPLEX_WIDTH
+            self.pending_responses.clear()
+            self.batch_index += 1
+        else:
+            self.send_response(stream,json_bytes(response(self.owner.origins.agent.secret,identity,self.peer,base64.b64encode(payload).decode())))
+            row['tx_bytes'] += len(payload)
+        self.transmit()
+
+    def send_response(self, stream, returned):
         if self.http:
             self.http.send_headers(stream, [(b':status', b'200'), (b'content-type', b'application/json')])
             self.http.send_data(stream, returned, end_stream=True)
         else:
             self._quic.send_stream_data(stream, returned, end_stream=True)
-        self.transmit()
 
     def quic_event_received(self, event):
         if isinstance(event, ConnectionTerminated):

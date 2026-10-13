@@ -58,11 +58,13 @@ class ApplicationOrigins:
         existing = flows.get(flow_id)
         if existing and existing['peer']!=peer:
             raise ValueError("APPLICATION_REPLAY_OR_PEER_CHANGED")
-        if kind=='http2':
-            # HTTP/2 streams may finish in a different order. Keep a bounded
+        window_key = {'http2':'http2_pending_sequences', 'quic':'quic_pending_sequences',
+                      'http3':'quic_pending_sequences'}.get(kind)
+        if window_key:
+            # Independent streams may finish in a different order. Keep a bounded
             # replay window anchored at the highest contiguous verified sequence.
             contiguous=existing['last_sequence'] if existing else -1
-            pending=existing.get('http2_pending_sequences',[]) if existing else []
+            pending=existing.get(window_key,[]) if existing else []
             if not contiguous<identity['sequence']<=contiguous+16 or identity['sequence'] in pending:
                 raise ValueError('APPLICATION_REPLAY_OR_PEER_CHANGED')
         elif existing and identity['sequence']<=existing['last_sequence']:
@@ -83,13 +85,14 @@ class ApplicationOrigins:
             else:
                 row["udp_flows"][flow_id] = True
         flows[flow_id]["transactions"] += 1
-        if kind=='http2':
-            pending=set(flows[flow_id].get('http2_pending_sequences',[]))
+        if window_key:
+            pending=set(flows[flow_id].get(window_key,[]))
             pending.add(identity['sequence'])
             contiguous=flows[flow_id]['last_sequence']
             while contiguous+1 in pending:
                 contiguous+=1;pending.remove(contiguous)
-            flows[flow_id].update(last_sequence=contiguous,http2_pending_sequences=sorted(pending))
+            flows[flow_id]['last_sequence']=contiguous
+            flows[flow_id][window_key]=sorted(pending)
         else:flows[flow_id]["last_sequence"] = identity["sequence"]
         return identity, row, payload
 

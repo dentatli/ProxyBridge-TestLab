@@ -26,8 +26,9 @@ and [operator guide](../docs/OPERATOR_GUIDE.md).
    Inspection does not start ProxyBridge or change the driver. Bundle identity
    remains separate from the name; paths are protected with DPAPI and are not
    returned by the API. Unknown, relocated and 4.0.0 runtime paths remain blocked.
-2. **Testing:** select TCP RTT, combined upload/download, separate
-   OFF/UNRULED/SOCKS5 RTT, or TCP connection load/recovery. Set duration and load
+2. **Testing:** select transport, speed/load/stability or bounded application
+   cases from the traffic catalog (46 cases, including QUIC/HTTP3 multiplexing),
+   or use the local benchmark cases. Set duration and load
    independently for each test; estimates are shown per test and for the suite.
    Save/use/update/delete named suites to repeat the same choices on another
    build. Applying a suite requires fresh preparation; it cannot reuse a frozen
@@ -38,7 +39,9 @@ and [operator guide](../docs/OPERATOR_GUIDE.md).
    Automatic setup prepares an exact installation/repair plan; review and apply
    it explicitly. Ubuntu 22.04/24.04/26.04 LTS with systemd are admitted; only
    Ubuntu 22.04 x64/Python 3.10 has been verified on a real VM so far.
-   SSH and component READY does not enable remote benchmark execution.
+   SSH and component READY alone does not prove a product route. The traffic
+   controller runs fresh OFF/UNRULED controls and requires signed data/route
+   evidence for every measured case; actual failures remain visible.
 3. **Run:** prepare an immutable files-only plan, review its summary, then start
    explicitly from an administrator UI. The backend rechecks kit identity and
    launches the existing controller with evidence/route/data/cleanup gates.
@@ -49,6 +52,10 @@ and [operator guide](../docs/OPERATOR_GUIDE.md).
    back to an earlier success. Unconfirmed attempts have no measured metrics;
    unreadable history blocks the latest-only table. RTT, rates and sampled CLI
    CPU/private RAM retain their actual measurement scope.
+
+Do not create or run tests of TestLab itself (user instruction, 2026-10-13).
+Use compilation/builds and authorized real ProxyBridge checks; historical
+unit/probe/component acceptance only applies to its recorded revision.
 
 Navigation does not start or stop a run. Choices survive refresh in session
 storage; saved builds, suites and job state come from the server. Unstarted
