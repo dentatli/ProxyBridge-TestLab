@@ -4,6 +4,10 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
+## Изменение наблюдаемой памяти — 2026-10-13
+
+History coverage и optional comparison metrics показывают last-first по памяти одной resource identity за весь workload schedule (baseline/load/recovery): CLI private commit/working set и origin/proxy RSS; whole-OS memory отдельно включает фон. Нужно минимум два finite nonnegative значения first/last, иначе unknown; снижение памяти сохраняется как отрицательная delta. Counter ID и memory scope сохранены в resource_observation_summary_json. Новых опросов нет, используются ранее сохранённые first/last/count. Наблюдение не определяет причину роста и не измеряет allocation драйвера; при FAIL/route unverified benchmark cells пустые. JS syntax/UI build 0 warnings/errors, без tests TestLab/GUI runtime acceptance/новых traffic runs.
+
 ## Полнота ресурсных наблюдений — 2026-10-13
 
 History показывает source role, available/attempted observations, CPU delta sample count и реальную memory scope из уже сохранённых resource windows. Mean CPU относится к доступным интервалам; пропуски и первый sample без delta не равны zero. Missing metadata — unknown, а не догадка по наличию mean. CSV включает resource_observation_summary_json; для FAIL оно не становится benchmark measurement и не доказывает driver resource attribution. Дополнительных опросов не выполняется. JS syntax/UI build 0 warnings/errors, без tests/GUI runtime acceptance.

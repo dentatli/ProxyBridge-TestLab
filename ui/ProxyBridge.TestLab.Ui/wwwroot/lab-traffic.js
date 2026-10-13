@@ -52,6 +52,8 @@ function filterTrafficCards(){
 let trafficComparison=[],trafficComparisonKey="",trafficNextSkip=0,trafficHasMore=false,trafficCompareChoice={builds:{},metrics:{}};
 let trafficHistoryLoadedAt=null,trafficComparisonLoadedAt=null,trafficSnapshotUnavailable=true;
 let trafficComparisonBlocked=false,trafficUnreadableHistory=false;
+Object.assign(labText.ru,{trafficMemoryDelta:'Изменение памяти, МиБ',trafficMemoryDeltaHelp:'Разница последнего и первого доступных наблюдений одной идентичности процесса за весь профиль; нужно минимум два образца. Показатель не определяет причину роста. Память ОС включает фоновую работу.',trafficCliRamDelta:'CLI private commit: изменение, МиБ',trafficCliResidentDelta:'CLI рабочий набор: изменение, МиБ',trafficOriginProcessRamDelta:'Origin/proxy RSS: изменение, МиБ'});
+Object.assign(labText.en,{trafficMemoryDelta:'Memory change, MiB',trafficMemoryDeltaHelp:'Last minus first available observations of one process identity across the whole workload schedule; at least two samples are required. The counter does not identify the cause of growth. Whole-OS memory includes background work.',trafficCliRamDelta:'CLI private commit change, MiB',trafficCliResidentDelta:'CLI working set change, MiB',trafficOriginProcessRamDelta:'Origin/proxy RSS change, MiB'});
 Object.assign(labText.ru,{trafficCoverage:'Полнота ресурсных наблюдений',trafficCoverageRole:'Источник',trafficCoverageAvailable:'Доступны / попытки опроса',trafficCoverageCpu:'Образцы CPU',trafficCoverageMemory:'Область памяти',trafficCoverageHelp:'Среднее CPU рассчитано по доступным интервалам. Пропуски и первое наблюдение без CPU-дельты не считаются нулями; эти данные не измеряют ресурсы драйвера.',trafficResource_product_cli:'CLI ProxyBridge',trafficResource_worker:'Исполнитель нагрузки',trafficResource_windows_system:'Windows целиком',trafficResource_worker_system:'ОС исполнителя целиком',trafficResource_origin_system:'Ubuntu целиком',trafficResource_origin_and_proxy:'Процесс получателя и SOCKS5'});
 Object.assign(labText.en,{trafficCoverage:'Resource observation coverage',trafficCoverageRole:'Source',trafficCoverageAvailable:'Available / observation attempts',trafficCoverageCpu:'CPU samples',trafficCoverageMemory:'Memory scope',trafficCoverageHelp:'Mean CPU uses available intervals. Gaps and the initial observation without a CPU delta are not zeros; these counters do not measure driver resources.',trafficResource_product_cli:'ProxyBridge CLI',trafficResource_worker:'Load worker',trafficResource_windows_system:'Whole Windows OS',trafficResource_worker_system:'Whole worker OS',trafficResource_origin_system:'Whole Ubuntu OS',trafficResource_origin_and_proxy:'Origin and SOCKS5 process'});
 Object.assign(labText.ru,{trafficHistoryUnreadable:'Один или несколько отчётов отсутствуют или не читаются. История неполная; сравнение заблокировано, старые успехи не подставляются.',trafficHistoryUnavailable:'История не обновлена: источник недоступен. Показаны ранее загруженные записи; сравнение и выгрузка недоступны.'});
@@ -149,14 +151,17 @@ function trafficResourceCoverage(resources){
   const integer=value=>Number.isSafeInteger(value)&&value>=0?value:null;
   return roles.filter(role=>resources?.[role]).map(role=>{
     const row=resources[role],total=integer(row.samples),unavailable=integer(row.unavailable_samples);
+    const memoryKey=['private_bytes','working_set_bytes','physical_used_bytes'].find(key=>row.counters?.[key]);
+    const memory=row.counters?.[memoryKey];
     return {role,samples:total,available_samples:total!==null&&unavailable!==null&&unavailable<=total?total-unavailable:null,
-      cpu_samples:integer(row.counters?.cpu_percent_of_pc?.count),memory_scope:row.memory_scope??null};
+      cpu_samples:integer(row.counters?.cpu_percent_of_pc?.count),memory_scope:row.memory_scope??null,
+      memory_counter:memoryKey??null,memory_delta_mib:trafficMiB(trafficCounterChange(memory))};
   });
 }
 function trafficResourceCoverageMarkup(measurement){
   const rows=trafficResourceCoverage(measurement.resources);
   if(!rows.length)return '';
-  return `<details><summary>${t('trafficCoverage')}</summary><p>${t('trafficCoverageHelp')}</p><div class="lab-table-scroll"><table><thead><tr>${['trafficCoverageRole','trafficCoverageAvailable','trafficCoverageCpu','trafficCoverageMemory'].map(key=>`<th>${t(key)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr><td>${t(`trafficResource_${row.role}`)}</td><td>${number(row.available_samples,0)} / ${number(row.samples,0)}</td><td>${number(row.cpu_samples,0)}</td><td>${html(row.memory_scope||'—')}</td></tr>`).join('')}</tbody></table></div></details>`;
+  return `<details><summary>${t('trafficCoverage')}</summary><p>${t('trafficCoverageHelp')}</p><p>${t('trafficMemoryDeltaHelp')}</p><div class="lab-table-scroll"><table><thead><tr>${['trafficCoverageRole','trafficCoverageAvailable','trafficCoverageCpu','trafficMemoryDelta','trafficCoverageMemory'].map(key=>`<th>${t(key)}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr><td>${t(`trafficResource_${row.role}`)}</td><td>${number(row.available_samples,0)} / ${number(row.samples,0)}</td><td>${number(row.cpu_samples,0)}</td><td>${number(row.memory_delta_mib)}</td><td>${html([row.memory_counter,row.memory_scope].filter(Boolean).join(' · ')||'—')}</td></tr>`).join('')}</tbody></table></div></details>`;
 }
 function trafficMeasurementEvidence(measurement){
   const state=['NOT_STARTED','PARTIAL','COMPLETED'].includes(measurement.measurement_state)?measurement.measurement_state:'UNKNOWN';
@@ -186,10 +191,14 @@ function renderTrafficHistory(){
     }).join("")||`<p>${t("trafficEmpty")}</p>`}</details>`).join("")}</article>`;
   }).join("")||`<p>${t("trafficNone")}</p>`;
 }
-const trafficMetrics=["trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficCpu","trafficRam","trafficSystemCpu","trafficSystemRam","trafficOriginCpu","trafficOriginRam","trafficPeak","trafficCliResident","trafficWorkerCpu","trafficWorkerRam","trafficOriginProcessCpu","trafficOriginProcessRam","trafficCliHandles","trafficCliThreads","trafficTransactions"];
+const trafficMetrics=["trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficCpu","trafficRam","trafficSystemCpu","trafficSystemRam","trafficOriginCpu","trafficOriginRam","trafficPeak","trafficCliResident","trafficWorkerCpu","trafficWorkerRam","trafficOriginProcessCpu","trafficOriginProcessRam","trafficCliHandles","trafficCliThreads","trafficTransactions","trafficCliRamDelta","trafficCliResidentDelta","trafficOriginProcessRamDelta"];
 const trafficDefaultMetrics=new Set(["trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficCpu","trafficCliResident","trafficSystemCpu","trafficOriginCpu"]);
 const trafficMetricSelected=key=>trafficCompareChoice.metrics[key]??trafficDefaultMetrics.has(key);
 const trafficMiB=value=>typeof value==='number'&&Number.isFinite(value)?value/1048576:null;
+function trafficCounterChange(counter){
+  return Number.isSafeInteger(counter?.count)&&counter.count>=2&&typeof counter.first==='number'&&Number.isFinite(counter.first)&&
+    typeof counter.last==='number'&&Number.isFinite(counter.last)&&counter.first>=0&&counter.last>=0?counter.last-counter.first:null;
+}
 function trafficMetric(row,key){
   if(!row.complete)return null;
   const measured=(row.result?.measurements||[]).find(value=>value.mode==="SOCKS5"&&value.complete&&value.route_verified);
@@ -205,6 +214,9 @@ function trafficMetric(row,key){
     trafficCliResident:trafficMiB(counter("product_cli","working_set_bytes","max")),
     trafficWorkerCpu:counter("worker","cpu_percent_of_pc","mean"),trafficWorkerRam:trafficMiB(counter("worker","private_bytes","max")),
     trafficOriginProcessCpu:counter("origin_and_proxy","cpu_percent_of_pc","mean"),trafficOriginProcessRam:trafficMiB(counter("origin_and_proxy","working_set_bytes","max")),
+    trafficCliRamDelta:trafficMiB(trafficCounterChange(resources.product_cli?.counters?.private_bytes)),
+    trafficCliResidentDelta:trafficMiB(trafficCounterChange(resources.product_cli?.counters?.working_set_bytes)),
+    trafficOriginProcessRamDelta:trafficMiB(trafficCounterChange(resources.origin_and_proxy?.counters?.working_set_bytes)),
     trafficCliHandles:counter("product_cli","handles","max"),trafficCliThreads:counter("product_cli","threads","max"),
     trafficPeak:measured.tcp_active_peak??((measured.stages||[]).some(stage=>typeof stage.tcp_active_peak==="number")?Math.max(...(measured.stages||[]).map(stage=>stage.tcp_active_peak||0)):null)};
   return Number.isFinite(values[key])?values[key]:null;
