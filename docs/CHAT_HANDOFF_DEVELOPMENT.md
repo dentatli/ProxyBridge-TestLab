@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: QUIC / HTTP3 multiplexing — 2026-10-13
+## Текущий этап: пояснение незавершённых измерений — 2026-10-13
+
+После фактического product FAIL предыдущего этапа добавлены execution evidence: measurement_state COMPLETED/NOT_STARTED/PARTIAL/UNKNOWN, planned/started/recorded/unstarted stage counts, failure_context с operation/stage/index. Контекст устанавливается до origin session registration, workload invocation, сборки evidence и сохранения report. Started означает вызов workload, не подтверждённый обмен; recorded count не означает PASS. Исторические reports не переписываются: отсутствие новых полей даёт UNKNOWN, а не догадку о фазе остановки.
+
+Loss threshold met теперь null при отсутствии измеренных samples, с отдельными MEASURED/NOT_MEASURED/NOT_APPLICABLE и scope application-replies/udp-responses. Internal transport/route/capture/cleanup verdict gates сохранены; отсутствие samples не объявляется прохождением порога. GUI RU/EN показывает OFF/UNRULED controls, статус нагрузки, stage counts, фактическую failure phase, CLI READY/штатное завершение и наличие loss evidence. Все текстовые значения экранируются. Компиляция трёх Python modules и JS syntax прошли; tests/fixtures/GUI regression не добавлялись и не запускались. Не повторять тот же product control failure ради приёмки полей: runtime acceptance новых report fields пока не доказана.
+
+QUIC/multiplex source/docs stage запушен `e7c71b2`; текущую ревизию смотреть в Git. Запрет тестов самого TestLab ниже продолжает действовать. Продолжать независимый функционал до сообщения пользователя об остановке.
+
+## Предыдущий этап: QUIC / HTTP3 multiplexing — 2026-10-13
 
 Пользователь возобновил разработку до нового сообщения об остановке; подтвердил WinDbg закрыт/диагностика не идёт. Затем запретил создавать и запускать тесты самого TestLab ради снижения расхода. Этот запрет действует дальше: не добавлять unit/integration/SDK/GUI regression тесты тестера. Незакоммиченные правки прежних тестов и fixture отменены; ранее запущенные shell/catalog/run checks и три probe builds относятся к моменту до запрета. Два старых probe обнаружили неполный dummy product kit (нет Core.dll); его исправление также отменено. Устаревшие тесты сохранены как есть, их автоматическая приёмка не заявляется. Допустимы сборка/компиляция и реальные проверки ProxyBridge в пределах текущих gates; не заменять запрещённые тесты ручным набором проверок TestLab.
 

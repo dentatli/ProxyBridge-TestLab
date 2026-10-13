@@ -128,8 +128,11 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
                 ownership(binding_path, binding, product)
             gate = idle(binding_path, binding, mode != "OFF")
             route = validate_route(measured, mode == "SOCKS5") and (mode == "OFF" or lifecycle["route_events"].get("PROXY" if mode == "SOCKS5" else "DIRECT", 0) > 0)
-            loss_ok = all(stage["max_udp_flow_loss_fraction"] is None or stage["max_udp_flow_loss_fraction"] <= 0.01 for stage in measured["stages"]) if measured.get("compact_stages") else all(
-                flow.get("loss_fraction", 0) is None or flow.get("loss_fraction", 0) <= 0.01 for stage in measured["stages"] for row in stage["results"] for flow in row["flows"])
+            loss_samples = [stage.get('max_udp_flow_loss_fraction') for stage in measured['stages']] if measured.get('compact_stages') else [
+                flow.get('loss_fraction') for stage in measured['stages'] for row in stage['results'] if row['task']=='udp' for flow in row['flows']]
+            loss_samples = [value for value in loss_samples if type(value) in (int,float)]
+            loss_ok = all(value<=0.01 for value in loss_samples)
+            loss_state = 'MEASURED' if loss_samples else 'NOT_MEASURED' if measured.get('udp_expected') else 'NOT_APPLICABLE'
             capture_ok = mode == "OFF" or lifecycle.get("capture_complete") is True
             for failed, code in ((not measured["complete"], "TRAFFIC_TRANSPORT_INCOMPLETE"), (not route, "TRAFFIC_ROUTE_UNVERIFIED"),
                                  (not loss_ok, "TRAFFIC_UDP_LOSS_THRESHOLD_EXCEEDED"), (not capture_ok, "TRAFFIC_CLI_CAPTURE_INCOMPLETE")):
@@ -137,8 +140,11 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
                     result["errors"].append(code)
             result["measurements"].append({"mode": mode, "complete": measured["complete"] and route and loss_ok and capture_ok and lifecycle["cleanup_verified"],
                 "raw_evidence_sha256": __import__("hashlib").sha256(raw.read_bytes()).hexdigest(),
-                "transport_complete": measured["complete"], "route_verified": route, "loss_threshold_fraction": 0.01,
-                "loss_threshold_met": loss_ok, "lifecycle": lifecycle, "off_after": gate, **summary(measured)})
+                "transport_complete": measured["complete"], "route_verified": route,
+                "loss_threshold_fraction": 0.01 if loss_state!='NOT_APPLICABLE' else None,
+                "loss_threshold_met": loss_ok if loss_samples else None, "loss_evidence_state":loss_state,
+                "loss_scope": ('application-replies' if specification['recipe']=='application' else 'udp-responses') if measured.get('udp_expected') else None,
+                "lifecycle": lifecycle, "off_after": gate, **summary(measured)})
             if not lifecycle["cleanup_verified"]:
                 raise ValueError("TRAFFIC_CONTROLLED_SHUTDOWN_FAILED")
             if cancelled(job):

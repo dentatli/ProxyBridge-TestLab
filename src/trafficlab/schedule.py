@@ -109,6 +109,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
         "cancelled": False, "stages": [], "product_route_confirmed": False,
         "resource_scope": "identified-processes-and-separate-whole-OS-counters", "attempt_policy": "fresh-no-resume",
         "errors": [], "stage_count": len(stages), "skipped_stage_count": 0,
+        "workload_started_stage_count": 0,
+        "udp_expected": any(workload['task']=='udp' for stage in stages for workload in stage['workloads']),
         "ip_family": "IPv6" if ":" in job["host"] else "IPv4"}
     started = time.perf_counter()
     resources = ResourceWindow()
@@ -140,6 +142,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
     journal_digest = hashlib.sha256()
     compact = job["case_id"] == "soak"
     totals = SummaryWindow()
+    context = {"operation":"PREPARING_REPORT", "stage":None, "index":None}
     if compact:
         report.update(compact_stages=True, expected_proxy=bool(job.get("expected_proxy", job.get("test_proxy"))),
                       stage_journal_sha256=journal_digest.hexdigest(), overall=totals.view())
@@ -156,6 +159,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 report["skipped_stage_count"] += 1
                 continue
             stage_job = {**job, "run_id": f"{job['run_id']}.{index}"}
+            context = {"operation":"REGISTERING_SESSION", "stage":stage['phase'], "index":index}
             if any(workload.get("application") for workload in stage["workloads"]):
                 origin_metrics(stage_job)  # Register the session before native DNS encodes its opaque run tag.
             current["job"] = stage_job
@@ -163,8 +167,11 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                               "elapsed_seconds": time.perf_counter() - started, "state": "RUNNING"})
             phase_started = time.perf_counter()
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(stage["workloads"])) as pool:
+                context['operation'] = 'RUNNING_WORKLOAD'
+                report['workload_started_stage_count'] += 1
                 futures = [pool.submit(execute, {**stage_job, **workload}) for workload in stage["workloads"]]
                 results = [future.result() for future in futures]
+            context['operation'] = 'COLLECTING_EVIDENCE'
             try:
                 origin = origin_metrics(stage_job)
                 release_deadline = time.perf_counter() + 2
@@ -199,11 +206,13 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
             with observations_lock:
                 report["resources"] = resources.view()
             report["elapsed_seconds"] = time.perf_counter() - started
+            context['operation'] = 'WRITING_REPORT'
             atomic(output, report)
             # Preserve the failed stage, skip further load and still measure recovery when available.
         report["cancelled"] = cancelled(job)
         report["complete"] = not report["cancelled"] and not recovery_only and len(report["stages"]) == len(stages) and all(stage["complete"] for stage in report["stages"])
     except Exception as error:
+        report['failure_context'] = dict(context)
         report["errors"].append(type(error).__name__ + ":TRAFFIC_SCHEDULE_FAILED")
     finally:
         if journal is not None:
@@ -213,6 +222,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
         with observations_lock:
             report["resources"] = resources.view()
         report["elapsed_seconds"] = time.perf_counter() - started
+        report['unstarted_stage_count'] = len(stages)-report['workload_started_stage_count']
         atomic(output, report)
         atomic(progress, {"run_id": job["run_id"], "state": "COMPLETE" if report["complete"] else "CANCELLED" if report["cancelled"] else "FAILED",
                           "elapsed_seconds": report["elapsed_seconds"], "completed_stages": len(report["stages"]), "total": len(stages)})

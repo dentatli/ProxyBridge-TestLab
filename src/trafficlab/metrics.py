@@ -4,6 +4,17 @@ from typing import Any
 from trafficlab.protocol import Histogram
 
 
+def execution_evidence(report: dict[str, Any]) -> dict[str, Any]:
+    started = report.get('workload_started_stage_count')
+    stages = report.get('stages',[])
+    state = 'COMPLETED' if report.get('complete') is True else 'NOT_STARTED' if type(started) is int and started==0 else \
+        'PARTIAL' if (type(started) is int and started>0) or stages else 'UNKNOWN'
+    return {'measurement_state':state, 'planned_stage_count':report.get('stage_count'),
+            'workload_started_stage_count':started, 'recorded_stage_count':len(stages),
+            'unstarted_stage_count':report.get('unstarted_stage_count'),
+            'failure_context':report.get('failure_context')}
+
+
 def summary(report: dict[str, Any]) -> dict[str, Any]:
     if report.get("compact_stages"):
         resources = {role: {key:value for key,value in row.items() if key != "timeline"} for role,row in report.get("resources", {}).items()}
@@ -11,7 +22,8 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
                 "skipped_stage_count": report.get("skipped_stage_count", 0), "schedule_errors": report.get("errors", []),
                 "metric_scope": "identified-processes-separate-whole-OS-and-validated-payload",
                 "cpu_scope": "percent-of-all-logical-CPUs; whole-OS-includes-background-work", "driver_resource_attribution": False,
-                "stage_journal_sha256": report["stage_journal_sha256"], "stage_journal_records": len(report["stages"])}
+                "stage_journal_sha256": report["stage_journal_sha256"], "stage_journal_records": len(report["stages"]),
+                **execution_evidence(report)}
     rows = []
     all_latency = Histogram()
     all_udp_latency = Histogram()
@@ -77,7 +89,8 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
         "tcp_completed": sum(row["tcp_completed"] for row in rows), "tcp_offered": sum(row["tcp_offered"] for row in rows)}
     return {"stages": rows, "resources": resources, "skipped_stage_count": report.get("skipped_stage_count", 0),
             "schedule_errors": report.get("errors", []), "metric_scope": "identified-processes-separate-whole-OS-and-validated-payload",
-            "overall": overall, "cpu_scope": "percent-of-all-logical-CPUs; whole-OS-includes-background-work", "driver_resource_attribution": False}
+            "overall": overall, "cpu_scope": "percent-of-all-logical-CPUs; whole-OS-includes-background-work", "driver_resource_attribution": False,
+            **execution_evidence(report)}
 
 
 class SummaryWindow:
