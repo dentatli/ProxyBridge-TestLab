@@ -2,7 +2,13 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: изменение наблюдаемой памяти — 2026-10-13
+## Текущий этап: перенос наборов — 2026-10-13
+
+Testing получил export текущего local/remote выбора и import файла формата proxybridge-testlab-suite/schema_version1: только name/mode/tests(scenario,duration,load). UTF8 strict decode, size<=64KiB, имя<=64 без C0/C1 controls, exact allowed keys, known case IDs, unique cases, enums/length проверяются до применения. Legacy remote four benchmark names поддерживают прежнее отображение в native traffic choices; mixed legacy/native sets отклоняются как backend. Импорт заменяет только текущие UI choices, очищает выбранную saved-suite ID и локальный launch plan, не запускает продукт и не пишет saved catalog. Для persistence используется существующий Save new; auto update/delete/overwrite нет. Queue order определяется текущим catalog, не порядком импортированного JSON. Export не включает пути, credentials, IDs каталога, certificates, confirmations, frozen plans или results.
+
+applySuiteChoices общий для saved/imported selection; busy повторно проверяется после чтения файла, import file input очищается. Blob URL освобождается; filename fixed prefix +UTC, без пользовательского имени/пути. Node syntax и UI build 0 warnings/errors прошли. Tests TestLab/GUI import-export acceptance/новые traffic runs не выполнялись. Memory stage запушен `27b1be5`; текущую ревизию смотреть Git. UI5202 и Ubuntu b320... — последний verified deployment, source assets изменены; для packaged release нужен новый publish/reload, readiness импорт не даёт. Продолжать до остановки пользователя, запрет tests тестера сохраняется.
+
+## Предыдущий этап: изменение наблюдаемой памяти — 2026-10-13
 
 К существующим first/last/count ресурсного окна добавлена presentation изменения памяти: last-first при минимум двух finite nonnegative observations одной identity, MiB; иначе unknown. History coverage table показывает delta вместе с точным counter ID/private commit/working set/physical-used и memory scope. Comparison/CSV получили три optional metrics: CLI private commit delta, CLI working-set delta, origin/proxy RSS delta. Неуспешные/route-unverified attempts по-прежнему имеют пустые benchmark metric cells, а отдельная resource_observation_summary_json может содержать факт частичных наблюдений. Delta относится ко всему workload schedule с baseline/load/recovery, не к отдельной фазе или одному percentile; причина роста/driver allocation не определяется. Новых resource queries/producer changes нет: используются уже сохранённые first/last/count.
 

@@ -33,6 +33,9 @@ and [operator guide](../docs/OPERATOR_GUIDE.md).
    Save/use/update/delete named suites to repeat the same choices on another
    build. Applying a suite requires fresh preparation; it cannot reuse a frozen
    plan or establish readiness.
+   Current choices can be exported to portable suite JSON and imported from a
+   file up to 64 KiB. Import only changes current choices; use Save new to persist
+   them. It does not carry credentials, paths, confirmations or launch plans.
    In remote mode, create/show a TestLab SSH identity or reuse an existing key
    outside Git, enter the Ubuntu IP/SSH port and check the root connection.
    Compare the host fingerprint with a trusted source before confirming it.

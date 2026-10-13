@@ -18,6 +18,8 @@ Object.assign(labText.en, {
   SUITE_SAVE_FAILED: "Saving is not confirmed. Refresh the page before retrying.", SUITE_DELETE_FAILED: "Deletion is not confirmed. Refresh the page before retrying."
 });
 const suiteCatalog = { items: [], available: false, message: null };
+Object.assign(labText.ru,{suiteExport:'Скачать текущий выбор (JSON)',suiteImport:'Выбрать набор из файла',suitePortableHelp:'Файл переносит только тесты и их параметры. Импорт заменяет текущий выбор, не запускает проверку и не меняет сохранённые наборы. Для сохранения нажмите «Сохранить новый». Порядок очереди задаёт текущий каталог.',suiteImported:'Выбор загружен из файла. Для сохранения задайте имя и нажмите «Сохранить новый». Перед запуском нужна свежая подготовка.',suiteExported:'Файл набора сформирован и передан браузеру.',suiteDefaultName:'Набор проверок',SUITE_FILE_INVALID:'Не удалось прочитать набор: нужен JSON формата TestLab версии 1, только имя, режим и известные тесты с параметрами.',SUITE_FILE_TOO_LARGE:'Файл набора должен быть не больше 64 КиБ.',SUITE_IMPORT_BUSY:'Выбор не изменён: выполняется другое действие.'});
+Object.assign(labText.en,{suiteExport:'Download current choices (JSON)',suiteImport:'Choose suite from file',suitePortableHelp:'The file carries only tests and their settings. Import replaces current choices without starting a run or changing saved suites. Use Save new to persist it. Queue order follows the current catalog.',suiteImported:'Choices loaded from file. Set a name and use Save new to persist them. Prepare a fresh plan before running.',suiteExported:'Suite file prepared and handed to the browser.',suiteDefaultName:'Test suite',SUITE_FILE_INVALID:'Cannot read this suite: use TestLab JSON format version 1, with only a name, mode and known tests/settings.',SUITE_FILE_TOO_LARGE:'Suite file must be at most 64 KiB.',SUITE_IMPORT_BUSY:'Choices were retained: another action is running.'});
 let savedSuiteOptionsKey = "";
 
 function renderSavedSuites(busy) {
@@ -36,6 +38,9 @@ function renderSavedSuites(busy) {
   lab("lab-suite-save").disabled = busy || !labState.csrf || !suiteCatalog.available || !(lab("lab-mode").value === "remote" ? trafficCases() : selectedTests()).length;
   lab("lab-suite-update").disabled = lab("lab-suite-save").disabled || !hasSelection;
   lab("lab-suite-delete").disabled = busy || !labState.csrf || !suiteCatalog.available || !hasSelection;
+  lab('lab-suite-export').disabled=busy||!(lab('lab-mode').value==='remote'?trafficCases():selectedTests()).length;
+  lab('lab-suite-import').disabled=busy;
+  lab('lab-suite-import-file').disabled=busy;
   lab("lab-suite-status").textContent = suiteCatalog.message ? t(suiteCatalog.message) : "";
 }
 
@@ -58,6 +63,12 @@ function applySavedSuite() {
   if (labActionActive || runActive() || trafficState?.execution?.active || !suiteCatalog.available) return;
   const entry = suiteCatalog.items.find(item => item.id === lab("lab-saved-suite").value);
   if (!entry) return;
+  applySuiteChoices(entry);
+  suiteCatalog.message = "suiteApplied";
+  renderLab();
+}
+
+function applySuiteChoices(entry) {
   lab("lab-mode").value = entry.mode;
   if (entry.mode === "remote") {
     const legacy = {tcp_rtt:["tcp-rtt"],tcp_transfer:["tcp-upload","tcp-download"],tcp_rtt_three_modes:["three-modes"],tcp_connections:["tcp-connections"]};
@@ -75,9 +86,7 @@ function applySavedSuite() {
   lab("lab-suite-name").value = entry.name;
   labState.plan = null;
   labState.planFailed = false;
-  suiteCatalog.message = "suiteApplied";
   saveTestingChoice();
-  renderLab();
 }
 
 async function changeSavedSuite(action) {
@@ -107,6 +116,59 @@ async function changeSavedSuite(action) {
   } catch { suiteCatalog.message = action === "delete" ? "SUITE_DELETE_FAILED" : "SUITE_SAVE_FAILED"; }
   finally { labActionActive = false; renderLab(); scheduleRunPoll(); }
 }
+
+function suiteChoicesBusy(ignoreOwnAction=false){
+  return (!ignoreOwnAction&&labActionActive)||runActive()||trafficState?.execution?.active||trafficActionActive||remoteActionActive;
+}
+function portableSuite(value){
+  const object=row=>row!==null&&typeof row==='object'&&!Array.isArray(row);
+  const keys=(row,allowed)=>object(row)&&Object.keys(row).every(key=>allowed.includes(key));
+  if(!keys(value,['format','schema_version','name','mode','tests'])||value.format!=='proxybridge-testlab-suite'||value.schema_version!==1||
+    typeof value.name!=='string'||!value.name.trim()||value.name.trim().length>64||/[\u0000-\u001f\u007f-\u009f]/.test(value.name)||
+    !['local','remote'].includes(value.mode)||!Array.isArray(value.tests))throw new Error('SUITE_FILE_INVALID');
+  const local=['tcp_rtt','tcp_transfer','tcp_rtt_three_modes','tcp_connections'];
+  const remote=(trafficCatalog?.cases||[]).map(row=>row.id);
+  const native=value.mode==='remote'&&value.tests.some(row=>object(row)&&remote.includes(row.scenario));
+  const allowed=native?remote:local;
+  if(!value.tests.length||value.tests.length>allowed.length||new Set(value.tests.map(row=>row?.scenario)).size!==value.tests.length||
+    value.tests.some(row=>!keys(row,['scenario','duration','load'])||!allowed.includes(row.scenario)||
+      !['SHORT','NORMAL','LONG'].includes(row.duration)||!['LOW','HIGH'].includes(row.load)))throw new Error('SUITE_FILE_INVALID');
+  return {name:value.name.trim(),mode:value.mode,tests:value.tests.map(row=>({scenario:row.scenario,duration:row.duration,load:row.load}))};
+}
+function exportSuiteChoices(){
+  if(suiteChoicesBusy())return;
+  try{
+    const mode=lab('lab-mode').value;
+    const entry=portableSuite({format:'proxybridge-testlab-suite',schema_version:1,
+      name:lab('lab-suite-name').value.trim()||t('suiteDefaultName'),mode,
+      tests:mode==='remote'?trafficCases().map(row=>({scenario:row.id,duration:row.duration,load:row.load})):selectedWorkloads()});
+    const blob=new Blob([JSON.stringify({format:'proxybridge-testlab-suite',schema_version:1,...entry},null,2)+'\n'],{type:'application/json;charset=utf-8'});
+    if(blob.size>64*1024)throw new Error('SUITE_FILE_TOO_LARGE');
+    const url=URL.createObjectURL(blob),anchor=document.createElement('a');
+    anchor.href=url;anchor.download=`testlab-suite-${new Date().toISOString().replace(/[:.]/g,'-')}.json`;
+    document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+    suiteCatalog.message='suiteExported';
+  }catch(error){suiteCatalog.message=error.message==='SUITE_FILE_TOO_LARGE'?error.message:'SUITE_FILE_INVALID';}
+  renderLab();
+}
+async function importSuiteChoices(file){
+  if(!file)return;
+  if(suiteChoicesBusy()){suiteCatalog.message='SUITE_IMPORT_BUSY';renderLab();return;}
+  labActionActive=true;renderLab();
+  try{
+    if(file.size>64*1024)throw new Error('SUITE_FILE_TOO_LARGE');
+    const text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer()).replace(/^\ufeff/,'');
+    const entry=portableSuite(JSON.parse(text));
+    if(suiteChoicesBusy(true))throw new Error('SUITE_IMPORT_BUSY');
+    lab('lab-saved-suite').value='';
+    applySuiteChoices(entry);
+    suiteCatalog.message='suiteImported';
+  }catch(error){suiteCatalog.message=['SUITE_FILE_TOO_LARGE','SUITE_IMPORT_BUSY'].includes(error.message)?error.message:'SUITE_FILE_INVALID';}
+  finally{labActionActive=false;lab('lab-suite-import-file').value='';renderLab();}
+}
+lab('lab-suite-export').addEventListener('click',exportSuiteChoices);
+lab('lab-suite-import').addEventListener('click',()=>{if(!suiteChoicesBusy())lab('lab-suite-import-file').click();});
+lab('lab-suite-import-file').addEventListener('change',event=>importSuiteChoices(event.target.files?.[0]));
 
 lab("lab-saved-suite").addEventListener("change", () => {
   const entry = suiteCatalog.items.find(item => item.id === lab("lab-saved-suite").value);

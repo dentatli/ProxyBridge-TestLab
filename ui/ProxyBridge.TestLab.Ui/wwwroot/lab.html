@@ -70,8 +70,12 @@
           <button id="lab-suite-save" type="button" class="button primary" data-i18n="saveNewSuite">Сохранить новый</button>
           <button id="lab-suite-update" type="button" class="button secondary" data-i18n="updateSuite">Обновить выбранный</button>
           <button id="lab-suite-delete" type="button" class="button secondary" data-i18n="deleteSuite">Удалить набор</button>
+          <button id="lab-suite-export" type="button" class="button secondary" data-i18n="suiteExport" disabled></button>
+          <button id="lab-suite-import" type="button" class="button secondary" data-i18n="suiteImport"></button>
+          <input id="lab-suite-import-file" type="file" accept=".json,application/json" hidden>
         </div>
         <p id="lab-suite-status" role="status" aria-live="polite"></p>
+        <p data-i18n="suitePortableHelp"></p>
       </div>
       <div class="lab-fields">
         <label><span data-i18n="proxyMode">Расположение SOCKS5-прокси</span><select id="lab-mode"><option value="local" data-i18n="local">На этом ПК</option><option value="remote" data-i18n="remote">На удалённом узле</option></select></label>

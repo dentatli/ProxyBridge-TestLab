@@ -4,6 +4,10 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
+## Перенос наборов — 2026-10-13
+
+Testing экспортирует текущие choices в JSON proxybridge-testlab-suite/schema_version1 (name/mode/tests) и импортирует такой файл. Size<=64KiB/strict UTF8, exact fields, known case IDs/unique scenarios, SHORT/NORMAL/LONG и LOW/HIGH проверяются до применения. Legacy remote benchmark names поддерживаются, смешение legacy/native не допускается. Импорт меняет текущий выбор и очищает прежний launch plan/saved-suite selection; сохранённый каталог, продукт/driver и remote setup не меняются. Для persistence используйте Save new, для запуска — fresh gates. Порядок очереди остаётся порядком текущего каталога. Пути, credentials, host trust, confirmations, receipts/results/frozen plans не входят в переносимый файл. Node syntax/UI build 0 warnings/errors, без tests TestLab/GUI import-export acceptance.
+
 ## Изменение наблюдаемой памяти — 2026-10-13
 
 History coverage и optional comparison metrics показывают last-first по памяти одной resource identity за весь workload schedule (baseline/load/recovery): CLI private commit/working set и origin/proxy RSS; whole-OS memory отдельно включает фон. Нужно минимум два finite nonnegative значения first/last, иначе unknown; снижение памяти сохраняется как отрицательная delta. Counter ID и memory scope сохранены в resource_observation_summary_json. Новых опросов нет, используются ранее сохранённые first/last/count. Наблюдение не определяет причину роста и не измеряет allocation драйвера; при FAIL/route unverified benchmark cells пустые. JS syntax/UI build 0 warnings/errors, без tests TestLab/GUI runtime acceptance/новых traffic runs.
