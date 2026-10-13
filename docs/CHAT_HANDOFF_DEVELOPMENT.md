@@ -2,7 +2,13 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: живой прогресс — 2026-10-13
+## Текущий этап: нечитаемые отчёты — 2026-10-13
+
+Traffic History/Comparison используют общий bounded reader attempt.json: запрет directory/file reparse, actual handle<=64MiB, schema/id-vs-directory/state/choices/result shapes. Share-delete не блокирует atomic writes. Известная own run directory (timestamp+GUID) учитывается и при отсутствующем manifest; directory runtime-apply-evidence не является попыткой. Нечитаемый/отсутствующий/oversized/malformed report сохраняется без изменения/удаления и увеличивает unreadable_count. History возвращает читаемые records текущей страницы с явным флагом неполноты. Comparison сканирует всю own history и возвращает available=false/empty items при любой нечитаемой попытке: нельзя определить, какой build/case она перекрывала, поэтому старые PASS не подставляются.
+
+GUI Results показывает предупреждение, очищает comparison и блокирует CSV при нечитаемой истории или недоступном API. History JSON сохраняет unreadable_reports_observed=true и loaded-pages scope; частичная история не объявляется полной. Ошибка дополнительной страницы также блокирует comparison/exports до fresh refresh. Исторические raw reports/частные captures не переписывались; код не исправляет и не удаляет повреждённые файлы. UI build 0 warnings/errors и JS syntax прошли; fixtures/unit/GUI tests не создавались/не запускались. Runtime приёмка с испорченными файлами не выполнялась по запрету тестов TestLab. Live progress stage запушен `edf1cbd`; текущую ревизию смотреть Git. Дальше независимый функционал до остановки пользователя, real product TCP defect здесь не исследовать/не повторять без нового основания.
+
+## Предыдущий этап: живой прогресс — 2026-10-13
 
 Resource observer теперь публикует bounded live_origin из уже выполняемого signed metrics request: принятые/отправленные bytes, active sessions, application request count и timestamps. Новых сетевых опросов/потоков не добавлено; это наблюдения origin, не окончательные native receipts/route PASS. Coordinator/observer сериализуют атомарные записи progress одним lock; observed stage_run_id обязан совпасть с текущим, late samples прежнего этапа и terminal writes игнорируются. Каждая фаза REGISTERING_SESSION/RUNNING_WORKLOAD/COLLECTING_EVIDENCE/WRITING_REPORT публикуется явно; terminal progress очищает live counters. Elapsed относится к текущему workload schedule (включая его baseline/recovery), не всей очереди.
 

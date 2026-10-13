@@ -51,6 +51,9 @@ function filterTrafficCards(){
 }
 let trafficComparison=[],trafficComparisonKey="",trafficNextSkip=0,trafficHasMore=false,trafficCompareChoice={builds:{},metrics:{}};
 let trafficHistoryLoadedAt=null,trafficComparisonLoadedAt=null,trafficSnapshotUnavailable=true;
+let trafficComparisonBlocked=false,trafficUnreadableHistory=false;
+Object.assign(labText.ru,{trafficHistoryUnreadable:'Один или несколько отчётов отсутствуют или не читаются. История неполная; сравнение заблокировано, старые успехи не подставляются.',trafficHistoryUnavailable:'История не обновлена: источник недоступен. Показаны ранее загруженные записи; сравнение и выгрузка недоступны.'});
+Object.assign(labText.en,{trafficHistoryUnreadable:'One or more reports are missing or unreadable. History is incomplete; comparison is blocked without substituting older successes.',trafficHistoryUnavailable:'History could not refresh: the source is unavailable. Previously loaded entries are shown; comparison and export are unavailable.'});
 Object.assign(labText.ru,{trafficLiveHelp:'Текущие счётчики получателя; итог обмена и маршрута ещё не подтверждён.',trafficLiveUnavailable:'Свежие счётчики получателя недоступны.',trafficLiveRx:'Принято, МиБ',trafficLiveTx:'Отправлено, МиБ',trafficLiveActive:'Активные сеансы',trafficLiveTransactions:'Прикладные запросы',trafficLiveElapsed:'Время текущего задания, с'});
 Object.assign(labText.en,{trafficLiveHelp:'Current origin counters; final exchange and route are not yet verified.',trafficLiveUnavailable:'Fresh origin counters are unavailable.',trafficLiveRx:'Received, MiB',trafficLiveTx:'Sent, MiB',trafficLiveActive:'Active sessions',trafficLiveTransactions:'Application requests',trafficLiveElapsed:'Elapsed in the current workload schedule, s'});
 Object.assign(labText.ru,{trafficExportComparison:'Скачать выбранное сравнение (CSV)',trafficExportHistory:'Скачать загруженную историю (JSON)',trafficExportHelp:'В CSV попадут выбранные сборки и показатели для текущих условий. JSON содержит только загруженные страницы с текущим фильтром; наличие следующих страниц указано в файле. Неподтверждённые показатели остаются пустыми.',trafficExportUnavailable:'Обновите результаты и выберите строки для выгрузки.',trafficExportTooLarge:'Выгрузка превышает 8 МиБ. Сузьте выбор результатов.',trafficExportStarted:'Выгрузка подготовлена. Файл передан браузеру.'});
@@ -130,6 +133,8 @@ function renderTraffic(){
   renderTrafficHistory();
   renderTrafficComparison();
   updateTrafficExportButtons();
+  lab('traffic-history-warning').hidden=!trafficUnreadableHistory&&!trafficSnapshotUnavailable;
+  lab('traffic-history-warning').textContent=trafficSnapshotUnavailable?t('trafficHistoryUnavailable'):t('trafficHistoryUnreadable');
   if (typeof renderSavedSuites === "function") renderSavedSuites(busy);
 }
 function trafficControlsMarkup(row){
@@ -201,7 +206,7 @@ function trafficHistoryRows(){
 }
 function updateTrafficExportButtons(){
   const blocked=trafficSnapshotUnavailable||trafficLoading;
-  lab('traffic-export-comparison').disabled=blocked||!trafficComparisonRows().length;
+  lab('traffic-export-comparison').disabled=blocked||trafficComparisonBlocked||!trafficComparisonRows().length;
   lab('traffic-export-history').disabled=blocked||!trafficHistoryRows().length;
 }
 function trafficCsvCell(value){
@@ -212,7 +217,7 @@ function trafficCsvCell(value){
 }
 function exportTraffic(kind){
   const status=lab('traffic-export-status');
-  if(trafficSnapshotUnavailable||trafficLoading){status.textContent=t('trafficExportUnavailable');return;}
+  if(trafficSnapshotUnavailable||trafficLoading||kind==='comparison'&&trafficComparisonBlocked){status.textContent=t('trafficExportUnavailable');return;}
   const exportedAt=new Date().toISOString();
   let content,type,extension;
   if(kind==='comparison'){
@@ -232,6 +237,7 @@ function exportTraffic(kind){
     content=JSON.stringify({schema_version:1,scope:'loaded-history-pages-filtered-by-case',
       snapshot_loaded_at_utc:trafficHistoryLoadedAt,exported_at_utc:exportedAt,
       filter:lab('traffic-filter').value,has_more_pages:trafficHasMore,next_skip:trafficNextSkip,
+      unreadable_reports_observed:trafficUnreadableHistory,
       attempt_state_scope:'whole-queue; results and choices use the selected case filter',history_pagination_scope:'loaded-pages-across-requests; not an atomic snapshot',items},null,2)+'\n';
     type='application/json;charset=utf-8';extension='json';
   }
@@ -246,6 +252,13 @@ function exportTraffic(kind){
 lab('traffic-export-comparison').addEventListener('click',()=>exportTraffic('comparison'));
 lab('traffic-export-history').addEventListener('click',()=>exportTraffic('history'));
 function renderTrafficComparison(){
+  if(trafficSnapshotUnavailable||trafficComparisonBlocked){
+    trafficComparisonKey='';
+    lab('traffic-comparison').innerHTML=`<p class="lab-warning">${t(trafficSnapshotUnavailable?'trafficHistoryUnavailable':'trafficHistoryUnreadable')}</p>`;
+    lab('traffic-comparison-builds').innerHTML='';
+    lab('traffic-comparison-metrics').innerHTML='';
+    return;
+  }
   const select=lab("traffic-comparison-filter"),previous=select.value;
   const key=JSON.stringify([trafficComparison,labLanguage,previous,trafficCompareChoice,labState.builds]);
   if(key===trafficComparisonKey)return;trafficComparisonKey=key;
@@ -270,9 +283,9 @@ lab("traffic-history-more").addEventListener("click",async()=>{
   try{
     const response=await fetch(`/api/v1/lab/traffic/history?skip=${trafficNextSkip}`,{cache:"no-store"});if(!response.ok)throw new Error("TRAFFIC_HISTORY_UNAVAILABLE");
     const data=await response.json(),loaded=new Map(trafficHistory.map(row=>[row.id,row]));for(const row of data.items)loaded.set(row.id,row);
-    trafficHistory=[...loaded.values()].sort((a,b)=>b.id.localeCompare(a.id));trafficNextSkip=data.next_skip;trafficHasMore=data.has_more;trafficHistoryLoadedAt=new Date().toISOString();renderTrafficHistory();updateTrafficExportButtons();
+    trafficHistory=[...loaded.values()].sort((a,b)=>b.id.localeCompare(a.id));trafficNextSkip=data.next_skip;trafficHasMore=data.has_more;trafficUnreadableHistory=trafficUnreadableHistory||data.unreadable_count>0;if(data.unreadable_count>0){trafficComparisonBlocked=true;trafficComparison=[];}trafficHistoryLoadedAt=new Date().toISOString();renderTrafficHistory();updateTrafficExportButtons();
     lab("traffic-history-more").hidden=!trafficHasMore;
-  }catch(error){trafficError=error.message;}finally{lab("traffic-history-more").disabled=false;}
+  }catch(error){trafficError=error.message;trafficSnapshotUnavailable=true;trafficComparison=[];trafficComparisonBlocked=true;}finally{lab("traffic-history-more").disabled=false;renderTraffic();}
 });
 async function loadTraffic(){
   if(trafficLoading)return;trafficLoading=true;
@@ -281,10 +294,10 @@ async function loadTraffic(){
     if(responses.some(response=>!response.ok)) throw new Error("TRAFFIC_STATUS_UNAVAILABLE");
     const data=await Promise.all(responses.map(response=>response.json())); trafficCatalog=data[0]; trafficState=data[1];
     const loaded=new Map(trafficHistory.map(row=>[row.id,row])); for(const row of data[2].items)loaded.set(row.id,row);
-    trafficHistory=[...loaded.values()].sort((a,b)=>b.id.localeCompare(a.id));trafficComparison=data[3].items;trafficComparisonLoadedAt=trafficHistoryLoadedAt=new Date().toISOString();trafficSnapshotUnavailable=false;
+    trafficHistory=[...loaded.values()].sort((a,b)=>b.id.localeCompare(a.id));trafficComparisonBlocked=data[3].available===false;trafficUnreadableHistory=data[2].unreadable_count>0||data[3].unreadable_count>0;trafficComparison=trafficComparisonBlocked?[]:data[3].items;trafficComparisonLoadedAt=trafficHistoryLoadedAt=new Date().toISOString();trafficSnapshotUnavailable=false;
     if(!trafficNextSkip){trafficNextSkip=data[2].next_skip;trafficHasMore=data[2].has_more;}
     lab("traffic-history-more").hidden=!trafficHasMore;
-  }catch(error){trafficError=error.message;trafficSnapshotUnavailable=true;}finally{trafficLoading=false;}
+  }catch(error){trafficError=error.message;trafficSnapshotUnavailable=true;trafficComparison=[];trafficComparisonBlocked=true;}finally{trafficLoading=false;}
   renderTraffic();
 }
 async function trafficAction(action){

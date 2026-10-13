@@ -4,6 +4,12 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
+## Нечитаемые отчёты — 2026-10-13
+
+Traffic history reader ограничивает manifest<=64MiB по открытому handle, отклоняет directory/file reparse и malformed identity/state/choice/result shapes. Own run directories учитываются даже без attempt.json; receipt directories не являются runs. Пропуски отражаются в unreadable_count, читаемая страница остаётся доступной как частичная история. Comparison сканирует own history целиком и блокируется при любой нечитаемой попытке: неизвестно, какой более старый результат она должна перекрывать. Повреждённые/частные файлы не меняются и не удаляются.
+
+Results показывает предупреждение вместо старой таблицы успехов, CSV блокируется; JSON history явно содержит unreadable_reports_observed и loaded-pages scope. Недоступный API или ошибка следующей страницы также скрывают comparison до fresh refresh. Compilation/UI build 0 warnings/errors/JS syntax прошли, без tests TestLab и без runtime simulations corruption/read races.
+
 ## Живой прогресс — 2026-10-13
 
 Во время задания Run показывает текущую фазу и bounded counters подписанного текущего origin session: принятые/отправленные bytes, active sessions и application requests. Источник — существующий resource observer, новых сетевых запросов нет. Эти counters могут включать частичные authenticated requests и не заменяют финальные client receipts/route verdict/cleanup. Samples старше5s, unavailable или с неоднозначной часовой отметкой скрываются; elapsed относится к текущему workload schedule со всеми его stages, не всей очереди.

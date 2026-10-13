@@ -63,17 +63,15 @@ public sealed partial class TrafficRuntimeService
     public object History(int skip = 0, int take = 10)
     {
         skip = Math.Max(0, skip); take = Math.Clamp(take, 1, 25);
-        if (!Directory.Exists(Root)) return new { items = Array.Empty<object>(), has_more = false, next_skip = 0 };
+        if (!Directory.Exists(Root)) return new { items = Array.Empty<object>(), has_more = false, next_skip = 0, unreadable_count = 0 };
         var items = new List<JsonElement>();
-        var directories = Directory.EnumerateDirectories(Root).Where(directory => File.Exists(Path.Combine(directory, "attempt.json"))).OrderDescending().ToArray();
+        var unreadable = 0;
+        var directories = TrafficAttemptDirectories().ToArray();
         foreach (var directory in directories.Skip(skip).Take(take))
         {
-            var path = Path.Combine(directory, "attempt.json");
-            if (!File.Exists(path) || new FileInfo(path).Length > 64 * 1024 * 1024 || File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)) continue;
             try
             {
-                using var document = JsonDocument.Parse(File.ReadAllBytes(path));
-                var row = document.RootElement.Clone();
+                var row = ReadTrafficAttempt(directory);
                 if (directory != _activeDirectory && row.GetProperty("state").GetString() is "PREPARING" or "RUNNING")
                 {
                     var values = row.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.Clone());
@@ -84,24 +82,22 @@ public sealed partial class TrafficRuntimeService
                 }
                 items.Add(row);
             }
-            catch (JsonException) { }
+            catch (Exception error) when (error is JsonException or IOException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException) { unreadable++; }
         }
-        return new { items, has_more = skip + take < directories.Length, next_skip = skip + take };
+        return new { items, has_more = skip + take < directories.Length, next_skip = skip + take, unreadable_count = unreadable };
     }
 
     public object Comparison()
     {
         var latest = new Dictionary<string, object>(StringComparer.Ordinal);
         var barriers = new HashSet<string>(StringComparer.Ordinal);
-        if (!Directory.Exists(Root)) return new { items = latest.Values };
-        foreach (var directory in Directory.EnumerateDirectories(Root).OrderDescending())
+        var unreadable = 0;
+        if (!Directory.Exists(Root)) return new { items = latest.Values.ToArray(), available = true, unreadable_count = 0, error = (string?)null };
+        foreach (var directory in TrafficAttemptDirectories())
         {
-            var path = Path.Combine(directory, "attempt.json");
-            if (!File.Exists(path) || new FileInfo(path).Length > 64 * 1024 * 1024 || File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint)) continue;
             try
             {
-                using var document = JsonDocument.Parse(File.ReadAllBytes(path));
-                var attempt = document.RootElement;
+                var attempt = ReadTrafficAttempt(directory);
                 if (!attempt.TryGetProperty("build_id", out var build) || !attempt.TryGetProperty("cases", out var cases)) continue;
                 foreach (var choice in cases.EnumerateArray())
                 {
@@ -128,9 +124,65 @@ public sealed partial class TrafficRuntimeService
                         conditions = matching, result = ComparisonResult(result) };
                 }
             }
-            catch (Exception error) when (error is JsonException or IOException or KeyNotFoundException or InvalidOperationException) { }
+            catch (Exception error) when (error is JsonException or IOException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException) { unreadable++; }
         }
-        return new { items = latest.Values };
+        // An unreadable attempt cannot be assigned safely to a build/case. Do not
+        // substitute any older success while that ambiguity remains.
+        return new { items = unreadable == 0 ? latest.Values.ToArray() : Array.Empty<object>(),
+            available = unreadable == 0, unreadable_count = unreadable,
+            error = unreadable == 0 ? null : "TRAFFIC_COMPARISON_HISTORY_UNREADABLE" };
+    }
+
+    private IEnumerable<string> TrafficAttemptDirectories() => Directory.EnumerateDirectories(Root)
+        .Where(directory => System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(directory),@"\A[0-9]{8}-[0-9]{6}-[a-f0-9]{32}\z") ||
+            File.Exists(Path.Combine(directory,"attempt.json"))).OrderDescending();
+
+    private static JsonElement ReadTrafficAttempt(string directory)
+    {
+        var path = Path.Combine(directory,"attempt.json");
+        if (File.GetAttributes(directory).HasFlag(FileAttributes.ReparsePoint) ||
+            File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint))
+            throw new InvalidOperationException("TRAFFIC_HISTORY_UNREADABLE");
+        using var stream = new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);
+        if (stream.Length is <= 0 or > 64 * 1024 * 1024) throw new InvalidOperationException("TRAFFIC_HISTORY_UNREADABLE");
+        using var document = JsonDocument.Parse(stream);
+        var row = document.RootElement;
+        if (row.ValueKind != JsonValueKind.Object || row.GetProperty("id").GetString()!=Path.GetFileName(directory) ||
+            string.IsNullOrWhiteSpace(row.GetProperty("build_id").GetString()) ||
+            row.GetProperty("state").GetString() is not ("PREPARING" or "RUNNING" or "COMPLETE" or "FAILED" or "CANCELLED" or "INTERRUPTED") ||
+            row.GetProperty("complete").ValueKind is not (JsonValueKind.True or JsonValueKind.False) ||
+            row.GetProperty("cases").ValueKind != JsonValueKind.Array || row.GetProperty("cases").GetArrayLength() is < 1 or > 256)
+            throw new InvalidOperationException("TRAFFIC_HISTORY_UNREADABLE");
+        var caseIds = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var choice in row.GetProperty("cases").EnumerateArray())
+        {
+            string? Value(string name) => (choice.TryGetProperty(name,out var lower)?lower:choice.GetProperty(char.ToUpperInvariant(name[0])+name[1..])).GetString();
+            if (string.IsNullOrWhiteSpace(Value("id")) || !caseIds.Add(Value("id")!) ||
+                Value("duration") is not ("SHORT" or "NORMAL" or "LONG") || Value("load") is not ("LOW" or "HIGH"))
+                throw new InvalidOperationException("TRAFFIC_HISTORY_UNREADABLE");
+        }
+        foreach (var name in new[] { "results", "recovery_checks" })
+            if (row.TryGetProperty(name,out var array) && array.ValueKind != JsonValueKind.Array)
+                throw new InvalidOperationException("TRAFFIC_HISTORY_UNREADABLE");
+        if (row.TryGetProperty("results",out var results))
+        {
+            var seen = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var result in results.EnumerateArray())
+            {
+                var id = result.GetProperty("case_id").GetString();
+                if (id is null || !caseIds.Contains(id) || !seen.Add(id) ||
+                    result.GetProperty("complete").ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    throw new InvalidOperationException("TRAFFIC_HISTORY_UNREADABLE");
+                foreach (var name in new[] { "errors", "controls", "measurements" })
+                    if (result.TryGetProperty(name,out var array) && array.ValueKind != JsonValueKind.Array)
+                        throw new InvalidOperationException("TRAFFIC_HISTORY_UNREADABLE");
+                if (result.TryGetProperty("measurements",out var measurements))
+                    foreach (var measurement in measurements.EnumerateArray())
+                        if (measurement.GetProperty("stages").ValueKind != JsonValueKind.Array)
+                            throw new InvalidOperationException("TRAFFIC_HISTORY_UNREADABLE");
+            }
+        }
+        return row.Clone();
     }
 
     private static object? ComparisonResult(JsonElement? result)
