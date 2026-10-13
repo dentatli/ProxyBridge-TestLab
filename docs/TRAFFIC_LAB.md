@@ -4,6 +4,12 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
+## Выгрузка результатов — 2026-10-13
+
+Results позволяет скачать выбранное traffic comparison в CSV и загруженную history в JSON. CSV использует текущие case/duration/load/conditions и выбор builds/metrics, полную числовую точность, unit labels текущего RU/EN, IDs/conditions/error/status; неуспешные попытки сохраняются, их metric cells пустые. Quoted strings защищены от spreadsheet formulas, UTF8 BOM/CRLF; это таблица наблюдений, не доказательство absolute throughput/driver capacity. Null скорости/RAM больше не преобразуется в численный zero при конвертации в MiB.
+
+JSON использует текущий history case filter и только уже загруженные страницы; has_more_pages/next_skip и scope явно указывают неполноту и отсутствие atomic snapshot между requests. Whole-queue attempt state сохранён отдельно от отфильтрованных case results. Snapshot/export UTC timestamps сохранены. Выгрузка формируется локально из публичных API responses, без чтения private binding/captures/keys или запуска продукта; лимит8MiB, empty/unavailable selection blocked. Проверены compilation/JS syntax/UI build (0 warnings/errors); GUI download/import и тесты TestLab не выполнялись согласно запрету пользователя.
+
 ## Статус и фаза измерений — 2026-10-13
 
 Каждый новый measurement сохраняет measurement_state (COMPLETED/NOT_STARTED/PARTIAL/UNKNOWN), запланированные/начатые/записанные/не начатые stages и failure_context с operation/stage/index. Начало stage означает вызов workload, не доказанный обмен; записанный stage может быть FAIL. Исходный control exchange до запуска workloads отделяется от частичного измерения. У старых reports новые поля отсутствуют: UI показывает UNKNOWN без изменения файлов и без вывода о причине по пустому списку stages. OFF/UNRULED controls, CLI READY/штатное закрытие и подтверждённая очистка показываются отдельно.

@@ -2,7 +2,13 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: пояснение незавершённых измерений — 2026-10-13
+## Текущий этап: выгрузка результатов — 2026-10-13
+
+Results получил CSV выбранного traffic comparison (текущая группа case/duration/load/conditions, выбранные builds/metrics) и JSON загруженной traffic history с текущим case filter. CSV сохраняет stable metric ID + RU/EN label/unit, полную числовую точность, build/attempt/case/condition IDs, conditions JSON и FAIL/CANCELLED/неподтверждённые статусы. Неподтверждённые показатели пустые; string cells имеют RFC4180 quoting и защиту от spreadsheet formula interpretation, числовые metrics остаются числами. UTF8 BOM/CRLF для CSV; JSON включает snapshot/export time, has_more_pages/next_skip, область loaded-pages-across-requests (не atomic snapshot), отдельный scope whole-queue для attempt state. Case choices/results/recovery checks фильтруются, неподгруженные страницы не выдаются за полный журнал. Данные берутся из уже загруженных публичных API responses, без новых серверных запусков, private binding/captures/keys не читаются.
+
+Download size ограничен 8MiB; при пустом выборе/недоступном snapshot export blocked, object URL освобождается после передачи браузеру. Попутно finite-number-only MiB conversion устраняет ложные нули при null скорости/RAM в history/comparison/CSV; истинный численный zero сохранён. Node syntax и production UI build 0 warnings/errors прошли. Реальные GUI downloads/CSV import и tests TestLab не выполнялись по запрету пользователя; функциональная приёмка exports не заявлена. Новых product runs не было, предыдущий FAIL сохранён. Этап отчётности запушен `eb11485`; текущую ревизию смотреть в Git. Продолжать независимую разработку до остановки пользователя.
+
+## Предыдущий этап: пояснение незавершённых измерений — 2026-10-13
 
 После фактического product FAIL предыдущего этапа добавлены execution evidence: measurement_state COMPLETED/NOT_STARTED/PARTIAL/UNKNOWN, planned/started/recorded/unstarted stage counts, failure_context с operation/stage/index. Контекст устанавливается до origin session registration, workload invocation, сборки evidence и сохранения report. Started означает вызов workload, не подтверждённый обмен; recorded count не означает PASS. Исторические reports не переписываются: отсутствие новых полей даёт UNKNOWN, а не догадку о фазе остановки.
 

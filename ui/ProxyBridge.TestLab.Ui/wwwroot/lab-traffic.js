@@ -50,6 +50,9 @@ function filterTrafficCards(){
   lab("traffic-search-status").textContent=`${t("trafficShown")}: ${shown}/${rows.length} · ${t("trafficSelected")}: ${trafficCases().length} · ${t("trafficHiddenSelected")}: ${hiddenSelected}${shown?"":` · ${t("trafficNoMatches")}`}`;
 }
 let trafficComparison=[],trafficComparisonKey="",trafficNextSkip=0,trafficHasMore=false,trafficCompareChoice={builds:{},metrics:{}};
+let trafficHistoryLoadedAt=null,trafficComparisonLoadedAt=null,trafficSnapshotUnavailable=true;
+Object.assign(labText.ru,{trafficExportComparison:'Скачать выбранное сравнение (CSV)',trafficExportHistory:'Скачать загруженную историю (JSON)',trafficExportHelp:'В CSV попадут выбранные сборки и показатели для текущих условий. JSON содержит только загруженные страницы с текущим фильтром; наличие следующих страниц указано в файле. Неподтверждённые показатели остаются пустыми.',trafficExportUnavailable:'Обновите результаты и выберите строки для выгрузки.',trafficExportTooLarge:'Выгрузка превышает 8 МиБ. Сузьте выбор результатов.',trafficExportStarted:'Выгрузка подготовлена. Файл передан браузеру.'});
+Object.assign(labText.en,{trafficExportComparison:'Download selected comparison (CSV)',trafficExportHistory:'Download loaded history (JSON)',trafficExportHelp:'CSV includes selected builds and metrics for the current conditions. JSON includes only loaded pages with the current filter; the file indicates whether more pages exist. Unconfirmed metrics remain empty.',trafficExportUnavailable:'Refresh results and select rows to export.',trafficExportTooLarge:'Export exceeds 8 MiB. Narrow the result selection.',trafficExportStarted:'Export prepared. The file was handed to the browser.'});
 Object.assign(labText.ru,{trafficMetrics:"Показатели",trafficCompare:"Последняя попытка каждой сборки при одинаковых условиях",trafficMore:"Ещё попытки",trafficSystemCpu:"Windows CPU, % ПК",trafficSystemRam:"Windows RAM, MiB",trafficOriginCpu:"Ubuntu CPU, % узла",trafficOriginRam:"Ubuntu RAM, MiB",trafficUdpP99:"UDP RTT p99, мс",trafficPeak:"Пик соединений TCP",trafficCleanup:"Очистка",trafficCliResident:"CLI working set, MiB",trafficWorkerCpu:"Работник CPU, % ПК",trafficWorkerRam:"Работник private commit, MiB",trafficOriginProcessCpu:"Origin/proxy CPU, % узла",trafficOriginProcessRam:"Origin/proxy RSS, MiB",trafficCliHandles:"CLI handles",trafficCliThreads:"CLI threads",trafficAllStages:"Сводные показатели включают все этапы: исходный, нагрузку и восстановление. CPU/RAM ОС включают фоновую работу. Пустое значение означает отсутствие подтверждённого измерения."});
 Object.assign(labText.en,{trafficMetrics:"Metrics",trafficCompare:"Latest attempt for each build under matching conditions",trafficMore:"More attempts",trafficSystemCpu:"Windows CPU, % of PC",trafficSystemRam:"Windows RAM, MiB",trafficOriginCpu:"Ubuntu CPU, % of host",trafficOriginRam:"Ubuntu RAM, MiB",trafficUdpP99:"UDP RTT p99, ms",trafficPeak:"Peak TCP connections",trafficCleanup:"Cleanup",trafficCliResident:"CLI working set, MiB",trafficWorkerCpu:"Worker CPU, % of PC",trafficWorkerRam:"Worker private commit, MiB",trafficOriginProcessCpu:"Origin/proxy CPU, % of host",trafficOriginProcessRam:"Origin/proxy RSS, MiB",trafficCliHandles:"CLI handles",trafficCliThreads:"CLI threads",trafficAllStages:"Aggregates include every stage: baseline, load and recovery. Whole-OS CPU/RAM include background work. An empty value means no verified measurement is available."});
 try{trafficCompareChoice=JSON.parse(localStorage.getItem("testlab-traffic-comparison")||"null")||trafficCompareChoice;}catch{}
@@ -117,6 +120,7 @@ function renderTraffic(){
   }
   renderTrafficHistory();
   renderTrafficComparison();
+  updateTrafficExportButtons();
   if (typeof renderSavedSuites === "function") renderSavedSuites(busy);
 }
 function trafficControlsMarkup(row){
@@ -148,28 +152,90 @@ function renderTrafficHistory(){
     const rows=(attempt.results||[]).filter(row=>selected==="all"||`${row.case_id}|${row.duration}|${row.load}`===selected);
     return `<article class="lab-test-card"><h4>${html(name||"")} · ${html(attempt.state)} · ${html(attempt.id)}</h4><p>${html(attempt.error||"")}</p>${attempt.continue_after_failure?`<p>${t("trafficQueuePolicy")}: ${t("trafficContinue")}</p>${(attempt.recovery_checks||[]).map(check=>`<p>${t("trafficRecovery")} · ${html(trafficName(check.case_id))}: ${check.safe_to_continue?t("trafficRecoveryOk"):t("trafficRecoveryBlocked")} · ${html(check.reason)}</p>`).join("")}`:""}${rows.map(row=>`<details><summary>${html(trafficName(row.case_id))} · ${html(row.duration)} / ${html(row.load)} · ${row.complete?"PASS":row.skipped?"SKIPPED":row.cancelled?"CANCELLED":"FAIL"}</summary><p>${t("trafficCleanup")}: ${row.cleanup_verified?"PASS":"UNVERIFIED"} · ${html((row.errors||[]).join(" · "))}</p>${trafficControlsMarkup(row)}${(row.measurements||[]).map(measurement=>{
       const cpu=measurement.resources?.product_cli?.counters?.cpu_percent_of_pc?.mean,ram=measurement.resources?.product_cli?.counters?.private_bytes?.max;
-      return `<h5>${html(measurement.mode)} · ${measurement.route_verified?t("trafficRouteOk"):t("trafficRouteBad")}</h5>${trafficMeasurementEvidence(measurement)}<p>${t("trafficSkippedStages")}: ${measurement.skipped_stage_count||0} · ${html((measurement.schedule_errors||[]).join(" · "))}</p><p>${t("trafficCpu")}: ${number(cpu)} · ${t("trafficRam")}: ${number(typeof ram==="number"?ram/1048576:null)}</p><p>${t("trafficSystemCpu")}: ${number(measurement.resources?.windows_system?.counters?.cpu_percent_of_pc?.mean)} · ${t("trafficOriginCpu")}: ${number(measurement.resources?.origin_system?.counters?.cpu_percent_of_pc?.mean)}</p><div class="lab-table-scroll"><table><thead><tr>${["trafficPhase","trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficConnections","trafficPeak","trafficErrors"].map(key=>`<th>${t(key)}</th>`).join("")}</tr></thead><tbody>${measurement.stages.map(stage=>`<tr><td>${html(stage.phase)} · ${stage.complete?"PASS":"FAIL"}</td><td>${number(stage.tcp_tx_bytes_per_second/1048576)}</td><td>${number(stage.tcp_rx_bytes_per_second/1048576)}</td><td>${number(stage.probe_p99_ms)}</td><td>${number(stage.udp_latency?.p99_ms)}</td><td>${number(typeof stage.udp_loss_fraction==="number"?stage.udp_loss_fraction*100:null)}</td><td>${stage.tcp_completed}/${stage.tcp_offered}</td><td>${number(stage.tcp_active_peak)}</td><td>${html((stage.errors||[]).join(" · "))}</td></tr>`).join("")}</tbody></table></div>${measurement.stages.filter(stage=>stage.application).map(stage=>`<details><summary>${t("trafficApplicationEvidence")} · ${html(stage.application)}</summary><p>${t("trafficTransactions")}: ${stage.application_transactions||0}</p><pre>${html(JSON.stringify({tls:stage.application_tls_sessions||[],protocol:stage.application_protocol_sessions||[],socket_errors:stage.application_socket_errors||[]},null,2))}</pre></details>`).join("")}`;
+      return `<h5>${html(measurement.mode)} · ${measurement.route_verified?t("trafficRouteOk"):t("trafficRouteBad")}</h5>${trafficMeasurementEvidence(measurement)}<p>${t("trafficSkippedStages")}: ${measurement.skipped_stage_count||0} · ${html((measurement.schedule_errors||[]).join(" · "))}</p><p>${t("trafficCpu")}: ${number(cpu)} · ${t("trafficRam")}: ${number(typeof ram==="number"?ram/1048576:null)}</p><p>${t("trafficSystemCpu")}: ${number(measurement.resources?.windows_system?.counters?.cpu_percent_of_pc?.mean)} · ${t("trafficOriginCpu")}: ${number(measurement.resources?.origin_system?.counters?.cpu_percent_of_pc?.mean)}</p><div class="lab-table-scroll"><table><thead><tr>${["trafficPhase","trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficConnections","trafficPeak","trafficErrors"].map(key=>`<th>${t(key)}</th>`).join("")}</tr></thead><tbody>${measurement.stages.map(stage=>`<tr><td>${html(stage.phase)} · ${stage.complete?"PASS":"FAIL"}</td><td>${number(trafficMiB(stage.tcp_tx_bytes_per_second))}</td><td>${number(trafficMiB(stage.tcp_rx_bytes_per_second))}</td><td>${number(stage.probe_p99_ms)}</td><td>${number(stage.udp_latency?.p99_ms)}</td><td>${number(typeof stage.udp_loss_fraction==="number"?stage.udp_loss_fraction*100:null)}</td><td>${stage.tcp_completed}/${stage.tcp_offered}</td><td>${number(stage.tcp_active_peak)}</td><td>${html((stage.errors||[]).join(" · "))}</td></tr>`).join("")}</tbody></table></div>${measurement.stages.filter(stage=>stage.application).map(stage=>`<details><summary>${t("trafficApplicationEvidence")} · ${html(stage.application)}</summary><p>${t("trafficTransactions")}: ${stage.application_transactions||0}</p><pre>${html(JSON.stringify({tls:stage.application_tls_sessions||[],protocol:stage.application_protocol_sessions||[],socket_errors:stage.application_socket_errors||[]},null,2))}</pre></details>`).join("")}`;
     }).join("")||`<p>${t("trafficEmpty")}</p>`}</details>`).join("")}</article>`;
   }).join("")||`<p>${t("trafficNone")}</p>`;
 }
 const trafficMetrics=["trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficCpu","trafficRam","trafficSystemCpu","trafficSystemRam","trafficOriginCpu","trafficOriginRam","trafficPeak","trafficCliResident","trafficWorkerCpu","trafficWorkerRam","trafficOriginProcessCpu","trafficOriginProcessRam","trafficCliHandles","trafficCliThreads","trafficTransactions"];
 const trafficDefaultMetrics=new Set(["trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficCpu","trafficCliResident","trafficSystemCpu","trafficOriginCpu"]);
 const trafficMetricSelected=key=>trafficCompareChoice.metrics[key]??trafficDefaultMetrics.has(key);
+const trafficMiB=value=>typeof value==='number'&&Number.isFinite(value)?value/1048576:null;
 function trafficMetric(row,key){
   if(!row.complete)return null;
   const measured=(row.result?.measurements||[]).find(value=>value.mode==="SOCKS5"&&value.complete&&value.route_verified);
   if(!measured)return null;
   const overall=measured.overall||{},resources=measured.resources||{};
   const counter=(role,name,stat)=>resources[role]?.counters?.[name]?.[stat];
-  const values={trafficTransactions:overall.application_transactions,trafficSent:overall.tcp_tx_bytes_per_second/1048576,trafficReceived:overall.tcp_rx_bytes_per_second/1048576,
+  const values={trafficTransactions:overall.application_transactions,trafficSent:trafficMiB(overall.tcp_tx_bytes_per_second),trafficReceived:trafficMiB(overall.tcp_rx_bytes_per_second),
     trafficP99:overall.probe_latency?.p99_ms,trafficUdpP99:overall.udp_latency?.p99_ms,
     trafficLoss:typeof overall.udp_loss_fraction==="number"?overall.udp_loss_fraction*100:null,
-    trafficCpu:counter("product_cli","cpu_percent_of_pc","mean"),trafficRam:counter("product_cli","private_bytes","max")/1048576,
-    trafficSystemCpu:counter("windows_system","cpu_percent_of_pc","mean"),trafficSystemRam:counter("windows_system","physical_used_bytes","max")/1048576,
-    trafficOriginCpu:counter("origin_system","cpu_percent_of_pc","mean"),trafficOriginRam:counter("origin_system","physical_used_bytes","max")/1048576,
-    trafficCliResident:counter("product_cli","working_set_bytes","max")/1048576,trafficWorkerCpu:counter("worker","cpu_percent_of_pc","mean"),trafficWorkerRam:counter("worker","private_bytes","max")/1048576,trafficOriginProcessCpu:counter("origin_and_proxy","cpu_percent_of_pc","mean"),trafficOriginProcessRam:counter("origin_and_proxy","working_set_bytes","max")/1048576,trafficCliHandles:counter("product_cli","handles","max"),trafficCliThreads:counter("product_cli","threads","max"),trafficPeak:measured.tcp_active_peak??((measured.stages||[]).some(stage=>typeof stage.tcp_active_peak==="number")?Math.max(...(measured.stages||[]).map(stage=>stage.tcp_active_peak||0)):null)};
+    trafficCpu:counter("product_cli","cpu_percent_of_pc","mean"),trafficRam:trafficMiB(counter("product_cli","private_bytes","max")),
+    trafficSystemCpu:counter("windows_system","cpu_percent_of_pc","mean"),trafficSystemRam:trafficMiB(counter("windows_system","physical_used_bytes","max")),
+    trafficOriginCpu:counter("origin_system","cpu_percent_of_pc","mean"),trafficOriginRam:trafficMiB(counter("origin_system","physical_used_bytes","max")),
+    trafficCliResident:trafficMiB(counter("product_cli","working_set_bytes","max")),
+    trafficWorkerCpu:counter("worker","cpu_percent_of_pc","mean"),trafficWorkerRam:trafficMiB(counter("worker","private_bytes","max")),
+    trafficOriginProcessCpu:counter("origin_and_proxy","cpu_percent_of_pc","mean"),trafficOriginProcessRam:trafficMiB(counter("origin_and_proxy","working_set_bytes","max")),
+    trafficCliHandles:counter("product_cli","handles","max"),trafficCliThreads:counter("product_cli","threads","max"),
+    trafficPeak:measured.tcp_active_peak??((measured.stages||[]).some(stage=>typeof stage.tcp_active_peak==="number")?Math.max(...(measured.stages||[]).map(stage=>stage.tcp_active_peak||0)):null)};
   return Number.isFinite(values[key])?values[key]:null;
 }
+function trafficComparisonRows(){
+  const selected=lab('traffic-comparison-filter').value;
+  return trafficComparison.filter(row=>`${row.case_id}|${row.duration}|${row.load}|${row.condition_id}`===selected&&trafficCompareChoice.builds[row.build_id]!==false);
+}
+function trafficHistoryRows(){
+  const selected=lab('traffic-filter').value;
+  const matches=row=>selected==='all'||`${row.Id||row.id||row.case_id}|${row.Duration||row.duration}|${row.Load||row.load}`===selected;
+  return trafficHistory.filter(attempt=>selected==='all'||(attempt.cases||[]).some(matches)).map(attempt=>({...attempt,
+    cases:(attempt.cases||[]).filter(matches),results:(attempt.results||[]).filter(matches),
+    recovery_checks:(attempt.recovery_checks||[]).filter(check=>selected==='all'||check.case_id===selected.split('|')[0])}));
+}
+function updateTrafficExportButtons(){
+  const blocked=trafficSnapshotUnavailable||trafficLoading;
+  lab('traffic-export-comparison').disabled=blocked||!trafficComparisonRows().length;
+  lab('traffic-export-history').disabled=blocked||!trafficHistoryRows().length;
+}
+function trafficCsvCell(value){
+  if(value===null||value===undefined)return '""';
+  let text=String(value);
+  if(typeof value!=='number'&&/^[\s\u0000-\u001f]*[=+\-@]/.test(text))text="'"+text;
+  return '"'+text.replaceAll('"','""')+'"';
+}
+function exportTraffic(kind){
+  const status=lab('traffic-export-status');
+  if(trafficSnapshotUnavailable||trafficLoading){status.textContent=t('trafficExportUnavailable');return;}
+  const exportedAt=new Date().toISOString();
+  let content,type,extension;
+  if(kind==='comparison'){
+    const rows=trafficComparisonRows(),metrics=trafficMetrics.filter(trafficMetricSelected);
+    if(!rows.length){status.textContent=t('trafficExportUnavailable');return;}
+    const header=['snapshot_loaded_at_utc','exported_at_utc','build_id','build_name','attempt_id','case_id','duration','load','condition_id','status','errors','conditions_json',...metrics.map(metric=>`${metric} (${t(metric)})`)];
+    const records=rows.map(row=>[trafficComparisonLoadedAt,exportedAt,row.build_id,
+      labState.builds.find(build=>build.id===row.build_id)?.display_name||row.build_id,row.attempt_id,row.case_id,
+      row.duration,row.load,row.condition_id,row.complete?'PASS':row.state||'UNVERIFIED',
+      (row.result?.errors||[row.error]).filter(Boolean).join(' | '),JSON.stringify(row.conditions??null),
+      ...metrics.map(metric=>trafficMetric(row,metric))]);
+    content='\ufeff'+[header,...records].map(record=>record.map(trafficCsvCell).join(',')).join('\r\n')+'\r\n';
+    type='text/csv;charset=utf-8';extension='csv';
+  }else{
+    const items=trafficHistoryRows();
+    if(!items.length){status.textContent=t('trafficExportUnavailable');return;}
+    content=JSON.stringify({schema_version:1,scope:'loaded-history-pages-filtered-by-case',
+      snapshot_loaded_at_utc:trafficHistoryLoadedAt,exported_at_utc:exportedAt,
+      filter:lab('traffic-filter').value,has_more_pages:trafficHasMore,next_skip:trafficNextSkip,
+      attempt_state_scope:'whole-queue; results and choices use the selected case filter',history_pagination_scope:'loaded-pages-across-requests; not an atomic snapshot',items},null,2)+'\n';
+    type='application/json;charset=utf-8';extension='json';
+  }
+  const blob=new Blob([content],{type});
+  if(blob.size>8*1024*1024){status.textContent=t('trafficExportTooLarge');return;}
+  const url=URL.createObjectURL(blob),anchor=document.createElement('a');
+  anchor.href=url;anchor.download=`testlab-traffic-${kind}-${exportedAt.replace(/[:.]/g,'-')}.${extension}`;
+  document.body.append(anchor);anchor.click();anchor.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),10000);
+  status.textContent=t('trafficExportStarted');
+}
+lab('traffic-export-comparison').addEventListener('click',()=>exportTraffic('comparison'));
+lab('traffic-export-history').addEventListener('click',()=>exportTraffic('history'));
 function renderTrafficComparison(){
   const select=lab("traffic-comparison-filter"),previous=select.value;
   const key=JSON.stringify([trafficComparison,labLanguage,previous,trafficCompareChoice,labState.builds]);
@@ -187,15 +253,15 @@ function renderTrafficComparison(){
 for(const id of ["traffic-comparison-builds","traffic-comparison-metrics"])lab(id).addEventListener("change",event=>{
   const build=event.target.dataset.trafficBuild,metric=event.target.dataset.trafficMetric;
   if(build)trafficCompareChoice.builds[build]=event.target.checked;if(metric)trafficCompareChoice.metrics[metric]=event.target.checked;
-  localStorage.setItem("testlab-traffic-comparison",JSON.stringify(trafficCompareChoice));renderTrafficComparison();
+  localStorage.setItem("testlab-traffic-comparison",JSON.stringify(trafficCompareChoice));renderTrafficComparison();updateTrafficExportButtons();
 });
-lab("traffic-comparison-filter").addEventListener("change",renderTrafficComparison);
+lab("traffic-comparison-filter").addEventListener("change",()=>{renderTrafficComparison();updateTrafficExportButtons();});
 lab("traffic-history-more").addEventListener("click",async()=>{
   lab("traffic-history-more").disabled=true;
   try{
     const response=await fetch(`/api/v1/lab/traffic/history?skip=${trafficNextSkip}`,{cache:"no-store"});if(!response.ok)throw new Error("TRAFFIC_HISTORY_UNAVAILABLE");
     const data=await response.json(),loaded=new Map(trafficHistory.map(row=>[row.id,row]));for(const row of data.items)loaded.set(row.id,row);
-    trafficHistory=[...loaded.values()].sort((a,b)=>b.id.localeCompare(a.id));trafficNextSkip=data.next_skip;trafficHasMore=data.has_more;renderTrafficHistory();
+    trafficHistory=[...loaded.values()].sort((a,b)=>b.id.localeCompare(a.id));trafficNextSkip=data.next_skip;trafficHasMore=data.has_more;trafficHistoryLoadedAt=new Date().toISOString();renderTrafficHistory();updateTrafficExportButtons();
     lab("traffic-history-more").hidden=!trafficHasMore;
   }catch(error){trafficError=error.message;}finally{lab("traffic-history-more").disabled=false;}
 });
@@ -206,10 +272,10 @@ async function loadTraffic(){
     if(responses.some(response=>!response.ok)) throw new Error("TRAFFIC_STATUS_UNAVAILABLE");
     const data=await Promise.all(responses.map(response=>response.json())); trafficCatalog=data[0]; trafficState=data[1];
     const loaded=new Map(trafficHistory.map(row=>[row.id,row])); for(const row of data[2].items)loaded.set(row.id,row);
-    trafficHistory=[...loaded.values()].sort((a,b)=>b.id.localeCompare(a.id));trafficComparison=data[3].items;
+    trafficHistory=[...loaded.values()].sort((a,b)=>b.id.localeCompare(a.id));trafficComparison=data[3].items;trafficComparisonLoadedAt=trafficHistoryLoadedAt=new Date().toISOString();trafficSnapshotUnavailable=false;
     if(!trafficNextSkip){trafficNextSkip=data[2].next_skip;trafficHasMore=data[2].has_more;}
     lab("traffic-history-more").hidden=!trafficHasMore;
-  }catch(error){trafficError=error.message;}finally{trafficLoading=false;}
+  }catch(error){trafficError=error.message;trafficSnapshotUnavailable=true;}finally{trafficLoading=false;}
   renderTraffic();
 }
 async function trafficAction(action){
@@ -229,7 +295,7 @@ lab("traffic-cases").addEventListener("change",event=>{
 for(const action of ["plan","apply","start","stop"])lab(`traffic-${action}`).addEventListener("click",()=>trafficAction(action));
 lab("traffic-continue-after-failure").addEventListener("change",renderTraffic);
 for(const id of ["traffic-debugger-inactive","traffic-long-run","lab-mode"])lab(id).addEventListener("change",renderTraffic);
-lab("traffic-filter").addEventListener("change",renderTrafficHistory);
+lab("traffic-filter").addEventListener("change",()=>{renderTrafficHistory();updateTrafficExportButtons();});
 lab("traffic-search").addEventListener("input",filterTrafficCards);
 lab("traffic-category").addEventListener("change",renderTraffic);
 const renderLabBeforeTraffic=renderLab;

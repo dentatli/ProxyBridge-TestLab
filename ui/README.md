@@ -52,6 +52,10 @@ and [operator guide](../docs/OPERATOR_GUIDE.md).
    back to an earlier success. Unconfirmed attempts have no measured metrics;
    unreadable history blocks the latest-only table. RTT, rates and sampled CLI
    CPU/private RAM retain their actual measurement scope.
+   Traffic comparison can be exported as CSV with the selected builds/metrics
+   and conditions; loaded traffic history can be exported as filtered JSON.
+   JSON explicitly indicates remaining pages and does not claim an atomic full
+   history snapshot. Unknown metrics remain empty, export size is limited to 8 MiB.
 
 Do not create or run tests of TestLab itself (user instruction, 2026-10-13).
 Use compilation/builds and authorized real ProxyBridge checks; historical

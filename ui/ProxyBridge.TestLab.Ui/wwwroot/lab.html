@@ -200,8 +200,12 @@
         <div id="traffic-comparison-builds" class="lab-test-settings"></div>
         <details><summary data-i18n="trafficMetrics"></summary><div id="traffic-comparison-metrics" class="lab-test-settings"></div></details>
         <div id="traffic-comparison"></div>
+        <button id="traffic-export-comparison" class="button secondary" type="button" data-i18n="trafficExportComparison" disabled></button>
         <label><span data-i18n="trafficConditions"></span><select id="traffic-filter"><option value="all"></option></select></label>
         <div id="traffic-history"></div>
+        <button id="traffic-export-history" class="button secondary" type="button" data-i18n="trafficExportHistory" disabled></button>
+        <p data-i18n="trafficExportHelp"></p>
+        <p id="traffic-export-status" role="status" aria-live="polite"></p>
         <button id="traffic-history-more" class="button secondary" type="button" data-i18n="trafficMore" hidden></button>
       </section>
       <div class="lab-header"><h2 id="results-heading" tabindex="-1" data-i18n="results">Результаты</h2><button id="refresh-lab" class="button secondary" type="button" data-i18n="refresh">Обновить</button></div>
