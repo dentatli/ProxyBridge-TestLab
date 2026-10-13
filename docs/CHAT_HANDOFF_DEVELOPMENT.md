@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: нечитаемые отчёты — 2026-10-13
+## Текущий этап: полнота ресурсных наблюдений — 2026-10-13
+
+History получил отдельную RU/EN resource coverage table: source role, available observation attempts/total, число CPU delta samples и фактическая memory scope. Используются уже сохранённые samples/unavailable_samples/counter.count; новых опросов и пересчёта verdict нет. Missing/invalid metadata остаётся unknown, пропуски и первое наблюдение без CPU delta не превращаются в zero. CSV дополнен resource_observation_summary_json, в том числе для failed attempt без benchmark metrics; это metadata наблюдений, не подтверждение route/performance/driver attribution. JS syntax и UI build 0 warnings/errors прошли; tests TestLab не создавались/не запускались, runtime/GUI acceptance не заявлена.
+
+Нечитаемая history stage запушена `2ad8b07`. Текущая compiled UI запущена без повышения на http://127.0.0.1:5202 (own PID14004, ui-development-current); browser panel open queued в чате. Автоматическая проверка разрешений отклонила RunAs запуска нового UI (`blocked by policy`); безопасный обычный запуск выполнен, administrator=false, product Start остаётся blocked. Review не обходили и повторного повышенного запуска после отказа не делали. Ранее созданные UI5200/5201 не останавливались после этой блокировки; использовать новую UI5202 для текущего frontend/reader. Для реального будущего product run потребуется отдельно решённый administrative launch, но известный product control FAIL здесь не повторять без нового основания.
+
+Штатные fresh plan/apply из новой UI установили latest traffic bundle `b3202be723f3829fc92a7b463caaa77a9996f253a8c8cc0a8ef844e58d265295` на .180: READY, service_active/hashes_match/listeners/applied=true. Execution active=false, pending отсутствует, driver Stopped. Это проверка фактического deployment result, не новый traffic/app regression. Других product runs после утреннего failed QUIC case не было. Private evidence/SSH credentials/diagnostic worktree/kits не менялись. Текущую Git ревизию смотреть в ветке; продолжать независимую разработку до остановки пользователя, соблюдая запрет tests TestLab.
+
+## Предыдущий этап: нечитаемые отчёты — 2026-10-13
 
 Traffic History/Comparison используют общий bounded reader attempt.json: запрет directory/file reparse, actual handle<=64MiB, schema/id-vs-directory/state/choices/result shapes. Share-delete не блокирует atomic writes. Известная own run directory (timestamp+GUID) учитывается и при отсутствующем manifest; directory runtime-apply-evidence не является попыткой. Нечитаемый/отсутствующий/oversized/malformed report сохраняется без изменения/удаления и увеличивает unreadable_count. History возвращает читаемые records текущей страницы с явным флагом неполноты. Comparison сканирует всю own history и возвращает available=false/empty items при любой нечитаемой попытке: нельзя определить, какой build/case она перекрывала, поэтому старые PASS не подставляются.
 

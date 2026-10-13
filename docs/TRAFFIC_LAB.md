@@ -4,6 +4,12 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
+## Полнота ресурсных наблюдений — 2026-10-13
+
+History показывает source role, available/attempted observations, CPU delta sample count и реальную memory scope из уже сохранённых resource windows. Mean CPU относится к доступным интервалам; пропуски и первый sample без delta не равны zero. Missing metadata — unknown, а не догадка по наличию mean. CSV включает resource_observation_summary_json; для FAIL оно не становится benchmark measurement и не доказывает driver resource attribution. Дополнительных опросов не выполняется. JS syntax/UI build 0 warnings/errors, без tests/GUI runtime acceptance.
+
+Latest traffic deployment на .180: `b3202be723f3829fc92a7b463caaa77a9996f253a8c8cc0a8ef844e58d265295` READY (service_active/hashes_match/listeners проверены стандартным apply), pending нет, driver Stopped. UI5202 работает без administrator: новый RunAs был отклонён automatic review (`blocked by policy`), обычный запуск не разрешает product Start. Это не приёмка новых traffic profiles; сегодняшний реальный product FAIL и ограничения compilation-only выше сохранены.
+
 ## Нечитаемые отчёты — 2026-10-13
 
 Traffic history reader ограничивает manifest<=64MiB по открытому handle, отклоняет directory/file reparse и malformed identity/state/choice/result shapes. Own run directories учитываются даже без attempt.json; receipt directories не являются runs. Пропуски отражаются в unreadable_count, читаемая страница остаётся доступной как частичная история. Comparison сканирует own history целиком и блокируется при любой нечитаемой попытке: неизвестно, какой более старый результат она должна перекрывать. Повреждённые/частные файлы не меняются и не удаляются.
