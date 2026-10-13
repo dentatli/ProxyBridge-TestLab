@@ -160,7 +160,18 @@ public sealed partial class TrafficRuntimeService
             var path = _activeDirectory is null ? null : Path.Combine(_activeDirectory, "progress.json");
             JsonElement? progress = null;
             if (path is not null && File.Exists(path) && new FileInfo(path).Length < 16384)
-                try { using var doc = JsonDocument.Parse(File.ReadAllBytes(path)); progress = doc.RootElement.Clone(); } catch (IOException) { } catch (JsonException) { }
+                try
+                {
+                    // Permit atomic replacement while retaining this read snapshot.
+                    using var stream = new FileStream(path,FileMode.Open,FileAccess.Read,FileShare.ReadWrite|FileShare.Delete);
+                    if (stream.Length < 16384)
+                    {
+                        using var doc = JsonDocument.Parse(stream,new JsonDocumentOptions { MaxDepth=16 });
+                        progress = doc.RootElement.Clone();
+                    }
+                }
+                catch (IOException) { }
+                catch (JsonException) { }
             return new { run = _run, progress, active = _activeDirectory is not null };
         }
     }

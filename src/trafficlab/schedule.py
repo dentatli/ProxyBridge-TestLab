@@ -117,24 +117,51 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
     monitor_stop = threading.Event()
     observations_lock = threading.Lock()
     current: dict[str, Any] = {"job": job, "origin": None}
+    progress_lock = threading.Lock()
+    progress_state: dict[str, Any] = {'run_id':job['run_id'], 'state':'PREPARING', 'total':len(stages),
+                                     'stage_run_id':None, 'live_origin':None}
+    def publish_progress(observed_run_id: str | None=None, **changes: Any) -> None:
+        # The monitor and coordinator share one atomic writer. An observation from
+        # the previous stage may finish late; it must never be attributed to the next.
+        with progress_lock:
+            if observed_run_id is not None and (progress_state['state']!='RUNNING' or progress_state['stage_run_id']!=observed_run_id):
+                return
+            progress_state.update(changes)
+            atomic(progress,{**progress_state,'elapsed_seconds':time.perf_counter()-started,
+                             'emitted_at_unix_seconds':time.time()})
     def monitor() -> None:
         while not monitor_stop.is_set():
             stamp = time.perf_counter() - started
             samples = {"worker": process_sample(os.getpid()), "windows_system" if os.name == "nt" else "worker_system": system_sample()}
             for role, binding in job.get("resource_processes", {}).items():
                 samples[role] = process_sample(int(binding["pid"]), binding.get("path"))
+            with observations_lock:
+                observed_job = current['job']
+            live_origin: dict[str, Any] = {'available':False}
             try:
-                remote = origin_metrics(current["job"])
+                remote = origin_metrics(observed_job)
                 samples["origin_and_proxy"] = {**remote["resources"], "cpu_count": remote["cpu_count"]}
                 samples["origin_system"] = remote["system_resources"]
                 with observations_lock:
                     current["origin"] = remote
+                def count(value: Any) -> int | None:
+                    return value if type(value) is int and value>=0 else None
+                transactions = [flow.get('transactions') for flow in remote.get('application_flows',{}).values()]
+                live_origin = {'available':True, 'scope':'signed-origin-session-counters; not-final-client-verification',
+                    'observed_at_elapsed_seconds':time.perf_counter()-started,
+                    'observed_at_unix_seconds':time.time(),
+                    **{key:count(remote.get(key)) for key in ('rx_bytes','tx_bytes','active','completed')},
+                    'application_transactions':sum(transactions) if all(count(value) is not None for value in transactions) else None}
             except (OSError, ValueError, KeyError, EOFError):
                 samples["origin_and_proxy"] = {"available": False}
                 samples["origin_system"] = {"available": False}
             with observations_lock:
                 for role, sample in samples.items():
                     resources.add(role, stamp, sample)
+            try:
+                publish_progress(observed_job['run_id'],live_origin=live_origin)
+            except OSError:
+                pass  # Main coordinator writes still fail the attempt on storage failure.
             monitor_stop.wait(1)
     observer = threading.Thread(target=monitor, name="traffic-resource-observer", daemon=True)
     observer.start()
@@ -160,18 +187,21 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 continue
             stage_job = {**job, "run_id": f"{job['run_id']}.{index}"}
             context = {"operation":"REGISTERING_SESSION", "stage":stage['phase'], "index":index}
+            publish_progress(state='RUNNING',stage=stage['phase'],index=index,stage_run_id=stage_job['run_id'],
+                             operation=context['operation'],live_origin=None)
             if any(workload.get("application") for workload in stage["workloads"]):
                 origin_metrics(stage_job)  # Register the session before native DNS encodes its opaque run tag.
-            current["job"] = stage_job
-            atomic(progress, {"run_id": job["run_id"], "stage": stage["phase"], "index": index, "total": len(stages),
-                              "elapsed_seconds": time.perf_counter() - started, "state": "RUNNING"})
+            with observations_lock:
+                current["job"] = stage_job
             phase_started = time.perf_counter()
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(stage["workloads"])) as pool:
                 context['operation'] = 'RUNNING_WORKLOAD'
+                publish_progress(operation=context['operation'])
                 report['workload_started_stage_count'] += 1
                 futures = [pool.submit(execute, {**stage_job, **workload}) for workload in stage["workloads"]]
                 results = [future.result() for future in futures]
             context['operation'] = 'COLLECTING_EVIDENCE'
+            publish_progress(operation=context['operation'])
             try:
                 origin = origin_metrics(stage_job)
                 release_deadline = time.perf_counter() + 2
@@ -207,6 +237,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 report["resources"] = resources.view()
             report["elapsed_seconds"] = time.perf_counter() - started
             context['operation'] = 'WRITING_REPORT'
+            publish_progress(operation=context['operation'])
             atomic(output, report)
             # Preserve the failed stage, skip further load and still measure recovery when available.
         report["cancelled"] = cancelled(job)
@@ -224,8 +255,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
         report["elapsed_seconds"] = time.perf_counter() - started
         report['unstarted_stage_count'] = len(stages)-report['workload_started_stage_count']
         atomic(output, report)
-        atomic(progress, {"run_id": job["run_id"], "state": "COMPLETE" if report["complete"] else "CANCELLED" if report["cancelled"] else "FAILED",
-                          "elapsed_seconds": report["elapsed_seconds"], "completed_stages": len(report["stages"]), "total": len(stages)})
+        publish_progress(state="COMPLETE" if report["complete"] else "CANCELLED" if report["cancelled"] else "FAILED",
+                         completed_stages=len(report['stages']),live_origin=None)
     return report
 
 

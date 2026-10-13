@@ -2,7 +2,13 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: выгрузка результатов — 2026-10-13
+## Текущий этап: живой прогресс — 2026-10-13
+
+Resource observer теперь публикует bounded live_origin из уже выполняемого signed metrics request: принятые/отправленные bytes, active sessions, application request count и timestamps. Новых сетевых опросов/потоков не добавлено; это наблюдения origin, не окончательные native receipts/route PASS. Coordinator/observer сериализуют атомарные записи progress одним lock; observed stage_run_id обязан совпасть с текущим, late samples прежнего этапа и terminal writes игнорируются. Каждая фаза REGISTERING_SESSION/RUNNING_WORKLOAD/COLLECTING_EVIDENCE/WRITING_REPORT публикуется явно; terminal progress очищает live counters. Elapsed относится к текущему workload schedule (включая его baseline/recovery), не всей очереди.
+
+API Progress читает файл с FileShare.ReadWrite|Delete, проверяет длину открытого handle<16KiB/JSON depth16: read не блокирует atomic replacement и сохраняет собственный snapshot. GUI RU/EN показывает live counters отдельно, старше5s/unavailable/clock-ambiguous samples не показывает как свежие. По live counts PASS не выдаётся, signed all-flow/final cleanup gates сохранены. Python compilation/JS syntax/UI build 0 warnings/errors прошли; tests/GUI regression/новые product runs не проводились, concurrency/live runtime acceptance не заявлена. Экспорт stage запушен `5509eb8`; текущую ревизию смотреть в Git. Пользователь разрешил независимую разработку до следующей остановки; запрет тестов TestLab сохраняется.
+
+## Предыдущий этап: выгрузка результатов — 2026-10-13
 
 Results получил CSV выбранного traffic comparison (текущая группа case/duration/load/conditions, выбранные builds/metrics) и JSON загруженной traffic history с текущим case filter. CSV сохраняет stable metric ID + RU/EN label/unit, полную числовую точность, build/attempt/case/condition IDs, conditions JSON и FAIL/CANCELLED/неподтверждённые статусы. Неподтверждённые показатели пустые; string cells имеют RFC4180 quoting и защиту от spreadsheet formula interpretation, числовые metrics остаются числами. UTF8 BOM/CRLF для CSV; JSON включает snapshot/export time, has_more_pages/next_skip, область loaded-pages-across-requests (не atomic snapshot), отдельный scope whole-queue для attempt state. Case choices/results/recovery checks фильтруются, неподгруженные страницы не выдаются за полный журнал. Данные берутся из уже загруженных публичных API responses, без новых серверных запусков, private binding/captures/keys не читаются.
 

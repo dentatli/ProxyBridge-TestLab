@@ -4,6 +4,12 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
+## Живой прогресс — 2026-10-13
+
+Во время задания Run показывает текущую фазу и bounded counters подписанного текущего origin session: принятые/отправленные bytes, active sessions и application requests. Источник — существующий resource observer, новых сетевых запросов нет. Эти counters могут включать частичные authenticated requests и не заменяют финальные client receipts/route verdict/cleanup. Samples старше5s, unavailable или с неоднозначной часовой отметкой скрываются; elapsed относится к текущему workload schedule со всеми его stages, не всей очереди.
+
+Observer и coordinator используют общий lock для atomic progress writes; ответ от прежнего stage_run_id не попадает в следующий stage, terminal state запрещает late writes и очищает counters. API открывает progress с share-delete, чтобы чтение не мешало замене файла; actual handle<16KiB/depth16 ограничены. Проверены compilation/JS syntax/UI build 0 warnings/errors; тесты TestLab и новые product runs не выполнялись, runtime/concurrency acceptance не заявлена.
+
 ## Выгрузка результатов — 2026-10-13
 
 Results позволяет скачать выбранное traffic comparison в CSV и загруженную history в JSON. CSV использует текущие case/duration/load/conditions и выбор builds/metrics, полную числовую точность, unit labels текущего RU/EN, IDs/conditions/error/status; неуспешные попытки сохраняются, их metric cells пустые. Quoted strings защищены от spreadsheet formulas, UTF8 BOM/CRLF; это таблица наблюдений, не доказательство absolute throughput/driver capacity. Null скорости/RAM больше не преобразуется в численный zero при конвертации в MiB.
