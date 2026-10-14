@@ -6,6 +6,8 @@ import concurrent.futures
 import hashlib
 import json
 import os
+import re
+import socket
 import threading
 import time
 import uuid
@@ -26,10 +28,52 @@ def atomic(path: str, value: Any) -> None:
     temporary.replace(target)
 
 
+class OriginMetricsChannel:
+    """One preconnected control socket, serialized between observer and final evidence.
+
+    Every query still gets a fresh challenge, flow ID and signed response. A failed
+    channel stays failed; it never reconnects through the product under measurement.
+    """
+    def __init__(self, job: dict[str, Any]) -> None:
+        self.job = job
+        self.lock = threading.Lock()
+        self.socket: socket.socket | None = None
+
+    def __enter__(self) -> OriginMetricsChannel:
+        self.socket = socket.create_connection((self.job['host'], self.job.get('control_port', 42503)), timeout=10)
+        try:
+            origin_metrics({**self.job, '_origin_metrics_channel': self})
+        except BaseException:
+            self.__exit__(None, None, None)
+            raise
+        return self
+
+    def __exit__(self, *_args: Any) -> None:
+        with self.lock:
+            if self.socket is not None:
+                self.socket.close()
+                self.socket = None
+
+
 def origin_metrics(job: dict[str, Any]) -> dict[str, Any]:
+    channel = job.get('_origin_metrics_channel')
+    if channel is None:
+        return _origin_metrics(job)
+    with channel.lock:
+        if channel.socket is None:
+            raise ValueError('TRAFFIC_ORIGIN_CONTROL_CHANNEL_CLOSED')
+        try:
+            return _origin_metrics(job, channel.socket)
+        except BaseException:
+            channel.socket.close()
+            channel.socket = None
+            raise
+
+
+def _origin_metrics(job: dict[str, Any], connection: socket.socket | None = None) -> dict[str, Any]:
     binding = {**job, "seconds": 0.05, "port": job.get("control_port", 42503)}
     binding.pop("test_proxy", None)
-    sock, stream, context, _ready = connect(binding, "metrics", str(uuid.uuid4()))
+    sock, stream, context, _ready = connect(binding, "metrics", str(uuid.uuid4()), connection=connection)
     try:
         result = read_result(job, stream, context)
         expected = job.get("remote_bundle_sha256")
@@ -44,7 +88,14 @@ def origin_metrics(job: dict[str, Any]) -> dict[str, Any]:
         return result
     finally:
         stream.close()
-        sock.close()
+        if connection is None:
+            sock.close()
+
+
+def origin_evidence_error(error: Exception) -> dict[str, Any]:
+    code = str(error) if isinstance(error, ValueError) and re.fullmatch(r'(?:TRAFFIC|APPLICATION)_[A-Z0-9_]+', str(error)) else 'TRAFFIC_ORIGIN_METRICS_UNAVAILABLE'
+    return {'code': code, 'exception_type': type(error).__name__,
+            'errno': getattr(error, 'errno', None), 'winerror': getattr(error, 'winerror', None)}
 
 
 def recipes(job: dict[str, Any], catalog: dict[str, Any]) -> list[dict[str, Any]]:
@@ -113,6 +164,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
         "case_id": job["case_id"], "duration": job["duration"], "load": job["load"], "complete": False,
         "cancelled": False, "stages": [], "product_route_confirmed": False,
         "resource_scope": "identified-processes-and-separate-whole-OS-counters", "attempt_policy": "fresh-no-resume",
+        "origin_metrics_transport": "preconnected-authenticated-control-v1" if job.get('_origin_metrics_channel') else "per-query-authenticated-control-v1",
         "errors": [], "stage_count": len(stages), "skipped_stage_count": 0,
         "workload_started_stage_count": 0,
         "udp_expected": any(workload['task']=='udp' for stage in stages for workload in stage['workloads']),
@@ -157,7 +209,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                     'observed_at_unix_seconds':time.time(),
                     **{key:count(remote.get(key)) for key in ('rx_bytes','tx_bytes','active','completed')},
                     'application_transactions':sum(transactions) if all(count(value) is not None for value in transactions) else None}
-            except (OSError, ValueError, KeyError, EOFError):
+            except (OSError, ValueError, KeyError, EOFError) as error:
+                live_origin['error'] = origin_evidence_error(error)
                 samples["origin_and_proxy"] = {"available": False}
                 samples["origin_system"] = {"available": False}
             with observations_lock:
@@ -207,16 +260,18 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 results = [future.result() for future in futures]
             context['operation'] = 'COLLECTING_EVIDENCE'
             publish_progress(operation=context['operation'])
+            evidence_error = None
             try:
                 origin = origin_metrics(stage_job)
                 release_deadline = time.perf_counter() + 2
                 while (origin["active"] or origin.get("proxy", {}).get("tcp_active", 0)) and time.perf_counter() < release_deadline:
                     time.sleep(0.02)
                     origin = origin_metrics(stage_job)
-            except (OSError, ValueError, KeyError, EOFError):
+            except (OSError, ValueError, KeyError, EOFError) as error:
                 origin = None
+                evidence_error = origin_evidence_error(error)
             stage_value = {"phase": stage["phase"], "elapsed_seconds": time.perf_counter() - phase_started,
-                                      "results": results, "origin": origin,
+                                      "results": results, "origin": origin, "origin_evidence_error": evidence_error,
                                       "complete": origin is not None and origin["active"] == 0 and origin.get("proxy", {}).get("tcp_active", 0) == 0 and all(row["complete"] for row in results)}
             route_verified = stage_route(stage_value, expected_proxy)
             loss_ok = all(flow.get("loss_fraction") is None or flow["loss_fraction"] <= 0.01

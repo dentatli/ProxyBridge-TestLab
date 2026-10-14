@@ -66,6 +66,8 @@ def pattern(offset: int, size: int) -> bytes:
 
 
 def validate_request(request: dict[str, Any]) -> None:
+    if 'metrics_keepalive' in request and (request.get('task') != 'metrics' or type(request['metrics_keepalive']) is not bool):
+        raise ValueError('TRAFFIC_CONTROL_CHANNEL_TASK_INVALID')
     if request.get("version") != VERSION or request.get("task") not in ("echo", "upload", "download", "duplex", "hold", "metrics"):
         raise ValueError("TRAFFIC_REQUEST_INVALID")
     if any(not isinstance(request.get(field), str) or not ID.fullmatch(request[field]) for field in ("run_id", "flow_id")):

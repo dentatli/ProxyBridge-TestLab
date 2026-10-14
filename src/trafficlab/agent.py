@@ -72,8 +72,8 @@ class Agent:
         self.runs.move_to_end(run_id)
         return self.runs[run_id]
 
-    async def header(self, reader: asyncio.StreamReader) -> dict[str, Any]:
-        line = await asyncio.wait_for(reader.readline(), 10)
+    async def header(self, reader: asyncio.StreamReader, timeout: float = 10) -> dict[str, Any]:
+        line = await asyncio.wait_for(reader.readline(), timeout)
         if not line.endswith(b"\n") or len(line) > MAX_LINE:
             raise ValueError("TRAFFIC_HEADER_INVALID")
         request = json.loads(line)
@@ -83,6 +83,21 @@ class Agent:
         return request
 
     async def tcp(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, metrics_only: bool = False) -> None:
+        try:
+            keepalive = False
+            while True:
+                keepalive = bool(await self.tcp_request(reader, writer, metrics_only, 30 if keepalive else 10))
+                if not keepalive:
+                    break
+        finally:
+            writer.close()
+            try:
+                await asyncio.wait_for(writer.wait_closed(), 2)
+            except (OSError, asyncio.TimeoutError):
+                pass
+
+    async def tcp_request(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter, metrics_only: bool = False,
+                          header_timeout: float = 10) -> bool | None:
         task = asyncio.current_task()
         if task is not None:
             self.tasks.add(task)
@@ -93,7 +108,7 @@ class Agent:
                 raise ValueError("TRAFFIC_CONNECTION_LIMIT")
             self.active += 1
             admitted = True
-            request = await self.header(reader)
+            request = await self.header(reader, header_timeout)
             if (request["task"] == "metrics") != metrics_only:
                 raise ValueError("TRAFFIC_CONTROL_PORT_REQUIRED")
             challenge = secrets.token_hex(32)
@@ -132,7 +147,7 @@ class Agent:
                 result["proof"] = mac(self.secret, b"result:", challenge.encode() + raw + json_bytes(result))
                 writer.write(json_bytes(result) + b"\n")
                 await writer.drain()
-                return
+                return request.get('metrics_keepalive') is True
             row["accepted"] += 1
             row["active"] += 1
             row["tcp_active_peak"] = max(row["tcp_active_peak"], row["active"])
@@ -161,11 +176,6 @@ class Agent:
         finally:
             if admitted:
                 self.active -= 1
-            writer.close()
-            try:
-                await asyncio.wait_for(writer.wait_closed(), 2)
-            except (OSError, asyncio.TimeoutError):
-                pass
             if task is not None:
                 self.tasks.discard(task)
 

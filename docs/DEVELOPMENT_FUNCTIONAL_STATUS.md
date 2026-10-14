@@ -4,6 +4,10 @@
 
 ## Актуальное состояние — 2026-10-14
 
+Новое состояние: control plane использует предварительно установленное, отдельно аутентифицированное metrics-соединение. Короткая очередь084943 получила signed final evidence всех6 stages: TCP/HTTPS PASS; UDP-connected2256/0 и mixed2035/0 — FAIL. Cleanup всех4cases подтверждён. При остановленном продукте UDP direct и explicit SOCKS5 component checks95/95 каждый PASS; точная причина product UDP не установлена. HIGH/soak не приняты, смешанный длительный сценарий блокируется фактическим UDP failure. Инструкция и evidence для дальнейшей пользовательской приёмки: [TRAFFIC_LOAD_ACCEPTANCE.md](TRAFFIC_LOAD_ACCEPTANCE.md); final exact-bundle TCP — в [актуальном handoff](CHAT_HANDOFF_DEVELOPMENT.md).
+
+Исторический checkpoint до этого исправления:
+
 Последний отдельный допущенный run после Port fix:20261014-082423-6c85c75d5bf54fd59e48fc035eacb820, только TCP SHORT/LOW. CLI config/rule подтверждены; один worker echo завершён без ошибок, TX=RX9,912,320 bytes. Итог всё ещё FAILED из-за отсутствующего final origin evidence (origin=null), route не подтверждён. Приватный CLI текст и hashes теперь реально сохранены/проверены; cleanup=true/driverStopped. UDP не повторялся. Runtime d054... установлен READY после исправления3s→30s bounded startup/rollback wait;11 Linux fixture checks PASS. Подробности в актуальном handoff; строки предыдущих попыток ниже исторические, не текущий нулевой payload.
 
 После проверки ниже диагностический offline review установил ошибку TestLab: числовой Port несовместим с pinned CLI, принимающим строку. Генератор исправлен; добавлены startup config/rule gate, private bounded CLI output и input profile hash. Причинная связь с уже сохранённым FAIL ещё не проверена реальным запуском; прежний C0000225 не подтверждён. Новая версия прошла offline mocked checks/66 Windows units (11 Linux-only skipped)/compilation/UI build, без новых product runs или runtime apply. Перед отдельным допущенным одним TCP flow требуется fresh runtime plan/apply; UDP проверяется отдельно. Подробности — текущий development handoff.

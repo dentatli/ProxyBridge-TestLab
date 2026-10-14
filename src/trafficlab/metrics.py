@@ -11,6 +11,7 @@ def execution_evidence(report: dict[str, Any]) -> dict[str, Any]:
     state = 'COMPLETED' if report.get('complete') is True else 'NOT_STARTED' if type(started) is int and started==0 else \
         'PARTIAL' if (type(started) is int and started>0) or stages else 'UNKNOWN'
     return {'measurement_state':state, 'planned_stage_count':report.get('stage_count'),
+            'origin_metrics_transport':report.get('origin_metrics_transport'),
             'workload_started_stage_count':started, 'recorded_stage_count':len(stages),
             'unstarted_stage_count':report.get('unstarted_stage_count'),
             'failure_context':report.get('failure_context')}
@@ -84,6 +85,7 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
         def percentiles(histogram: Histogram) -> dict[str, Any]:
             return {key: value for key, value in histogram.view().items() if key not in ("bins", "sum_ms")}
         rows.append({"phase": stage["phase"], "complete": stage["complete"], "elapsed_seconds": stage["elapsed_seconds"],
+            "origin_evidence_error": stage.get('origin_evidence_error'),
             "tcp_tx_bytes_per_second": sum(row["tx_bytes"] for row in values) / stage["elapsed_seconds"],
             "tcp_rx_bytes_per_second": sum(row["rx_bytes"] for row in values) / stage["elapsed_seconds"],
             "probe_p99_ms": latency.view()["p99_ms"], "probe_latency": percentiles(latency),
@@ -117,7 +119,8 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
                 'http2_profile','http2_peak_streams','http2_completed_streams',
                 'grpc_streaming_mode','grpc_rpc_count','grpc_request_messages','grpc_response_messages','grpc_receipts','close_scope', 'close_verified')}
                 for row in values for flow in row['flows'] if flow.get('ssh_host_key_verified') or flow.get('grpc_status_verified') or flow.get('quic_version') or flow.get('messaging_protocol') or flow.get('websocket_profile') or flow.get('http_profile') or flow.get('dns_encrypted_protocol') or flow.get('http2_profile')],
-            "errors": sorted(set(error for row in values for flow in row["flows"] for error in flow.get("errors", [])))})
+            "errors": sorted({error for row in values for flow in row["flows"] for error in flow.get("errors", [])} |
+                             ({stage['origin_evidence_error']['code']} if stage.get('origin_evidence_error') else set()))})
     resources = {role: {key:value for key,value in row.items() if key != "timeline"} for role,row in report.get("resources", {}).items()}
     elapsed = sum(row["elapsed_seconds"] for row in rows)
     sent = sum(row["udp_sent"] for row in rows)

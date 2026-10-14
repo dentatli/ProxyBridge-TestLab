@@ -19,20 +19,26 @@ from typing import Any
 from trafficlab.protocol import BLOCK, FRAME, Histogram, ID, MAX_SECONDS, json_bytes, mac, pattern, read_frame, read_json, verify_mac
 
 
-def connect(job: dict[str, Any], task: str, flow_id: str) -> tuple[socket.socket, Any, bytes, dict[str, Any]]:
+def connect(job: dict[str, Any], task: str, flow_id: str, *, connection: socket.socket | None = None) -> tuple[socket.socket, Any, bytes, dict[str, Any]]:
     stream = None
     address = ipaddress.ip_address(job["host"])
-    sock = socket.socket(socket.AF_INET6 if address.version == 6 else socket.AF_INET, socket.SOCK_STREAM)
+    if connection is not None and task != 'metrics':
+        raise ValueError('TRAFFIC_CONTROL_CHANNEL_TASK_INVALID')
+    sock = connection if connection is not None else socket.socket(socket.AF_INET6 if address.version == 6 else socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(10)
     sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
     try:
-        if job.get("test_proxy"):
+        if connection is not None:
+            pass  # An already connected, owned metrics socket; never used for workload traffic.
+        elif job.get("test_proxy"):
             from trafficlab.socks_client import negotiate
             negotiate(sock, job)
         else:
             sock.connect((str(address), job["port"]))
         request = {"version": 1, "task": task, "run_id": job["run_id"], "flow_id": flow_id, "seconds": job["seconds"],
                    "rate_bytes_per_second": job.get("rate_bytes_per_second", 0)}
+        if connection is not None:
+            request['metrics_keepalive'] = True
         raw = json_bytes(request)
         sock.sendall(raw + b"\n")
         stream = sock.makefile("rb")

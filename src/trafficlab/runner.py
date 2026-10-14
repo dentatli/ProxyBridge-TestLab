@@ -14,7 +14,7 @@ from trafficlab.product import Product
 from trafficlab.protocol import mac
 from trafficlab.metrics import summary
 from trafficlab.routes import stage_route
-from trafficlab.schedule import atomic, run
+from trafficlab.schedule import OriginMetricsChannel, atomic, run
 from trafficlab.worker import cancelled
 
 
@@ -93,7 +93,8 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
         result["conditions"]["windows_physical_memory_bytes"] = system_sample().get("physical_total_bytes")
         atomic(str(private_profile), profile(binding, run_id, "UNRULED"))
         product = Product(binding, str(private_profile), directory / (case['case_id'] + '.UNRULED-control.console.jsonl'))
-        with product:
+        with OriginMetricsChannel(job) as channel, product:
+            control['_origin_metrics_channel'] = channel
             control["run_id"] = run_id + ".unruled"
             control["resource_processes"] = {"product_cli": {"pid": product.pid, "path": binding["cli"]}}
             observed = run(control, short_catalog, str(directory / (case["case_id"] + ".UNRULED-control.raw.json")), progress)
@@ -118,12 +119,15 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
             idle(binding_path, binding)
             measured_job = {**job, "run_id": run_id + "." + mode, "case_id": "tcp-rtt" if case["case_id"] == "three-modes" else case["case_id"], "expected_proxy": mode == "SOCKS5"}
             if mode == "OFF":
-                measured = run(measured_job, catalog, str(raw), progress)
+                with OriginMetricsChannel(measured_job) as channel:
+                    measured_job['_origin_metrics_channel'] = channel
+                    measured = run(measured_job, catalog, str(raw), progress)
                 lifecycle = {"product_started": False, "cleanup_verified": True, "route_events": {}}
             else:
                 atomic(str(private_profile), profile(binding, run_id, mode, target_port))
                 product = Product(binding, str(private_profile), directory / (case['case_id'] + '.' + mode + '.console.jsonl'))
-                with product:
+                with OriginMetricsChannel(measured_job) as channel, product:
+                    measured_job['_origin_metrics_channel'] = channel
                     measured_job["resource_processes"] = {"product_cli": {"pid": product.pid, "path": binding["cli"]}}
                     measured = run(measured_job, catalog, str(raw), progress)
                 lifecycle = product.evidence

@@ -4,6 +4,14 @@
 
 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. 2026-10-14 новым запросом разрешил запуск проверок короче5 минут; новые test files не запрошены. Не дробить длинный набор для обхода лимита. Исторические результаты ниже относятся только к своим ревизиям; короткие проверки не доказывают весь каталог или длительную стабильность.
 
+## Исправление сбора метрик и актуальная приёмка — 2026-10-14
+
+Сбор final metrics больше не создаёт новые Direct-соединения во время измерения: собственный control socket установлен/аутентифицирован до CLI, observer/final запросы сериализованы. Каждый запрос всё равно имеет свежий challenge/flow ID, HMAC и проверку pinned identities. При потере канала — явный FAIL, без cache/reconnect fallback. Transport нагрузки и route gates прежние. Agent поддерживает повтор только для metrics на control endpoint, каждый запрос заново аутентифицирован; authenticated idle30s, initial/auth/data10s. Raw/summary содержит origin_metrics_transport; origin_evidence_error безопасно сохраняет code/class/errno/winerror, произвольный exception text не экспортируется.
+
+Короткая очередь084943 (89f07a...) получила все6 final signed stages, TCP/HTTPS PASS, UDP/mixed FAIL с нулём ответов; cleanup всех4cases подтверждён,8 console captures и raw SHA проверены. Before-fix084434 сохранил WSA10053 final и10053/10054 monitor при Direct control42503; причина Direct отказа не доказана. Direct/explicit-SOCKS UDP component checks при остановленном продукте95/95 каждый подтверждают origin+relay, но не product UDP. Это не новая WinDbg диагностика и не исправление продукта. Подробности и final exact-bundle TCP — в актуальном [handoff](CHAT_HANDOFF_DEVELOPMENT.md).
+
+Инструкция пользователю: [высокая и длительная нагрузка](TRAFFIC_LOAD_ACCEPTANCE.md). Смешанный stability/soak содержит UDP и пока не принят; TCP HIGH можно проверять отдельно. Старые FAIL остаются неизменными.
+
 ## Один TCP flow с исправленным профилем — 2026-10-14
 
 По отдельному допуску обновлён own .180 runtime и выполнен ровно один tcp-rtt SHORT/LOW. Первый apply d697... дал неподтверждённый rollback; фактическая прежняя f6ea... затем read-only проверена READY. Journal показал start→READY6.28s при прежнем3s окне. Activation/rollback wait исправлен на monotonic30s/max300 polls с прежними predicates;11 Linux installer tests PASS в isolated mocked fixture. Fresh plan/apply d054a356e81dc6e841d5fe61c9de1bf0b609c4160c7d0827bb2a5160ae59622c READY/hashes/service/listeners/applied=true. Исторический ERROR receipt и failed version сохранены.
