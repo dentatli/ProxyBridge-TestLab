@@ -71,16 +71,7 @@ public sealed partial class TrafficRuntimeService
         {
             try
             {
-                var row = ReadTrafficAttempt(directory);
-                if (directory != _activeDirectory && row.GetProperty("state").GetString() is "PREPARING" or "RUNNING")
-                {
-                    var values = row.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.Clone());
-                    values["state"] = JsonSerializer.SerializeToElement("INTERRUPTED");
-                    values["complete"] = JsonSerializer.SerializeToElement(false);
-                    values["cleanup_verified"] = JsonSerializer.SerializeToElement(false);
-                    row = JsonSerializer.SerializeToElement(values);
-                }
-                items.Add(row);
+                items.Add(ObserveAttemptActivity(ReadTrafficAttempt(directory), directory));
             }
             catch (Exception error) when (error is JsonException or IOException or UnauthorizedAccessException or KeyNotFoundException or InvalidOperationException) { unreadable++; }
         }
@@ -97,7 +88,7 @@ public sealed partial class TrafficRuntimeService
         {
             try
             {
-                var attempt = ReadTrafficAttempt(directory);
+                var attempt = ObserveAttemptActivity(ReadTrafficAttempt(directory), directory);
                 if (!attempt.TryGetProperty("build_id", out var build) || !attempt.TryGetProperty("cases", out var cases)) continue;
                 foreach (var choice in cases.EnumerateArray())
                 {
@@ -119,6 +110,7 @@ public sealed partial class TrafficRuntimeService
                     if (latest.ContainsKey(key)) continue;
                     latest[key] = new { build_id = build.GetString(), case_id = id, duration, load, condition_id = conditionId,
                         attempt_id = attempt.GetProperty("id").GetString(), state = attempt.GetProperty("state").GetString(),
+                        activity_observation = attempt.TryGetProperty("activity_observation", out var activity) ? activity.GetString() : null,
                         complete = result?.GetProperty("complete").GetBoolean() == true && attempt.GetProperty("state").GetString() is not ("PREPARING" or "RUNNING" or "INTERRUPTED"),
                         error = attempt.TryGetProperty("error", out var error) ? error.GetString() : null,
                         conditions = matching, result = ComparisonResult(result) };
@@ -136,6 +128,22 @@ public sealed partial class TrafficRuntimeService
     private IEnumerable<string> TrafficAttemptDirectories() => Directory.EnumerateDirectories(Root)
         .Where(directory => System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(directory),@"\A[0-9]{8}-[0-9]{6}-[a-f0-9]{32}\z") ||
             File.Exists(Path.Combine(directory,"attempt.json"))).OrderDescending();
+
+    private JsonElement ObserveAttemptActivity(JsonElement row, string directory)
+    {
+        if (row.GetProperty("state").GetString() is not ("PREPARING" or "RUNNING")) return row;
+        bool own;
+        lock (_stateGate) own = string.Equals(directory, _activeDirectory, StringComparison.OrdinalIgnoreCase);
+        var values = row.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.Clone());
+        values["activity_observation"] = JsonSerializer.SerializeToElement(own ? "THIS_CONTROLLER" : "UNCONFIRMED");
+        if (!own)
+        {
+            // Another controller may still own the workload. Absence here proves neither interruption nor cleanup.
+            values["complete"] = JsonSerializer.SerializeToElement(false);
+            values["cleanup_verified"] = JsonSerializer.SerializeToElement(false);
+        }
+        return JsonSerializer.SerializeToElement(values);
+    }
 
     private static JsonElement ReadTrafficAttempt(string directory)
     {

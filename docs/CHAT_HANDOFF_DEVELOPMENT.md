@@ -2,7 +2,13 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: отдельные фазы нагрузки и восстановления — 2026-10-14
+## Текущий этап: наблюдение активности из другого UI — 2026-10-14
+
+History больше не выводит INTERRUPTED только из-за отсутствия attempt в _activeDirectory текущего процесса. Для PREPARING/RUNNING History/Comparison добавляют presentation activity_observation=THIS_CONTROLLER/UNCONFIRMED; записанное state сохраняется. Чужой/прежний controller не доказывает ни прерывание, ни активность, ни cleanup: complete/cleanup_verified projection=false при UNCONFIRMED. GUI RU/EN показывает «Активность не подтверждена» с пояснением, CSV — ACTIVITY_UNCONFIRMED. Исходный attempt.json не переписывается. Actual INTERRUPTED terminal records сохранены как есть. Ownership adoption/cross-controller Stop/process liveness/recovery здесь не реализованы; никакие чужие процессы не закрываются. Сравнение по-прежнему не допускает PREPARING/RUNNING/INTERRUPTED и неподтверждённые measurements.
+
+Node syntax и UI build0 warnings/errors прошли; tests TestLab/GUI/runtime simulation не выполнялись. Artifact ui-activity-observations собран. Этап phase summary запушен `0185f68`; текущую ревизию смотреть Git. Работоспособность нового поведения пока compilation-only. Карта готовности актуализируется в DEVELOPMENT_FUNCTIONAL_STATUS.md; запрет тестов тестера и разделение с диагностикой сохраняются.
+
+## Предыдущий этап: отдельные фазы нагрузки и восстановления — 2026-10-14
 
 Overall.phase_observations сохраняет groups baseline/workload/recovery: число recorded/completed stages, elapsed, число stages с RTT/скоростями, elapsed-weighted payload tx/rx, min/max stage rates и worst_stage_probe_p99_ms. Workload исключает ровно baseline/recovery phases, остальные bounded application/transport stages включены. Худший p99 — максимум записанных stage percentiles, не новый aggregate percentile. recovery_probe_p99_change_ms вычисляется только при ровно одном complete baseline и одном complete recovery с finite p99; снижение сохраняется отрицательным, без нового PASS threshold. Stage min/max относятся к целым этапам, не кратковременным stalls. Пропущенные этапы не подменяются нулями; incomplete observations сохраняются явно.
 

@@ -4,6 +4,10 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
+## Активность после смены UI — 2026-10-14
+
+PREPARING/RUNNING attempt из другого или прежнего controller больше не превращается в INTERRUPTED по предположению. Read-only projection сохраняет recorded state, добавляет activity_observation=UNCONFIRMED и не подтверждает complete/cleanup. GUI объясняет неопределённость, CSV status=ACTIVITY_UNCONFIRMED; исходный файл не меняется. THIS_CONTROLLER означает владение текущим экземпляром, не отдельную проверку процесса. Автоматическое принятие чужого workload/Stop/liveness/recovery не добавлено. Существующие terminal INTERRUPTED reports и comparison gates сохранены. Node syntax/UI build0 warnings/errors; без tests TestLab/GUI/runtime simulations.
+
 ## Исходный этап, нагрузка и восстановление — 2026-10-14
 
 Overall.phase_observations разделяет baseline/workload/recovery. Нагрузка исключает baseline/recovery; её средние payload speeds взвешены по длительности записанных stages. Сохраняются min/max скоростей целого этапа, худший stage p99 и coverage recorded/completed/measured stages. Худший p99 — максимум stage percentiles, не общий процентиль; stage minimum не измеряет короткие stalls. recovery_probe_p99_change_ms — recovery минус baseline только для одного завершённого этапа каждого типа с измеренным p99, без порога PASS. Неполные observations доступны в history отдельно от verdict.
