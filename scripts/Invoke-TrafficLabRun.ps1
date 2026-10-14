@@ -14,7 +14,6 @@ $caseIndex=0
 $errorCode=''
 $cleanupVerified=$false
 try {
-    if (-not $binding.debugger_inactive) { throw 'TRAFFIC_DEBUGGER_STATE_REQUIRED' }
     $env:PYTHONPATH=Join-Path $binding.root 'src'
     foreach ($case in $binding.cases) {
         $caseIndex++

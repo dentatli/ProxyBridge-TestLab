@@ -2,6 +2,12 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
+## Форма запуска без галочки WinDbg — 2026-10-14
+
+По прямому запросу пользователя удалена галочка WinDbg из пользовательского traffic launch. Удалены её RU/EN translations, DOM/listeners/button dependency, request field DebuggerInactive, backend guard, binding debugger_inactive и guard только собственного Invoke-TrafficLabRun.ps1. Автоматическое debuggerInactive=true не подставляется: пользовательский контракт больше не запрашивает это подтверждение. Организационное правило AGENTS для совместной VM/диагностических прогонов остаётся; диагностические контроллеры не менялись.
+
+Две оставшиеся опции имеют единый inline label и checkbox18×18, текст14px. Общие42px input styles ограничены текстовыми полями/select; checkbox default задан отдельно. Подтверждение запуска >5min, safe continuation и остальные product/evidence/cleanup gates сохранены. Node syntax, PowerShell parser, UI build0warnings/errors PASS; новых test files и трафика нет. Browser visual verification на5205: WinDbg отсутствует, оба checkbox реально18×18. Artifact ui-run-options собран. Автоматический перезапуск5205 дважды отклонён `blocked by policy`, второй раз после нового явного разрешения; пользователь получил точную команду ручного перезапуска. До подтверждения ручного старта новый backend не считать применённым: текущая старая DLL может требовать удалённое поле, хотя static UI уже обновлён.
+
 ## Сбор signed origin metrics через предварительное соединение — 2026-10-14
 
 По запросу пользователя исправлен development control plane; продукт/диагностическая копия/комплекты не менялись. Новое read-only чтение старой сессии 082423 после остановки продукта вернуло signed completed=1/proxy-flow=1; старый FAIL не переписан. Добавлена безопасная диагностика final/monitor origin exceptions: code/class/errno/winerror без произвольного текста/секретов. Отдельный SHORT/LOW TCP 20261014-084434-9f9c312d45d34033a9caf6c3ebc68780 подтвердил measured payload, но final evidence отсутствовало из-за ConnectionAbortedError/Winerror10053; monitor также увидел10054. CLI для42503 сообщал Direct. Причина отказа Direct-пути не установлена, kernel signature не исследовался.

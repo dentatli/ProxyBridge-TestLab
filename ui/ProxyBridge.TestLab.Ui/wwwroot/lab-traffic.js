@@ -1,14 +1,14 @@
 "use strict";
 Object.assign(labText.ru, {
   trafficHeading:"Трафик, скорость, нагрузка и стабильность", trafficScope:"Ubuntu 22.04. Транспортные и прикладные протоколы: HTTP, QUIC, DNS, SSH, почта и обмен сообщениями. Проверка данных и маршрута, потери UDP, CPU/RAM всей ОС и CPU/RAM/handles/threads отдельных процессов. Число соединений и скорость не доказывают максимальную ёмкость или ресурсы драйвера.",
-  trafficPrepare:"Проверить / подготовить runtime", trafficApply:"Установить по этому плану", trafficStart:"Запустить выбранные проверки", trafficStop:"Остановить и очистить", trafficDebugger:"WinDbg не запущен или все точки отключены; диагностический прогон не выполняется",
+  trafficPrepare:"Проверить / подготовить runtime", trafficApply:"Установить по этому плану", trafficStart:"Запустить выбранные проверки", trafficStop:"Остановить и очистить",
   trafficAdmin:"Для реальных проверок запустите scripts/Start-TestLabUi.ps1 -Administrator. При включённом UAC потребуется подтверждение.",
   trafficLongRun:"Разрешаю выбранный набор более 5 минут, включая 24/48/72 часа", trafficRunHelp:"Используется выбранная сборка. Перед каждым тестом проверяются файлы, получатель, OFF и UNRULED. SOCKS5 требует подписанных свидетельств. Неудачная очистка прекращает очередь.",
   trafficResults:"Удалённые проверки: история и измерения", trafficResultsHelp:"Ошибки и отмены сохраняются отдельно. CPU процесса нормирован на все логические CPU; RAM процесса не является памятью драйвера. Разные параметры и получатели сравнивайте отдельно.", trafficConditions:"Тест и условия", trafficAll:"Все попытки", trafficNone:"Удалённых попыток пока нет", trafficReady:"Состояние runtime", trafficEstimate:"Оценка с подготовкой", trafficPhase:"Этап", trafficSent:"Отправка, MiB/s", trafficReceived:"Получение, MiB/s", trafficP99:"RTT p99, мс", trafficLoss:"Потери UDP, %", trafficConnections:"TCP завершено / предложено", trafficCpu:"CLI CPU, % ПК", trafficRam:"CLI private commit, MiB", trafficEmpty:"Измерений нет",trafficMinutes:"мин",trafficRouteOk:"Маршрут подтверждён",trafficRouteBad:"Маршрут не подтверждён",trafficApplicationEvidence:"Прикладной обмен",trafficTransactions:"Проверенных обменов",trafficErrors:"Ошибки",trafficSkippedStages:"Пропущено этапов"
 });
 Object.assign(labText.en, {
   trafficHeading:"Traffic, speed, load and stability", trafficScope:"Ubuntu 22.04. Transport and application protocols: HTTP, QUIC, DNS, SSH, mail and messaging. Data and route validation, UDP loss, whole-OS CPU/RAM and CPU/RAM/handles/threads of identified processes. Connection count and speed do not establish absolute capacity or driver resource use.",
-  trafficPrepare:"Check / prepare runtime", trafficApply:"Install this exact plan", trafficStart:"Start selected checks", trafficStop:"Stop and clean up", trafficDebugger:"WinDbg is closed or all breakpoints are disabled; no diagnostic run is active",
+  trafficPrepare:"Check / prepare runtime", trafficApply:"Install this exact plan", trafficStart:"Start selected checks", trafficStop:"Stop and clean up",
   trafficAdmin:"For real checks run scripts/Start-TestLabUi.ps1 -Administrator. With UAC enabled, Windows will request confirmation.",
   trafficLongRun:"I authorize this selection exceeding 5 minutes, including 24/48/72 hours", trafficRunHelp:"Uses the selected build. Files, origin, OFF and UNRULED are checked before each case. SOCKS5 requires signed evidence. Failed cleanup stops the queue.",
   trafficResults:"Remote checks: history and measurements", trafficResultsHelp:"Failures and cancellation are saved separately. Process CPU is normalized to all logical CPUs; process RAM is not driver memory. Compare different parameters and origins separately.", trafficConditions:"Case and conditions", trafficAll:"All attempts", trafficNone:"No remote attempts yet", trafficReady:"Runtime state", trafficEstimate:"Estimate including preparation", trafficPhase:"Stage", trafficSent:"Upload, MiB/s", trafficReceived:"Download, MiB/s", trafficP99:"RTT p99, ms", trafficLoss:"UDP loss, %", trafficConnections:"TCP completed / offered", trafficCpu:"CLI CPU, % of PC", trafficRam:"CLI private commit, MiB", trafficEmpty:"No measurements",trafficMinutes:"min",trafficRouteOk:"Route verified",trafficRouteBad:"Route unverified",trafficApplicationEvidence:"Application exchange",trafficTransactions:"Verified transactions",trafficErrors:"Errors",trafficSkippedStages:"Skipped stages"
@@ -103,7 +103,7 @@ function renderTraffic(){
   lab("scenario-description").hidden=remote;
   lab("traffic-plan").disabled=busy||!labState.csrf;
   lab("traffic-apply").disabled=busy||!trafficState?.runtime?.plan;
-  lab("traffic-start").disabled=busy||trafficState?.runtime?.state==="APPLY_UNKNOWN"||!trafficState?.runtime?.administrator||!labState.observation?.build_id||!trafficCases().length||!lab("traffic-debugger-inactive").checked||trafficEstimate()>300&&!lab("traffic-long-run").checked;
+  lab("traffic-start").disabled=busy||trafficState?.runtime?.state==="APPLY_UNKNOWN"||!trafficState?.runtime?.administrator||!labState.observation?.build_id||!trafficCases().length||trafficEstimate()>300&&!lab("traffic-long-run").checked;
   lab("traffic-stop").disabled=!active||trafficActionActive;
   lab("traffic-recovery-option").hidden=trafficState?.runtime?.supports_safe_continuation!==true;
   lab("traffic-continue-after-failure").disabled=busy||trafficState?.runtime?.supports_safe_continuation!==true;
@@ -387,7 +387,7 @@ async function trafficAction(action){
   if(trafficActionActive)return;
   trafficActionActive=true;trafficError="";renderTraffic();
   try{
-    const body=action==="apply"?{planId:trafficState.runtime.plan.planId}:action==="start"?{buildId:labState.observation.build_id,cases:trafficCases(),debuggerInactive:lab("traffic-debugger-inactive").checked,allowLongRun:lab("traffic-long-run").checked,continueAfterFailure:trafficSafeContinue()}:{};
+    const body=action==="apply"?{planId:trafficState.runtime.plan.planId}:action==="start"?{buildId:labState.observation.build_id,cases:trafficCases(),allowLongRun:lab("traffic-long-run").checked,continueAfterFailure:trafficSafeContinue()}:{};
     const response=await fetch(`/api/v1/lab/traffic/${action}`,{method:"POST",headers:{"Content-Type":"application/json","X-TestLab-CSRF":labState.csrf},body:JSON.stringify(body)});
     const data=await response.json();if(!response.ok)throw new Error(data.error||"TRAFFIC_REQUEST_FAILED");
   }catch(error){trafficError=error.message;}finally{trafficActionActive=false;await loadTraffic();}
@@ -399,7 +399,7 @@ lab("traffic-cases").addEventListener("change",event=>{
 });
 for(const action of ["plan","apply","start","stop"])lab(`traffic-${action}`).addEventListener("click",()=>trafficAction(action));
 lab("traffic-continue-after-failure").addEventListener("change",renderTraffic);
-for(const id of ["traffic-debugger-inactive","traffic-long-run","lab-mode"])lab(id).addEventListener("change",renderTraffic);
+for(const id of ["traffic-long-run","lab-mode"])lab(id).addEventListener("change",renderTraffic);
 lab("traffic-filter").addEventListener("change",()=>{renderTrafficHistory();updateTrafficExportButtons();});
 lab("traffic-search").addEventListener("input",filterTrafficCards);
 lab("traffic-category").addEventListener("change",renderTraffic);

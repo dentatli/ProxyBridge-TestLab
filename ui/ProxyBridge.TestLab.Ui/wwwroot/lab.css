@@ -4,7 +4,11 @@
 .lab-container h2 { margin: 0 0 16px; }
 .lab-container p { line-height: 1.6; }
 .lab-container label { display: flex; flex-direction: column; gap: 8px; }
-.lab-container input, .lab-container select { width: 100%; min-height: 42px; }
+.lab-container input:not([type="checkbox"]), .lab-container select { width: 100%; min-height: 42px; }
+.lab-container input[type="checkbox"] { width: 18px; height: 18px; min-height: 18px; padding: 0; accent-color: var(--teal); }
+.lab-container .lab-run-option { flex-direction: row; align-items: flex-start; gap: 10px; margin: 12px 0; cursor: pointer; }
+.lab-run-option input[type="checkbox"] { flex: 0 0 18px; margin: 2px 0 0; }
+.lab-run-option span { color: var(--ink); font-size: 14px; line-height: 1.5; margin: 0; }
 .lab-header select { min-width: 110px; }
 .lab-steps { display: flex; flex-wrap: wrap; gap: 18px; margin: 24px 0; }
 .lab-steps a { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; text-decoration: none; border: 1px solid transparent; }

@@ -15,7 +15,6 @@ public sealed partial class TrafficRuntimeService
     {
         if (ApplyCheckpoint.Pending) throw new InvalidOperationException("TRAFFIC_APPLY_RECHECK_REQUIRED");
         if (!Administrator()) throw new InvalidOperationException("TRAFFIC_ADMINISTRATOR_REQUIRED");
-        if (!request.DebuggerInactive) throw new InvalidOperationException("TRAFFIC_DEBUGGER_STATE_REQUIRED");
         var catalog = Catalog();
         var known = catalog.GetProperty("cases").EnumerateArray().Select(row => row.GetProperty("id").GetString()).ToHashSet();
         if (request.Cases is null || request.Cases.Length < 1 || request.Cases.Length > known.Count || request.Cases.Any(row => row is null || !known.Contains(row.Id) ||
@@ -279,7 +278,7 @@ public sealed partial class TrafficRuntimeService
                     host = target.Host, port = 42501, control_port = 42503, proxy_port = 42502, secret = payload.Secret,
                     remote_bundle_sha256 = payload.Bundle, root = app.RepositoryRoot, cli, driver, driver_sha256 = hashes[driver],
                     console_host = Path.Combine(app.RepositoryRoot, "bin", "pb_console_host.exe"), python, source_hashes = hashes,
-                    cancellation_path = Path.Combine(directory, "cancel.requested"), debugger_inactive = request.DebuggerInactive,
+                    cancellation_path = Path.Combine(directory, "cancel.requested"),
                     continue_after_failure = request.ContinueAfterFailure,
                     cases = request.Cases.Select(row => new { case_id = row.Id, duration = row.Duration, load = row.Load }).ToArray() };
                 var bindingPath = Path.Combine(directory, "binding-private.json");

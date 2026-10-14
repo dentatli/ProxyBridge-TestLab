@@ -6,7 +6,7 @@ namespace ProxyBridge.TestLab.Ui.Services;
 
 public sealed record TrafficRuntimeApplyRequest(string PlanId);
 public sealed record TrafficCaseRequest(string Id, string Duration, string Load);
-public sealed record TrafficRunRequest(string BuildId, TrafficCaseRequest[] Cases, bool DebuggerInactive, bool AllowLongRun = false, bool ContinueAfterFailure = false);
+public sealed record TrafficRunRequest(string BuildId, TrafficCaseRequest[] Cases, bool AllowLongRun = false, bool ContinueAfterFailure = false);
 public sealed record TrafficRuntimePlan(string PlanId, string BundleSha256, string[] Files, int[] TcpPorts, int[] UdpPorts,
     string UbuntuVersion, DateTimeOffset ExpiresUtc, string State);
 
