@@ -4,9 +4,15 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
-## Время соединения — 2026-10-14
+## Наблюдения нативного UDP — 2026-10-14
 
-Сводка обычных и compact/soak прогонов сохраняет connection_latency: count/mean/max/p50/p95/p99/method. Источник — уже собранные гистограммы connection_and_authentication_ms flow churn, объединённые по всем этапам без усреднения процентилей. Время включает соединение и аутентификацию получателя до ready, только для завершённых обменов; не является TCP RTT или TLS/SSH handshake. Гистограммные процентили — верхние границы с шагом1%. Без samples timings=null; старые сохранённые отчёты не пересчитываются.
+Stage/overall.udp_observations сохраняют sent/received/duplicates/reordered/invalid/expired/send_errors, flow_count и scope; compact soak totals включают те же counters. Без нативных UDP flows counters=null; прикладные DNS/QUIC исключены. History показывает поэтапные и общие наблюдения даже для failed/partial measurements с предупреждением. Optional comparison/CSV counters доступны только при прежних complete/route gates. Таймаут ответа2s; expired включает timeout и late-reply events и может учитывать один request повторно, не является lost-packet count. Распознавание duplicates ограничено существующим bounded replay window. Потери в общей таблице подписаны как reply loss, включая logical application replies QUIC.
+
+Python/JS compilation и UI build0 warnings/errors; tests TestLab/GUI/product traffic не выполнялись.
+
+## Время подготовки сеанса — 2026-10-14
+
+Сводка обычных и compact/soak прогонов сохраняет connection_latency: count/mean/max/p50/p95/p99/method. Источник — уже собранные гистограммы connection_and_authentication_ms всех profiles, объединённые по всем этапам без усреднения процентилей. Граница зависит от profile: flow churn — authenticated ready завершённого обмена; QUIC/HTTP3 — handshake; SSH/messaging — authentication; прочие application profiles — первый verified exchange/batch. Учитываются все записанные samples, включая впоследствии incomplete sessions; чистое TCP RTT не измеряется. Scope сохранён явно. Гистограммные процентили — верхние границы с шагом1%. Без samples timings=null; старые сохранённые отчёты не пересчитываются.
 
 History показывает сводку, comparison/CSV имеют четыре optional показателя p50/p95/p99/count. Failed/route-unverified attempts не получают benchmark metrics. Python/JS compilation и UI build0 warnings/errors; tests TestLab и runtime acceptance новых показателей не выполнялись.
 

@@ -15,6 +15,16 @@ def execution_evidence(report: dict[str, Any]) -> dict[str, Any]:
             'failure_context':report.get('failure_context')}
 
 
+UDP_COUNTERS = ("sent", "received", "duplicates", "reordered", "invalid", "expired", "send_errors")
+
+
+def udp_observations(values: list[dict[str, Any]]) -> dict[str, Any]:
+    """Native datagram replies only; application clients have different evidence."""
+    flows = [flow for row in values if row['task'] == 'udp' and not row.get('application') for flow in row['flows']]
+    return {"flow_count": len(flows), "scope": "native-authenticated-UDP-replies; bounded-replay-window; 2s-deadline",
+            **{key: sum(flow.get(key, 0) for flow in flows) if flows else None for key in UDP_COUNTERS}}
+
+
 def summary(report: dict[str, Any]) -> dict[str, Any]:
     if report.get("compact_stages"):
         resources = {role: {key:value for key,value in row.items() if key != "timeline"} for role,row in report.get("resources", {}).items()}
@@ -53,6 +63,7 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
             "tcp_active_peak": (stage.get("origin") or {}).get("tcp_active_peak"),
             "udp_observed_unique_flows": (stage.get("origin") or {}).get("udp_unique_flows"),
             "udp_sent": sent, "udp_received": received,
+            "udp_observations": udp_observations(values),
             "max_udp_flow_loss_fraction": max((flow["loss_fraction"] for row in values if row["task"] == "udp" for flow in row["flows"] if flow.get("loss_fraction") is not None),default=None),
             "udp_duplicates": sum(flow.get("duplicates", 0) for row in values for flow in row["flows"]),
             "udp_reordered": sum(flow.get("reordered", 0) for row in values for flow in row["flows"]),
@@ -82,13 +93,17 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
     resources = {role: {key:value for key,value in row.items() if key != "timeline"} for role,row in report.get("resources", {}).items()}
     elapsed = sum(row["elapsed_seconds"] for row in rows)
     sent = sum(row["udp_sent"] for row in rows)
+    udp_flows = sum(row['udp_observations']['flow_count'] for row in rows)
     overall = {"stage_scope": "all-stages-including-baseline-and-recovery", "elapsed_seconds": elapsed,
         "tcp_tx_bytes_per_second": sum(row["tcp_tx_bytes_per_second"] * row["elapsed_seconds"] for row in rows) / elapsed if elapsed else None,
         "tcp_rx_bytes_per_second": sum(row["tcp_rx_bytes_per_second"] * row["elapsed_seconds"] for row in rows) / elapsed if elapsed else None,
         "probe_latency": {key: value for key, value in all_latency.view().items() if key not in ("bins", "sum_ms")},
         "udp_latency": {key: value for key, value in all_udp_latency.view().items() if key not in ("bins", "sum_ms")},
         "connection_latency": {key: value for key, value in all_connection_latency.view().items() if key not in ("bins", "sum_ms")},
-        "connection_latency_scope": "completed-flow-churn-connections-including-origin-authentication",
+        "connection_latency_scope": "profile-defined-session-setup-boundary; all-recorded-samples",
+        "udp_observations": {"flow_count": udp_flows,
+            "scope": "native-authenticated-UDP-replies; bounded-replay-window; 2s-deadline",
+            **{key: sum(row['udp_observations'][key] or 0 for row in rows) if udp_flows else None for key in UDP_COUNTERS}},
         "udp_loss_fraction": (sent - sum(row["udp_received"] for row in rows)) / sent if sent else None,
         "application_transactions": sum(row["application_transactions"] for row in rows) if any(row["application"] for row in rows) else None,
         "tcp_completed": sum(row["tcp_completed"] for row in rows), "tcp_offered": sum(row["tcp_offered"] for row in rows)}
@@ -104,6 +119,8 @@ class SummaryWindow:
         self.echo = Histogram()
         self.udp = Histogram()
         self.connection = Histogram()
+        self.udp_flows = 0
+        self.udp_counters = dict.fromkeys(UDP_COUNTERS, 0)
         self.seconds = 0.0
         self.tx = self.rx = self.sent = self.received = self.completed = self.offered = 0
 
@@ -116,6 +133,9 @@ class SummaryWindow:
         self.received += compact["udp_received"]
         self.completed += compact["tcp_completed"]
         self.offered += compact["tcp_offered"]
+        self.udp_flows += compact['udp_observations']['flow_count']
+        for key in UDP_COUNTERS:
+            self.udp_counters[key] += compact['udp_observations'][key] or 0
         for row in stage["results"]:
             for flow in row["flows"]:
                 if row["task"] in ("echo", "udp") and flow.get("latency"):
@@ -131,6 +151,9 @@ class SummaryWindow:
                 "probe_latency": {key:value for key,value in self.echo.view().items() if key not in ("bins","sum_ms")},
                 "udp_latency": {key:value for key,value in self.udp.view().items() if key not in ("bins","sum_ms")},
                 "connection_latency": {key:value for key,value in self.connection.view().items() if key not in ("bins","sum_ms")},
-                "connection_latency_scope": "completed-flow-churn-connections-including-origin-authentication",
+                "connection_latency_scope": "profile-defined-session-setup-boundary; all-recorded-samples",
+                "udp_observations": {"flow_count": self.udp_flows,
+                    "scope": "native-authenticated-UDP-replies; bounded-replay-window; 2s-deadline",
+                    **{key: value if self.udp_flows else None for key, value in self.udp_counters.items()}},
                 "udp_loss_fraction": (self.sent - self.received) / self.sent if self.sent else None,
                 "tcp_completed": self.completed, "tcp_offered": self.offered}

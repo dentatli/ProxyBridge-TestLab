@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: время соединения в сводке — 2026-10-14
+## Текущий этап: наблюдения UDP и границы времени подготовки — 2026-10-14
+
+Нативные UDP counters теперь сохранены в stage/overall.udp_observations и compact/soak totals: sent/received/duplicates/reordered/invalid/expired/send_errors плюс flow_count и scope. При отсутствии нативных UDP flows counters=null; прикладные DNS/QUIC не маскируются нулями. History показывает общую и поэтапную таблицы также для partial/failed measurements с явным предупреждением о неполных наблюдениях. Comparison/CSV получили семь optional показателей, прежние complete/route gates сохранены. expired — события таймаута и позднего ответа, могут учитывать один запрос повторно; не самостоятельный lost-packet count. Duplicate window bounded, это не полная capture-классификация. Общий loss label уточнён до reply loss, поскольку QUIC считает logical replies.
+
+Уточнена ошибка описания предыдущего этапа: гистограмму connection_and_authentication_ms заполняет не только flow churn. UI теперь называет метрику «Подготовка сеанса»: QUIC/HTTP3 — до handshake, SSH/messaging — до authentication, прочие application profiles — до первого verified exchange/batch, churn — до authenticated ready завершённого flow. В общий histogram входят все реально записанные samples, в том числе из впоследствии incomplete sessions. Это scope существующих collectors; измерения не изменены и не унифицированы под чистое TCP RTT. overall.connection_latency_scope исправлен на profile-defined-session-setup-boundary; all-recorded-samples.
+
+Python compilation, JS syntax и UI build0 warnings/errors прошли. Tests TestLab/GUI/продуктовый трафик не запускались. Artifact ui-udp-observations собран, новый UI process/deployment не выполнялся. Этап соединения запушен `13792c8`; текущую ревизию смотреть Git. Последнее наблюдение runtime/UI и ограничения запуска — ниже. Продолжать независимую разработку по поручению пользователя, не повторять известный product control FAIL без нового основания.
+
+## Предыдущий этап: время соединения в сводке — 2026-10-14
 
 Пользователь возобновил разработку; запрет создавать и запускать тесты TestLab сохраняется. Добавлены overall.connection_latency и connection_latency_scope в обычную и compact/soak сводки. Используются существующие connection_and_authentication_ms сценария flow churn: bins всех этапов объединяются, процентили этапов не усредняются. Scope — только завершённые flow-churn exchanges, от начала соединения до authenticated origin ready; это не TCP RTT/TLS/SSH handshake. Histogram count/mean/max/p50/p95/p99/method сохраняются, отсутствие samples даёт count0 и null timings. Новых сетевых операций нет.
 
