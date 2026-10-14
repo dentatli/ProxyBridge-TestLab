@@ -4,6 +4,8 @@
 
 ## Актуальное состояние — 2026-10-14
 
+После проверки ниже диагностический offline review установил ошибку TestLab: числовой Port несовместим с pinned CLI, принимающим строку. Генератор исправлен; добавлены startup config/rule gate, private bounded CLI output и input profile hash. Причинная связь с уже сохранённым FAIL ещё не проверена реальным запуском; прежний C0000225 не подтверждён. Новая версия прошла offline mocked checks/66 Windows units (11 Linux-only skipped)/compilation/UI build, без новых product runs или runtime apply. Перед отдельным допущенным одним TCP flow требуется fresh runtime plan/apply; UDP проверяется отдельно. Подробности — текущий development handoff.
+
 | Область | Реализовано | Что подтверждено / что осталось |
 | --- | --- | --- |
 | Короткие проверки14 октября | Существующие Python tests, offline apply checkpoint, адресные summary/JS checks | 77 Python PASS:66 Windows +11 Linux-only на .180 в isolated mocked fixture; .NET checkpoint PASS. Полный каталог и длительная стабильность этим не подтверждены |

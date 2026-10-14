@@ -47,7 +47,7 @@ def validate_route(report: dict[str, Any], proxied: bool) -> bool:
 
 def profile(binding: dict[str, Any], run_id: str, mode: str, target_port: int | None = None) -> dict[str, Any]:
     return {"Version": "1.0", "LocalhostViaProxy": True, "IsTrafficLoggingEnabled": True,
-        "ProxyConfigs": [{"Id": 1, "Name": "TestLab traffic", "Type": "SOCKS5", "Host": binding["host"], "Port": binding["proxy_port"],
+        "ProxyConfigs": [{"Id": 1, "Name": "TestLab traffic", "Type": "SOCKS5", "Host": binding["host"], "Port": str(binding["proxy_port"]),
             "Username": run_id, "Password": mac(bytes.fromhex(binding["secret"]), b"socks:", run_id.encode()), "SendDomainToProxy": False}],
         "ProxyRules": [{"Name": "Controlled traffic", "ProcessName": Path(binding["python"]).name if mode == "SOCKS5" else "pb-unruled-control-never.exe",
             "TargetHosts": binding["host"], "TargetPorts": str(target_port or binding["port"]), "TargetDomains": "", "Protocol": "BOTH", "Action": "PROXY", "ProxyConfigId": 1, "IsEnabled": True}]}
@@ -76,7 +76,7 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
         short_catalog = {**catalog, "duration_seconds": {**catalog["duration_seconds"], "SHORT": 0.2}}
         control = {**job, "run_id": run_id + ".off", "case_id": "tcp-rtt", "duration": "SHORT", "load": "LOW", "warmup_count": 0, "expected_proxy": False}
         observed = run(control, short_catalog, str(directory / (case["case_id"] + ".OFF-control.raw.json")), progress)
-        result["controls"].append({"mode":"OFF", "complete":observed["complete"], "route_verified":validate_route(observed,False), **summary(observed)})
+        result["controls"].append({"mode":"OFF", "workload_scope":"tcp-echo", "complete":observed["complete"], "route_verified":validate_route(observed,False), **summary(observed)})
         if not validate_route(observed, False):
             raise ValueError("TRAFFIC_DIRECT_CONTROL_FAILED")
         result["off_control_verified"] = True
@@ -92,15 +92,17 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
         from trafficlab.resources import system_sample
         result["conditions"]["windows_physical_memory_bytes"] = system_sample().get("physical_total_bytes")
         atomic(str(private_profile), profile(binding, run_id, "UNRULED"))
-        product = Product(binding, str(private_profile))
+        product = Product(binding, str(private_profile), directory / (case['case_id'] + '.UNRULED-control.console.jsonl'))
         with product:
             control["run_id"] = run_id + ".unruled"
             control["resource_processes"] = {"product_cli": {"pid": product.pid, "path": binding["cli"]}}
             observed = run(control, short_catalog, str(directory / (case["case_id"] + ".UNRULED-control.raw.json")), progress)
-            result["controls"].append({"mode":"UNRULED", "complete":observed["complete"], "route_verified":validate_route(observed,False), **summary(observed)})
+            result["controls"].append({"mode":"UNRULED", "workload_scope":"tcp-echo", "complete":observed["complete"], "route_verified":validate_route(observed,False), **summary(observed)})
             if not validate_route(observed, False):
                 raise ValueError("TRAFFIC_UNRULED_CONTROL_FAILED")
         result["unruled_lifecycle"] = product.evidence
+        if not product.evidence.get('capture_complete') or not product.evidence.get('output_retention_ok'):
+            raise ValueError('TRAFFIC_CLI_CAPTURE_INCOMPLETE')
         if not product.evidence["cleanup_verified"]:
             raise ValueError("TRAFFIC_UNRULED_CLEANUP_FAILED")
         ownership(binding_path, binding, product)
@@ -120,7 +122,7 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
                 lifecycle = {"product_started": False, "cleanup_verified": True, "route_events": {}}
             else:
                 atomic(str(private_profile), profile(binding, run_id, mode, target_port))
-                product = Product(binding, str(private_profile))
+                product = Product(binding, str(private_profile), directory / (case['case_id'] + '.' + mode + '.console.jsonl'))
                 with product:
                     measured_job["resource_processes"] = {"product_cli": {"pid": product.pid, "path": binding["cli"]}}
                     measured = run(measured_job, catalog, str(raw), progress)
@@ -133,7 +135,7 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
             loss_samples = [value for value in loss_samples if type(value) in (int,float)]
             loss_ok = all(value<=0.01 for value in loss_samples)
             loss_state = 'MEASURED' if loss_samples else 'NOT_MEASURED' if measured.get('udp_expected') else 'NOT_APPLICABLE'
-            capture_ok = mode == "OFF" or lifecycle.get("capture_complete") is True
+            capture_ok = mode == "OFF" or (lifecycle.get("capture_complete") is True and lifecycle.get('output_retention_ok') is True)
             for failed, code in ((not measured["complete"], "TRAFFIC_TRANSPORT_INCOMPLETE"), (not route, "TRAFFIC_ROUTE_UNVERIFIED"),
                                  (not loss_ok, "TRAFFIC_UDP_LOSS_THRESHOLD_EXCEEDED"), (not capture_ok, "TRAFFIC_CLI_CAPTURE_INCOMPLETE")):
                 if failed and code not in result["errors"]:

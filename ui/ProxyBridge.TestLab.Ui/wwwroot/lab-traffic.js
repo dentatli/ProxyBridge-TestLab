@@ -54,6 +54,8 @@ let trafficHistoryLoadedAt=null,trafficComparisonLoadedAt=null,trafficSnapshotUn
 let trafficComparisonBlocked=false,trafficUnreadableHistory=false;
 labText.ru.trafficPayloadBytes='Полезные данные запроса, байт';
 labText.en.trafficPayloadBytes='Request payload, bytes';
+Object.assign(labText.ru,{trafficControlTcpEcho:'TCP echo, не проверка UDP',trafficControlScopeUnknown:'Область контроля не записана',trafficCliProfile:'CLI подтвердил SOCKS5-конфигурацию',trafficCliOutput:'Вывод CLI сохранён в приватном каталоге',trafficCliOutputPrefix:'Сохранено начало вывода; достигнут лимит размера'});
+Object.assign(labText.en,{trafficControlTcpEcho:'TCP echo, not a UDP check',trafficControlScopeUnknown:'Control scope not recorded',trafficCliProfile:'CLI confirmed the SOCKS5 configuration',trafficCliOutput:'CLI output retained in the private directory',trafficCliOutputPrefix:'Output prefix retained; size limit reached'});
 Object.assign(labText.ru,{trafficActivityUnconfirmed:'Активность не подтверждена',trafficActivityHelp:'Сохранено PREPARING/RUNNING, но этот экземпляр UI не управляет прогоном. Он может выполняться в другом экземпляре или остаться после остановки. Прерывание и очистка не подтверждены; файл отчёта не изменён.'});
 Object.assign(labText.en,{trafficActivityUnconfirmed:'Activity unconfirmed',trafficActivityHelp:'PREPARING/RUNNING is recorded, but this UI instance does not own the run. Another instance may still be running it, or the record may remain after shutdown. Interruption and cleanup are unconfirmed; the report file is unchanged.'});
 Object.assign(labText.ru,{trafficStageMinTx:'Минимум отправки этапа, MiB/s',trafficStageMinRx:'Минимум получения этапа, MiB/s',trafficStageWorstP99:'Худший RTT p99 этапа, мс'});
@@ -160,7 +162,7 @@ function renderTraffic(){
 function trafficControlsMarkup(row){
   const controls=row.controls||[];
   if(!controls.length)return '';
-  return `<p>${t('trafficControls')}: ${controls.map(control=>`${html(control.mode)} · ${control.complete===true&&control.route_verified===true?'PASS':control.complete===false?'FAIL':'UNVERIFIED'}`).join(' · ')}</p>`;
+  return `<p>${t('trafficControls')}: ${controls.map(control=>`${html(control.mode)} · ${html(t(control.workload_scope==='tcp-echo'?'trafficControlTcpEcho':'trafficControlScopeUnknown'))} · ${control.complete===true&&control.route_verified===true?'PASS':control.complete===false?'FAIL':'UNVERIFIED'}`).join(' · ')}</p>`;
 }
 function trafficResourceCoverage(resources){
   const roles=['product_cli','worker','windows_system','worker_system','origin_system','origin_and_proxy'];
@@ -188,7 +190,9 @@ function trafficMeasurementEvidence(measurement){
   const recorded=measurement.recorded_stage_count??measurement.stages?.length;
   const readiness=measurement.lifecycle?.ready===true?'PASS':measurement.lifecycle?.ready===false?'FAIL':'UNVERIFIED';
   const cleanup=measurement.lifecycle?.cleanup_verified===true&&measurement.lifecycle?.forced_stop===false?'PASS':'UNVERIFIED';
-  return `<p>${t('trafficMeasurementState')}: ${t(`trafficMeasurement_${state}`)} · ${t('trafficStageCounts')}: ${number(measurement.workload_started_stage_count,0)} / ${number(recorded,0)} / ${number(measurement.planned_stage_count,0)}</p>${context?`<p>${t('trafficFailurePhase')}: ${t(`trafficFailure_${operation}`)}${context.stage?` · ${html(context.stage)}`:''}</p>`:''}<p>${t('trafficLossEvidence')}: ${loss}</p>${measurement.mode==='OFF'?'':`<p>${t('trafficCliReady')}: ${readiness} · ${t('trafficCliCleanup')}: ${cleanup}</p>`}`;
+  const profile=measurement.lifecycle?.proxy_configuration_verified===true?'PASS':measurement.lifecycle?.proxy_configuration_verified===false?'FAIL':'UNVERIFIED';
+  const retained=measurement.lifecycle?.output_retention_ok===true?(measurement.lifecycle?.output_capture_file?.truncated?t('trafficCliOutputPrefix'):'PASS'):measurement.lifecycle?.output_retention_ok===false?'FAIL':'UNVERIFIED';
+  return `<p>${t('trafficMeasurementState')}: ${t(`trafficMeasurement_${state}`)} · ${t('trafficStageCounts')}: ${number(measurement.workload_started_stage_count,0)} / ${number(recorded,0)} / ${number(measurement.planned_stage_count,0)}</p>${context?`<p>${t('trafficFailurePhase')}: ${t(`trafficFailure_${operation}`)}${context.stage?` · ${html(context.stage)}`:''}</p>`:''}<p>${t('trafficLossEvidence')}: ${loss}</p>${measurement.mode==='OFF'?'':`<p>${t('trafficCliReady')}: ${readiness} · ${t('trafficCliCleanup')}: ${cleanup}</p><p>${t('trafficCliProfile')}: ${profile} · ${t('trafficCliOutput')}: ${html(retained)}</p>`}`;
 }
 function renderTrafficHistory(){
   const filter=lab("traffic-filter").value;
