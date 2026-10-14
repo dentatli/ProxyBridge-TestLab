@@ -9,6 +9,7 @@
   <script src="/lab-results.js" defer></script>
   <script src="/lab.js" defer></script>
   <script src="/lab-remote.js" defer></script>
+  <script src="/lab-traffic-families.js" defer></script>
   <script src="/lab-traffic.js" defer></script>
   <script src="/lab-suites.js" defer></script>
 </head>
@@ -161,8 +162,8 @@
         <p id="traffic-search-status" role="status" aria-live="polite"></p>
         <div id="traffic-cases"></div><p id="traffic-estimate" role="status"></p>
       </section>
-      <p data-i18n="suiteHelp">Выбранные тесты выполняются последовательно. При ошибке очередь останавливается. Остановка дожидается текущего прогона и очистки, остальные тесты не запускаются.</p>
-      <p data-i18n="suiteProfileHelp">Длительность и нагрузка задаются отдельно для каждого теста.</p>
+      <p data-i18n="suiteHelp">Проверки и их этапы выполняются последовательно. После ошибки очередь останавливается, если не включено продолжение при подтверждённом восстановлении. Отмена сохраняет завершённые результаты и выполняет очистку.</p>
+      <p data-i18n="suiteProfileHelp">Полнота выбирает состав этапов. Длительность и нагрузка задаются для всей карточки.</p>
       <p data-i18n="controlled">В каждом режиме используется контролируемый получатель. Прямой трафик служит базой для сравнения выбранного пути через SOCKS5.</p>
       <p id="scenario-description"></p>
       <div class="lab-page-actions"><a class="button secondary" href="/lab.html?page=builds" data-lab-page="builds" data-i18n="connection">Сборки</a><a class="button primary" href="/lab.html?page=run" data-lab-page="run" data-i18n="toRun">К запуску</a></div>
@@ -173,6 +174,7 @@
         <label class="lab-run-option"><input id="traffic-long-run" type="checkbox"><span data-i18n="trafficLongRun"></span></label>
         <div id="traffic-recovery-option" hidden><label class="lab-run-option"><input id="traffic-continue-after-failure" type="checkbox"><span data-i18n="trafficContinue"></span></label>
         <p data-i18n="trafficContinueHelp"></p></div>
+        <div id="traffic-selection-summary"></div>
         <div class="lab-test-settings"><button id="traffic-start" type="button" class="button primary" data-i18n="trafficStart"></button><button id="traffic-stop" type="button" class="button secondary" data-i18n="trafficStop" disabled></button></div>
         <p id="traffic-run-status" role="status" aria-live="polite"></p>
         <p id="traffic-live-progress" class="lab-status" hidden></p>

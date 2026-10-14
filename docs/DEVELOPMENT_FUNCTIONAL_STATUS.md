@@ -2,6 +2,10 @@
 
 Срез разработки 2026-10-14 в `testlab-development/ProxyBridge-TestLab`, ветка `codex/development-functional-completion`. Реализация и фактическая приёмка различаются: компиляция новых функций не является продуктовым PASS. Диагностические исходники, рабочая копия, комплекты и журналы не менялись. 14 октября пользователь разрешил запуск проверок короче5 минут; новые test files не создавались. Ниже исторические результаты относятся только к своим ревизиям.
 
+## Проверки по протоколам — 2026-10-14
+
+51 атомарный сценарий представлен десятью крупными проверками с полнотой/длительностью/нагрузкой, раскрываемыми этапами и общим результатом выбранных этапов. Старые наборы не расширяются; CSV/сравнение/измерительные gates сохранены. Проверены распределение ID, статусы и browser local/remote RU/EN/import/export/long gate без продуктовых прогонов. Подробности: [TRAFFIC_PROTOCOL_CHECKS.md](TRAFFIC_PROTOCOL_CHECKS.md). Исторические UDP/HIGH/soak ограничения остаются в силе.
+
 ## Общий каталог local/remote — 2026-10-14
 
 Все51 traffic cases доступны «На этом ПК»: Windows origin, isolated PKI/HMAC, offline wheels, owned lifecycle, Windows idle counters, общие controls/route/reporting/stop/safe continuation и native saved suites реализованы. Browser подтвердил одинаковые IDs. Component49/50; реальные TCP/HTTPS PASS, UDP/mixed FAIL, cancel cleanup PASS. HIGH/soak не приняты. Методы и evidence: [LOCAL_TRAFFIC_LAB.md](LOCAL_TRAFFIC_LAB.md). Текущий итоговый UI5211; ниже исторические checkpoints.

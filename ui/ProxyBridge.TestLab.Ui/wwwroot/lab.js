@@ -74,7 +74,7 @@ Object.assign(labText.ru, {
 });
 Object.assign(labText.ru, {
   resultSections: "Разделы результатов", compareResults: "Сравнение", testHistory: "История",
-  selectTests: "Выберите тесты", suiteHelp: "Выбранные тесты выполняются последовательно. При ошибке очередь останавливается. Остановка дожидается текущего прогона и очистки, остальные тесты не запускаются.",
+  selectTests: "Выберите тесты", suiteHelp: "Проверки и их этапы выполняются последовательно. После ошибки очередь останавливается, если не включено продолжение при подтверждённом восстановлении. Отмена сохраняет завершённые результаты и выполняет очистку.",
   suiteProfileHelp: "Сейчас доступна короткая проверка готовности. Длительные профили, высокая нагрузка и остальные сценарии будут подключены отдельно.",
   suitePrepared: "Набор подготовлен. Перед каждым тестом будут проверены файлы и готовность системы.", suiteProgress: "Завершено тестов", currentTest: "Текущий тест", noTestsSelected: "Отметьте хотя бы один тест.",
   SUITE_SELECTION_INVALID: "Выберите один или оба доступных теста.", SUITE_LAUNCH_NOT_CONFIRMED: "Запуск набора не подтверждён. Подробности сохранены; оставшиеся тесты не запущены.", SUITE_TEST_NOT_STARTED: "Тест не запущен: очередь остановлена. Измерений нет.", PENDING: "Ожидает запуска",
@@ -131,7 +131,7 @@ Object.assign(labText.en, {
 });
 Object.assign(labText.en, {
   resultSections: "Result sections", compareResults: "Comparison", testHistory: "History",
-  selectTests: "Select tests", suiteHelp: "Selected tests run sequentially. The queue stops on failure. Stopping waits for the current run and cleanup; remaining tests are not started.",
+  selectTests: "Select tests", suiteHelp: "Checks and their stages run sequentially. Failure stops the queue unless continuation with verified recovery is enabled. Cancellation retains completed results and performs cleanup.",
   suiteProfileHelp: "Short readiness checks are currently available. Long profiles, high load and other scenarios will be connected separately.",
   suitePrepared: "Suite prepared. Files and runtime readiness will be checked before each test.", suiteProgress: "Tests completed", currentTest: "Current test", noTestsSelected: "Select at least one test.",
   SUITE_SELECTION_INVALID: "Select one or both available tests.", SUITE_LAUNCH_NOT_CONFIRMED: "Suite launch not confirmed. Details are retained; remaining tests were not started.", SUITE_TEST_NOT_STARTED: "Test not started: the queue stopped. No measurements.", PENDING: "Waiting to start",
@@ -198,7 +198,7 @@ Object.assign(labText.ru, {
   duration: "Длительность", load: "Нагрузка", SHORT: "Быстро", NORMAL: "Обычно", LONG: "Долго", LOW: "Низкая", HIGH: "Высокая",
   WORKLOAD: "Выбранный профиль", legacyWorkload: "Прежние короткие проверки",
   perConnectionMiB: "Объём на соединение, MiB", senderLimit: "Лимит отправителя, MiB/с", measurementsPerPath: "Измерений на путь", pauseAfterReply: "Пауза после ответа, мс",
-  suiteProfileHelp: "Длительность и нагрузка задаются отдельно для каждого теста. В тесте «Три режима» все три пути получают одинаковые условия.",
+  suiteProfileHelp: "Полнота выбирает состав этапов. Длительность и нагрузка задаются для всей карточки; прежние наборы с разными параметрами этапов сохраняются. В этапе «Три режима» все три пути получают одинаковые условия.",
   transferPresetHelp: "Данные проверяются полностью. Закрытие TCP не проверяется; это не максимальная скорость.",
   rttPresetHelp: "1000 прогревочных обменов исключены. Нагрузка — интенсивность запросов, без фоновой передачи.",
   approximateMinutes: "Примерно {range} мин", selectedTime: "Выбрано тестов: {count} · Общее время: примерно {range} мин",
@@ -220,7 +220,7 @@ Object.assign(labText.en, {
   duration: "Duration", load: "Load", SHORT: "Quick", NORMAL: "Normal", LONG: "Long", LOW: "Low", HIGH: "High",
   WORKLOAD: "Selected workload", legacyWorkload: "Earlier short checks",
   perConnectionMiB: "Volume per connection, MiB", senderLimit: "Sender cap, MiB/s", measurementsPerPath: "Measurements per path", pauseAfterReply: "Pause after reply, ms",
-  suiteProfileHelp: "Duration and load are independent for each test. All three paths in the separate Three modes test use identical settings.",
+  suiteProfileHelp: "Coverage selects the stages. Duration and load apply to the entire card; existing suites with mixed stage settings are preserved. All three paths in the Three modes stage use identical settings.",
   transferPresetHelp: "Data fully verified. TCP close is not tested; not maximum throughput.",
   rttPresetHelp: "1000 warmup echoes excluded. Load means request intensity, without background transfer.",
   approximateMinutes: "About {range} min", selectedTime: "Tests selected: {count} · Total time: about {range} min",
