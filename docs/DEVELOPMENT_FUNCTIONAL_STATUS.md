@@ -2,6 +2,10 @@
 
 Срез разработки 2026-10-14 в `testlab-development/ProxyBridge-TestLab`, ветка `codex/development-functional-completion`. Реализация и фактическая приёмка различаются: компиляция новых функций не является продуктовым PASS. Диагностические исходники, рабочая копия, комплекты и журналы не менялись. 14 октября пользователь разрешил запуск проверок короче5 минут; новые test files не создавались. Ниже исторические результаты относятся только к своим ревизиям.
 
+## Общий каталог local/remote — 2026-10-14
+
+Все51 traffic cases доступны «На этом ПК»: Windows origin, isolated PKI/HMAC, offline wheels, owned lifecycle, Windows idle counters, общие controls/route/reporting/stop/safe continuation и native saved suites реализованы. Browser подтвердил одинаковые IDs. Component49/50; реальные TCP/HTTPS PASS, UDP/mixed FAIL, cancel cleanup PASS. HIGH/soak не приняты. Методы и evidence: [LOCAL_TRAFFIC_LAB.md](LOCAL_TRAFFIC_LAB.md). Текущий итоговый UI5211; ниже исторические checkpoints.
+
 ## Актуальное состояние — 2026-10-14
 
 Новое состояние: control plane использует предварительно установленное, отдельно аутентифицированное metrics-соединение. Короткая очередь084943 получила signed final evidence всех6 stages: TCP/HTTPS PASS; UDP-connected2256/0 и mixed2035/0 — FAIL. Cleanup всех4cases подтверждён. При остановленном продукте UDP direct и explicit SOCKS5 component checks95/95 каждый PASS; точная причина product UDP не установлена. HIGH/soak не приняты, смешанный длительный сценарий блокируется фактическим UDP failure. Инструкция и evidence для дальнейшей пользовательской приёмки: [TRAFFIC_LOAD_ACCEPTANCE.md](TRAFFIC_LOAD_ACCEPTANCE.md); final exact-bundle TCP — в [актуальном handoff](CHAT_HANDOFF_DEVELOPMENT.md).

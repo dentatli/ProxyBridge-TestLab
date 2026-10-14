@@ -84,6 +84,7 @@ try {
         cases=$attempt.cases;started_at_utc=$attempt.started_at_utc;completed_at_utc=[DateTime]::UtcNow.ToString('o');
         complete=[bool]$complete;cleanup_verified=[bool]$cleanupVerified;error=$errorCode;results=@($results)}
     $finished['continue_after_failure']=[bool]$continueAfterFailure
+    $finished['mode']=$(if ($binding.PSObject.Properties.Name -contains 'runtime_mode') {$binding.runtime_mode} else {'remote'})
     $finished['recovery_checks']=@($recoveryChecks)
     $temporary=$attemptPath + '.tmp'
     [IO.File]::WriteAllText($temporary,($finished | ConvertTo-Json -Depth 16),[Text.UTF8Encoding]::new($false))

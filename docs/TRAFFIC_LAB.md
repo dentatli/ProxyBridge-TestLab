@@ -4,6 +4,10 @@
 
 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. 2026-10-14 новым запросом разрешил запуск проверок короче5 минут; новые test files не запрошены. Не дробить длинный набор для обхода лимита. Исторические результаты ниже относятся только к своим ревизиям; короткие проверки не доказывают весь каталог или длительную стабильность.
 
+## Общий локальный и удалённый каталог — 2026-10-14
+
+51-case traffic engine работает в обоих режимах. Windows loopback origin автоматически создаётся до product queue и завершается после cleanup; Ubuntu plan/apply нужен только remote. Mode разделён в history/CSV/comparison; legacy reports сохранены. Методы и фактическая component/product/cancel приёмка: [LOCAL_TRAFFIC_LAB.md](LOCAL_TRAFFIC_LAB.md). UDP/HIGH/long PASS не заявлен.
+
 ## Исправление сбора метрик и актуальная приёмка — 2026-10-14
 
 Сбор final metrics больше не создаёт новые Direct-соединения во время измерения: собственный control socket установлен/аутентифицирован до CLI, observer/final запросы сериализованы. Каждый запрос всё равно имеет свежий challenge/flow ID, HMAC и проверку pinned identities. При потере канала — явный FAIL, без cache/reconnect fallback. Transport нагрузки и route gates прежние. Agent поддерживает повтор только для metrics на control endpoint, каждый запрос заново аутентифицирован; authenticated idle30s, initial/auth/data10s. Raw/summary содержит origin_metrics_transport; origin_evidence_error безопасно сохраняет code/class/errno/winerror, произвольный exception text не экспортируется.

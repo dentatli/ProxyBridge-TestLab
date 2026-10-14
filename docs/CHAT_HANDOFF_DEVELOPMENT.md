@@ -2,6 +2,16 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
+## Полный локальный traffic mode — 2026-10-14
+
+Пользователь поручил весь каталог и «На этом ПК», разрешил проверки<5min. Оба режима теперь используют51-case traffic engine; Mode=local запускает private Windows loopback origin без Ubuntu/SSH. Подробности реализации, правила сравнения/PKI/cleanup, IDs и границы приёмки: [LOCAL_TRAFFIC_LAB.md](LOCAL_TRAFFIC_LAB.md). Старые local saved suites мигрируют, legacy reports сохраняются.
+
+Windows component check49/50 за55.89s (.15s windows, explicit SOCKS5, без продукта): все35 application cases прошли; UDP128-flow loss FAIL сохранён, soak не запускался. Реальная local очередь155137 за103.57s: TCP/HTTPS PASS, UDP2167/0 и mixed2219/0 FAIL, recovery TCP complete; все4 product/origin cleanup=true. Signed final evidence всех6 stages, raw+8CLI hashes сверены. Cancel155441: CANCELLED с обеими cleanup=true. Финальный TCP155619 COMPLETE, TX=RX9,765,888; final HMAC независимо проверен через DPAPI archive.
+
+Итоговый admin UI http://127.0.0.1:5211, normal Debug build. UI build0warnings/errors, Node/Python syntax PASS; новых test files нет. Browser local/remote одинаковые51 IDs, auto-runtime и прикладные группы подтверждены. Сетевой код после этих прогонов не менялся; финальная metadata comparison правка проверена через API/browser. Earlier owned UI5205/5207/5210 могут оставаться открытыми; не запускать очереди параллельно. После проверок driver Stopped, product/origin processes отсутствуют, own listening ports закрыты.
+
+HIGH/soak/UDP PASS не заявлять. Диагностическая копия/комплекты/Ubuntu не менялись; новые общие Python sources потребуют fresh remote plan/apply. Исторические checkpoints ниже не заменяют этот статус.
+
 ## Восстановление UI после запуска из домашнего каталога — 2026-10-14
 
 Пользователь вручную остановил прежний UI10412 и запустил ui-run-options на5205 из C:\Users\LabAdmin. Новый backend реально стартовал (PID15216, API200), но HTML404: WebRootPath указывал на C:\Users\LabAdmin\wwwroot. Причина — ручная команда чата не передала --webroot, который штатный scripts/Start-TestLabUi.ps1 уже передаёт. Это ошибка команды/выбора static provider TestLab, не ProxyBridge или Ubuntu. Диагностическая копия/продукт/службы/трафик не затрагивались.

@@ -1,6 +1,6 @@
 // Templates store choices independently from build identity and one-use launch plans.
 Object.assign(labText.ru, {
-  savedSuites: "Сохранённые наборы", savedSuitesHelp: "Сохраните тесты и их параметры, чтобы повторить набор с другой сборкой. Перед каждым запуском подготовьте новый план; сохранённый набор не подтверждает готовность.",
+  savedSuites: "Сохранённые наборы", savedSuitesHelp: "Сохраните тесты и их параметры, чтобы повторить набор с другой сборкой. Перед каждым запуском заново проверяются сборка и среда; сохранённый набор не подтверждает готовность.",
   chooseSuite: "Выберите набор", suiteName: "Название набора", applySuite: "Выбрать набор", saveNewSuite: "Сохранить новый", updateSuite: "Обновить выбранный", deleteSuite: "Удалить набор",
   suiteSaved: "Набор сохранён.", suiteApplied: "Набор выбран. Подготовьте новый запуск для выбранной сборки.", suiteDeleted: "Набор удалён. Текущий выбор тестов сохранён.",
   SUITE_CATALOG_UNAVAILABLE: "Не удалось прочитать сохранённые наборы. Обновите страницу; сохранение отключено до успешного чтения.",
@@ -9,7 +9,7 @@ Object.assign(labText.ru, {
   SUITE_SAVE_FAILED: "Сохранение не подтверждено. Обновите страницу перед повторной попыткой.", SUITE_DELETE_FAILED: "Удаление не подтверждено. Обновите страницу перед повторной попыткой."
 });
 Object.assign(labText.en, {
-  savedSuites: "Saved suites", savedSuitesHelp: "Save tests and their settings to repeat a suite with another build. Prepare a fresh plan before every run; a saved suite does not establish readiness.",
+  savedSuites: "Saved suites", savedSuitesHelp: "Save tests and their settings to repeat a suite with another build. Every run rechecks the build and environment; a saved suite does not establish readiness.",
   chooseSuite: "Choose a suite", suiteName: "Suite name", applySuite: "Use suite", saveNewSuite: "Save new", updateSuite: "Update selected", deleteSuite: "Delete suite",
   suiteSaved: "Suite saved.", suiteApplied: "Suite selected. Prepare a fresh launch for the selected build.", suiteDeleted: "Suite deleted. Current test choices are retained.",
   SUITE_CATALOG_UNAVAILABLE: "Saved suites could not be read. Refresh the page; saving is disabled until a successful read.",
@@ -35,10 +35,10 @@ function renderSavedSuites(busy) {
   lab("lab-saved-suite").disabled = busy || !suiteCatalog.available;
   lab("lab-suite-name").disabled = busy;
   lab("lab-suite-apply").disabled = busy || !hasSelection || !suiteCatalog.available;
-  lab("lab-suite-save").disabled = busy || !labState.csrf || !suiteCatalog.available || !(lab("lab-mode").value === "remote" ? trafficCases() : selectedTests()).length;
+  lab("lab-suite-save").disabled = busy || !labState.csrf || !suiteCatalog.available || !(trafficCases()).length;
   lab("lab-suite-update").disabled = lab("lab-suite-save").disabled || !hasSelection;
   lab("lab-suite-delete").disabled = busy || !labState.csrf || !suiteCatalog.available || !hasSelection;
-  lab('lab-suite-export').disabled=busy||!(lab('lab-mode').value==='remote'?trafficCases():selectedTests()).length;
+  lab('lab-suite-export').disabled=busy||!(trafficCases()).length;
   lab('lab-suite-import').disabled=busy;
   lab('lab-suite-import-file').disabled=busy;
   lab("lab-suite-status").textContent = suiteCatalog.message ? t(suiteCatalog.message) : "";
@@ -70,19 +70,13 @@ function applySavedSuite() {
 
 function applySuiteChoices(entry) {
   lab("lab-mode").value = entry.mode;
-  if (entry.mode === "remote") {
+
     const legacy = {tcp_rtt:["tcp-rtt"],tcp_transfer:["tcp-upload","tcp-download"],tcp_rtt_three_modes:["three-modes"],tcp_connections:["tcp-connections"]};
     trafficChoice = {};
     for (const test of entry.tests) for (const id of legacy[test.scenario] || [test.scenario])
       trafficChoice[id] = {selected:true,duration:test.duration,load:test.load};
     localStorage.setItem("testlab-traffic-choice",JSON.stringify(trafficChoice));
-  } else {
-  setSelectedTests(entry.tests.map(test => test.scenario));
-  for (const test of entry.tests) {
-    document.querySelector(`[data-test-duration="${test.scenario}"]`).value = test.duration;
-    document.querySelector(`[data-test-load="${test.scenario}"]`).value = test.load;
-  }
-  }
+
   lab("lab-suite-name").value = entry.name;
   labState.plan = null;
   labState.planFailed = false;
@@ -101,7 +95,7 @@ async function changeSavedSuite(action) {
       method: "POST", headers: { "Content-Type": "application/json", "X-TestLab-CSRF": labState.csrf },
       signal: AbortSignal.timeout(10000),
       body: JSON.stringify(action === "delete" ? { id } : { id, name: lab("lab-suite-name").value, mode: lab("lab-mode").value,
-        tests: lab("lab-mode").value === "remote" ? trafficCases().map(row=>({scenario:row.id,duration:row.duration,load:row.load})) : selectedWorkloads() })
+        tests: trafficCases().map(row=>({scenario:row.id,duration:row.duration,load:row.load})) })
     });
     const result = await response.json();
     if (!response.ok) { suiteCatalog.message = result.error || "SUITE_SAVE_FAILED"; }
@@ -128,7 +122,7 @@ function portableSuite(value){
     !['local','remote'].includes(value.mode)||!Array.isArray(value.tests))throw new Error('SUITE_FILE_INVALID');
   const local=['tcp_rtt','tcp_transfer','tcp_rtt_three_modes','tcp_connections'];
   const remote=(trafficCatalog?.cases||[]).map(row=>row.id);
-  const native=value.mode==='remote'&&value.tests.some(row=>object(row)&&remote.includes(row.scenario));
+  const native=value.tests.some(row=>object(row)&&remote.includes(row.scenario));
   const allowed=native?remote:local;
   if(!value.tests.length||value.tests.length>allowed.length||new Set(value.tests.map(row=>row?.scenario)).size!==value.tests.length||
     value.tests.some(row=>!keys(row,['scenario','duration','load'])||!allowed.includes(row.scenario)||
@@ -141,7 +135,7 @@ function exportSuiteChoices(){
     const mode=lab('lab-mode').value;
     const entry=portableSuite({format:'proxybridge-testlab-suite',schema_version:1,
       name:lab('lab-suite-name').value.trim()||t('suiteDefaultName'),mode,
-      tests:mode==='remote'?trafficCases().map(row=>({scenario:row.id,duration:row.duration,load:row.load})):selectedWorkloads()});
+      tests:trafficCases().map(row=>({scenario:row.id,duration:row.duration,load:row.load}))});
     const blob=new Blob([JSON.stringify({format:'proxybridge-testlab-suite',schema_version:1,...entry},null,2)+'\n'],{type:'application/json;charset=utf-8'});
     if(blob.size>64*1024)throw new Error('SUITE_FILE_TOO_LARGE');
     const url=URL.createObjectURL(blob),anchor=document.createElement('a');

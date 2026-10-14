@@ -39,7 +39,7 @@ public sealed class BenchmarkSuiteCatalog(AppStoragePaths storage, AppPaths app)
     {
         var remoteCases = TrafficScenarios;
         var traffic = tests?.Any(test => test is not null && remoteCases.Contains(test.Scenario)) == true;
-        var allowed = traffic && mode == "remote" ? remoteCases : Scenarios;
+        var allowed = traffic ? remoteCases : Scenarios;
         if (mode is not ("local" or "remote") || tests is null || tests.Length < 1 || tests.Length > allowed.Length ||
             tests.Any(test => test is null || !allowed.Contains(test.Scenario) ||
                 test.Duration is not ("SHORT" or "NORMAL" or "LONG") || test.Load is not ("LOW" or "HIGH")) ||

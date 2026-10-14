@@ -29,11 +29,15 @@ class Agent:
         self.tasks: set[asyncio.Task[Any]] = set()
         self.configuration_path: Path | None = None
         self.applications: Any = None
+        self.identity_mode = 'remote'
 
     def identity(self) -> dict[str, Any]:
         if self.configuration_path is None:
             return {"verified": False, "scope": "component-only"}
         try:
+            if self.identity_mode == 'local-windows-v1':
+                from trafficlab.local_runtime import identity
+                return identity(self.configuration_path, self.applications)
             root = self.configuration_path.parent
             manifest = json.loads((root / "runtime-manifest.json").read_text())
             import re
@@ -304,6 +308,7 @@ class DatagramAgent(asyncio.DatagramProtocol):
 async def serve(config: dict[str, Any]) -> None:
     secret = bytes.fromhex(config["secret"])
     agent = Agent(secret, config.get("max_connections", 2048))
+    agent.identity_mode = config.get('identity_mode', 'remote')
     if config.get("configuration_path"):
         agent.configuration_path = Path(config["configuration_path"])
     bind = config.get("bind", "127.0.0.1")
@@ -335,9 +340,18 @@ async def serve(config: dict[str, Any]) -> None:
         except NotImplementedError:
             signal.signal(signum, lambda *_: loop.call_soon_threadsafe(stopping.set))
     print(f"TRAFFIC_AGENT_READY origin={port} proxy={proxy.port} control={control_port}", flush=True)
+    async def watch_stop() -> None:
+        while not stopping.is_set():
+            if config.get('stop_path') and Path(config['stop_path']).is_file():
+                stopping.set()
+                return
+            await asyncio.sleep(0.25)
+    watcher = asyncio.create_task(watch_stop())
     try:
         await stopping.wait()
     finally:
+        watcher.cancel()
+        await asyncio.gather(watcher, return_exceptions=True)
         server.close()
         await server.wait_closed()
         control.close()

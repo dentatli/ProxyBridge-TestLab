@@ -65,6 +65,8 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
             "host_binding": __import__("hashlib").sha256(binding["host"].encode()).hexdigest(), "python_version": platform.python_version(),
             "windows_version": platform.version(), "logical_cpus": os.cpu_count(), "method": "controlled-traffic-v1"}}
     result["conditions"]["local_runtime_sha256"] = binding.get("local_runtime_sha256")
+    result['conditions']['runtime_mode'] = binding.get('runtime_mode', 'remote')
+    result['conditions']['origin_scope'] = 'same-Windows-host-loopback' if binding.get('runtime_mode') == 'local' else 'separate-remote-Ubuntu'
     result["conditions"]["windows_node_binding"] = __import__("hashlib").sha256(platform.node().encode()).hexdigest()
     result["conditions"]["cpu_model"] = os.environ.get("PROCESSOR_IDENTIFIER", "unknown")
     started = time.monotonic()
