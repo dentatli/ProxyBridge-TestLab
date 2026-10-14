@@ -4,6 +4,10 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
+## Сравнение измеренных режимов — 2026-10-14
+
+Comparison selector OFF/UNRULED/SOCKS5 использует только полноценные result.measurements, не короткие controls. OFF/UNRULED измеряются в three-modes case; отсутствие выбранного режима подписано NOT_MEASURED с пустыми metrics, даже если весь attempt успешен. Метрики требуют полного attempt и complete/route_verified measurement. CSV включает measurement_mode и статус/ресурсные observations выбранного режима; history JSON содержит все исходные measurements. Группировка по условиям и verdict исходных отчётов не изменены. Node syntax/UI build0 warnings/errors, без tests TestLab/GUI/product acceptance.
+
 ## Наблюдения нативного UDP — 2026-10-14
 
 Stage/overall.udp_observations сохраняют sent/received/duplicates/reordered/invalid/expired/send_errors, flow_count и scope; compact soak totals включают те же counters. Без нативных UDP flows counters=null; прикладные DNS/QUIC исключены. History показывает поэтапные и общие наблюдения даже для failed/partial measurements с предупреждением. Optional comparison/CSV counters доступны только при прежних complete/route gates. Таймаут ответа2s; expired включает timeout и late-reply events и может учитывать один request повторно, не является lost-packet count. Распознавание duplicates ограничено существующим bounded replay window. Потери в общей таблице подписаны как reply loss, включая logical application replies QUIC.

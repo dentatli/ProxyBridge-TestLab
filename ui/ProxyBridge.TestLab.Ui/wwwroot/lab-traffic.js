@@ -54,6 +54,8 @@ let trafficHistoryLoadedAt=null,trafficComparisonLoadedAt=null,trafficSnapshotUn
 let trafficComparisonBlocked=false,trafficUnreadableHistory=false;
 labText.ru.trafficPayloadBytes='Полезные данные запроса, байт';
 labText.en.trafficPayloadBytes='Request payload, bytes';
+Object.assign(labText.ru,{trafficComparisonMode:'Измеренный режим',trafficComparisonModeHelp:'OFF и UNRULED измеряются в сценарии «Три режима». Короткие контрольные обмены сюда не подставляются. Пустые значения означают отсутствие полного подтверждённого измерения выбранного режима.',trafficModeNotMeasured:'Режим не измерен'});
+Object.assign(labText.en,{trafficComparisonMode:'Measured mode',trafficComparisonModeHelp:'OFF and UNRULED measurements come from the Three modes case. Short control exchanges are never substituted. Empty values mean no complete verified measurement is available for the selected mode.',trafficModeNotMeasured:'Mode not measured'});
 Object.assign(labText.ru,{trafficLoss:'Потери ответов, %',trafficUdpObservations:'Наблюдения нативного UDP',trafficUdpSent:'UDP отправлено',trafficUdpReceived:'UDP подтверждено',trafficUdpDuplicates:'Повторные ответы UDP',trafficUdpReordered:'Ответы UDP вне порядка',trafficUdpInvalid:'Некорректные ответы UDP',trafficUdpExpired:'Истечения и поздние ответы UDP',trafficUdpSendErrors:'Ошибки отправки UDP',trafficUdpHelp:'Счётчики нативного UDP; DNS/QUIC сюда не входят. Дедлайн ответа 2 с, окно распознавания повторов ограничено. Истечения и поздние ответы могут учитывать один запрос повторно; это не число потерянных пакетов. Наблюдения неполного прогона не подтверждают успешность маршрута или нагрузку.'});
 Object.assign(labText.en,{trafficLoss:'Reply loss, %',trafficUdpObservations:'Native UDP observations',trafficUdpSent:'UDP sent',trafficUdpReceived:'UDP verified replies',trafficUdpDuplicates:'UDP duplicate replies',trafficUdpReordered:'UDP out-of-order replies',trafficUdpInvalid:'UDP invalid replies',trafficUdpExpired:'UDP expiry and late-reply events',trafficUdpSendErrors:'UDP send errors',trafficUdpHelp:'Native UDP counters; DNS/QUIC are excluded. Reply deadline is 2 seconds; duplicate detection has a bounded window. Expiry and late-reply events may count the same request twice and are not a lost-packet count. Partial-run observations do not confirm route or workload success.'});
 Object.assign(labText.ru,{trafficConnectP50:'Подготовка сеанса p50, мс',trafficConnectP95:'Подготовка сеанса p95, мс',trafficConnectP99:'Подготовка сеанса p99, мс',trafficConnectSamples:'Измерений подготовки сеанса',trafficConnectHelp:'Граница зависит от профиля: flow churn — до аутентификации получателя завершённого обмена; QUIC/HTTP3 — handshake; SSH и messaging — аутентификация; остальные прикладные профили — первый подтверждённый обмен или batch. Все записанные samples, включая неполные сеансы; это не чистое TCP RTT. Процентили объединённой гистограммы — верхние границы с шагом 1%.'});
@@ -77,6 +79,8 @@ for(const [id,choice] of Object.entries(trafficChoice))if(!choice||!['SHORT','NO
 if(!trafficCompareChoice||typeof trafficCompareChoice!=='object')trafficCompareChoice={};
 trafficCompareChoice.builds=trafficCompareChoice.builds&&typeof trafficCompareChoice.builds==='object'?trafficCompareChoice.builds:{};
 trafficCompareChoice.metrics=trafficCompareChoice.metrics&&typeof trafficCompareChoice.metrics==='object'?trafficCompareChoice.metrics:{};
+trafficCompareChoice.mode=['OFF','UNRULED','SOCKS5'].includes(trafficCompareChoice.mode)?trafficCompareChoice.mode:'SOCKS5';
+lab('traffic-comparison-mode').value=trafficCompareChoice.mode;
 const trafficCases=()=> (trafficCatalog?.cases||[]).filter(row=>trafficChoice[row.id]?.selected).map(row=>({id:row.id,duration:trafficChoice[row.id].duration,load:trafficChoice[row.id].load}));
 const trafficCaseEstimate=row=>row.id==="soak"?({SHORT:24,NORMAL:48,LONG:72}[row.duration]*3600+300):({SHORT:6,NORMAL:30,LONG:120}[row.duration]*({"tcp-multistream":3,"loaded-rtt":3,"flow-rate":3,"mixed":3,"three-modes":3,"tcp-connections":5,"udp-connections":5,"udp-sweep":6,"stability":10}[row.id]||trafficCatalog?.cases.find(value=>value.id===row.id)?.payload_sizes?.length||1)+20);
 const trafficSafeContinue=()=>trafficState?.runtime?.supports_safe_continuation===true&&lab("traffic-continue-after-failure").checked;
@@ -213,10 +217,16 @@ function trafficUdpObservationMarkup(measurement){
   if(!rows.length)return '';
   return `<details><summary>${t('trafficUdpObservations')}</summary><p>${html(t('trafficUdpHelp'))}</p><div class="lab-table-scroll"><table><thead><tr><th>${t('trafficPhase')}</th>${Object.keys(trafficUdpCounters).map(key=>`<th>${html(t(key))}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr><td>${html(row.phase)}</td>${Object.values(trafficUdpCounters).map(key=>`<td>${number(row.observations[key],0)}</td>`).join('')}</tr>`).join('')}</tbody></table></div></details>`;
 }
+const trafficSelectedMeasurement=row=>(row.result?.measurements||[]).find(value=>value.mode===trafficCompareChoice.mode);
+function trafficComparisonStatus(row){
+  if(!row.complete)return row.state||'UNVERIFIED';
+  const measured=trafficSelectedMeasurement(row);
+  return !measured?'NOT_MEASURED':measured.complete&&measured.route_verified?'PASS':'UNVERIFIED';
+}
 function trafficMetric(row,key){
   if(!row.complete)return null;
-  const measured=(row.result?.measurements||[]).find(value=>value.mode==="SOCKS5"&&value.complete&&value.route_verified);
-  if(!measured)return null;
+  const measured=trafficSelectedMeasurement(row);
+  if(!measured?.complete||!measured.route_verified)return null;
   const overall=measured.overall||{},resources=measured.resources||{};
   const counter=(role,name,stat)=>resources[role]?.counters?.[name]?.[stat];
   const values={trafficTransactions:overall.application_transactions,trafficSent:trafficMiB(overall.tcp_tx_bytes_per_second),trafficReceived:trafficMiB(overall.tcp_rx_bytes_per_second),
@@ -268,11 +278,11 @@ function exportTraffic(kind){
   if(kind==='comparison'){
     const rows=trafficComparisonRows(),metrics=trafficMetrics.filter(trafficMetricSelected);
     if(!rows.length){status.textContent=t('trafficExportUnavailable');return;}
-    const header=['snapshot_loaded_at_utc','exported_at_utc','build_id','build_name','attempt_id','case_id','duration','load','condition_id','status','errors','conditions_json','resource_observation_summary_json',...metrics.map(metric=>`${metric} (${t(metric)})`)];
+    const header=['snapshot_loaded_at_utc','exported_at_utc','build_id','build_name','attempt_id','case_id','duration','load','condition_id','measurement_mode','status','errors','conditions_json','resource_observation_summary_json',...metrics.map(metric=>`${metric} (${t(metric)})`)];
     const records=rows.map(row=>[trafficComparisonLoadedAt,exportedAt,row.build_id,
       labState.builds.find(build=>build.id===row.build_id)?.display_name||row.build_id,row.attempt_id,row.case_id,
-      row.duration,row.load,row.condition_id,row.complete?'PASS':row.state||'UNVERIFIED',
-      (row.result?.errors||[row.error]).filter(Boolean).join(' | '),JSON.stringify(row.conditions??null),JSON.stringify(trafficResourceCoverage((row.result?.measurements||[]).find(value=>value.mode==='SOCKS5')?.resources)),
+      row.duration,row.load,row.condition_id,trafficCompareChoice.mode,trafficComparisonStatus(row),
+      (row.result?.errors||[row.error]).filter(Boolean).join(' | '),JSON.stringify(row.conditions??null),JSON.stringify(trafficResourceCoverage(trafficSelectedMeasurement(row)?.resources)),
       ...metrics.map(metric=>trafficMetric(row,metric))]);
     content='\ufeff'+[header,...records].map(record=>record.map(trafficCsvCell).join(',')).join('\r\n')+'\r\n';
     type='text/csv;charset=utf-8';extension='csv';
@@ -315,7 +325,7 @@ function renderTrafficComparison(){
   lab("traffic-comparison-builds").innerHTML=rows.map(row=>`<label class="lab-test-toggle"><input type="checkbox" data-traffic-build="${html(row.build_id)}" ${trafficCompareChoice.builds[row.build_id]!==false?"checked":""}>${html(name(row))}</label>`).join("");
   lab("traffic-comparison-metrics").innerHTML=trafficMetrics.map(metric=>`<label class="lab-test-toggle"><input type="checkbox" data-traffic-metric="${metric}" ${trafficMetricSelected(metric)?"checked":""}>${html(t(metric))}</label>`).join("");
   const metrics=trafficMetrics.filter(metric=>trafficMetricSelected(metric));
-  lab("traffic-comparison").innerHTML=rows.length?`<p>${html(t("trafficAllStages"))}</p>${metrics.some(metric=>metric.startsWith("trafficConnect"))?`<p>${html(t("trafficConnectHelp"))}</p>`:""}${metrics.some(metric=>Object.hasOwn(trafficUdpCounters,metric))?`<p>${html(t("trafficUdpHelp"))}</p>`:""}<div class="lab-table-scroll"><table><thead><tr><th>${t("connection")}</th><th>Status</th>${metrics.map(metric=>`<th>${html(t(metric))}</th>`).join("")}</tr></thead><tbody>${rows.filter(row=>trafficCompareChoice.builds[row.build_id]!==false).map(row=>`<tr><td>${html(name(row))}<br><small>${html(row.attempt_id)}</small></td><td>${row.complete?"PASS":html(row.state)}<br>${html((row.result?.errors||[row.error]).filter(Boolean).join(" · "))}</td>${metrics.map(metric=>`<td>${number(trafficMetric(row,metric))}</td>`).join("")}</tr>`).join("")}</tbody></table></div><details><summary>${t("trafficConditions")}</summary><pre>${html(JSON.stringify(rows[0].conditions,null,2))}</pre></details>`:`<p>${t("trafficNone")}</p>`;
+  lab("traffic-comparison").innerHTML=rows.length?`<p>${html(t("trafficAllStages"))}</p>${metrics.some(metric=>metric.startsWith("trafficConnect"))?`<p>${html(t("trafficConnectHelp"))}</p>`:""}${metrics.some(metric=>Object.hasOwn(trafficUdpCounters,metric))?`<p>${html(t("trafficUdpHelp"))}</p>`:""}<div class="lab-table-scroll"><table><thead><tr><th>${t("connection")}</th><th>${html(trafficCompareChoice.mode)} · Status</th>${metrics.map(metric=>`<th>${html(t(metric))}</th>`).join("")}</tr></thead><tbody>${rows.filter(row=>trafficCompareChoice.builds[row.build_id]!==false).map(row=>`<tr><td>${html(name(row))}<br><small>${html(row.attempt_id)}</small></td><td>${trafficComparisonStatus(row)==="NOT_MEASURED"?html(t("trafficModeNotMeasured")):html(trafficComparisonStatus(row))}<br>${html((row.result?.errors||[row.error]).filter(Boolean).join(" · "))}</td>${metrics.map(metric=>`<td>${number(trafficMetric(row,metric))}</td>`).join("")}</tr>`).join("")}</tbody></table></div><details><summary>${t("trafficConditions")}</summary><pre>${html(JSON.stringify(rows[0].conditions,null,2))}</pre></details>`:`<p>${t("trafficNone")}</p>`;
 }
 for(const id of ["traffic-comparison-builds","traffic-comparison-metrics"])lab(id).addEventListener("change",event=>{
   const build=event.target.dataset.trafficBuild,metric=event.target.dataset.trafficMetric;
@@ -323,6 +333,11 @@ for(const id of ["traffic-comparison-builds","traffic-comparison-metrics"])lab(i
   localStorage.setItem("testlab-traffic-comparison",JSON.stringify(trafficCompareChoice));renderTrafficComparison();updateTrafficExportButtons();
 });
 lab("traffic-comparison-filter").addEventListener("change",()=>{renderTrafficComparison();updateTrafficExportButtons();});
+lab('traffic-comparison-mode').addEventListener('change',()=>{
+  trafficCompareChoice.mode=lab('traffic-comparison-mode').value;
+  localStorage.setItem('testlab-traffic-comparison',JSON.stringify(trafficCompareChoice));
+  renderTrafficComparison();updateTrafficExportButtons();
+});
 lab("traffic-history-more").addEventListener("click",async()=>{
   lab("traffic-history-more").disabled=true;
   try{

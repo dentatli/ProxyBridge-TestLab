@@ -2,7 +2,13 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: наблюдения UDP и границы времени подготовки — 2026-10-14
+## Текущий этап: сравнение измеренных режимов — 2026-10-14
+
+Results comparison получил selector OFF/UNRULED/SOCKS5, default SOCKS5; выбранное значение сохраняется с choices в localStorage. Источник только result.measurements, короткие controls не используются. Режимы OFF/UNRULED есть у штатного three-modes case, для остальных отсутствие measurement даёт «Режим не измерен»/NOT_MEASURED и пустые benchmark metrics. Полный attempt и complete/route_verified выбранного measurement обязательны как раньше. CSV сохраняет measurement_mode, статус выбранного режима и resource metadata именно этого measurement; history JSON остаётся полной историей измерений всех режимов. Выбор режима не меняет условия группировки сборок или verdict исходного attempt.
+
+Node syntax и UI build0 warnings/errors прошли; tests TestLab/GUI regression/product runs не выполнялись. Собран artifact ui-mode-comparison, новый UI process/runtime apply не выполнялся. UDP этап запушен `8c999fb`; текущую ревизию смотреть Git. Последний известный runtime .180 —4c25..., обычная UI5203; это наблюдения 13 октября, не свежая приёмка. Runtime source после того изменён, перед будущим product run fresh plan/apply. Известный product control FAIL не повторять без основания; диагностика отдельна. Продолжать независимый функционал по поручению пользователя, сохраняя запрет тестов тестера.
+
+## Предыдущий этап: наблюдения UDP и границы времени подготовки — 2026-10-14
 
 Нативные UDP counters теперь сохранены в stage/overall.udp_observations и compact/soak totals: sent/received/duplicates/reordered/invalid/expired/send_errors плюс flow_count и scope. При отсутствии нативных UDP flows counters=null; прикладные DNS/QUIC не маскируются нулями. History показывает общую и поэтапную таблицы также для partial/failed measurements с явным предупреждением о неполных наблюдениях. Comparison/CSV получили семь optional показателей, прежние complete/route gates сохранены. expired — события таймаута и позднего ответа, могут учитывать один запрос повторно; не самостоятельный lost-packet count. Duplicate window bounded, это не полная capture-классификация. Общий loss label уточнён до reply loss, поскольку QUIC считает logical replies.
 
