@@ -9,7 +9,7 @@
 | Каталог | 51 case: 35 application +16 transport; индивидуальные duration/load, named suites | Новые QUIC/H3 multiplex и пять payload sweeps64/512/4096 имеют compilation-only статус; успешная продуктовая приёмка не доказана |
 | Прикладные профили | HTTP(S), WS(S), DNS TCP/UDP/DoT/DoH, TLS, SSH/SFTP, H2, gRPC unary/client/server/bidi streaming, QUIC/H3, mail/messaging | Исторические component results ниже относятся к своим ревизиям; migration/0-RTT не реализованы |
 | Очередь | Fresh OFF/UNRULED/route gates, cleanup, штатная остановка, guarded continuation после failure | Реальный cancel-during-load, HIGH и24/48/72h product acceptance не пройдены |
-| Runtime | Ubuntu22.04.5 IPv4, собственная служба/порты/PKI, exact plan/apply, rollback и durable APPLY_UNKNOWN | Последний deployment13 октября .180 bundle4c25... READY; новые Python summaries требуют fresh plan/apply перед product run; другие Ubuntu/IPv6/HTTP CONNECT отложены |
+| Runtime | Ubuntu22.04.5 IPv4, собственная служба/порты/PKI, exact plan/apply, rollback и durable APPLY_UNKNOWN | Fresh plan/apply14 октября: .180 bundle f6ea46b7...32d640 READY, service/hashes/listeners/applied=true; runtime acceptance новых summaries не заявлена; другие Ubuntu/IPv6/HTTP CONNECT отложены |
 | Результаты | History/paging, fail-closed comparison без fallback, CSV/JSON export, portable suite import/export, live signed origin counters | Новые exports/import/observer features не прошли GUI/runtime acceptance по запрету тестов тестера |
 | Метрики | Scope CPU/RAM/process coverage/memory delta; session setup p50/p95/p99/count; native UDP counters; отдельные baseline/workload/recovery и recovery RTT change | Новые сводки compiled; thresholds/verdict не ослаблены; абсолютная ёмкость/driver resources/short stalls не измерены |
 | Режимы | Comparison/CSV selector OFF/UNRULED/SOCKS5, без подстановки коротких controls | Полные OFF/UNRULED measurements доступны только three-modes; отсутствующие значения NOT_MEASURED |
@@ -18,6 +18,8 @@
 | Runtime adapters | Текущий driver contract | v4/reboot и произвольные комплекты/реальная установка требуют отдельного завершения и допуска; как готовые не заявлены |
 
 Следующие необходимые результаты: успешные реальные прогоны на работоспособной продуктовой сборке; затем отдельно допущенные HIGH/long/cancel-during-load и infrastructure interruptions/host-key rotation. До этого продолжать независимый функционал без повторения известного product control failure. Запрет тестов самого TestLab сохраняется; он не заменяется SDK/GUI/manual regression. Точный текущий checkpoint — [CHAT_HANDOFF_DEVELOPMENT.md](CHAT_HANDOFF_DEVELOPMENT.md).
+
+Текущий UI запущен без повышения на http://127.0.0.1:5204 (artifact ui-activity-observations), operational state active=false/admin=false. ProxyBridgeDrv14 октября наблюдался Stopped; продуктовая нагрузка не выполнялась. Это не подтверждение GUI/runtime acceptance новых функций.
 
 ## Исторические срезы до14 октября
 
