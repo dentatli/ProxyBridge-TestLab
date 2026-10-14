@@ -280,7 +280,6 @@ WantedBy=multi-user.target
         command("systemctl", "enable", SERVICE)
         command("systemctl", "restart", SERVICE)
         import time
-        # Cold dependency/service initialization can exceed the former three-second window.
         ready_deadline = time.monotonic() + 30
         for _ in range(300):
             after = state(payload)
