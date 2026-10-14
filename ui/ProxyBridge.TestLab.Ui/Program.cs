@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text.Json;
+using Microsoft.Extensions.FileProviders;
 using ProxyBridge.TestLab.Ui.Hubs;
 using ProxyBridge.TestLab.Ui.Models;
 using ProxyBridge.TestLab.Ui.Services;
@@ -116,12 +117,20 @@ app.Use(async (context, next) =>
     await next();
 });
 
-var defaultFiles = new DefaultFilesOptions();
+var requestedWebRoot = builder.Configuration["webroot"];
+var uiWebRoot = string.IsNullOrWhiteSpace(requestedWebRoot)
+    ? Path.Combine(paths.RepositoryRoot, "ui", "ProxyBridge.TestLab.Ui", "wwwroot")
+    : Path.GetFullPath(requestedWebRoot, app.Environment.ContentRootPath);
+if (!Directory.Exists(uiWebRoot)) throw new InvalidOperationException("TESTLAB_UI_ASSETS_NOT_FOUND");
+var uiFiles = new PhysicalFileProvider(uiWebRoot);
+app.Lifetime.ApplicationStopped.Register(uiFiles.Dispose);
+var defaultFiles = new DefaultFilesOptions { FileProvider = uiFiles };
 defaultFiles.DefaultFileNames.Clear();
 defaultFiles.DefaultFileNames.Add("lab.html");
 app.UseDefaultFiles(defaultFiles);
 app.UseStaticFiles(new StaticFileOptions
 {
+    FileProvider = uiFiles,
     OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache"
 });
 

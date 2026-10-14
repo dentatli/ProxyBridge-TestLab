@@ -2,6 +2,14 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
+## Восстановление UI после запуска из домашнего каталога — 2026-10-14
+
+Пользователь вручную остановил прежний UI10412 и запустил ui-run-options на5205 из C:\Users\LabAdmin. Новый backend реально стартовал (PID15216, API200), но HTML404: WebRootPath указывал на C:\Users\LabAdmin\wwwroot. Причина — ручная команда чата не передала --webroot, который штатный scripts/Start-TestLabUi.ps1 уже передаёт. Это ошибка команды/выбора static provider TestLab, не ProxyBridge или Ubuntu. Диагностическая копия/продукт/службы/трафик не затрагивались.
+
+Program.cs теперь явно связывает оба middleware (default lab.html и static files) с одним PhysicalFileProvider. По умолчанию wwwroot берётся из validated RepositoryRoot/ui/ProxyBridge.TestLab.Ui/wwwroot; явный --webroot сохраняет приоритет, относительный путь разрешается от ContentRoot. При отсутствии каталога — TESTLAB_UI_ASSETS_NOT_FOUND. Provider освобождается при остановке host. Произвольный cwd больше не определяет каталог страниц.
+
+UI build0warnings/errors PASS, artifact ui-webroot-fix. Изолированный неадминистративный экземпляр5206 с отдельным ConfigRoot запущен именно из C:\Users\LabAdmin без --webroot: GET /, /lab.html?page=run, /lab.css, /lab-traffic.js получили200 и правильные MIME, WinDbg checkbox отсутствует. Проверочный process штатно завершён Ctrl+C; новых test files нет. Автоматический рестарт административного5205 не повторялся после прежних policy rejections. Для пользовательского5205 требуется Ctrl+C в его окне и запуск новой ui-webroot-fix DLL с RepositoryRoot/UiPort. До этого конкретного ручного шага не считать фикс применённым к5205.
+
 ## Форма запуска без галочки WinDbg — 2026-10-14
 
 По прямому запросу пользователя удалена галочка WinDbg из пользовательского traffic launch. Удалены её RU/EN translations, DOM/listeners/button dependency, request field DebuggerInactive, backend guard, binding debugger_inactive и guard только собственного Invoke-TrafficLabRun.ps1. Автоматическое debuggerInactive=true не подставляется: пользовательский контракт больше не запрашивает это подтверждение. Организационное правило AGENTS для совместной VM/диагностических прогонов остаётся; диагностические контроллеры не менялись.
