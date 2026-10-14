@@ -1,5 +1,6 @@
 """All-sample latency and payload summaries, separate from product lifecycle."""
 from __future__ import annotations
+import math
 from typing import Any
 from trafficlab.protocol import Histogram
 
@@ -25,10 +26,37 @@ def udp_observations(values: list[dict[str, Any]]) -> dict[str, Any]:
             **{key: sum(flow.get(key, 0) for flow in flows) if flows else None for key in UDP_COUNTERS}}
 
 
+def phase_observations(stages: list[dict[str, Any]]) -> dict[str, Any]:
+    """Describe recorded phase windows without averaging stage percentiles."""
+    groups = {}
+    def finite(value: Any) -> bool:
+        return type(value) in (int, float) and math.isfinite(value) and value >= 0
+    for name in ("baseline", "workload", "recovery"):
+        rows = [row for row in stages if (row['phase'] if row['phase'] in ('baseline', 'recovery') else 'workload') == name]
+        elapsed = sum(row['elapsed_seconds'] for row in rows)
+        measured = [row['probe_p99_ms'] for row in rows if finite(row.get('probe_p99_ms'))]
+        group = {"recorded_stages": len(rows), "completed_stages": sum(row.get('complete') is True for row in rows),
+                 "elapsed_seconds": elapsed, "probe_stages_measured": len(measured),
+                 "worst_stage_probe_p99_ms": max(measured) if measured else None}
+        for direction in ('tx', 'rx'):
+            field = f'tcp_{direction}_bytes_per_second'
+            speeds = [row[field] for row in rows if finite(row.get(field))]
+            group[field] = sum(row[field] * row['elapsed_seconds'] for row in rows) / elapsed if elapsed > 0 and len(speeds) == len(rows) else None
+            group[f'min_stage_{field}'] = min(speeds) if speeds else None
+            group[f'max_stage_{field}'] = max(speeds) if speeds else None
+            group[f'{direction}_stages_measured'] = len(speeds)
+        groups[name] = group
+    baseline, recovery = groups['baseline'], groups['recovery']
+    comparable = all(group['recorded_stages'] == group['completed_stages'] == group['probe_stages_measured'] == 1 for group in (baseline, recovery))
+    return {"scope": "recorded-stages; baseline-and-recovery-excluded-from-workload; elapsed-weighted-payload-rates",
+            "groups": groups, "recovery_probe_p99_change_ms": recovery['worst_stage_probe_p99_ms'] - baseline['worst_stage_probe_p99_ms'] if comparable else None}
+
+
 def summary(report: dict[str, Any]) -> dict[str, Any]:
     if report.get("compact_stages"):
         resources = {role: {key:value for key,value in row.items() if key != "timeline"} for role,row in report.get("resources", {}).items()}
-        return {"stages": report["stages"], "resources": resources, "overall": report["overall"],
+        return {"stages": report["stages"], "resources": resources,
+                "overall": {**report["overall"], "phase_observations": phase_observations(report["stages"])},
                 "skipped_stage_count": report.get("skipped_stage_count", 0), "schedule_errors": report.get("errors", []),
                 "metric_scope": "identified-processes-separate-whole-OS-and-validated-payload",
                 "cpu_scope": "percent-of-all-logical-CPUs; whole-OS-includes-background-work", "driver_resource_attribution": False,
@@ -95,6 +123,7 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
     sent = sum(row["udp_sent"] for row in rows)
     udp_flows = sum(row['udp_observations']['flow_count'] for row in rows)
     overall = {"stage_scope": "all-stages-including-baseline-and-recovery", "elapsed_seconds": elapsed,
+        "phase_observations": phase_observations(rows),
         "tcp_tx_bytes_per_second": sum(row["tcp_tx_bytes_per_second"] * row["elapsed_seconds"] for row in rows) / elapsed if elapsed else None,
         "tcp_rx_bytes_per_second": sum(row["tcp_rx_bytes_per_second"] * row["elapsed_seconds"] for row in rows) / elapsed if elapsed else None,
         "probe_latency": {key: value for key, value in all_latency.view().items() if key not in ("bins", "sum_ms")},

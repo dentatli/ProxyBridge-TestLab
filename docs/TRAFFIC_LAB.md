@@ -4,6 +4,12 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
+## Исходный этап, нагрузка и восстановление — 2026-10-14
+
+Overall.phase_observations разделяет baseline/workload/recovery. Нагрузка исключает baseline/recovery; её средние payload speeds взвешены по длительности записанных stages. Сохраняются min/max скоростей целого этапа, худший stage p99 и coverage recorded/completed/measured stages. Худший p99 — максимум stage percentiles, не общий процентиль; stage minimum не измеряет короткие stalls. recovery_probe_p99_change_ms — recovery минус baseline только для одного завершённого этапа каждого типа с измеренным p99, без порога PASS. Неполные observations доступны в history отдельно от verdict.
+
+History показывает таблицу фаз; comparison/CSV имеют optional workload tx/rx/min stage tx/rx/worst stage p99/recovery change, с прежними complete/route gates выбранного режима. Обычный и compact/soak summary используют один helper; старые отчёты без поля не пересчитываются. Collectors/графики нагрузки/пороги не менялись. Python/JS compilation и UI build0 warnings/errors, без tests TestLab/GUI/product acceptance.
+
 ## Сравнение измеренных режимов — 2026-10-14
 
 Comparison selector OFF/UNRULED/SOCKS5 использует только полноценные result.measurements, не короткие controls. OFF/UNRULED измеряются в three-modes case; отсутствие выбранного режима подписано NOT_MEASURED с пустыми metrics, даже если весь attempt успешен. Метрики требуют полного attempt и complete/route_verified measurement. CSV включает measurement_mode и статус/ресурсные observations выбранного режима; history JSON содержит все исходные measurements. Группировка по условиям и verdict исходных отчётов не изменены. Node syntax/UI build0 warnings/errors, без tests TestLab/GUI/product acceptance.

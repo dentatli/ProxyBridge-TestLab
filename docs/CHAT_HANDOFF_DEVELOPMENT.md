@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: сравнение измеренных режимов — 2026-10-14
+## Текущий этап: отдельные фазы нагрузки и восстановления — 2026-10-14
+
+Overall.phase_observations сохраняет groups baseline/workload/recovery: число recorded/completed stages, elapsed, число stages с RTT/скоростями, elapsed-weighted payload tx/rx, min/max stage rates и worst_stage_probe_p99_ms. Workload исключает ровно baseline/recovery phases, остальные bounded application/transport stages включены. Худший p99 — максимум записанных stage percentiles, не новый aggregate percentile. recovery_probe_p99_change_ms вычисляется только при ровно одном complete baseline и одном complete recovery с finite p99; снижение сохраняется отрицательным, без нового PASS threshold. Stage min/max относятся к целым этапам, не кратковременным stalls. Пропущенные этапы не подменяются нулями; incomplete observations сохраняются явно.
+
+Обычный и compact/soak summary используют один helper по компактным stage rows; collectors/traffic schedules/verdict gates не менялись. History получил отдельную таблицу фаз, comparison/CSV — шесть optional нагрузочных/recovery показателей выбранного измеренного режима. Старые сохранённые reports без phase_observations остаются без новых cells, не переписываются и не вычисляются заново при чтении. Python compilation/Node syntax/UI build0 warnings/errors прошли; tests TestLab/GUI/product runs не выполнялись. Artifact ui-phase-observations собран, новый process/deployment не выполнялся. Этап mode comparison запушен `1511687`; текущую ревизию смотреть Git.
+
+Далее: независимые функции отчётов/очередей и явная карта готовности; реальная product/HIGH/long/cancel acceptance требует работоспособной продуктовой сборки и действующих environment gates. Не повторять известный product control FAIL и не создавать/запускать tests TestLab. Последнее наблюдение runtime/UI остаётся от13 октября: .180 bundle4c25..., обычная UI5203; новые Python sources требуют fresh plan/apply перед будущим product run. Диагностическая копия/комплекты не менялись.
+
+## Предыдущий этап: сравнение измеренных режимов — 2026-10-14
 
 Results comparison получил selector OFF/UNRULED/SOCKS5, default SOCKS5; выбранное значение сохраняется с choices в localStorage. Источник только result.measurements, короткие controls не используются. Режимы OFF/UNRULED есть у штатного three-modes case, для остальных отсутствие measurement даёт «Режим не измерен»/NOT_MEASURED и пустые benchmark metrics. Полный attempt и complete/route_verified выбранного measurement обязательны как раньше. CSV сохраняет measurement_mode, статус выбранного режима и resource metadata именно этого measurement; history JSON остаётся полной историей измерений всех режимов. Выбор режима не меняет условия группировки сборок или verdict исходного attempt.
 
