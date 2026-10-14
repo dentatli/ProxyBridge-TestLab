@@ -2,7 +2,13 @@
 
 Срез разработки: 2026-10-12. Новый путь Testing → remote → «Трафик, скорость, нагрузка и стабильность» использует собственные `TrafficRuntimeService`, `Invoke-TrafficLabRun.ps1` и пакет `src/trafficlab`. Общие диагностические контроллеры и их подготовки не изменены. Старый remote launch API сохраняет свой `REMOTE_CONTROLLER_PENDING`; новый каталог запускается через `/api/v1/lab/traffic/*` с отдельным допуском.
 
-С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
+2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. 2026-10-14 новым запросом разрешил запуск проверок короче5 минут; новые test files не запрошены. Не дробить длинный набор для обхода лимита. Исторические результаты ниже относятся только к своим ревизиям; короткие проверки не доказывают весь каталог или длительную стабильность.
+
+## Короткая проверка — 2026-10-14
+
+77 существующих Python tests PASS:66 Windows +11 Linux-only отдельно на .180 в изолированной temporary fixture с mocked service/PKI/dependency commands. Offline .NET apply checkpoint probe PASS; одноразовые Python/Node проверки новых normal/compact summaries, scopes/weights/recovery/modes/failure gates/CSV PASS. Новые test files не создавались. Браузер Results5205: actual UDP FAIL details/native counters4/0, OFF→SOCKS5, RU→EN→RU, actual CSV/JSON download+parse/schema/failure empty metric cells/pagination/cleanup PASS; console errors=[]; полноценный GUI/import/successful metrics acceptance не заявлены.
+
+Реальный ProxyBridge SHORT/LOW tcp-rtt+udp-connected с guarded continuation, run20261014-071814-69cfca6efb134488b6879301a17fe037, bundle f6ea46b7...32d640: оба FAILED/route unverified. TCP ConnectionAbortedError:TRANSPORT_FAILED; UDP UDP_TRANSPORT_FAILED,4sent0received/loss100%. По одному failed measured stage, controls OFF/UNRULED complete+route=true, CLI READY/full capture/normal cleanup. После TCP recovery guard разрешил UDP; оба failure сохранены. Estimate72s, cases9.609s/9.125s, RUNNING20.783s после подготовки. Final cleanup=true/active=false/driverStopped/no product process. Причина не исследовалась, продуктовый PASS отсутствует; известный сбой без нового основания не повторять. Fresh inspect ранее этого прогона подтвердил runtimeREADY, установка не менялась. UI5205 штатно повышена по новому запросу, admin=true; historical review rejection не обходился. Private reports/downloads/screenshot вне Git, диагностические комплекты не менялись.
 
 ## Активность после смены UI — 2026-10-14
 

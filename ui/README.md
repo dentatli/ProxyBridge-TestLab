@@ -61,7 +61,10 @@ and [operator guide](../docs/OPERATOR_GUIDE.md).
    JSON explicitly indicates remaining pages and does not claim an atomic full
    history snapshot. Unknown metrics remain empty, export size is limited to 8 MiB.
 
-Do not create or run tests of TestLab itself (user instruction, 2026-10-13).
+The user authorized running checks shorter than five minutes on 2026-10-14,
+superseding the earlier ban on running TestLab tests. Do not add new test files
+or split longer suites to evade the limit; product traffic still requires the
+debugger/diagnostic coordination gates.
 Use compilation/builds and authorized real ProxyBridge checks; historical
 unit/probe/component acceptance only applies to its recorded revision.
 

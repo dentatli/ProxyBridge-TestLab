@@ -1,25 +1,26 @@
 # Функциональная инвентаризация TestLab
 
-Срез разработки 2026-10-14 в `testlab-development/ProxyBridge-TestLab`, ветка `codex/development-functional-completion`. Реализация и фактическая приёмка различаются: компиляция новых функций не является продуктовым PASS. Диагностические исходники, рабочая копия, комплекты и журналы не менялись. С 13 октября по указанию пользователя тесты TestLab не создаются и не запускаются; ниже исторические результаты не распространяются на новые изменения.
+Срез разработки 2026-10-14 в `testlab-development/ProxyBridge-TestLab`, ветка `codex/development-functional-completion`. Реализация и фактическая приёмка различаются: компиляция новых функций не является продуктовым PASS. Диагностические исходники, рабочая копия, комплекты и журналы не менялись. 14 октября пользователь разрешил запуск проверок короче5 минут; новые test files не создавались. Ниже исторические результаты относятся только к своим ревизиям.
 
 ## Актуальное состояние — 2026-10-14
 
 | Область | Реализовано | Что подтверждено / что осталось |
 | --- | --- | --- |
+| Короткие проверки14 октября | Существующие Python tests, offline apply checkpoint, адресные summary/JS checks | 77 Python PASS:66 Windows +11 Linux-only на .180 в isolated mocked fixture; .NET checkpoint PASS. Полный каталог и длительная стабильность этим не подтверждены |
 | Каталог | 51 case: 35 application +16 transport; индивидуальные duration/load, named suites | Новые QUIC/H3 multiplex и пять payload sweeps64/512/4096 имеют compilation-only статус; успешная продуктовая приёмка не доказана |
 | Прикладные профили | HTTP(S), WS(S), DNS TCP/UDP/DoT/DoH, TLS, SSH/SFTP, H2, gRPC unary/client/server/bidi streaming, QUIC/H3, mail/messaging | Исторические component results ниже относятся к своим ревизиям; migration/0-RTT не реализованы |
 | Очередь | Fresh OFF/UNRULED/route gates, cleanup, штатная остановка, guarded continuation после failure | Реальный cancel-during-load, HIGH и24/48/72h product acceptance не пройдены |
 | Runtime | Ubuntu22.04.5 IPv4, собственная служба/порты/PKI, exact plan/apply, rollback и durable APPLY_UNKNOWN | Fresh plan/apply14 октября: .180 bundle f6ea46b7...32d640 READY, service/hashes/listeners/applied=true; runtime acceptance новых summaries не заявлена; другие Ubuntu/IPv6/HTTP CONNECT отложены |
-| Результаты | History/paging, fail-closed comparison без fallback, CSV/JSON export, portable suite import/export, live signed origin counters | Новые exports/import/observer features не прошли GUI/runtime acceptance по запрету тестов тестера |
-| Метрики | Scope CPU/RAM/process coverage/memory delta; session setup p50/p95/p99/count; native UDP counters; отдельные baseline/workload/recovery и recovery RTT change | Новые сводки compiled; thresholds/verdict не ослаблены; абсолютная ёмкость/driver resources/short stalls не измерены |
+| Результаты | History/paging, fail-closed comparison без fallback, CSV/JSON export, portable suite import/export, live signed origin counters | Actual Results RU/EN/modes/failed UDP details/CSV+JSON download+parse/empty failed metrics PASS, console errors=[]; suite import и вся GUI regression не проверены |
+| Метрики | Scope CPU/RAM/process coverage/memory delta; session setup p50/p95/p99/count; native UDP counters; отдельные baseline/workload/recovery и recovery RTT change | Адресные normal/compact/scopes/weights/recovery/mode/failure/CSV checks PASS; новые summaries реально записаны в failed product reports. Успешные performance metrics/ёмкость/driver resources/short stalls не подтверждены |
 | Режимы | Comparison/CSV selector OFF/UNRULED/SOCKS5, без подстановки коротких controls | Полные OFF/UNRULED measurements доступны только three-modes; отсутствующие значения NOT_MEASURED |
 | Смена controller | PREPARING/RUNNING от другого UI отображаются как activity unconfirmed, не как доказанное прерывание | Cross-controller ownership adoption/Stop/liveness/recovery не реализованы; файлы сохранённых attempts не меняются |
-| Последний ProxyBridge run | 13 октября app-quic-multiplex SHORT/LOW, run20261013-114313-051ee32e0dd347f5b2927f24c4de777c | FAILED до нового workload: OFF/UNRULED controls успешны, SOCKS5 control ConnectionAbortedError, stages0; cleanup=true/driverStopped на момент завершения. Причину расследует отдельный диагностический чат |
+| Последний ProxyBridge run | 14 октября TCP RTT + UDP connected SHORT/LOW, run20261014-071814-69cfca6efb134488b6879301a17fe037 | Оба FAILED, measured stages1 каждого: TCP ConnectionAbortedError:TRANSPORT_FAILED, UDP UDP_TRANSPORT_FAILED/4sent0received. OFF/UNRULED controls PASS; guarded continuation TCP→UDP, final cleanup=true/driverStopped/no product processes. Причина не исследовалась |
 | Runtime adapters | Текущий driver contract | v4/reboot и произвольные комплекты/реальная установка требуют отдельного завершения и допуска; как готовые не заявлены |
 
-Следующие необходимые результаты: успешные реальные прогоны на работоспособной продуктовой сборке; затем отдельно допущенные HIGH/long/cancel-during-load и infrastructure interruptions/host-key rotation. До этого продолжать независимый функционал без повторения известного product control failure. Запрет тестов самого TestLab сохраняется; он не заменяется SDK/GUI/manual regression. Точный текущий checkpoint — [CHAT_HANDOFF_DEVELOPMENT.md](CHAT_HANDOFF_DEVELOPMENT.md).
+Следующие необходимые результаты: успешные реальные прогоны на работоспособной продуктовой сборке; затем отдельно допущенные HIGH/long/cancel-during-load и infrastructure interruptions/host-key rotation. До этого продолжать независимый функционал без повторения известного product failure без нового основания. Короткие проверки разрешены новым запросом; длинные suites не дробить для обхода лимита. Точный текущий checkpoint — [CHAT_HANDOFF_DEVELOPMENT.md](CHAT_HANDOFF_DEVELOPMENT.md).
 
-Текущий UI запущен без повышения на http://127.0.0.1:5204 (artifact ui-activity-observations), operational state active=false/admin=false. ProxyBridgeDrv14 октября наблюдался Stopped; продуктовая нагрузка не выполнялась. Это не подтверждение GUI/runtime acceptance новых функций.
+Текущий UI http://127.0.0.1:5205 (artifact ui-activity-observations) штатно запущен с повышением по новому запросу, admin=true; actual Results открыт в браузере. Ordinary5204 не закрывалась. После прогона active=false/cleanup=true, ProxyBridgeDrv Stopped. Это ограниченная проверка, не подтверждение корректности всего приложения или продукта.
 
 ## Исторические срезы до14 октября
 
