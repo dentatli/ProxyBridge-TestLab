@@ -27,6 +27,7 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
     rows = []
     all_latency = Histogram()
     all_udp_latency = Histogram()
+    all_connection_latency = Histogram()
     for stage in report.get("stages", []):
         values = stage["results"]
         sent = sum(flow.get("sent", 0) for row in values for flow in row["flows"])
@@ -41,6 +42,7 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
                     (all_latency if row["task"] == "echo" else all_udp_latency).merge(flow["latency"])
                 if flow.get("connection_and_authentication_ms"):
                     connection_latency.merge(flow["connection_and_authentication_ms"])
+                    all_connection_latency.merge(flow["connection_and_authentication_ms"])
         def percentiles(histogram: Histogram) -> dict[str, Any]:
             return {key: value for key, value in histogram.view().items() if key not in ("bins", "sum_ms")}
         rows.append({"phase": stage["phase"], "complete": stage["complete"], "elapsed_seconds": stage["elapsed_seconds"],
@@ -85,6 +87,8 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
         "tcp_rx_bytes_per_second": sum(row["tcp_rx_bytes_per_second"] * row["elapsed_seconds"] for row in rows) / elapsed if elapsed else None,
         "probe_latency": {key: value for key, value in all_latency.view().items() if key not in ("bins", "sum_ms")},
         "udp_latency": {key: value for key, value in all_udp_latency.view().items() if key not in ("bins", "sum_ms")},
+        "connection_latency": {key: value for key, value in all_connection_latency.view().items() if key not in ("bins", "sum_ms")},
+        "connection_latency_scope": "completed-flow-churn-connections-including-origin-authentication",
         "udp_loss_fraction": (sent - sum(row["udp_received"] for row in rows)) / sent if sent else None,
         "application_transactions": sum(row["application_transactions"] for row in rows) if any(row["application"] for row in rows) else None,
         "tcp_completed": sum(row["tcp_completed"] for row in rows), "tcp_offered": sum(row["tcp_offered"] for row in rows)}
@@ -99,6 +103,7 @@ class SummaryWindow:
     def __init__(self) -> None:
         self.echo = Histogram()
         self.udp = Histogram()
+        self.connection = Histogram()
         self.seconds = 0.0
         self.tx = self.rx = self.sent = self.received = self.completed = self.offered = 0
 
@@ -112,10 +117,11 @@ class SummaryWindow:
         self.completed += compact["tcp_completed"]
         self.offered += compact["tcp_offered"]
         for row in stage["results"]:
-            if row["task"] in ("echo", "udp"):
-                for flow in row["flows"]:
-                    if flow.get("latency"):
-                        (self.echo if row["task"] == "echo" else self.udp).merge(flow["latency"])
+            for flow in row["flows"]:
+                if row["task"] in ("echo", "udp") and flow.get("latency"):
+                    (self.echo if row["task"] == "echo" else self.udp).merge(flow["latency"])
+                if flow.get("connection_and_authentication_ms"):
+                    self.connection.merge(flow["connection_and_authentication_ms"])
         return compact
 
     def view(self) -> dict[str, Any]:
@@ -124,5 +130,7 @@ class SummaryWindow:
                 "tcp_rx_bytes_per_second": self.rx / self.seconds if self.seconds else None,
                 "probe_latency": {key:value for key,value in self.echo.view().items() if key not in ("bins","sum_ms")},
                 "udp_latency": {key:value for key,value in self.udp.view().items() if key not in ("bins","sum_ms")},
+                "connection_latency": {key:value for key,value in self.connection.view().items() if key not in ("bins","sum_ms")},
+                "connection_latency_scope": "completed-flow-churn-connections-including-origin-authentication",
                 "udp_loss_fraction": (self.sent - self.received) / self.sent if self.sent else None,
                 "tcp_completed": self.completed, "tcp_offered": self.offered}

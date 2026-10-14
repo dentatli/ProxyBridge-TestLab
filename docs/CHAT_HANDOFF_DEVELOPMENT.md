@@ -2,7 +2,15 @@
 
 Дата разделения: 2026-10-08. Пользователь поставил завершение функционала приложения выше продолжения диагностики сбросов. Диагностика ведётся в отдельном чате по [своей передаче](CHAT_HANDOFF_DIAGNOSTIC.md); здесь её не продолжать и продукт не исправлять.
 
-## Текущий этап: размеры прикладных данных — 2026-10-13
+## Текущий этап: время соединения в сводке — 2026-10-14
+
+Пользователь возобновил разработку; запрет создавать и запускать тесты TestLab сохраняется. Добавлены overall.connection_latency и connection_latency_scope в обычную и compact/soak сводки. Используются существующие connection_and_authentication_ms сценария flow churn: bins всех этапов объединяются, процентили этапов не усредняются. Scope — только завершённые flow-churn exchanges, от начала соединения до authenticated origin ready; это не TCP RTT/TLS/SSH handshake. Histogram count/mean/max/p50/p95/p99/method сохраняются, отсутствие samples даёт count0 и null timings. Новых сетевых операций нет.
+
+History показывает общие p50/p95/p99/count; comparison/CSV получили четыре optional показателя RU/EN с пояснением scope и histogram upper bounds1%. Для failed/route-unverified attempts benchmark metrics остаются пустыми; старые сохранённые сводки без нового поля не пересчитываются. Python compilation, Node syntax и UI build завершились успешно, 0 warnings/errors; tests TestLab/GUI/product runs не выполнялись. Packaged artifact — artifacts/development-remote-wizard/ui-connection-metrics, новый процесс не запускался.
+
+Уточнение последнего deployment после payload checkpoint: штатный fresh plan/apply установил Ubuntu .180 bundle `4c25a61622a8e5a1819817710b9f58cae0af4eb94e18405551ea8f9a1e5d5b36`, READY/service_active/hashes_match/listeners/applied=true. Обычная UI5203 (ui-payload-sweep) была запущена; собственные idle ordinary UI5200/5202 были закрыты после проверки identity. Это состояние последнего наблюдения 2026-10-13, не свежая проверка 14 октября. Новая metrics.py меняет desired runtime bundle; перед будущим product run нужен fresh plan/apply. Повышенный запуск новой UI ранее отклонён automatic review (`blocked by policy`); обход не выполнялся. Последний реальный product run по-прежнему FAILED до начала нагрузки; не повторять известный контрольный сбой без нового основания, диагностику не продолжать здесь.
+
+## Предыдущий этап: размеры прикладных данных — 2026-10-13
 
 Добавлены пять separate application payload-sweep cases: HTTP/HTTPS/WSS/HTTP2/HTTP3 по64/512/4096 logical bytes, по одному stage на размер. Всего51 cases (35 application +16 transport), прежние25 TCP/5 UDP. HTTP2 и HTTP3 сохраняют три outstanding streams, HTTP3 — новый multiplex profile; HTTP/HTTPS сохраняют CL/chunked×identity/gzip, WSS — single/fragmented/control profile. Это logical request payload, не размер IP packet/TLS record/MTU и не max throughput. Recipe sizes bounded1..4096/<=4 unique stages, явный size sweep только для поддержанных пяти protocols; остальные defaults512 не менялись. Каждый новый phase/run identity и прежние full payload/HMAC/route/cleanup gates сохранены. После failed stage дальнейшая load по-прежнему останавливается.
 

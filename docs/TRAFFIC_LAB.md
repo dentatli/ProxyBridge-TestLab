@@ -4,6 +4,12 @@
 
 С 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. Исторические результаты ниже относятся только к указанным прошлым ревизиям. Дальнейшие изменения контролируются сборкой/компиляцией и реальными продуктовыми проверками; unit/SDK/GUI regression тесты тестера не добавлять и не запускать.
 
+## Время соединения — 2026-10-14
+
+Сводка обычных и compact/soak прогонов сохраняет connection_latency: count/mean/max/p50/p95/p99/method. Источник — уже собранные гистограммы connection_and_authentication_ms flow churn, объединённые по всем этапам без усреднения процентилей. Время включает соединение и аутентификацию получателя до ready, только для завершённых обменов; не является TCP RTT или TLS/SSH handshake. Гистограммные процентили — верхние границы с шагом1%. Без samples timings=null; старые сохранённые отчёты не пересчитываются.
+
+History показывает сводку, comparison/CSV имеют четыре optional показателя p50/p95/p99/count. Failed/route-unverified attempts не получают benchmark metrics. Python/JS compilation и UI build0 warnings/errors; tests TestLab и runtime acceptance новых показателей не выполнялись.
+
 ## Размеры прикладных данных — 2026-10-13
 
 Пять новых cases HTTP/HTTPS/WSS/HTTP2/HTTP3 используют три separate stages по64/512/4096 logical request bytes. Это не размер IP packet/TLS record/MTU. HTTP2/HTTP3 сохраняют multiplex three-stream gates; HTTP/HTTPS — framing/compression combinations, WSS — fragmentation/control validation. Каждый stage имеет отдельную session identity; полный payload/HMAC/route/cleanup обязателен. Неподдерживаемые profiles/size>4096/>4 или повторяющиеся stages отклоняются. Defaults прежних cases не меняются. Worker/summary фиксирует application_payload_bytes, DNS оставляет null.
