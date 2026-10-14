@@ -4,6 +4,14 @@
 
 2026-10-13 пользователь запретил создавать/запускать тесты самого TestLab ради снижения расхода. 2026-10-14 новым запросом разрешил запуск проверок короче5 минут; новые test files не запрошены. Не дробить длинный набор для обхода лимита. Исторические результаты ниже относятся только к своим ревизиям; короткие проверки не доказывают весь каталог или длительную стабильность.
 
+## Один TCP flow с исправленным профилем — 2026-10-14
+
+По отдельному допуску обновлён own .180 runtime и выполнен ровно один tcp-rtt SHORT/LOW. Первый apply d697... дал неподтверждённый rollback; фактическая прежняя f6ea... затем read-only проверена READY. Journal показал start→READY6.28s при прежнем3s окне. Activation/rollback wait исправлен на monotonic30s/max300 polls с прежними predicates;11 Linux installer tests PASS в isolated mocked fixture. Fresh plan/apply d054a356e81dc6e841d5fe61c9de1bf0b609c4160c7d0827bb2a5160ae59622c READY/hashes/service/listeners/applied=true. Исторический ERROR receipt и failed version сохранены.
+
+Run20261014-082423-6c85c75d5bf54fd59e48fc035eacb820: controls OFF/UNRULED TCP PASS, оба CLI подтверждают1 SOCKS5 config нужного endpoint42502/id1 и1 added0failed rule. Measured worker complete=true/errors=[], один echo flow,9,912,320 bytes TX и RX, connect4.6768ms,6.00047s. Общий результат FAILED: post-stage origin=null, исключение origin_metrics не сохранено текущим catch, stage.complete=false/route=false. Это успешный обмен payload при неподтверждённой полной route reconciliation, не продуктовый PASS. Старый нулевой payload больше не наблюдался в этом run; причинная атрибуция старого отказа этим полностью не доказана.
+
+Оба private console JSONL реально сохранены без truncation: SOCKS5 10,540 file/4,422 source bytes, UNRULED-control4,309/2,395; независимо проверены file и full raw stream hashes. Lifecycle содержит input profile SHA/startup metadata/retention и штатный cleanup. C0000225/WSA10022 text не найден, kernel trace не собирался. Final active=false/cleanup=true/driverStopped/no product process. UDP/HIGH/WinDbg не запускались. Дальше разбирать отсутствие final origin metrics; не ослаблять gates, не менять прежний FAILED и не повторять нагрузку автоматически.
+
 ## Совместимость профиля и CLI evidence — 2026-10-14
 
 После отдельного offline review установлен numeric/string mismatch Port: pinned CLI читает ProxyConfigs[].Port через jstr, поэтому генератор теперь пишет строку. Нагрузке предшествует отдельное подтверждение startup output:1 parsed config/1 parsed rule,1 added/0 failed, один SOCKS5 endpoint нужного host/port с positive DLL ID. READY без этого даёт TRAFFIC_CLI_PROFILE_NOT_CONFIRMED; наблюдение READY всё равно сохраняется для ownership cleanup. Неизвестный CLI text contract блокирует подтверждение. Исходный runtime FAIL и прежний C0000225 этим исправлением ещё не объяснены доказательно; context query/SOCKS5 handshake остаются непроверенными.

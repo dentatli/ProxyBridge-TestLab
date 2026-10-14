@@ -280,11 +280,16 @@ WantedBy=multi-user.target
         command("systemctl", "enable", SERVICE)
         command("systemctl", "restart", SERVICE)
         import time
-        for _ in range(30):
+        # Cold dependency/service initialization can exceed the former three-second window.
+        ready_deadline = time.monotonic() + 30
+        for _ in range(300):
             after = state(payload)
             if after["state"] == "READY":
                 return {**after, "applied": True, "rollback_attempted": False}
-            time.sleep(0.1)
+            remaining = ready_deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            time.sleep(min(0.1, remaining))
         raise ValueError("TRAFFIC_POST_APPLY_VERIFICATION_FAILED")
     except Exception:
         if not activation_started:
@@ -306,10 +311,14 @@ WantedBy=multi-user.target
             if own_active:
                 command("systemctl", "start", SERVICE)
             import time
-            for _ in range(30):
+            recovery_deadline = time.monotonic() + 30
+            for _ in range(300):
                 if restored(old_link, old_unit, own_active, old_enabled, old_payload):
                     break
-                time.sleep(0.1)
+                remaining = recovery_deadline - time.monotonic()
+                if remaining <= 0:
+                    raise RollbackFailure('TRAFFIC_ROLLBACK_VERIFICATION_FAILED')
+                time.sleep(min(0.1, remaining))
             else:
                 raise RollbackFailure('TRAFFIC_ROLLBACK_VERIFICATION_FAILED')
         except Exception as recovery_error:
