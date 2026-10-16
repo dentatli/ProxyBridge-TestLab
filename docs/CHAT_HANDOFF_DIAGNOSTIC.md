@@ -1,8 +1,10 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт новой пробы16 октября](KERNEL_CONTEXT_MINIMAL_PROBE_2026-10-16.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт регистрации семи отключённых точек16 октября](KERNEL_CONTEXT_MINIMAL_STAGE_2026-10-16.md). Старые NEXT из исторического журнала не выполнять как текущий план.
 
 ## Возобновление старого KD исследования — 2026-10-16
+
+Актуальное обновление: USER probe из r2 прошла. Attachment9e0dddc2/6554bytes/SHAe958235cb22fa2f9b4d9aa7795cae7bd3dcbc624e12c749fad860d492e448edc: exactcommands/7syntheticformats/7guards/MASM/emptyblbeforeafter/markersOK/noerrors/separateg. Realreads/gc/Corebinding/rootcause не проверены. Новый stage7 и JSON-описание подготовлены files-only; каждый bp→bd при остановленном target, без be/внешнегоg/Run, ручное условие fresh emptybl. DesktopPB-KD-Minimal-Stage-20261016.zip5113bytes/SHA9514e3cb1e411b92a75a89d56b409f02c1436813fcb202f0e86abb161723a9e8; CRC/roundtrip/escaping/8protectedfilesunchanged. Физический перенос/disabled registration ещё не подтверждены. Следующий USER шаг — transfer/hash/extract; затем отдельно BreakWARNwholeVM/Codex/RDP→emptybl/MASM→loadONCE→bd*→bl→gSEPARATEevenerror (bd* только при пустом входном списке). Текущий документ выше содержит точные команды/границы. Private audit minimal-disabled-stage/probe-review.json и validation.json. Stage7 ещё не исполнялся, baselinekit отсутствует, enable/Run/traffic не разрешены. Ниже сохранена последовательность прежних свидетельств, не повторять завершённые шаги.
 
 USER восстановил подключение: WinDbg engine10.0.29661.1004, pipe PB-Context-KD, `Kernel Debugger connection established`, target26100 x64/MP6, uptime12m06.695s; вывод22:18:55UTC+5. 80000003 объяснён самим console как ручной Break, в конце введён отдельный g. USER read-only подтвердил hostCOM1/Running и guestBCD Serial/port1/115200/debugYes; агент не менял настройки и не управлял debugger.
 

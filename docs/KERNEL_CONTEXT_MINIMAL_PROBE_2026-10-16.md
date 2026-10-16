@@ -1,5 +1,7 @@
 # Код выбранных мест подтверждён; следующий шаг — проба форматов и guards
 
+**Обновление:** USER проба из attachment9e0dddc2 прошла; отдельный g записан. Текущий стоп-пункт — [новая регистрация семи отключённых точек](KERNEL_CONTEXT_MINIMAL_STAGE_2026-10-16.md). Пробу повторять не требуется; дальнейший текст сохраняет условия и состояние её подготовки.
+
 USER attachment d5231444, 10131 bytes, SHA256 `1490f462856db2852ca7480516449419544e5c7ade80c2abf6ca5ebc083e046b` сохранён без изменений. Прочитано124 live-инструкции:116 byte-exact PE,8 составляют4 структурные пары import-call rewrite (mov R10 из того же IAT + direct call вместо indirect call/NOP). Неклассифицированных различий нет. Все7 выбранных sites byte-exact; один padding INT3 не выводился uf. Это ограниченная проверка кода, не whole-image hash и не наблюдение исполнения lifecycle. Audit `artifacts/diagnostics/pb-kd-reconnect-review-20261016/live-code-validation.json`.
 
 UF выдал `Unable to load image ... NETIO.SYS, Win32 error 0n2`; нужные инструкции TCP/IP при этом выведены. Два NETIO call targets сохранены как адреса без подтверждения NETIO identity/символов. Это ограничение разрешения внешних вызовов, не доказательство отказа продукта. Для нового профиля точки NETIO не предлагаются. IDCHECK успешно прочитал текущий ETHREAD.Cid: PID/TID0/0, без syntax/memory ошибок; это не nonzero owned PID/TID или query Core binding. Отдельный g записан.

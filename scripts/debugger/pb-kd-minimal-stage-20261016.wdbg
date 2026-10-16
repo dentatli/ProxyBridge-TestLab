@@ -1,0 +1,25 @@
+$$ USER ONLY, fresh empty bl and MASM required. Do not load twice.
+$$ Matching current symbols and seven selected code sites were reviewed.
+$$ Each bp initially registers enabled, then bd disables it while target stays stopped.
+$$ No be, target execution, workload, or outer g. Review all seven d states before resume.
+$$ On any error: do not reload; use bd * separately, then bl, then g separately.
+.echo PBKDM_STAGE_BEGIN REQUIRE_EMPTY_BL_AND_MASM
+.expr
+bl
+bp0 tcpip!AlepCreateRedirectRecord+0x396 ".if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1) and ($vvalid(@rax,0x1f4) == 1)) { .printf \"PBKDM CREATE_POST thread=%p pid=%I64x tid=%I64x scope=%p ep=%p assigned=%p record=%p context=%p size=%I64x refs=%x familyA=%x portA=%x addrA=%x familyB=%x portB=%x addrB=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0), wo(@rax+0x48), wo(@rax+0x4a), dwo(@rax+0x4c), wo(@rax+0xc8), wo(@rax+0xca), dwo(@rax+0xcc); } .else { .printf \"PBKDM_UNREADABLE event=CREATE_POST thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; }; gc;"
+bd [0n0]
+bp1 tcpip!WfpAleAuthorizeAccept+0xcaf ".if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1) and ($vvalid(@rbp-0x28,8) == 1)) { .printf \"PBKDM ACCEPT_RETRIEVE_RESULT thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p status=%x raw_output_slot=%p previous=%p\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, @rbx, @eax, poi(@rbp-0x28), poi(@rdi+0x1c0); } .else { .printf \"PBKDM_UNREADABLE event=ACCEPT_RETRIEVE_RESULT thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; }; gc;"
+bd [0n1]
+bp2 tcpip!WfpAleAuthorizeAccept+0xcbe ".if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x30,0x198) == 1)) { .printf \"PBKDM ACCEPT_JOIN thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p observed_record=%p raw_flags=%x raw_esi=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, @rbx, poi(@rdi+0x1c0), dwo(@rdi+0x30), @esi; } .else { .printf \"PBKDM_UNREADABLE event=ACCEPT_JOIN thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; }; gc;"
+bd [0n2]
+bp3 tcpip!WfpAleProcessSocketOption+0x2c4 ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_READ thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;"
+bd [0n3]
+bp4 tcpip!WfpAleProcessSocketOption+0x47b ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_STATUS thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p status=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @ebx; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_STATUS thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;"
+bd [0n4]
+bp5 tcpip!AleRedirectRecordFree+0xd ".if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rbx+0x1e0,0x14) == 1)) { .printf \"PBKDM FREE_ENTER thread=%p pid=%I64x tid=%I64x scope=%p slot=%p record=%p refs=%x context=%p size=%I64x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rcx, @rbx, dwo(@rbx+0x1f0), poi(@rbx+0x1e0), poi(@rbx+0x1e8); } .else { .printf \"PBKDM_UNREADABLE event=FREE_ENTER thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; }; gc;"
+bd [0n5]
+bp6 tcpip!AleRedirectRecordFree+0x76 ".if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1)) { .printf \"PBKDM FREE_CALL_RETURN thread=%p pid=%I64x tid=%I64x scope=%p former_record_address=%p\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rbx; } .else { .printf \"PBKDM_UNREADABLE event=FREE_CALL_RETURN thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; }; gc;"
+bd [0n6]
+.echo PBKDM_STAGE_REGISTRATION_ATTEMPT_ENDED_REVIEW_REQUIRED
+bl
+.bpcmds
