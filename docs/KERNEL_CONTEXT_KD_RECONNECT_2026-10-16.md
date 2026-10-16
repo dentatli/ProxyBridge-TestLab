@@ -1,8 +1,10 @@
-# Точек нет; следующий шаг — обновить список модулей WinDbg
+# Модули найдены; следующий шаг — локальные PDB на физическом хосте
 
 USER прислал вывод WinDbg 2026-10-16: pipe PB-Context-KD открыт, `Kernel Debugger connection established`, target 26100 x64 / ptr64 TRUE / MP6, время подключения 22:18:55 UTC+5. Uptime при остановке 12m06.695s. Сообщение 80000003 явно объясняет остановку ручным Break, а не crash Windows. В конце excerpt присутствует отдельная команда `g`. Это USER paste, не полученный оригинальный host log.
 
-Следующий полный USER paste подтвердил: bl и bpcmds пусты, evaluator MASM, в конце отдельный g. В текущем сеансе нет зарегистрированных точек, в том числе прежних25. `lmvm nt` вывел PDB `B661C6FE72991D160FE37C48B8BC54701`, Brepro hash AFF6531F, checksum C8AD9C, size1450000. Эти headers/PDB key совпали с нынешним дисковым ntoskrnl.exe. Это не live whole-image SHA. `lmvm tcpip` и `lmvm fwpkclnt` дали только заголовки без строк модулей; причина пока неизвестна. Нельзя из пустого вывода объявить драйверы незагруженными или потерявшими redirect context.
+Первый полный USER paste подтвердил: bl и bpcmds пусты, evaluator MASM, в конце отдельный g. Прежние25 точек в новом сеансе отсутствуют. `lmvm nt` вывел PDB `B661C6FE72991D160FE37C48B8BC54701`, Brepro hash AFF6531F, checksum C8AD9C, size1450000. Эти headers/PDB key совпали с нынешним дисковым ntoskrnl.exe. Это не live whole-image SHA. До обновления списка `lmvm tcpip` и `lmvm fwpkclnt` дали только заголовки без строк модулей; причина исходного пустого списка не установлена. Нельзя из него объявить драйверы незагруженными или потерявшими redirect context.
+
+USER выполнил .reload /s и прислал полный console: после уведомлений о связи22:36:23.508 и22:36:36.402 появились tcpip base5b1a0000/end5b4fa000, tcpipreg base5dce0000/end5dcf6000 и fwpkclnt base5b500000/end5b58b000. У tcpip/fwpkclnt symbol state deferred, headers точно совпали с таблицей ниже. В конце отдельный g. Обновление module list теперь подтверждено; deferred не означает ошибку загрузки драйвера. Два уведомления Connected не доказывают reboot. Private наблюдение: module-refresh-observation.json в том же audit. Загрузка актуальных PDB на физическом хосте и текущие инструкции/условия всё ещё не проверены.
 
 Нормализованная локальная транскрипция USER paste имеет SHA256 `8609ebc2aca400760feffc854242c6b5e904c8cf60d18896aed7e4ba9cdebc53`; это не SHA исходного host console/log. Проверка и текущие disk PE/CodeView: `artifacts/diagnostics/pb-kd-reconnect-review-20261016/inventory-validation.json`.
 
@@ -10,7 +12,7 @@ USER прислал вывод WinDbg 2026-10-16: pipe PB-Context-KD откры�
 
 Это возобновление старого исследования C0000225/WSA10022. [Свежий TCP/UDP отказ 14 октября](TRAFFIC_FAILURE_OFFLINE_REVIEW_2026-10-14.md) остаётся отдельным случаем с обнаруженной несовместимостью формата Port; его runtime-причина и прежний context signature не доказаны. Подключение WinDbg не разрешает новый Run ни одной серии.
 
-Новая загрузка и новый сеанс требуют проверки. Старые25 IDs отсутствуют; это не разрешает повторить старый stage. Live tcpip/fwpkclnt headers/PDB и прежние инструкции/смещения не проверены; совпадение только build26100 недостаточно. На диске ntoskrnl и fwpkclnt имеют version26100.9711, tcpip —26100.8875, но SHA и CodeView keys всех трёх отличаются от данных8 октября. Совпадение строки версии tcpip не означает прежний PE/PDB.
+Новая загрузка и новый сеанс требуют проверки. Старые25 IDs отсутствуют; это не разрешает повторить старый stage. Live tcpip/fwpkclnt headers теперь подтверждены, загрузка PDB и прежние инструкции/смещения — нет. На диске ntoskrnl и fwpkclnt имеют version26100.9711, tcpip —26100.8875, но SHA и CodeView keys всех трёх отличаются от данных8 октября. Совпадение строки версии tcpip не означает прежний PE/PDB.
 
 | Дисковый образ | Brepro hash / checksum / ImageSize | CodeView key |
 | --- | --- | --- |
@@ -20,22 +22,46 @@ USER прислал вывод WinDbg 2026-10-16: pipe PB-Context-KD откры�
 
 Из151 прежних защищённых entries150 совпадают. Единственное выявленное отличие — внешний `codex-primary-runtime/dependencies/python/python.exe`: saved SHA10d845f5… против нынешнего b847bb9f…, при той же file version3.12.14. В старом kit163607 совпадают69/70 frozen entries; поэтому текущая проверка его freeze уже не проходит. Ни manifest, ни старые данные/kit-файлы не переписывались, refreeze/Resume не выполнялись. Причина/автор изменения runtime не установлены. Это ещё одна причина не запускать старый комплект.
 
-## Подготовить на физическом хосте
+## Новые PDB подготовлены только файлами
+
+В старом чате «Изучи проект ProxyBridge-TestLab» успешный путь8 октября подтверждён USER attachment887bb38e: локальные PDB в C:\PB-KD-Symbols → .sympath → отдельные .reload /f → lmvm с pdb symbols. Этот метод повторяется с новыми файлами/папкой; старый архив не подходит к новым CodeView keys.
+
+Новый архив на Desktop VM: `PB-KD-Symbols-20261016.zip`, 3416856 bytes, SHA256 `6b1dd40d4551e1af10e876a621f26112bfe89a625f96a96e169f667f70c38f8a`. Внутри ntkrnlmp.pdb11522048bytes, tcpip.pdb2273280bytes, fwpkclnt.pdb446464bytes, manifest.json и README.txt. PDB получены с HTTPS Microsoft symbol server; GUID и **DBI age** всех3 совпали с PE CodeView, отдельно записан save age. ZIP CRC и распаковка byte-exact проверены, Desktop copy exact. Это не проверка загрузки символов в WinDbg или whole live image. Старые archive/manifest/стaging файлы не изменялись. Audit `artifacts/diagnostics/pb-kd-symbol-recovery-20261016/validation.json`.
+
+## 1. Перенести на физический хост, без Break
+
+Скопировать архив с Desktop VM на физический ПК в `C:\Users\Administrator\Downloads\PB-KD-Symbols-20261016.zip`. В PowerShell физического ПК проверить:
+
+`Get-FileHash -LiteralPath 'C:\Users\Administrator\Downloads\PB-KD-Symbols-20261016.zip' -Algorithm SHA256 | Select-Object -ExpandProperty Hash`
+
+Ожидается SHA256 `6B1DD40D4551E1AF10E876A621F26112BFE89A625F96A96E169F667F70C38F8A`. При отличии или отсутствии файла Break не выполнять. Старую C:\PB-KD-Symbols не менять. Распаковать в новую папку, без -Force:
+
+`Expand-Archive -LiteralPath 'C:\Users\Administrator\Downloads\PB-KD-Symbols-20261016.zip' -DestinationPath 'C:\PB-KD-Symbols-20261016'`
+
+Проверить, что три PDB лежат непосредственно в этой папке:
+
+`Get-ChildItem -LiteralPath 'C:\PB-KD-Symbols-20261016' -Filter '*.pdb' | Select-Object Name,Length`
+
+Следующий ручной этап — только после совпадения физического SHA и проверки распаковки. Если каталог уже содержит другие файлы или Expand-Archive отказал, не перезаписывать: прислать вывод. Проверка local archive агентом не заменяет physical file presence/hash.
+
+## 2. Проверить локальную загрузку символов, без точек и workload
 
 Сохранить эту страницу и команды до Break. Убедиться, что на общей VM не идёт согласованный runtime другого чата; при активном прогоне Break отложить до его завершения. Агент в WinDbg не действует, нагрузку не запускает. USER предпочитает присылать полный console вывод в чат: logopen/logclose не требуются.
 
 **Break останавливает всю PB-BUILD-W11-25H2, включая Codex и RDP.** Если WinDbg уже стоит на активном kd>, новый Break не нужен. Каждую команду вводить отдельно, Enter после каждой; весь список блоком не вставлять. Не добавлять `; g` к другой команде.
 
-После одного USER Break выполнить следующий проверочный шаг. [Microsoft описывает .reload](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-reload--reload-module-) как обновление module list и symbol metadata; без /f используется lazy loading. Устаревший/неполный список модулей — пока только гипотеза, обновление ещё не выполнялось и его успех не заявляется. Параметры /f, /i, /o, ручные base/size не добавлять. Здесь не вызываются DriverEntry/SCM и не устанавливаются драйверы на target.
+После одного USER Break выполнить отдельные команды. Здесь /f запрашивает загрузку заранее проверенных PDB с локального диска физического хоста. /i, /o, guessed base/size не использовать. Путь целиком локальный, чтобы не рассчитывать на скачивание при остановленной VM. Windows драйверы/DriverEntry/SCM этими командами не запускаются.
 
-1. `.reload /s`
-2. `lm m *tcp*`
-3. `lm m *fwpk*`
-4. `lmvm tcpip`
-5. `lmvm fwpkclnt`
-6. `g`
+1. `.sympath C:\PB-KD-Symbols-20261016`
+2. `.reload /f nt`
+3. `.reload /f tcpip.sys`
+4. `.reload /f fwpkclnt.sys`
+5. `lmvm tcpip`
+6. `lmvm fwpkclnt`
+7. `dt nt!_ETHREAD Cid`
+8. `g`
 
-Последний g всегда отдельный, даже при ошибке чтения/символов. При ошибке .reload не повторять/не пробовать другие flags, сохранить её и результаты последующих lm, затем g отдельно. Если неожиданная остановка повторится, сохранить её сообщение и g отдельно; не начинать workload. Полный вывод отправить в чат после g. Даже если строки снова пусты, не загружать модуль по guessed base из старого сеанса.
+Ожидаются локальные pdb symbols обоих сетевых модулей, matching identities и доступный Cid type; это не доказывает чтение nonzero owned PID/TID или исполнение точек. При ошибке загрузки не повторять/не пробовать другие flags: пропустить оставшиеся probes и ввести g отдельно. Последний g всегда отдельный, даже при ошибке. Полный вывод отправить в чат после g. Даже если строки снова пусты, не загружать модуль по guessed base из старого сеанса.
 
 Ничего не регистрировать, не включать, не удалять и не подгружать stage/patch. В этом read-only шаге не выполнять bd по прежним IDs вслепую: состав и принадлежность нынешних точек ещё не проверены. При непустом bl сохранить весь список и тела; не трогать чужие точки. Команда [lm с verbose output](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/lm--list-loaded-modules-) показывает в том числе headers/версии и состояние symbols; если поля недоступны, это ограничение данных, не доказательство identity match.
 
