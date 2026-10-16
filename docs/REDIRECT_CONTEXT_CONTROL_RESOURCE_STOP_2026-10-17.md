@@ -1,0 +1,31 @@
+# Контроль остановлен до генератора: недостаточно доступной RAM
+
+17 октября 2026, Asia/Yekaterinburg. Один согласованный USER Run выполнен: `pb-redirect-control-run-20261016-193023-40495829`, 19:30:23–19:30:30 UTC (00:30 местного времени). Итог `REDIRECT_CONTROL_CAPTURE_INCOMPLETE`; повторного запуска нет. Этот документ заменяет прежний стоп-пункт ожидания запуска [подготовленного контроля](REDIRECT_CONTEXT_CONTROL_2026-10-17.md).
+
+## Подтверждено сохранёнными файлами
+
+- На первой фазе baseline4 ресурсная проверка получила `free_physical_bytes=396574720` (378.2 МиБ), при обязательном минимуме `2147483648` (2 ГиБ). `memory_bound_met=false`, `disk_bound_met=true` (на диске около50.9 ГиБ). Ошибка `CONNECTION_LOAD_RESOURCE_BOUND` — результат именно проверки памяти, не отказ TCP.
+- В модуле `RedirectControlConnectionLoad.psm1` эта проверка предшествует запуску native receiver/client. В baseline сохранены только resource-observation/phase-receipt; client/receiver launch/process/CSV отсутствуют. Фазы64/256/640/заключительные4 не начинались. Четыре TCP-соединения также не были выполнены.
+- CLI успел запуститься, загрузил один proxy config и правило, вывел `ROUTECASE case=original`. Исходных диагностических query нет. Это не подтверждение и не опровержение исходного отказа10022/C0000225. Отдельный Direct event постороннего процесса в CLI не является диагностическим cohort.
+- `cli-lifecycle.json`: ready/graceful_stop/post_stop_verified/output_capture_complete=true, forced_stop=false, cleanup_error пуст. Helper proxy и sampler exit0, forced_stop=false. `run-receipt.json`: workers_stopped=true, driver_stop_observed=true. Служба после опыта Stopped, product-processes-after пуст, выбранное имя драйвера отсутствует в after-инвентаре. Наблюдатель не увидел известных объектов WFP. Полная видимость всех источников перехвата по-прежнему не доказана; `interception_cleanup_verified=false` не превращается в true.
+- Общие ошибки отчёта `PRODUCT_LIFECYCLE_INCOMPLETE` и `RUN_OR_CLEANUP_INCOMPLETE` не доказывают отдельный дефект очистки: первая выставляется также при непустом cli.error (здесь исходная resource-ошибка), вторая — при FAILED статусах, даже если оба cleanup-флага true. `NO_QUERY_METADATA` и отсутствие client.csv ожидаемы после остановки до генератора. Исходный отчёт не изменялся.
+
+Private audit: `artifacts/diagnostics/pb-redirect-control-resource-review-20261017/validation.json` и `input-sha256.json`. Все30 файлов захвата хешированы и повторно проверены неизменными. Run ссылается на прежний plan SHA `68670ff7935c6d9c628322dba7a6bf52d9c22d7a95cba165a9cd742b5ba74097`; kit/manifest/capture не переписаны. Приватные данные не добавляются в Git.
+
+## Дополнительное наблюдение и пределы
+
+Read-only CIM после опыта (19:31:08 UTC): видимая RAM8588718080bytes (около8 ГиБ), свободно647348224bytes (617.4 МиБ). Отдельный снимок процессов показал60 msedgewebview2,24 python,24 node и14 ChatGPT. Суммы working set включают общие страницы: их нельзя складывать как независимое физическое потребление или считать гарантированно освобождаемой памятью. Владельцы этих процессов и причина давления на память не установлены. Агент ничего не завершал и не менял конфигурацию VM.
+
+Нехватка памяти доказана только для этого нового контроля. Она не установлена как причина исторических TCP-сбросов. Порог ресурса не понижаем ради прохождения серии; продукт и диагностические исходники не изменены.
+
+## Текущий стоп-пункт
+
+Один разрешённый запуск использован. До нового runtime нужно восстановить запас памяти: USER может штатно закрыть ненужные приложения в VM, сохранив работу. Не завершать неизвестные процессы, не менять RAM/питание/BCD/гипервизор и не перезапускать VM автоматически. Точки WinDbg оставить отключёнными; Break для проверки памяти не нужен.
+
+Безопасная read-only команда внутри VM:
+
+```powershell
+Get-CimInstance Win32_OperatingSystem | Select-Object @{Name='TotalGiB';Expression={[math]::Round($_.TotalVisibleMemorySize/1MB,2)}},@{Name='FreeGiB';Expression={[math]::Round($_.FreePhysicalMemory/1MB,2)}}
+```
+
+Нужен запас выше2 ГиБ, поскольку helpers/CLI тоже расходуют память до cohort gate. После получения доступного объёма — files-only подготовка нового отдельного комплекта и конкретное согласование одного повтора. Использованный190400 не Resume/refreeze/переиспользовать. Новый Run, включение точек и изменения системы этим разбором не разрешены. Агент выполнил только чтение/аудит файлов, read-only телеметрию и документацию.
