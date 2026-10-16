@@ -4,9 +4,11 @@
 
 ## Возобновление старого KD исследования — 2026-10-16
 
-USER восстановил подключение: WinDbg engine10.0.29661.1004, pipe PB-Context-KD, `Kernel Debugger connection established`, target26100 x64/MP6, uptime12m06.695s; вывод22:18:55UTC+5. 80000003 объяснён самим console как ручной Break, в конце введён отдельный g. Это USER paste; оригинальный host log и нынешний inventory ещё не получены. USER read-only подтвердил hostCOM1/Running и guestBCD Serial/port1/115200/debugYes; агент не менял настройки и не управлял debugger.
+USER восстановил подключение: WinDbg engine10.0.29661.1004, pipe PB-Context-KD, `Kernel Debugger connection established`, target26100 x64/MP6, uptime12m06.695s; вывод22:18:55UTC+5. 80000003 объяснён самим console как ручной Break, в конце введён отдельный g. USER read-only подтвердил hostCOM1/Running и guestBCD Serial/port1/115200/debugYes; агент не менял настройки и не управлял debugger.
 
-Текущий шаг этой возобновлённой серии — [read-only inventory и headers модулей](KERNEL_CONTEXT_KD_RECONNECT_2026-10-16.md). Старые 25 точек/адреса/тела/смещения не считать сохранившимися или пригодными; при пустом bl старый stage не загружать. Сначала проверить новый host log, затем отдельно планировать live code gate. Семь точек остаются проектом, без нового комплекта и без Run. Случай14 октября ниже остаётся отдельным исследованием; его files-only границы не изменены.
+Следующий USER paste: bl/bpcmds пусты, MASM, отдельный g; в этом сеансе точек нет. nt PDBkeyB661C6FE72991D160FE37C48B8BC54701/headersAFF6531F,C8AD9C,1450000 совпали с нынешним disknt; whole live image SHA не проверен. lmvm tcpip/fwpkclnt вывели только заголовки, без module rows: причина не установлена, отсутствие загрузки драйверов этим не доказано. DiskSHA/CodeView всех3образов изменились против8 октября; старые RVAs/тела требуют новой проверки. В старом freeze16360769/70exact: внешний PythonexeSHA изменён, saved manifest/kit не переписывались. Audit inventory-validation.json в artifacts/diagnostics/pb-kd-reconnect-review-20261016. Из151 защищённых entries150совпадают, отличие только Pythonruntime.
+
+Текущий шаг этой возобновлённой серии — [USER обновление module list и read-only lm](KERNEL_CONTEXT_KD_RECONNECT_2026-10-16.md): .reload /s без /f,/i,/o → lm по двум masks и lmvm tcpip/fwpkclnt → g отдельно. Обновление ещё не выполнено, результат не заявлен. USER отказался от logopen: полный console присылает в чат, это принимается; отдельный host log не обязателен. Старые25 не загружать/включать, семиточечный проект не установлен, нового комплекта/Run нет. Случай14 октября остаётся отдельным исследованием; его files-only границы не изменены.
 
 ## Офлайн-разбор свежего TCP/UDP отказа — 2026-10-14
 
