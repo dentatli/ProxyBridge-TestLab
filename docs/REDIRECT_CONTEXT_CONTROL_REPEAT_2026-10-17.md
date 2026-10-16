@@ -1,5 +1,7 @@
 # Один повтор контроля после закрытия приложения
 
+**Повтор завершён:** USER run193908-7aca6374 прошёл все пять фаз и подтвердил96 uniquely matched API10022/native failures. Текущий результат и следующий files-only стоп-пункт — [разбор повторения отказа](REDIRECT_CONTEXT_CONTROL_RESULT_2026-10-17.md). Ниже историческая инструкция использованного комплекта; Run-команду повторно не выполнять.
+
 Пользователь17 октября предложил: «Я могу закрыть GPT, тогда памяти хватит. И провести проверку». Это согласование одного USER повтора прежнего конкретного профиля после штатного закрытия приложения и проверки ресурсов на свободной VM. Достаточность памяти пока не подтверждена. Агент не закрывает процессы и не выполняет Run/debugger. Предыдущий [контроль](REDIRECT_CONTEXT_CONTROL_RESOURCE_STOP_2026-10-17.md) остановился до генератора при378.2МиБ вместо2ГиБ.
 
 Для повтора подготовлен отдельный новый комплект `pb-redirect-control-preparation-20261016-193400-82b2f237`. Имя UTC16 октября19:34, локально17 октября. Windows PowerShell5.1 Prepare завершился exit0 / REDIRECT_CONTROL_FILES_VALIDATED:8281 frozen SHA,8197 runtime files; product_started/traffic_generated/driver_installed/debugger_control/runtime_ready=false. Plan SHA `148bb388666cf715c75917c1dcef3bf497ca7d56cc42ad22412affbd813c9a88`, snapshot exeSHA b07b03b9…; policy/components точно совпали с предыдущим контролем. Это проверка файлов, не подтверждение доступной RAM, текущего состояния WinDbg или runtime gates.

@@ -1,6 +1,14 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт одного повтора после закрытия приложения17 октября](REDIRECT_CONTEXT_CONTROL_REPEAT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий результат и стоп-пункт после повторения96 отказов17 октября](REDIRECT_CONTEXT_CONTROL_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Отказ исходного API повторился:96/968 — 2026-10-17
+
+USER выполнил согласованный повтор193908-7aca6374,00:39:08–00:40:03 местного времени. Pure evaluate точно совпал с saved report, errors[],968 query,96 native failed и96 uniquely matched исходных query api_return=-1/10022/bytes0. Фазы4/64/256/640/4:0/0/32/64/0 отказов. Core16820/TID10252 единственный, failedseq288–319/541–572/755–786: три блока32 при pending32, связь с причиной не доказана. Failed native GUID все нулевые: identity через endpoint/ownedphase/PID/время, не GUID. NTSTATUSC0000225 не измерен, kernel rootcause не доказан. РесурсыAVAILABLE4.58–4.65ГиБ; accept-return→query у failed ≤1.9мкс, это не время SYN/очереди/жизни record. USER ack pointsdisabled, независимой hostinventory нет.
+
+CLI/helpers остановлены штатно, workers_stopped/driver_stop_observed=true, after службаStopped/известныхWFPobjectsнет; полное отсутствие всех перехватов не утверждается. SavedplanSHA148bb388… совпал с kit,8281 frozenSHA currentexact,69 capture files unchanged. Private audit pb-redirect-control-capture-review-20261017 содержитvalidation/recomputedreport/phases/failures/inputSHA. Продукт/исходники диагностики не менялись, агент Run/debugger не выполнял.
+
+**Текущий стоп:** один повтор завершён; точки остаются отключёнными. Далее files-only подготовка отдельного нового kernel query прохода: предложены только существующие QUERY_READ/STATUS IDs3/4 и новый профиль4→64→256→4, сначала подготовка/проверка, затем отдельное USER согласование. Это ещё не готовый kit/Run; старые193400/190400/four-only не Resume/refreeze/переиспользовать, stage не загружать. Две точки не покрывают CREATE/attach/free; после установления статуса/привязки failed flow требуется отдельное обоснованное lifecycle покрытие. Новых runtime/Break/enable не выполнять. Ниже сохранены завершённые этапы, их pending команды не повторять.
 
 ## Один USER повтор после освобождения RAM — 2026-10-17
 
