@@ -1,5 +1,7 @@
 # Символы загружены; следующий шаг — выбранные live-инструкции
 
+**Обновление после USER attachment d5231444:** выбранный live code gate пройден:124 инструкции,116 PE-exact+4 import rewrite pairs,7 sites exact, IDCHECK0/0 без ошибок, отдельный g. Предупреждение NETIO и границы проверки сохранены в [текущем стоп-пункте](KERNEL_CONTEXT_MINIMAL_PROBE_2026-10-16.md). Команды ниже повторять не нужно. Следующий шаг — новая проба форматов/guards без точек; строку accept+cbe теперь называть ACCEPT_JOIN, поскольку есть ветки без store.
+
 USER console подтвердил локальный symbol path C:\PB-KD-Symbols-20261016, Path validation OK, три .reload /f без показанных ошибок, tcpip/fwpkclnt с pdb symbols из новой папки. Их headers совпадают с проверенным disk PE. `dt nt!_ETHREAD Cid` показывает +0x508 Cid:_CLIENT_ID; в конце отдельный g. Это подтверждение загрузки символов и доступности типа, не чтения PID/TID конкретного соединения, не whole live image hash и не работы точек. Private запись — `artifacts/diagnostics/pb-kd-symbol-recovery-20261016/live-symbol-observation.json`.
 
 На диске и matching PDB офлайн проверены четыре функции для сокращённого наблюдения. DBH использовался только с локальным PDB, dumpbin — только с PE-файлом, без target/PID/debugger connection, build/install/SCM или product traffic. Из .pdata получены границы функций, PDB public symbols сопоставлены с их началами; байты выбранной дисассемблированной выборки сверены с PE. Код и PDB закреплены SHA в `artifacts/diagnostics/pb-kd-reconnect-review-20261016/current-code/functions.json`.

@@ -1,0 +1,27 @@
+$$ USER read-only probe. No point registration and no outer resume command.
+$$ Requires current matching nt and tcpip PDBs already loaded by USER.
+$$ Reads current ETHREAD.Cid and checks readability of register-derived ranges.
+$$ Never prints connection contents and has no poi or dwo content dereferences.
+.echo PBKDM_PROBE_BEGIN
+.expr
+bl
+.if ($vvalid(@@c++(&@$thread->Cid),0x10) == 1) { .echo PBKDM_PROBE_CID_RANGE_OK; } .else { .echo PBKDM_PROBE_CID_RANGE_UNAVAILABLE; }
+.if (($vvalid(0,1) == 1) and ($vvalid(@@c++(&@$thread->Cid),0x10) == 1)) { .echo PBKDM_PROBE_UNEXPECTED_NULL_VALID; } .else { .echo PBKDM_PROBE_NULL_GUARD_OK; }
+.if (0x980000dd == 0x980000dd) { .echo PBKDM_PROBE_IOCTL_TRUE_OK; } .else { .echo PBKDM_PROBE_UNEXPECTED_IOCTL_TRUE; }
+.if (0 == 0x980000dd) { .echo PBKDM_PROBE_UNEXPECTED_IOCTL_FALSE; } .else { .echo PBKDM_PROBE_IOCTL_FALSE_OK; }
+.printf "PBKDM_PROBE CREATE_POST thread=%p pid=%I64x tid=%I64x scope=%p ep=%p assigned=%p record=%p context=%p size=%I64x refs=%x familyA=%x portA=%x addrA=%x familyB=%x portB=%x addrB=%x\n", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), 0x1003, 0x1004, 0x1005, 0x1006, 0x1007, 0x1008, 0x1009, 0x100a, 0x100b, 0x100c, 0x100d, 0x100e, 0x100f
+.if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1) and ($vvalid(@rax,0x1f4) == 1)) { .echo PBKDM_PROBE_GUARD_EVALUATED site=CREATE_POST readable=1; } .else { .echo PBKDM_PROBE_GUARD_EVALUATED site=CREATE_POST readable=0; }
+.printf "PBKDM_PROBE ACCEPT_RETRIEVE_RESULT thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p status=%x raw_output_slot=%p previous=%p\n", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), 0x1103, 0x1104, 0x1105, 0x1106, 0x1107, 0x1108
+.if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1) and ($vvalid(@rbp-0x28,8) == 1)) { .echo PBKDM_PROBE_GUARD_EVALUATED site=ACCEPT_RETRIEVE_RESULT readable=1; } .else { .echo PBKDM_PROBE_GUARD_EVALUATED site=ACCEPT_RETRIEVE_RESULT readable=0; }
+.printf "PBKDM_PROBE ACCEPT_JOIN thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p observed_record=%p raw_flags=%x raw_esi=%x\n", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), 0x1203, 0x1204, 0x1205, 0x1206, 0x1207, 0x1208
+.if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x30,0x198) == 1)) { .echo PBKDM_PROBE_GUARD_EVALUATED site=ACCEPT_JOIN readable=1; } .else { .echo PBKDM_PROBE_GUARD_EVALUATED site=ACCEPT_JOIN readable=0; }
+.printf "PBKDM_PROBE QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\n", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), 0x1303, 0x1304, 0x1305, 0x1306
+.if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .echo PBKDM_PROBE_GUARD_EVALUATED site=QUERY_READ readable=1; } .else { .echo PBKDM_PROBE_GUARD_EVALUATED site=QUERY_READ readable=0; }
+.printf "PBKDM_PROBE QUERY_STATUS thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p status=%x\n", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), 0x1403, 0x1404, 0x1405, 0x1406
+.if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .echo PBKDM_PROBE_GUARD_EVALUATED site=QUERY_STATUS readable=1; } .else { .echo PBKDM_PROBE_GUARD_EVALUATED site=QUERY_STATUS readable=0; }
+.printf "PBKDM_PROBE FREE_ENTER thread=%p pid=%I64x tid=%I64x scope=%p slot=%p record=%p refs=%x context=%p size=%I64x\n", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), 0x1503, 0x1504, 0x1505, 0x1506, 0x1507, 0x1508
+.if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rbx+0x1e0,0x14) == 1)) { .echo PBKDM_PROBE_GUARD_EVALUATED site=FREE_ENTER readable=1; } .else { .echo PBKDM_PROBE_GUARD_EVALUATED site=FREE_ENTER readable=0; }
+.printf "PBKDM_PROBE FREE_CALL_RETURN thread=%p pid=%I64x tid=%I64x scope=%p former_record_address=%p\n", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), 0x1603, 0x1604
+.if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1)) { .echo PBKDM_PROBE_GUARD_EVALUATED site=FREE_CALL_RETURN readable=1; } .else { .echo PBKDM_PROBE_GUARD_EVALUATED site=FREE_CALL_RETURN readable=0; }
+.echo PBKDM_PROBE_END
+bl

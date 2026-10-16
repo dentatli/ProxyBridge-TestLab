@@ -1,6 +1,6 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт live code gate16 октября](KERNEL_CONTEXT_CURRENT_CODE_GATE_2026-10-16.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт новой пробы16 октября](KERNEL_CONTEXT_MINIMAL_PROBE_2026-10-16.md). Старые NEXT из исторического журнала не выполнять как текущий план.
 
 ## Возобновление старого KD исследования — 2026-10-16
 
@@ -14,7 +14,11 @@ USER восстановил подключение: WinDbg engine10.0.29661.1004
 
 USER symbol load выполнен: Path OK, .reload /f nt/tcpip/fwpkclnt без показанных ошибок; lmvm tcpip/fwpkclnt подтверждает pdb symbols из новой папки и expectedheaders; dtntETHREADCid +508 CLIENT_ID, отдельный g. Это ещё не current-thread PID/TID read/owned binding и не whole live image/codegate. Private live-symbol-observation.json в том же audit. Старые status «host load pending» в package-validation описывают прежний момент, не переписываются.
 
-Офлайн matching PE/PDB через DBH/dumpbin: четыре основные функции и status-helper проверены, выбраны5фрагментов/125дисковыхинструкций для7sites; currentRVA1088b6/11d73d/11d7a6/12157c/121733/1567b/1568a, importRetrieveIAT24de00. QueryNULLfield1c0→C0000225 статически сохраняется, не runtime/rootcause proof. Текущий шаг — [USER live code gate и IDCHECK](KERNEL_CONTEXT_CURRENT_CODE_GATE_2026-10-16.md) с предупреждением Break wholeVM/Codex/RDP,5u/uf+typedcurrentCidprintf+gSEPARATE. Без agent target/debuggercontrol/Run/buildinstall/productchanges. USER присылает полный console в чат, logopen не требуется. Старые25 не загружать/включать, семиточечный проект не установлен, нового baseline kit/Run нет. Случай14 октября остаётся отдельным исследованием; его files-only границы не изменены.
+Офлайн matching PE/PDB через DBH/dumpbin: четыре основные функции и status-helper проверены, выбраны5фрагментов/125дисковыхинструкций для7sites; currentRVA1088b6/11d73d/11d7a6/12157c/121733/1567b/1568a, importRetrieveIAT24de00. QueryNULLfield1c0→C0000225 статически сохраняется, не runtime/rootcause proof.
+
+USER attachmentd5231444/10131bytes/SHA1490f462856db2852ca7480516449419544e5c7ade80c2abf6ca5ebc083e046b теперь проверен:124liveинструкции116exact+8в4структурныхimportrewritepairs/no unclassified/7sitesexact/одинpaddingCCневыведен; IDCHECK threadc83d25c0PIDTID0/0parse+currentreadOK/notownednonzero; отдельный g. WarningNETIOimage0n2 сохранён, targetNETIO+263c0identityнеподтверждён; нужный tcpipcode прочитан, не productfailure. Private live-code-validation.json. Accept+cbe — общий join с skip/error incoming, новое имяACCEPT_JOIN, сампоcебеНЕstoreproof.
+
+Текущий шаг — [USER новая проба форматов/guards, без точек](KERNEL_CONTEXT_MINIMAL_PROBE_2026-10-16.md). Новый noninstallable JSON7proposedIDs0..6 и ASCII/CRLF script готовят7форматов/currentCid+vvalidrangequeries/no connectioncontents/нетbp/g/traffic. DesktopPB-KD-Minimal-Probe-20261016-r2.zip3704bytes/SHA825540a4fd0c2cd3684ecdf3992fa4d2e9374d8bef4f215e612f103a1e741c9a; probeSHA19ba320bf6af55b9bf24b66cd724447785964ae13bdcea96c4fc6eeef7362073. CRC/roundtripexact/oldfilesunchanged, initialunusedzip сохранён. USERphysicalD:\Загрузки→hash→extractNEWC:\PB-KD-Minimal-Probe-20261016→BreakWARNwholeVM/Codex/RDP→$<probe→gSEPARATEevenerror→fullconsolechat. Новые $vvalid/typedCid-address guards ещё runtimeнепроверены; сначала reviewprobeBEFOREstage7. Нет stage7/baselinekit/Run, old25/17/stage/kit163607 не использовать. Без agent debuggercontrol/Run/buildinstall/productchanges/подагентов. Случай14 октября остаётся отдельным исследованием.
 
 ## Офлайн-разбор свежего TCP/UDP отказа — 2026-10-14
 
