@@ -1,6 +1,6 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт после подключения16 октября](KERNEL_CONTEXT_KD_RECONNECT_2026-10-16.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт live code gate16 октября](KERNEL_CONTEXT_CURRENT_CODE_GATE_2026-10-16.md). Старые NEXT из исторического журнала не выполнять как текущий план.
 
 ## Возобновление старого KD исследования — 2026-10-16
 
@@ -12,7 +12,9 @@ USER восстановил подключение: WinDbg engine10.0.29661.1004
 
 Новые PDB подготовлены: DesktopPB-KD-Symbols-20261016.zip3416856bytes/SHA6b1dd40d4551e1af10e876a621f26112bfe89a625f96a96e169f667f70c38f8a; nt/tcpip/fwpkclnt PDB GUID+DBIage exactcurrentPE+USERheaders, ZIPCRC/roundtripexact/oldfilesunchanged. Audit pb-kd-symbol-recovery-20261016/validation.json. USER physical PowerShell подтвердил полный SHA в D:\Загрузки, успешную распаковку в НОВУЮ C:\PB-KD-Symbols-20261016 и три ожидаемых имени/размера. IndividualphysicalPDBSHA не присланы, live PDB load ещё не проверен; private physical-host-observation.json хранит границу доказательства.
 
-Текущий шаг — [USER локальная загрузка символов, раздел2](KERNEL_CONTEXT_KD_RECONNECT_2026-10-16.md): с предупреждением Break wholeVM/Codex/RDP, .sympath на новую папку → .reload /f nt/tcpip.sys/fwpkclnt.sys по отдельности → lmvm2 → dtntETHREADCid → g отдельно даже при ошибке. Символы/условия/codegate ещё не подтверждены; /i и oldstage не применять. USER отказался от logopen: полный console присылает в чат. Старые25 не загружать/включать, семиточечный проект не установлен, нового baseline kit/Run нет. Случай14 октября остаётся отдельным исследованием; его files-only границы не изменены.
+USER symbol load выполнен: Path OK, .reload /f nt/tcpip/fwpkclnt без показанных ошибок; lmvm tcpip/fwpkclnt подтверждает pdb symbols из новой папки и expectedheaders; dtntETHREADCid +508 CLIENT_ID, отдельный g. Это ещё не current-thread PID/TID read/owned binding и не whole live image/codegate. Private live-symbol-observation.json в том же audit. Старые status «host load pending» в package-validation описывают прежний момент, не переписываются.
+
+Офлайн matching PE/PDB через DBH/dumpbin: четыре основные функции и status-helper проверены, выбраны5фрагментов/125дисковыхинструкций для7sites; currentRVA1088b6/11d73d/11d7a6/12157c/121733/1567b/1568a, importRetrieveIAT24de00. QueryNULLfield1c0→C0000225 статически сохраняется, не runtime/rootcause proof. Текущий шаг — [USER live code gate и IDCHECK](KERNEL_CONTEXT_CURRENT_CODE_GATE_2026-10-16.md) с предупреждением Break wholeVM/Codex/RDP,5u/uf+typedcurrentCidprintf+gSEPARATE. Без agent target/debuggercontrol/Run/buildinstall/productchanges. USER присылает полный console в чат, logopen не требуется. Старые25 не загружать/включать, семиточечный проект не установлен, нового baseline kit/Run нет. Случай14 октября остаётся отдельным исследованием; его files-only границы не изменены.
 
 ## Офлайн-разбор свежего TCP/UDP отказа — 2026-10-14
 
