@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "status": "DISABLED_REGISTRATION_PREPARED_USER_REVIEW_PENDING",
+  "status": "USER_SEVEN_DISABLED_POINTS_CONFIRMED_WITH_STAGE_COMMENT_ERROR_ACTIONS_PENDING",
   "proposed_point_count": 7,
   "proposed_ids": [
     0,
@@ -205,7 +205,7 @@
   "source_live_code_review_sha256": "1ccb19f113cedb998e9aeae19c36a010af7df98871249ed6ab0c984acf5049a1",
   "probe_sha256": "19ba320bf6af55b9bf24b66cd724447785964ae13bdcea96c4fc6eeef7362073",
   "probe_path": "scripts/debugger/pb-kd-minimal-format-probe-20261016.wdbg",
-  "breakpoints_registered": false,
+  "breakpoints_registered": true,
   "installation_allowed": false,
   "read_guard_runtime_verified": true,
   "unreadable_marker_means_capture_incomplete": true,
@@ -230,9 +230,15 @@
   "format_and_read_guard_probe_verified": true,
   "probe_console_sha256": "e958235cb22fa2f9b4d9aa7795cae7bd3dcbc624e12c749fad860d492e448edc",
   "stage_path": "scripts/debugger/pb-kd-minimal-stage-20261016.wdbg",
-  "stage_sha256": "bfda5c41a138c0351110caeddd9256f0238d66b37b0bbd0a15031632bbd53413",
+  "stage_sha256": "79b765e8d64b7092583d8aec9066f5c4fabf2db5a61d8a8148f929c00effd0ad",
   "real_event_reads_verified": false,
   "runtime_action_verified": false,
-  "registration_verified": false,
-  "enable_authorized": false
+  "registration_verified": true,
+  "enable_authorized": false,
+  "registered_stage_sha256": "bfda5c41a138c0351110caeddd9256f0238d66b37b0bbd0a15031632bbd53413",
+  "registered_stage_console_sha256": "0d025fe96d87a5726bba8ee25c479bab69b2c11fe4f6a5ad20b6b72b7936fe1d",
+  "saved_stage_clean": false,
+  "saved_stage_comment_error_count": 1,
+  "source_correction_comment_only": true,
+  "reload_current_session_allowed": false
 }

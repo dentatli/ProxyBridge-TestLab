@@ -2,7 +2,7 @@ $$ USER ONLY, fresh empty bl and MASM required. Do not load twice.
 $$ Matching current symbols and seven selected code sites were reviewed.
 $$ Each bp initially registers enabled, then bd disables it while target stays stopped.
 $$ No be, target execution, workload, or outer g. Review all seven d states before resume.
-$$ On any error: do not reload; use bd * separately, then bl, then g separately.
+$$ On any error do not reload. Use bd * separately, then bl, then g separately.
 .echo PBKDM_STAGE_BEGIN REQUIRE_EMPTY_BL_AND_MASM
 .expr
 bl

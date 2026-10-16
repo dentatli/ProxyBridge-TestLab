@@ -1,5 +1,7 @@
 # Проба прошла; следующий шаг — регистрация семи отключённых точек
 
+**Обновление:** USER регистрация из attachmente19c83dd проверена: семь точек/адресов/тел совпали, все d, отдельный g. В комментарии stage была одна ошибка разбора после semicolon; регистрацию она не прервала, actions не исполнялись. Исходник исправлен только в комментарии, уже зарегистрированные точки не перезагружать. Текущий стоп-пункт — [согласование новой пробы на четырёх соединениях](KERNEL_CONTEXT_MINIMAL_BASELINE_2026-10-16.md). Ниже сохранён прежний план, повторно его не выполнять.
+
 USER attachment9e0dddc2,6554bytes,SHA256 `e958235cb22fa2f9b4d9aa7795cae7bd3dcbc624e12c749fad860d492e448edc` проверен без изменения оригинала. Все команды совпали с probe из r2; MASM, два пустых bl, BEGIN/END, CID_RANGE_OK, NULL_GUARD_OK, IOCTL_TRUE_OK/IOCTL_FALSE_OK и7 полных синтетических форматов. Все7 guards вычислены:0/0/0/0/0/1/1. Нет исполненных UNEXPECTED/CID_RANGE_UNAVAILABLE и syntax/memory errors. Строки команд, содержащие названия ошибочных веток, не считались их исполнением. Отдельный g записан. Private audit `artifacts/diagnostics/pb-kd-reconnect-review-20261016/minimal-disabled-stage/probe-review.json`.
 
 Это подтверждает синтаксис проверок доступности и форматов в текущем engine. Реальные endpoint/record reads, breakpoint action/gc, owned Core query binding и причина C0000225 ещё не проверены. Значения readable=0 при произвольных registers вне sites не являются отказом продукта. PID/TID0/0 относятся к текущему thread пробы, не к владельцу соединения.
