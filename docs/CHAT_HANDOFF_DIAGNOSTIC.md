@@ -1,6 +1,14 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [разбор завершённой пробы четырёх соединений и текущий офлайн стоп-пункт16 октября](KERNEL_CONTEXT_FOUR_CONNECTION_RESULT_2026-10-16.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт согласования нового контроля17 октября](REDIRECT_CONTEXT_CONTROL_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Подготовлен контроль с отключёнными точками — 2026-10-17
+
+USER «Продолжаем» после результата4/4 трактован в пределах текущей границы: files-only подготовка нового контроля. USER предположил, что внешний Python менялся при разработке; это гипотеза, источник замены не расследовался. Новый комплект `pb-redirect-control-preparation-20261016-190400-5cd405b0` (UTC имя; локально17 октября), runtime plan SHA `68670ff7935c6d9c628322dba7a6bf52d9c22d7a95cba165a9cd742b5ba74097`:8281 SHA exact,8197 snapshot runtime files, exe b07b03b9…. PS5 Prepare/Inspect и PS7 Inspect exit0; isolated/no_site/-B/stdlib/psutil/callback smoke подтверждён,192 protected entries unchanged. Source runtime был проверен до/после копирования, общий путь при Run не используется. Продукт/трафик/SCM/debugger не запускались. Полные команды/границы в linked checkpoint.
+
+Отдельные wrapper/workload/preparer/cohort module/report создают фиксированный4→64→256→640→4 (968), original listener, pending32, single query, локальные receiver/SOCKS5, точки d всё время.60s client wait cap и180s суммарный бюджет фаз; startup/hash checks/cleanup вне бюджета. Native failures сохраняются; timeout/resource/forced-cleanup прекращают дальнейшие этапы. Старые four-only/shared ConnectionLoad/product не изменены, source/docs остаются в диагностической ветке. Отчёт на адаптированной тестовой копии старого968-capture распознал96 связанных10022, actualfour-only отверг как неполный; это проверка reporting, НЕ новый runtime Run/воспроизведение. Private audit `pb-redirect-control-preparation-review-20261016/verification-v1/validation.json`; fixtures/kit/captures не в Git.
+
+**Текущий стоп:** USER отдельно согласует ОДИН полный968-control на свободной VM; «Продолжаем» не отменяет отдельное runtime согласование. Предыдущее разрешениеfour-only исчерпано завершённой одной пробой. Новый Run/enable ещё не разрешены/не выполнены; агент ими не управляет. При согласованном контроле все точки остаются d; до Run при необходимости USER bl/g с предупреждением о паузе всейVM/Codex/RDP перед Break, g отдельно. Не be/step/reloadstage. После него сначала офлайн-разбор; NTSTATUSC0000225 без kernel capture не утверждать. Продукт/build/install/BCD/гипервизор/рабочую копию разработки не менять. Старые manifests/kit не refreeze/Resume/переписывать.
 
 ## Возобновление старого KD исследования — 2026-10-16
 
