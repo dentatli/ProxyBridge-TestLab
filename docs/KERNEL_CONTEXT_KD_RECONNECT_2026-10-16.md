@@ -30,13 +30,15 @@ USER выполнил .reload /s и прислал полный console: пос�
 
 ## 1. Перенести на физический хост, без Break
 
-Скопировать архив с Desktop VM на физический ПК в `C:\Users\Administrator\Downloads\PB-KD-Symbols-20261016.zip`. В PowerShell физического ПК проверить:
+**Выполнено USER:** загрузки на физическом ПК находятся в `D:\Загрузки`. SHA256 архива совпал полностью; Expand-Archive в новую C:\PB-KD-Symbols-20261016 завершился без показанной ошибки. USER listing подтвердил все3 PDB и ожидаемые размеры. Это проверка archive hash и наличия/размеров файлов, не отдельных physical PDB SHA и не загрузки в WinDbg. Private запись: `artifacts/diagnostics/pb-kd-symbol-recovery-20261016/physical-host-observation.json`. Следующий шаг — раздел2; копирование повторять не нужно.
 
-`Get-FileHash -LiteralPath 'C:\Users\Administrator\Downloads\PB-KD-Symbols-20261016.zip' -Algorithm SHA256 | Select-Object -ExpandProperty Hash`
+Команды уже выполненного переноса сохранены для воспроизводимости. Скопировать архив с Desktop VM на физический ПК в `D:\Загрузки\PB-KD-Symbols-20261016.zip`. В PowerShell физического ПК проверить:
+
+`Get-FileHash -LiteralPath 'D:\Загрузки\PB-KD-Symbols-20261016.zip' -Algorithm SHA256 | Select-Object -ExpandProperty Hash`
 
 Ожидается SHA256 `6B1DD40D4551E1AF10E876A621F26112BFE89A625F96A96E169F667F70C38F8A`. При отличии или отсутствии файла Break не выполнять. Старую C:\PB-KD-Symbols не менять. Распаковать в новую папку, без -Force:
 
-`Expand-Archive -LiteralPath 'C:\Users\Administrator\Downloads\PB-KD-Symbols-20261016.zip' -DestinationPath 'C:\PB-KD-Symbols-20261016'`
+`Expand-Archive -LiteralPath 'D:\Загрузки\PB-KD-Symbols-20261016.zip' -DestinationPath 'C:\PB-KD-Symbols-20261016'`
 
 Проверить, что три PDB лежат непосредственно в этой папке:
 
