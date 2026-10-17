@@ -1,5 +1,7 @@
 # Подготовка пробы accept/query на четырёх соединениях
 
+**Завершено:** согласованный USER Run выполнен и разобран; см. [результат четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md). Ниже исторический контракт подготовки. Повторный Run не согласован.
+
 USER регистрация новой точки2 проверена по attachment `a4c5e1bf-5c5c-4cbd-8439-293e5df22642/Вставленный текст.txt`,6243bytes,SHA256 `edb949cf7e157d572e1221b35614ddcbd5562448bbccbaf44dae327a27f63c6b`. Первоначальный bl только3/4d; загружен ровно один новый add-disabled stage, выполнен только bp2→bd2. Итоговый bl — только2/3/4d, точные addresses/actions; .bpcmds точен, затем отдельныйg, без показанных ошибок. Это регистрация, **не выполнение actions/port reads/проверка фильтра**.
 
 Private raw console сохранён отдельно, SHA копии совпал. Registration-reviewSHA `3e36b6463ab8685230f458dfb98c492a967a970b1bc371248490dd7dab6396f4`,statusACCEPT_QUERY_THREE_DISABLED_POINTS_REGISTERED_ACTIONS_PENDING. Его flagsactualactions/gc/portfilter/flowbinding/rootcause остаютсяfalse.

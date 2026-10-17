@@ -1,6 +1,12 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий готовый accept/query four-only комплект](KERNEL_ACCEPT_QUERY_FOUR_PREPARATION_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий результат accept/query четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Accept/query four: четыре успешные пары проверены — 2026-10-17
+
+USER Run082243-9c4296cc завершён:4native/4Core query success, четыре ACCEPT_STATE→QUERY_READ пары с одинаковым ненулевымrecord. Localrawda84/peerports53004..53007 сопоставлены с Core/native; PID/TID и последовательность Core queries согласованы. Query elapsed128.6358–207.6849ms включает KD. Consolecf7fe9db/10466bytes/SHA8ef953d0ce3801e3b34113fec76f5cd6d55520397e410da98b6d6b2417ff03a9:2/3active,4d; после пробы2/3/4d и отдельныйg.38capturefiles неизменны. Privateauditpb-kd-accept-query-result-review-20261017, native-only report не переписан.
+
+**Текущий стоп:** четыре соединения проверены, новый Run не выполнять. Следующий разрешённый этап — файловая подготовка отдельного bounded accept/query kit4→64→256→4 с активными2/3 и отключённой4; runtime согласовать отдельно после подготовки. Fourkit не менять/не переиспользовать для328. Без новых точек/640/изменений продукта. Причина исходногоNULLrecord не установлена; coverageCREATE/FREE/непрерывногоlifetime/независимогоkernel-seq нет. Полный результат и ограничения — в текущем result document. Все последующие pending NEXT являются историческими.
 
 ## Accept/query регистрация подтверждена; свежий four-only kit готов — 2026-10-17
 
