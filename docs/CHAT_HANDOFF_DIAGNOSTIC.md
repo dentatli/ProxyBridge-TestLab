@@ -2,6 +2,16 @@
 
 Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущее исправление retrieve/query stage r2](KERNEL_RETRIEVE_QUERY_STAGE_REPAIR_2026-10-17.md), основанный на [результате bounded accept/query](KERNEL_ACCEPT_QUERY_BOUNDED_RESULT_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
 
+## Dejavu Gates установлен, одинреальныйfailureзаписан, упаковкаstageпроверяется — 2026-10-17
+
+USERдалgithub.com/WhiteBite/dejavu-gates. Версия2.59.0/commit5b17094c76876b45b78ce6a891749e533c7789ac установленаoutsideTestLabвuserCodextools,portableBun1.4.3assetSHAverified. Штатныйprojectinstallerсоздал.codex/hooks.json сabsoluteBun/CLIpaths. CLIpreprobe/настоящаяconfiguredcommandвминимальномPATH/reportOK проверены; автоматическийперехватвтекущемdesktopчатене доказан. Skilldejavuустановлен черезskill-installer,прочитан,автообнаружение соследующегохода.
+
+ОдинреальныйfailureновоговалидаторастарогоstageвручнуюпереданDejavuCodexpostcallback. Gate9596245713aa=count1/session1/watching,lessonagentcorrectionзаписан. Неискусственнонепродвигать/непридумыватьpastсессии/невыдаватьwatchingзаблокировку. WinDbgнаhostUSERвыполняетвнеCodexhooks;онинесоберутегосбоиавтоматически.
+
+Новыйsrc/pb_validate_retrieve_stage.py: узкийконтракт4ASCII/CRLFкоманд,безcomments,точныйbp2/bd2/bl/.bpcmds/profileSHA/guard/gc. Опция--archiveсREADMEпроверяетДОсозданияZIP,безoverwrite,сCRC/byteidentity. СтарыйstageотвергнутбезсозданияZIP;r2прошёл;старыйDesktopr2archiveнеизменён. СледующиеretrieveZIPвыпускатьтолькочерезэтотvalidator/packager. Это неWinDbgparser/runtimeproof. Документ [Dejavu setup](DEJAVU_GATES_DIAGNOSTIC_SETUP_2026-10-17.md),privateauditpb-dejavu-setup-20261017. Машинныеhooks/store/gitinfoexcludeнеGit.
+
+**Текущий стоп:** r2registrationнаhostещёpending;inventoryпоследнийтолько3/4d,g. Никакихbe/Run/продуктовыхизмененийприустановкеDejavu. ПродолжитьUSERdisabledr2registrationпоrepairдокументу(сwholeVMwarning/recovery),затемreview/freshfourkit/короткаяпроба. Нижепредыдущиеpending/unavailable записи исторические.
+
 ## Требование USER: применять Dejavu Gates — 2026-10-17
 
 USER указал на повторение ошибок staging и потребовал использовать Dejavu Gates для предотвращения идентичных ошибок. В текущем сеансе его callable tools не обнаружены; targeted search локальных skills/CLI/config/project и Plugin Management searchDejavu не дали доступного инструмента. Это не доказательство отсутствия инструмента у USER в другом окружении. Задан вопрос о MCP/server/path/plugin для подключения к существующему инструменту. Не выдавать локальные structuralchecks или чтениежурнала за выполнениеDejavuGates; фактическийcheckpending. При появленииинструмента сначалапрочитатьегоинструкции/найтипредыдущиеинциденты иприменитькstage.
