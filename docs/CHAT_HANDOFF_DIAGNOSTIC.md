@@ -1,6 +1,16 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий разбор boot guard и новый комплект](KERNEL_QUERY_BOOT_GUARD_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Bounded328 выполнен: восемь исходных query NULL/C0000225 — 2026-10-17
+
+USER Run072501-ff00bc02,12:25:01.615–12:26:52.860местного,дошёлдоrecovery.328nativeattempts:288success/40fail;вload256отдельно8Corequery10022и32connect10061безLocal/Remote/GUID. Последние не привязаны к query; reporter честно оставил единственную ошибку UNIDENTIFIED_NATIVE_CONNECT_FAILURE_10061:32 и CAPTURE_INCOMPLETE. Pure evaluate exactoriginal. Внешний wrapperFAILED после reporter, workloadmanifest/receiptCOMPLETED, безtimeout/forcedcleanup; bootguardпройден.
+
+Attachment27bea4d9/86574bytes/SHAf52338138dc2d01cbc3c69010d5de41acf49e4e6722ece6458fb5f7fcc879cdf:592actualKD events/296READ→STATUSpairs. Все288successrecordnonzero/status0. Seq285–292Core:recordNULL/statusC0000225/API10022/nativeErrorNotAllDataTransferred0bytes; нулевойGUID не используется как ключ. Все296seqпоследовательны/одинCorePID12892TID14900(KD325c/3a34hex)/queryнеперекрываются,порядок/статусы точны. Bindingусловеннаполнотуpaste иserialPID/TID, независимогоsocket/seq/sharedQPCвKDнет. Scopeодин/повторяется;281epна296query,failed8epнеповторяютсявquerycapture. Наблюдалась query-time NULL ветка; где/почему record отсутствует/теряется НЕустановлено. Windows/driverbug/tableoverflow/FREEне доказаны.32connect10061не приравниватькqueryfailures.
+
+Консоль: только3/4e/exactactions вдвухbl,нетUNREADABLE/memory/syntaxerrors;вконцеmanualBreak→blобеe→bd3→bd4→отдельныйg,безпоказанныхошибок. **Послеbdконтрольногоblнет**, не объявлятьсостоянияdинвентаризированными. Generalgc/unreadableнепроверены. CLI/helpersштатноостановлены,afterserviceStopped/knownWFPobjectsнет/productprocessesпуст;общаявидимостьнеполная. RAM4.59–4.75GiB. Bootidentityexact,8294frozenSHAexact,PythonSHAexact,63inputsunchanged. Privateauditpb-kd-query-bounded-result-review-20261017. Nativeoriginalreportнепереписывался;отдельныйkernelreviewсохраняетвосемьсвязанныхцепочек. Querymedian251.148msподKD;не performancecomparison/исправление.
+
+**Текущий стоп:** согласованный Run израсходован. Не повторять query-only серий и не увеличивать нагрузку. Только офлайн уточнение accept gate/retrieval/store/join, flow identity/фильтра и минимального следующего профиля.19инструкций сохранённого matchingdiskaccept участка подтверждены побайтно: flagsbit24/esi gateRVA15649, return1567b, store15683, общийjoin1568a(+cbe). Joinнеstoreproof; CREATE/FREEпока непокрыты. Нет новогоinstallablestage/kit/Runauthorization. Приобосновании новогоcapture — отдельныйkit и сначалачетырёхсоединительнаяпробаactions/observereffects, потомотдельноенагрузочноерешение. BeforeanyUSERBreak/enablewarnwholeVM/Codex/RDP,recoveryhost,gотдельно;oldstageнеreload/oldkitнеrefreeze. Нижеисторическиезавершённыеэтапы,ихpendingNEXTнеповторять.
 
 ## Bounded328 остановлен до нагрузки; исправление проверки сеанса — 2026-10-17
 
@@ -16,7 +26,7 @@ PS5/7 parse/read-only live binding/синтетические CIM-shift accepted
 
 **Текущий стоп:** USER явно разрешил повторную попытку после исправления; повторное согласие не нужно. Комплект проверен; следующий шаг — один USER Run новым блоком с закрытым GPT и auto SHA compare. Фактическое состояние 3/4: последний console обе e/g, подтверждения последующего bd нет. При сохранённом e/g повторно be не нужен; если USER уже отключил — enable с предупреждением. Stage не reload, old070350не менять/не запускать. После Run/ошибки USER bd3/bd4/bl/g по одной, сохранить весьconsole/PS, не повторять автоматически.
 
-Уточнение USER 2026-10-17: пока пользователь общается с этим чатом, считать VM свободной от параллельной работы; он не работает одновременно на этой машине с несколькими чатами. Не запрашивать повторное подтверждение отсутствия параллельной работы без новых противоречащих сведений. На предложение одного конкретного bounded328 Run пользователь ответил «Да»; этот один запуск согласован, ещё не выполнен. Это не разрешение агенту управлять WinDbg или самостоятельно запускать нагрузку; USER inventory/review и остальные технические gates сохраняются.
+Уточнение USER 2026-10-17: пока пользователь общается с этим чатом, считать VM свободной от параллельной работы; он не работает одновременно на этой машине с несколькими чатами. Не запрашивать повторное подтверждение отсутствия параллельной работы без новых противоречащих сведений. Это не разрешение агенту управлять WinDbg или самостоятельно запускать нагрузку; USER inventory/review и остальные технические gates сохраняются. Согласованный bounded328 уже выполнен, результат выше.
 
 ## Отдельный bounded328 — подготовка без Run, 2026-10-17
 
