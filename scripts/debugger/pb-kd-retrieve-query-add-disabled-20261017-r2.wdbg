@@ -1,0 +1,4 @@
+bp2 tcpip!WfpAleAuthorizeAccept+0xcaf ".if ($vvalid(@rbp-0x7c,4) == 1) { .if (wo(@rbp-0x7c) == 0xda84) { .if ($vvalid(@rbp-0x28,8) == 1) { .printf \"PBKDR RETRIEVE_RESULT ep=%p nbl=%p local_raw=%x peer_raw=%x status=%x output_raw=%p\\n\", @rdi, @rbx, wo(@rbp-0x7c), wo(@rbp-0x7a), @eax, poi(@rbp-0x28); } .else { .printf \"PBKDR_UNREADABLE event=RETRIEVE_RESULT ep=%p status=%x capture=incomplete\\n\", @rdi, @eax; } } } .else { .printf \"PBKDR_UNREADABLE event=RETRIEVE_FILTER ep=%p status=%x capture=incomplete\\n\", @rdi, @eax; }; gc;"
+bd2
+bl
+.bpcmds

@@ -1,6 +1,14 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий retrieve/query кандидат и порядок disabled замены](KERNEL_RETRIEVE_QUERY_CANDIDATE_2026-10-17.md), основанный на [результате bounded accept/query](KERNEL_ACCEPT_QUERY_BOUNDED_RESULT_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущее исправление retrieve/query stage r2](KERNEL_RETRIEVE_QUERY_STAGE_REPAIR_2026-10-17.md), основанный на [результате bounded accept/query](KERNEL_ACCEPT_QUERY_BOUNDED_RESULT_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Retrieve/query stage1 не зарегистрировал2; r2 готов — 2026-10-17
+
+USERconsole db8fa300/7978bytes/SHA73b2258a38438e64b9467e02a60a6b80ad0cf87121f09e0a3ae21cb6625e162a:2/3/4d→u+caf8exact→bc2→3/4d→stageerrors→итогтолько3/4d/.bpcmds3/4→g. Новая2не зарегистрирована. ДвеSyntaxerror из-заsemicolonв$$comments(документированоMS). ОтдельныйRun иp2parseerror тоже наблюдались; причинапотериbне установлена, LF-only старогоstageнеобъявлятьдоказаннойпричиной. Этоstagingfailure,неTCPрезультат/неподтверждённыйstep/неRun.
+
+Newr2stageбезcomments,ровно4ASCII/CRLFстроки:bp2samebody/bd2/bl/.bpcmds. Нетbc/be/g. Body/query3unchanged. Newprofilemethodkd-retrieve-query-pair-candidate-r2-v1. DesktopPB-KD-Retrieve-Query-Candidate-20261017-r2.zip2848bytes/SHA4C05D7D875C14C406B85C79E1FFA64FF2787EDAC19DF42BEA94BC136A83258C3;newhostdirC:\PB-KD-Retrieve-Query-Candidate-20261017-r2. StageSHA95fcc1ebd74e9d91bf50eb4ca6fa9c892010a12ba790e9a242a30493d4eb04c6;profileSHAc915afa3d8b0188c3cde343de51d3b225ef33290605fc1d811bc1b0daeba9866. Старыйstage/profile/archive/captureсохранены. Privateauditpb-kd-retrieve-query-registration-repair-20261017,неGit.
+
+**Текущий стоп:** USERdownloadnewr2/autoSHA/freshExpand;warnedBreakwholeVM/Codex/RDP;blтолько3/4d,slot2absent — bc2НЕповторять. Warnstagebp2initialenabled;единственныйnewr2$<→bd2/bl/.bpcmds→ожидаем2/3/4d/new2+0xcaf,затемgотдельноevenerror. Recoveryзаранееbd2/bd3/bd4/bl/gпоодной. Никакихbe/Run/freshfourkitдоуспешнойregistrationreview. Исправлениеврамкахужесогласованногозамера,непереспрашиватьобщее разрешение. Все нижниеpendingNEXTисторические.
 
 ## Retrieve/query кандидат готов: следующий USER шаг — disabled замена2 — 2026-10-17
 
