@@ -1,6 +1,16 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий минимальный accept/query план](KERNEL_ACCEPT_QUERY_MINIMUM_PLAN_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий port-filter stage-кандидат и USER live inspection](KERNEL_ACCEPT_PORT_FILTER_CANDIDATE_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Accept port dataflow установлен статически; live/registration pending — 2026-10-17
+
+Текущий tcpipSHA b0683bd7…a3b595a. Один прямойE8caller135c4 в TcpInspectListenerReceive по matchingPDB: TCPdestword[rdi+2]→caller[rsp+7a]→R8W→accept[rbp-7c]; TCPsource[rdi]→шестойarg→[rbp-7a]. Формат TCP_HDR сверён сWDK/RFC9293.881accept+250caller/entryinstructions exactcurrentPE. RawlocalCore34010=da84,sourceportдлядополнительнойпривязки;RBPслотывнутриframe(currentRSP+e4/e6). r13неиспользуем:переиспользуетсянавнесколькихветках. Это staticproof, не liveport/coverage; косвенныеcallersнеисключены.
+
+Новые publicstagepb-kd-accept-query-add-disabled-20261017.wdbg иcandidateJSON:добавитьтолько2→сразуbd2,bl/bpcmds,noouterg. PreconditionUSERonlyknown3/4d иslot2нет;stageсамнепредотвращаетoverwrite/reload. Candidateactive2/3,4d;QUERY_READunchanged. Portwordreadтолькопослеvvalid4bytes,recordNULLнеотбрасывать,endpoint/Cidguards,11args,gcснаружи. Необещатьнеторможенияотостальныхsoftwarehits/fulltuple/store/CREATE/FREEcoverage.
+
+DesktopZIP PB-KD-Accept-Query-Candidate-20261017.zip3603bytes/SHA F12E10AFE5ABA682A1412F0C6223662BAE37A332A06CAB618BE5C902C77F584B;CRC/byte-roundtripexact. StageSHA0cae2e9f…93e5d2c,profile0eea0b0c…5e89e6a. Privateauditpb-kd-accept-filter-review-20261017;8294oldfrozen+63previousinputsunchanged, rawconsoleдополнительносохранёнсSHAf5233813…879cdf. Никакихпродуктовых/VM/debugger/runtimeдействий.
+
+**Текущий стоп:** следующий USER только BreakWARNwholeVM/Codex/RDP→bl→.expr→uacceptL30→uaccept+cafL8→gОТДЕЛЬНОevenerror;командыпоодной/recoveryhostbd3/bd4/bl/gзаранее. Пока неhostcopy/loadstage/be/Run. Ожидаем3/4d/slot2free/MASM/matchingframe+join;приотличииприслатьconsoleбеззагрузки. Послеreview—автоSHAhostcopyZIP,отдельнаярегистрацияоднойdisabled2/review,затемfreshfourkit/USERrunсогласование. Неreuseoldkits/неreloadexistingstage. Детальные инструкции/границы вlinkedcheckpoint. НижепрежниеNEXTнеисполнятькакновые.
 
 ## USER приоритет — минимум точек/тормозов, 2026-10-17
 

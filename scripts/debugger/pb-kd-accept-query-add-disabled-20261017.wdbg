@@ -1,0 +1,11 @@
+$$ Candidate adding one disabled accept point only
+$$ USER precondition exact known query points 3 and 4 both disabled and slot 2 absent
+$$ Matching live code and manual preconditions must be reviewed before loading
+$$ Never load twice or over any existing point 2
+$$ New bp starts enabled so target must remain stopped until bd2 completes
+$$ Recovery after registration bd2 then bd3 then bd4 then bl then separate g
+$$ This file does not enable a profile or resume execution
+bp2 tcpip!WfpAleAuthorizeAccept+0xcbe ".if ($vvalid(@rbp-0x7c,4) == 1) { .if (wo(@rbp-0x7c) == 0xda84) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x30,0x198) == 1)) { .printf \"PBKDA ACCEPT_STATE thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p record=%p local_raw=%x peer_raw=%x flags=%x status_esi=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, @rbx, poi(@rdi+0x1c0), wo(@rbp-0x7c), wo(@rbp-0x7a), dwo(@rdi+0x30), @esi; } .else { .printf \"PBKDA_UNREADABLE event=ACCEPT_STATE thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } } } .else { .printf \"PBKDA_UNREADABLE event=ACCEPT_FILTER thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; }; gc;"
+bd2
+bl
+.bpcmds

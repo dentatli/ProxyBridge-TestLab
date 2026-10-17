@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "method": "kd-accept-query-pair-candidate-v1",
+  "status": "STATIC_CANDIDATE_LIVE_AND_REGISTRATION_REVIEW_REQUIRED",
+  "stage_entry": "scripts/debugger/pb-kd-accept-query-add-disabled-20261017.wdbg",
+  "stage_sha256": "0cae2e9f96ec148f0f44a54a61e7f93ff4477e322a8a0b3a32fc177be93e5d2c",
+  "registered_before": [
+    3,
+    4
+  ],
+  "registered_after_candidate": [
+    2,
+    3,
+    4
+  ],
+  "active_candidate": [
+    2,
+    3
+  ],
+  "inactive_candidate": [
+    4
+  ],
+  "point_count_active": 2,
+  "registration_ids_added": [
+    2
+  ],
+  "automatic_debugger_control": false,
+  "outer_g_included": false,
+  "load_authorized": false,
+  "live_accept_port_read_verified": false,
+  "tuple_binding_verified": false,
+  "independent_full_tcp_tuple_in_kernel": false,
+  "lifecycle_coverage_verified": false,
+  "failed_path_accept_capture_verified": false,
+  "root_cause_proven": false,
+  "filter": {
+    "source": "caller TCP destination word copied to original R8W then RBP-7c",
+    "local_port": 34010,
+    "raw_word": "0xda84",
+    "range_guard": "RBP-7c,4",
+    "null_record_excluded": false,
+    "executing_pid_owner_filter": false,
+    "common_breakpoint_hits_eliminated": false
+  },
+  "points": [
+    {
+      "id": 2,
+      "event": "ACCEPT_STATE",
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcbe",
+      "rva": "0x1568a",
+      "action": ".if ($vvalid(@rbp-0x7c,4) == 1) { .if (wo(@rbp-0x7c) == 0xda84) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x30,0x198) == 1)) { .printf \"PBKDA ACCEPT_STATE thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p record=%p local_raw=%x peer_raw=%x flags=%x status_esi=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, @rbx, poi(@rdi+0x1c0), wo(@rbp-0x7c), wo(@rbp-0x7a), dwo(@rdi+0x30), @esi; } .else { .printf \"PBKDA_UNREADABLE event=ACCEPT_STATE thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } } } .else { .printf \"PBKDA_UNREADABLE event=ACCEPT_FILTER thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; }; gc;",
+      "registration_command": "bp2 tcpip!WfpAleAuthorizeAccept+0xcbe \".if ($vvalid(@rbp-0x7c,4) == 1) { .if (wo(@rbp-0x7c) == 0xda84) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x30,0x198) == 1)) { .printf \\\"PBKDA ACCEPT_STATE thread=%p pid=%I64x tid=%I64x scope=%p ep=%p nbl=%p record=%p local_raw=%x peer_raw=%x flags=%x status_esi=%x\\\\n\\\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, @rbx, poi(@rdi+0x1c0), wo(@rbp-0x7c), wo(@rbp-0x7a), dwo(@rdi+0x30), @esi; } .else { .printf \\\"PBKDA_UNREADABLE event=ACCEPT_STATE thread=%p scope=%p capture=incomplete\\\\n\\\", @$thread, @rsp; } } } .else { .printf \\\"PBKDA_UNREADABLE event=ACCEPT_FILTER thread=%p scope=%p capture=incomplete\\\\n\\\", @$thread, @rsp; }; gc;\"",
+      "argument_count": 11,
+      "proves_store": false
+    },
+    {
+      "id": 3,
+      "event": "QUERY_READ",
+      "target": "tcpip!WfpAleProcessSocketOption+0x2c4",
+      "action": ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_READ thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;",
+      "registration_command": "bp3 tcpip!WfpAleProcessSocketOption+0x2c4 \".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \\\"PBKDM QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\\\n\\\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; } .else { .printf \\\"PBKDM_UNREADABLE event=QUERY_READ thread=%p scope=%p capture=incomplete\\\\n\\\", @$thread, @rsp; } }; gc;\"",
+      "rva": "0x12157c"
+    }
+  ],
+  "prerequisites": [
+    "USER current inventory only exact known 3 and 4 disabled and slot 2 absent",
+    "fresh selected live frame/code inspection",
+    "manual disabled registration and exact action review",
+    "new four-only preparation with registered 2/3/4 and active 2/3",
+    "separate USER four-flow runtime coordination"
+  ]
+}
