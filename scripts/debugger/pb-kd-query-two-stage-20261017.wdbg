@@ -1,0 +1,10 @@
+$$ Fresh stage for two query points only
+$$ Precondition: VM stopped and bl empty and matching live code reviewed
+$$ Recovery on host: bd3 then bd4 then bl then g as separate commands
+$$ This file does not resume execution
+bp3 tcpip!WfpAleProcessSocketOption+0x2c4 ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_READ thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;"
+bd3
+bp4 tcpip!WfpAleProcessSocketOption+0x47b ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_STATUS thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p status=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @ebx; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_STATUS thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;"
+bd4
+bl
+.bpcmds

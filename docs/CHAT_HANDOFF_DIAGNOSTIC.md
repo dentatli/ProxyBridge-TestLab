@@ -1,6 +1,12 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт восстановления WinDbg после перезагрузки17 октября](KERNEL_QUERY_PROBE_PREPARATION_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт переноса нового двухточечного stage17 октября](KERNEL_QUERY_TWO_STAGE_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Новый stage только двух отключённых query точек — 2026-10-17
+
+USER после пустогоbl/g прислалsymbols/livecode:11:16:48matchinglocalnt/tcpipPDB,MASM,ETHREADCid508,tcpipheadersD26770CA/355D78/35A000. Все16инструкций двухфрагментов exactdisk/RVA12157c/121733, отдельныйg. NULLfield1c0→C0000225 статически, не runtimefailedflow/rootcause. Подготовлены новыеquery-two-stage/profile, толькоbp3/bd3 иbp4/bd4,bl/.bpcmds,noouterg. Actionsunchangedfromoldguardedquerysites. Новый ZIP DesktopPB-KD-Query-Stage-20261017.zip2536bytes/SHA F39D165BD1BABFEB186C7E54F39540783703761D9022AFEBFD0643652D17FAF3,CRC/roundtripexact,9oldinputsunchanged. Privateauditpb-kd-query-two-stage-review-20261017. Старыеstage/195830/source неизменны.
+
+**Текущий стоп:** USER переносит ZIP на физПКD:\Загрузки, GetFileHash, приexactSHAExpand вnewC:\PB-KD-Query-Stage-20261017 и присылаетрезультат. Пока не Break/загрузка/be/Run. Послеhostcopy — конкретная USER регистрацияприemptybl с предупреждениемпередBreak/регистрациейопаузевсейVM/Codex/RDP, actionsзаканчиваютсяd,внешнийgвсегдаотдельно,reviewconsoleBEFOREenable/Run.195830existing7policyне соответствуетновойрегистрации2,непереписывать/неиспользовать;послеstage-reviewготовитьновыйfour-onlykit. НовогопродуктовогоRun,debuggercontrol,build/install/systemchanges агентневыполнял. Следующие pending inspection этапы уже завершены.
 
 ## Подготовка двух query точек и восстановление после выключения — 2026-10-17
 

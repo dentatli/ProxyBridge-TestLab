@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "method": "kd-query-two-disabled-stage-v1",
+  "point_count": 2,
+  "registered_point_ids": [
+    3,
+    4
+  ],
+  "initial_state_required": "empty",
+  "final_state_required": "disabled",
+  "stage_entry": "scripts/debugger/pb-kd-query-two-stage-20261017.wdbg",
+  "stage_sha256": "5867d6a10871d6ef1a14bc2b46951e31cba5e5d777a2c56507f4316a6d8d653a",
+  "source_actions_entry": "scripts\\debugger\\pb-kd-minimal-stage-20261016.wdbg",
+  "source_actions_sha256": "79b765e8d64b7092583d8aec9066f5c4fabf2db5a61d8a8148f929c00effd0ad",
+  "registration_confirmed": false,
+  "actions_unchanged": true,
+  "automatic_debugger_control": false,
+  "outer_g_included": false,
+  "load_authorized": false,
+  "load_over_existing_points_allowed": false,
+  "lifecycle_coverage_verified": false,
+  "current_disk_headers": {
+    "timestamp": 3529994442,
+    "checksum": 3497336,
+    "image_size": 3514368
+  },
+  "selected_live_instructions_compared": 16,
+  "root_cause_proven": false,
+  "query_failure_runtime_observed": false,
+  "points": [
+    {
+      "id": 3,
+      "event": "QUERY_READ",
+      "target": "tcpip!WfpAleProcessSocketOption+0x2c4",
+      "action": ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_READ thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;",
+      "registration_command": "bp3 tcpip!WfpAleProcessSocketOption+0x2c4 \".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \\\"PBKDM QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\\\n\\\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; } .else { .printf \\\"PBKDM_UNREADABLE event=QUERY_READ thread=%p scope=%p capture=incomplete\\\\n\\\", @$thread, @rsp; } }; gc;\"",
+      "rva": "0x12157c"
+    },
+    {
+      "id": 4,
+      "event": "QUERY_STATUS",
+      "target": "tcpip!WfpAleProcessSocketOption+0x47b",
+      "action": ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_STATUS thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p status=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @ebx; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_STATUS thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;",
+      "registration_command": "bp4 tcpip!WfpAleProcessSocketOption+0x47b \".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \\\"PBKDM QUERY_STATUS thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p status=%x\\\\n\\\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @ebx; } .else { .printf \\\"PBKDM_UNREADABLE event=QUERY_STATUS thread=%p scope=%p capture=incomplete\\\\n\\\", @$thread, @rsp; } }; gc;\"",
+      "rva": "0x121733"
+    }
+  ]
+}
