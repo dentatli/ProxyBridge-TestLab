@@ -1,6 +1,16 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий результат четырёх и стоп-пункт подготовки bounded328](KERNEL_QUERY_SESSION_FOUR_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущую подготовку bounded328](KERNEL_QUERY_BOUNDED_PREPARATION_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Отдельный bounded328 — подготовка без Run, 2026-10-17
+
+Созданы отдельные Bounded wrapper/workload/module/preparer/reporter, метод `redirect-kd-query-bounded-v1`, фазы 4→64→256→4 (328), прежние две query actions 3/4. Клиентское ожидание 120 s, бюджет фаз 240 s (не предел всего wall time), RAM gate 2 GiB; original single query/ConnectEx/pending32/512KiB и пинованные binaries сохранены. Новый ручной флаг BoundedLoadReviewed, mutex/lease/boot/interrupted gates; никакого автоматического debugger control или driver install. Старые source/kit/captures не менялись.
+
+PS5/7 parse/preset и in-memory mocks фаз/остановки при resource bound прошли без настоящего cohort/сети/продукта. Reporter на синтетической копии старого capture без 640 получил 328 query/32 native/API10022 и kernel pending; это проверка кода, НЕ новый runtime. Чужие контракты four-only/full968 отвергаются. Private audit `pb-kd-query-bounded-review-20261017`; 114 защищённых исходных source/capture файлов проверены неизменными.
+
+Свежий kit `pb-kd-query-bounded-preparation-20261017-070350-4db1c923`: PS5 Prepare exit0 и его встроенная общая файловая проверка FILES_VALIDATED,8291 files/8197 runtime. Повтор отдельного Inspect не нужен/не выполнялся. PlanSHA `3D6E8337F6B91D26FBDE97B6CF91D65818B87F0DFD79D266F8AC5A65FE22A819`. На Desktop VM `PB-KD-Query-Bounded328-20261017.txt`: автоматический SHA compare/throw до Run, inventory/enable/recovery по одной команде, g отдельно, без logopen. Это только инструкция, не выполненные действия.
+
+**Текущий стоп:** комплект готов; отдельно согласовать один USER Run на свободной VM. Не Break/be/Run автоматически. После согласования сначала свежий USER inventory bl/bpcmds/g для review, потом enable/единственный Run. Последний user console закончен обеими 3/4 d и отдельным g; текущее состояние требует USER inventory. Stage не перезагружать; после reboot не обходить guard. Перед каждым USER Break/enable — предупреждение о паузе всей VM/Codex/RDP, recovery заранее на физическом ПК, все команды по одной/g отдельно. Причина исходного отказа не установлена. Следующие разделы описывают завершённые этапы, их прежние pending NEXT не повторять.
 
 ## Двухточечная четырёхсоединительная проба завершена — 2026-10-17
 
