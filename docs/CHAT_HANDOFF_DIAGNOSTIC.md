@@ -1,6 +1,14 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт переноса нового двухточечного stage17 октября](KERNEL_QUERY_TWO_STAGE_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт согласования одной пробы4 с двумя точками17 октября](KERNEL_QUERY_SESSION_FOUR_PREPARATION_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Регистрация двух точек проверена; готов новый four-only kit — 2026-10-17
+
+USER console: initialbl пуст, новыйquery-two-stage зарегистрировал3/4,каждуюсразуbd,finalblобеd/exacttargets/actions,.bpcmdsexact,отдельныйg,безпоказанныхошибок. PrivateUTF8/LFпереписанныйизчатаconsoleSHA6adcf477712be3310673e923a7870c5da68c663bcfafb2cff1bcd2149b4052c5,reviewSHA8119dcd6f8bde9a00e0f3fd132e48b10021efe044146ccc5e2122956a1ae278e. Это registrationproof,неactualactions/gc/binding. Новыйметодredirect-kd-query-session-four-v1,registeredIDs[3,4],отдельныеSessionwrapper/workload/preparer/report,неизменённыйfour-onlymodule;старые195830sources/kitнетронуты.
+
+Fresh063031-cfbfaa59,planSHA7e90ea90f7fd8f2cca02d9459a9c38f129369e6ed2b8bd40d759a413b073416a,PS5Prepare/Inspectexit0/FILES_VALIDATED8288/8197. Только4/512KiB/8s/singlequery/original/pending32,нетload/recovery,RAMgate2ГиБ. PS5/7parse,adaptedoldfourreportpositive/debuggerpending,full968negativefixture rejected;это не новыйRuntime. ДобавленguardCIMbootestimate±1s отзагрузки17окт06:04:48.751830Z:initialexacttickcomparisonловил319мксvariationтого жеboot,непродуктовыйсбой.10protectedsource/stage/planи69fullcaptureSHAunchanged,privateauditpb-kd-query-session-preparation-review-20261017.
+
+**Текущий стоп:** комплектготов,отдельносогласоватьодинUSER Run4на свободнойVM. Доэтого неbe/Run. Инструкциявlinkedcheckpoint/наDesktopPB-KD-Query-Four-20261017.txt:закрытьGPT/штатноосвободитьRAM,сохранитьrecoveryнафизхосте,предупредитьпередкаждымBreak/enableопаузевсейVM/Codex/RDP,только3/4be/gотдельно,RunVMсавтоматическимplanSHAcompare,послевозвратаPSотключить3/4/gотдельно,толькопотомоткрытьчат/прислатьполныйconsole. Приошибке/ресурсномgateнеповторять. Stageповторноне загружать,oldkitsнеResume/refreeze/переиспользовать,64/256толькопослеreviewчетырёх. Агентdebugger/Run/system/product/testsне выполняет/не меняет. Ниже завершённыеэтапы,ихpendingшагине повторять.
 
 ## Новый stage только двух отключённых query точек — 2026-10-17
 
