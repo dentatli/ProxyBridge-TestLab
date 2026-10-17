@@ -4,6 +4,8 @@
 
 ## Dejavu Gates установлен, одинреальныйfailureзаписан, упаковкаstageпроверяется — 2026-10-17
 
+USER подтвердил разрешение hooks в интерфейсе Codex и продолжение диагностики. R2archive/stage SHA повторно совпали с ранее проверенными bytes; Dejavu gate9596245713aa по-прежнемуwatching/count1. Это разрешение hooks, не подтверждение выполнения WinDbg actions или нового Run. Следующий USER шаг — только disabled r2 registration; очисткуbc2 не повторять при slot2absent.
+
 USERдалgithub.com/WhiteBite/dejavu-gates. Версия2.59.0/commit5b17094c76876b45b78ce6a891749e533c7789ac установленаoutsideTestLabвuserCodextools,portableBun1.4.3assetSHAverified. Штатныйprojectinstallerсоздал.codex/hooks.json сabsoluteBun/CLIpaths. CLIpreprobe/настоящаяconfiguredcommandвминимальномPATH/reportOK проверены; автоматическийперехватвтекущемdesktopчатене доказан. Skilldejavuустановлен черезskill-installer,прочитан,автообнаружение соследующегохода.
 
 ОдинреальныйfailureновоговалидаторастарогоstageвручнуюпереданDejavuCodexpostcallback. Gate9596245713aa=count1/session1/watching,lessonagentcorrectionзаписан. Неискусственнонепродвигать/непридумыватьpastсессии/невыдаватьwatchingзаблокировку. WinDbgнаhostUSERвыполняетвнеCodexhooks;онинесоберутегосбоиавтоматически.
