@@ -1,6 +1,16 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущее исправление retrieve/query stage r2](KERNEL_RETRIEVE_QUERY_STAGE_REPAIR_2026-10-17.md), основанный на [результате bounded accept/query](KERNEL_ACCEPT_QUERY_BOUNDED_RESULT_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий готовый retrieve/query four-only комплект](KERNEL_RETRIEVE_QUERY_FOUR_PREPARATION_2026-10-17.md), основанный на [результате bounded accept/query](KERNEL_ACCEPT_QUERY_BOUNDED_RESULT_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Retrieve/query r2 зарегистрирован; новыйfour-onlykitготов — 2026-10-17
+
+USERconsole5a4b74b7/5088bytes/SHAec341c7aafa35382bb5ab21246f4580783ca344d36f0a8e2093041939df0829d:initial3/4d→bp2+0xcaf/bd2→final2/3/4d/.bpcmds/g,безошибок,addresses/actions exact. RegistrationreviewSHAf8d5618c9c3418f020d2f007ada425fe85d98f3caed2bcce605ad1c1ec0a2037,actualactions/reads/gc/coveragefalse.
+
+Freshretrievefourkit181712-418b0399,planSHAA5F80EFEC34B01296A5696E239B945A4B99534211D54C19684581A7157D321A7. PS5Prepareexit0/FILES_VALIDATED8297/8197snapshot,безповторInspect.4/512KiB/8s/ConnectEx32/originalsinglequery,active2RETRIEVE_RESULT+0xcaf/3QUERY_READ,4d,no load/recovery. Новые4sourcefiles3d613ab,validator/r2profile/currentregistration/returnlive8bytesprooffrozen,bootguardEvent12/112сохранён. PS5/7parse/preset/AST,adaptedoldfourpositive/kernelpending и328rejected проверены;72oldinputsunchanged. НиagentRun,нипродукт/драйвер/debuggercontrolнебыло.
+
+DesktopPB-KD-Retrieve-Query-Four-20261017.txt:полныйпорядокдлязакрытогоGPT,autoSHAcompare/throw,RetrieveQueryProfileReviewed/DebuggerLoggerEnabled. Rawreview/fixtures/Prepare/privatekitвpb-kd-retrieve-query-preparation-review-20261017,неGit.
+
+**Текущий стоп:** предложенныйUSERследующийзамер («давайпопробуем»,«можемпродолжать») дошёлдо готовойоднойfourпробы;Runещёне выполнялся. ДатьUSERполныйreviewableпорядокодногоRun4готовымкомплектом,безповторногообщегоразрешениянаужепредложенныйзамер. ПередкаждымBreak/enablewarnwholeVM/Codex/RDP,recoveryзаранеебd2/bd3/bd4/bl/gпоодной. USERblожидаем2/3/4d,new2+0xcaf;толькоbe2/be3/bl/g,4d;одинRunиbd2/bd3/bl/gдажеприошибке. StageНЕreload/bc2НЕповторять;oldkitsнеподходят/неResume/refreeze. Затемполныйconsole/nativebindingreview. 328/640неавторизованы. НижеисторическиеpendingNEXTнеповторять.
 
 ## Dejavu Gates установлен, одинреальныйfailureзаписан, упаковкаstageпроверяется — 2026-10-17
 

@@ -1,5 +1,7 @@
 # Retrieve/query: сбой регистрации первого stage и исправление r2 — 2026-10-17
 
+**Завершено:** r2 успешно зарегистрирован отключённым; готов [новый four-only комплект](KERNEL_RETRIEVE_QUERY_FOUR_PREPARATION_2026-10-17.md). Ниже исторический порядок исправления. Stage повторно не загружать.
+
 Первый USER stage не зарегистрировал новую точку2. После USERbc2 и неудачнойзагрузки итоговыйbl содержит только3/4d, .bpcmds тоже только3/4, отдельныйg показан. Новых RETRIEVE_RESULT events нет, Run не выполнялся. Это сбой логгера/staging, не наблюдение причины TCP.
 
 USER console attachment `db8fa300-765f-4f64-9b74-95dbae597e3e/Вставленный текст.txt`,7978bytes,SHA25673b2258a38438e64b9467e02a60a6b80ad0cf87121f09e0a3ae21cb6625e162a. Копия/failed-registration-review сохранены в privateaudit `artifacts/diagnostics/pb-kd-retrieve-query-registration-repair-20261017/`. Исходныйconsole,первыйstage/profile/archive проверены неизменными.
