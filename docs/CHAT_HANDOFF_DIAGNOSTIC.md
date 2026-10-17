@@ -1,6 +1,14 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий готовый bounded accept/query комплект](KERNEL_ACCEPT_QUERY_BOUNDED_PREPARATION_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий результат bounded accept/query](KERNEL_ACCEPT_QUERY_BOUNDED_RESULT_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Bounded accept/query: восемь отказов имеют NULL уже на accept join — 2026-10-17
+
+USER Run083559-98e4358e завершён:328attempts/304success/8Corequery10022+16unidentifiednative10061.312QUERY_READ/310ACCEPT_STATE; failedseq301..308 имеют каждый ровноодну accept/query пару поendpoint+peerport, обеNULL. CorePID/TID12844/16760 и неперекрывающийся порядокqueries подтверждены; отсутствие independentkernel-seq/sharedQPC остаётся ограничением. Все8NULLaccept flags09001641/ESI0, currentPID2844 != clientPID7108; executionPID не владелец. Один NBL address у8событий не доказывает один packet/lifetime.
+
+Покрытие:300одно-кандидатныхпар с equalrecord (292success+8NULLfail),5successfulqueries имеют повторныеacceptкандидаты,7successfulqueries безaccept. Не сводить это к «не хватает двухстрок». Причина дублей/пропусков не установлена. QueryNTSTATUS не измерен, ID4disabled. ReportCAPTURE_INCOMPLETE/WrapperFAILED из-за16unidentified10061; workload/cleanup завершены, forcedstopfalse. Consolea90d15fe/117155bytes/SHA99c7926791ae6c06c71adcdb1285a0a49bb6f055a9889644649c6e1542ebeeab: итог2/3/4d и отдельныйg.56sourcehashes/8334frozenfiles checked;63captureinputsunchanged. Приватный auditpb-kd-accept-query-bounded-result-review-20261017, исходные отчёты не переписаны.
+
+**Текущий стоп:** согласованный Run выполнен; больше не Run/не увеличивать нагрузку. Продолжать только офлайн подготовку замены ID2 на retrieval return+0xcaf (EAX/output/ports/endpoint), ID3 оставить, ID4d — всего2active.19diskinstructions/PEimport повторно проверены; статусESI текущегоjoin не retrievalEAX. Новыйprofile/actions требуют собственногоreview/короткойпробы и отдельного USER debugger/runtime согласования после подготовки. Старыеkits/stage не переписывать/не reload поверх2. Продукт не менять. Причина доacceptjoin ещё не установлена; backlog/retry — гипотеза. Все нижние pendingNEXT исторические.
 
 ## Bounded accept/query комплект готов; один USER Run328 согласован — 2026-10-17
 
