@@ -10,7 +10,7 @@ USER attachmenta4c5e1bf/6243bytes/SHAedb949cf7e157d572e1221b35614ddcbd5562448bbc
 
 Fresh081124-5b6ae9b8,planSHA40F9DB349FF8DD13FC74A43AE10D3E16252956882F6D42787C684C45702FD766;PS5Prepareexit0/FILES_VALIDATED8294/8197. ПовторInspectнепроводился. PS5/7parse/preset,PythonAST,adaptedoldfourpositive/kernelpending иbounded328rejectedпрошли;этонеruntime.8358oldinputsunchanged. Privateauditpb-kd-accept-query-preparation-review-20261017,rawconsoleсохранён. DesktopPB-KD-Accept-Query-Four-20261017.txt:полнаяинструкция/autoSHAcompare/throw/отдельныекомандыWinDbgиrecoveryдлязакрытогоGPT. НовогоRunнет.
 
-**Текущий стоп:** отдельно согласоватьодинUSER Run4 готовымкомплектом,непереспрашиватьпроотсутствиепараллельнойработы. ДотогонеBreak/be/Run. ПослеagreeUSER2/3e,4d/bl/g,одинRunиbd2/bd3/bl/gпооднойevenerror. ПередкаждымBreak/enablewarnwholeVM/Codex/RDP,recoveryсохранитьнаhostзаранее. Stageнеreload/oldkitsнеreuse/refreeze. Послепробыreviewполногоconsole/ports/flowpairs/observereffectsпередрешениемонагрузке. ПричинаисходногоNULLrecordнеустановлена. Нижезавершённыеэтапы,ихpendingNEXTнеповторять.
+**Текущий стоп:** USER ответом «продолжаем» согласовал одну пробу Run4 готовым комплектом 081124-5b6ae9b8. Run ещё не выполнен. USER включает только2/3,4остаётсяd/bl/g; затем одинRun и bd2/bd3/bl/g по одной даже при ошибке. Не переспрашивать про отсутствие параллельной работы. ПередкаждымBreak/enablewarnwholeVM/Codex/RDP,recoveryсохранитьнаhostзаранее. Stageнеreload/oldkitsнеreuse/refreeze. Послепробыreviewполногоconsole/ports/flowpairs/observereffectsпередрешениемонагрузке. ПричинаисходногоNULLrecordнеустановлена. Нижезавершённыеэтапы,ихpendingNEXTнеповторять.
 
 ## Accept port dataflow установлен статически; live/registration pending — 2026-10-17
 
