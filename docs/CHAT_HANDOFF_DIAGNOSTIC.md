@@ -1,6 +1,14 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт согласования одной пробы4 с двумя точками17 октября](KERNEL_QUERY_SESSION_FOUR_PREPARATION_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий результат четырёх и стоп-пункт подготовки bounded328](KERNEL_QUERY_SESSION_FOUR_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Двухточечная четырёхсоединительная проба завершена — 2026-10-17
+
+USER выполнил один предложенный Run063947-eb93855d,11:39:47.636–11:40:05.359местного;PSвернулся,4/4native/querysuccess,2MiB,errors[],pureevaluateexactoriginal. Attachmentc1c0fd3f/6980bytes/SHA96cc566e898ee80ea2f46632b3cfbb78505492e6e3a048750e13af20572a40be:inventories3/4d→e→eпослеmanualBreak→d,exactactions/addresses,дваотдельныхg,8actualevents/4READ→STATUSpairs,всеrecordnonzero/status0. CorePID14808/TID9616 совпал с KD39d8/2590hex;4последовательныхнеперекрывающихсяqueryсоответствуютпорядкупар. Bindingусловеннаполнотуpaste,нетindependentsocket/seq/sharedQPCвKD;scopeпереиспользуется. Successfulpathactions/continuationobserved,UNREADABLE/generalGCnotproven,failedqueryC0000225непойман/rootcauseнеустановлена.
+
+ОчисткаCLI/helpersштатная,workers_stopped/driver_stop_observedtrue,afterслужбаStopped/knownWFPobjectsнет;общуювидимостьнеобъявлятьполной.8288frozenSHAexact,capturedPythonSHAmatchsnapshot,38inputsunchanged(37capture+attachment),privateauditpb-kd-query-session-four-review-20261017. Originalreportdebuggerpendingнепереписывать,kernelreviewотдельно. ПодKDquery249.8–316.7мс,elapsedвключаетdebuggerпаузы,неизмеряетобычнуюскоростьAPI;доляотдельныхпаузнеизмерена.
+
+**Текущий стоп:** однаfourпробаизрасходована,вконцеconsoleобе3/4d/g. Дальшеfiles-onlyподготовкаотдельного4→64→256→4(328),те же2actions/пинованныеbinaries/originalsinglequery,сучётомтайминговKD:предложеныclientwait120s/cohortbudget240s,RAMgate2ГиБ,эточестноновыйcontract/kit,неResume/refreeze/изменениесуществующего. НовыйRunсогласуетсяпослеподготовки;неbe/новыепробыавтоматически. Никакихновыхruntime/debuggercontrol/product/system/tests/developmentworktreeизменений. Ниже завершённыеэтапы,ихpendingNEXTнеповторять.
 
 ## Регистрация двух точек проверена; готов новый four-only kit — 2026-10-17
 
