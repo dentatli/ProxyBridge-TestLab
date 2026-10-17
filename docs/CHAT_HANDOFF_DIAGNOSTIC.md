@@ -1,6 +1,14 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий результат accept/query четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий готовый bounded accept/query комплект](KERNEL_ACCEPT_QUERY_BOUNDED_PREPARATION_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Bounded accept/query комплект готов; USER Run328 ещё не согласован — 2026-10-17
+
+Новые четыре source files, методredirect-kd-accept-query-bounded-v1;4→64→256→4/328/512KiB/8s/ConnectEx32/originalsinglequery, активны2/3,4d. Существующий boundedmodule не менялся. Fresh082924-61fa8d38, planSHAD7127D4863C2D202F1708C2B0ADA3E18AF0D6C7721607C4EBA33F7301534B46D. PS5Prepareexit0/FILES_VALIDATED8334/8197snapshot. ОтдельныйInspect не повторяли. PS5/7parse/preset, PythonAST, synthetic adapted32840fail=8query10022+32unidentified10061 preserved/CAPTURE_INCOMPLETE;four-only/wrongpointpolicy отвергнуты.16613oldinputsunchanged. Fourproofconsole/review/all38capturefiles frozen;bootEvent12/BootIdguard сохранён. Ни agentRun, ни product/system/debugger mutations не было.
+
+DesktopVM PB-KD-Accept-Query-Bounded-20261017.txt содержит полный reviewable порядок для закрытогоGPT, autoSHAcompare/throw, отдельныеWinDbgcommands/recovery. Старыеkits/stage не менять/не reload. Privateauditpb-kd-accept-query-bounded-preparation-review-20261017 не добавлять вGit.
+
+**Текущий стоп:** файлы готовы; отдельно согласовать один USER Run328. До согласования не Break/be/Run. Причина дополнительного согласования — новый нагрузочный профиль вместо уже завершённой четырёхсоединительной пробы. После согласования только2/3e,4d/bl/g; одинRun и bd2/bd3/bl/g даже при ошибке, команды по одной/gотдельно. Перед каждымBreak/enable предупредить wholeVM/Codex/RDP; recovery сохранить заранее на host. Не переспрашивать про параллельную работу. Нет автоматического повторения/640/новых точек/изменений продукта. Затем полный console/native review, без обещаний однозначного binding/полноты. Ниже исторические этапы; pendingNEXT не выполнять автоматически.
 
 ## Accept/query four: четыре успешные пары проверены — 2026-10-17
 
