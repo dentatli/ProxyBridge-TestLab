@@ -1,6 +1,20 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущую подготовку bounded328](KERNEL_QUERY_BOUNDED_PREPARATION_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий разбор boot guard и новый комплект](KERNEL_QUERY_BOOT_GUARD_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Bounded328 остановлен до нагрузки; исправление проверки сеанса — 2026-10-17
+
+USER включил только 3/4 с точными addresses/actions, bl обе e, отдельный g; команда Run старого kit070350 завершилась KD_QUERY_BOUNDED_REPREPARE_AFTER_TARGET_REBOOT. По коду guard стоит до run-directory/workload/product; новых bounded run directories не найдено. USER сообщил, что точки всё ещё включены. Агент попросил bd3/bd4/bl/g с предупреждением о паузе всей VM; подтверждения отключения пока нет. Не считать d автоматически.
+
+CIM boot estimate сдвинулся от06:04:48.751830Z до06:05:41.157944Z (+52.406114s), затем06:05:56.225376Z. Latest Kernel-General12 record16348/StartTime06:04:46.5Z/TimeCreated06:04:46.611203Z, предыдущий boot event16окт; registry BootId112. Это согласуется с прежним boot, но исходного Event12/BootId snapshot при регистрации нет. Guard-сообщение не доказывает reboot; причина CIM drift (включая гипотезу KD pauses) не установлена. Не смешивать с исходным TCP failure.
+
+Отдельные KdBootSessionEvidence module, Invoke-KdQueryBoot wrapper, pb_prepare_kd_query_boot preparer сохраняют old frozen sources/kit. Query contract/workload/report прежние; новый prefix pb-kd-query-boot-preparation. Runtime guard точно сравнивает frozen Event12 identity/raw XML и BootId, CIM только диагностический. Preparer ограничен рассмотренным session16348/112; при новом boot нужен новый review. Legacy/interrupted gates сохранены с event StartTime. Это системные свидетельства, не криптографический boot identity/защита от snapshot restore.
+
+PS5/7 parse/read-only live binding/синтетические CIM-shift accepted, BootId/event-change rejected прошли. Private audit pb-kd-query-boot-guard-review-20261017,8292 old frozen entries incl plan unchanged. Новая подготовка072108-b356874d/8294files/8197runtime, planSHA F68F550807FE2903B40A21CBEF49FE26C733C1E806C4B548C230A38E9FA846CD; окончательный Prepare result в linkedcheckpoint. Продукт/трафик/debuggercontrol агент не выполнял.
+
+Новый PS5 Prepare завершён exit0/FILES_VALIDATED8294; повтор Inspect не выполнялся. Desktop PB-KD-Query-Boot328-20261017.txt содержит новый guarded Run-блок. Нового Run нет.
+
+**Текущий стоп:** USER явно разрешил повторную попытку после исправления; повторное согласие не нужно. Комплект проверен; следующий шаг — один USER Run новым блоком с закрытым GPT и auto SHA compare. Фактическое состояние 3/4: последний console обе e/g, подтверждения последующего bd нет. При сохранённом e/g повторно be не нужен; если USER уже отключил — enable с предупреждением. Stage не reload, old070350не менять/не запускать. После Run/ошибки USER bd3/bd4/bl/g по одной, сохранить весьconsole/PS, не повторять автоматически.
 
 Уточнение USER 2026-10-17: пока пользователь общается с этим чатом, считать VM свободной от параллельной работы; он не работает одновременно на этой машине с несколькими чатами. Не запрашивать повторное подтверждение отсутствия параллельной работы без новых противоречащих сведений. На предложение одного конкретного bounded328 Run пользователь ответил «Да»; этот один запуск согласован, ещё не выполнен. Это не разрешение агенту управлять WinDbg или самостоятельно запускать нагрузку; USER inventory/review и остальные технические gates сохраняются.
 
