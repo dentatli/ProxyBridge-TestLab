@@ -1,5 +1,9 @@
 # Новый сеанс:подготовлена регистрация только двух отключённых query точек
 
+**Новый USER результат:** физический PowerShell подтвердил SHA ZIP F39D165BD1BABFEB186C7E54F39540783703761D9022AFEBFD0643652D17FAF3 вD:\Загрузки, затем Expand-Archive вC:\PB-KD-Query-Stage-20261017 вернулся без показанных ошибок. Хеш отдельных распакованных файлов на хосте не измерялся. Передача архива подтверждена; следующий шаг — USER регистрация только двух отключённых точек по плану ниже, затем отдельныйg и reviewconsole до enable/Run.
+
+**Предпочтение USER для следующих команд:** ожидаемый SHA сравнивать автоматически внутри PowerShell команды, при несовпадении throw до распаковки/следующего действия. Не просить пользователя вручную сравнивать длинные хеши и не повторять уже подтверждённую проверку без нового основания.
+
 17 октября2026, Asia/Yekaterinburg. USER после перезагрузки восстановил kd>, подтвердил пустойbl и отдельныйg. Следующий присланный console11:16:48 подтверждает .reload/s, локальные PDB из `C:\PB-KD-Symbols-20261016`, .reload/f nt/tcpip без показанных ошибок, MASM и ETHREAD.Cid+508. tcpip headers TimestampD26770CA/CheckSum355D78/ImageSize35A000 совпали с currentdisk. Сравнены все16 присланных live инструкций в двух фрагментах с PE rawbytes: exact, обе RVA12157c/121733 совпали с ожидаемыми offsets функции. Проверка всего live function/image этим не выполнена. Отдельныйg записан, bp/be/Run не наблюдались.
 
 В первом фрагменте read `[rdi+1c0]` приNULL выбирает C0000225, во втором EBX переносится вEAX перед epilogue. Это **статическое подтверждение кода**, не наблюдение C0000225 в новом отказавшем flow. Последний [полный контроль](REDIRECT_CONTEXT_CONTROL_RESULT_2026-10-17.md) по-прежнему подтверждает96 uniquely matched Core10022/nativefail, NTSTATUS в нём не измерен.
@@ -15,7 +19,7 @@ StageSHA `5867d6a10871d6ef1a14bc2b46951e31cba5e5d777a2c56507f4316a6d8d653a`; pro
 
 Архив на рабочем столе VM: `C:\Users\LabAdmin\Desktop\PB-KD-Query-Stage-20261017.zip`,2536bytes, SHA256 `F39D165BD1BABFEB186C7E54F39540783703761D9022AFEBFD0643652D17FAF3`. Внутри толькоstage/profile/README, CRC/roundtrip exact. Privateaudit `artifacts/diagnostics/pb-kd-query-two-stage-review-20261017/validation.json`,live-code-observation.json,protected-inputs.json и копии содержимого ZIP.9 prior inputs unchanged. Первичная проверка сравнивала uppercasePS SHA с lowercasePython строкой; это исправлено в offline audit, фактических hash mismatches0. Это не WinDbg/runtime ошибка. Архив/логи/audit не в Git.
 
-## Текущий USER шаг:перенос и hash
+## Завершённый USER шаг:перенос и hash
 
 Скопировать новый ZIP с рабочего стола VM на физический ПК в `D:\Загрузки`. В PowerShell физического ПК:
 
@@ -31,9 +35,9 @@ Expand-Archive -LiteralPath 'D:\Загрузки\PB-KD-Query-Stage-20261017.zip'
 
 Передать результат, пока без Break/загрузки stage/enable/Run. Агент их не выполняет.
 
-## Следующий USER шаг после подтверждения переноса
+## Текущий USER шаг после подтверждения переноса
 
-Это план, сейчас не выполнять. Заранее сохранить на физическом ПК все шаги и recovery. **Break/регистрация/enable могут остановить всю VM, включая Codex иRDP.** При activekd> дополнительныйBreak не нужен. Каждую outer command вводить отдельно.
+Перенос подтверждён, можно выполнять только эту регистрацию с отключением доg. Заранее сохранить на физическом ПК все шаги и recovery. **Break/регистрация/enable могут остановить всю VM, включая Codex иRDP.** При activekd> дополнительныйBreak не нужен. Каждую outer command вводить отдельно.
 
 1. Break, затем `bl`. Если список не пуст, stage не загружать, отдельноg и передать весь inventory.
 2. При пустомbl один раз `$<C:\PB-KD-Query-Stage-20261017\pb-kd-query-two-stage-20261017.wdbg`. Ожидаются толькоIDs3/4, обаd, два точных тела в .bpcmds.
