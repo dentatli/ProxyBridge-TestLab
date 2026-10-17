@@ -1,6 +1,16 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий port-filter stage-кандидат и USER live inspection](KERNEL_ACCEPT_PORT_FILTER_CANDIDATE_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий готовый accept/query four-only комплект](KERNEL_ACCEPT_QUERY_FOUR_PREPARATION_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Accept/query регистрация подтверждена; свежий four-only kit готов — 2026-10-17
+
+USER attachmenta4c5e1bf/6243bytes/SHAedb949cf7e157d572e1221b35614ddcbd5562448bbccbaf44dae327a27f63c6b:initial3/4d→единственныйbp2/bd2→final2/3/4d,exactaddresses/actions/bpcmds,отдельныйg,безпоказанныхошибок. RegistrationreviewSHA3e36b6463ab8685230f458dfb98c492a967a970b1bc371248490dd7dab6396f4,actualactions/gc/portfilter/bindingfalse. Регистрациянепроверяетреальныечтения.
+
+НовыеизолированныеInvoke-KdAcceptQuery/Workload,pb_prepare_kd_accept_query,pb_kd_accept_query_report,методredirect-kd-accept-query-four-v1. Только4/512KiB/8s/originalsinglequery/ConnectEx32,RAM2GiB,wait60s/budget180s;нетload/recovery. Registered2/3/4,active2/3,inactive4. Sharedfourmoduleнеизменён,bootbindingEvent12/BootIdсохранён,статическая/live/registrationproofпинована. NativeonlyreportнеизмеряетNTSTATUS/kernelbinding/filtercoverage. ESIвACCEPT_STATEнеявляетсяeaxretrievalstatus.
+
+Fresh081124-5b6ae9b8,planSHA40F9DB349FF8DD13FC74A43AE10D3E16252956882F6D42787C684C45702FD766;PS5Prepareexit0/FILES_VALIDATED8294/8197. ПовторInspectнепроводился. PS5/7parse/preset,PythonAST,adaptedoldfourpositive/kernelpending иbounded328rejectedпрошли;этонеruntime.8358oldinputsunchanged. Privateauditpb-kd-accept-query-preparation-review-20261017,rawconsoleсохранён. DesktopPB-KD-Accept-Query-Four-20261017.txt:полнаяинструкция/autoSHAcompare/throw/отдельныекомандыWinDbgиrecoveryдлязакрытогоGPT. НовогоRunнет.
+
+**Текущий стоп:** отдельно согласоватьодинUSER Run4 готовымкомплектом,непереспрашиватьпроотсутствиепараллельнойработы. ДотогонеBreak/be/Run. ПослеagreeUSER2/3e,4d/bl/g,одинRunиbd2/bd3/bl/gпооднойevenerror. ПередкаждымBreak/enablewarnwholeVM/Codex/RDP,recoveryсохранитьнаhostзаранее. Stageнеreload/oldkitsнеreuse/refreeze. Послепробыreviewполногоconsole/ports/flowpairs/observereffectsпередрешениемонагрузке. ПричинаисходногоNULLrecordнеустановлена. Нижезавершённыеэтапы,ихpendingNEXTнеповторять.
 
 ## Accept port dataflow установлен статически; live/registration pending — 2026-10-17
 

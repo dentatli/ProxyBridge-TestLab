@@ -1,5 +1,7 @@
 # Статически обоснован отбор accept по порту, live проверка ещё нужна
 
+**Обновление:** USER live code/hostcopy/disabled registration выполнены, точные2/3/4d подтверждены. [Готов отдельный four-only kit](KERNEL_ACCEPT_QUERY_FOUR_PREPARATION_2026-10-17.md); следующий шаг — отдельное согласование одной четырёхсоединительной пробы. Реальные port reads/filter/flow binding ещё не проверены. Ниже сохранены этапы подготовки, их прежние pending команды не повторять.
+
 Следующий вопрос после [восьми исходных отказов](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md) — состояние redirect record у того же принятого endpoint до исходного запроса Core. USER просит минимум точек/тормозов. Выбран кандидат с двумя активными точками: новый ACCEPT_STATE на общем accept join и прежний QUERY_READ; QUERY_STATUS остаётся отключённой. Это не полный lifecycle capture и не новый Run.
 
 ## USER live inspection проверен — 2026-10-17
