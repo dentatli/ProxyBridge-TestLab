@@ -1,6 +1,14 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий результат bounded accept/query](KERNEL_ACCEPT_QUERY_BOUNDED_RESULT_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий retrieve/query кандидат и порядок disabled замены](KERNEL_RETRIEVE_QUERY_CANDIDATE_2026-10-17.md), основанный на [результате bounded accept/query](KERNEL_ACCEPT_QUERY_BOUNDED_RESULT_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Retrieve/query кандидат готов: следующий USER шаг — disabled замена2 — 2026-10-17
+
+USER «давай попробуем следующий замер». Подготовленыnewstage/profile, ID2+0xcaf/RVA1567bRETRIEVE_RESULT (EAX/output_raw/ports/endpoint/NBL), ID3unchanged,4d. Двеactivecandidate,безPIDownerfilter/безисключенияNULL/statuserror. Portguardrbp-7c4/outputguardrbp-288,gcoutside.10diskbyteranges/quote/6args/structure checked,68oldinputsunchanged. Это неWinDbgparser/runtimeverification.
+
+DesktopPB-KD-Retrieve-Query-Candidate-20261017.zip3084bytes/SHAE490D8C8599E9B8E662478889611797DCEBB2CB8F26DE08C4984A2C2DF638E48. НовыйhostdirC:\PB-KD-Retrieve-Query-Candidate-20261017, DownloadsD:\Загрузки. StageSHA d83ba15c44f70dc3a912677dcf7a8c4ed05afe39b3b284c2ae98e7f7a03a52aa;profileSHAe37e14426196eaedc69fedd4a4b46bd84038de6968efac29094608afe69ed5e0. Privateauditpb-kd-retrieve-query-candidate-review-20261017,неGit.
+
+**Текущий стоп:** USERdownload/autoSHA/freshExpand, затем warnedBreak(allVM/Codex/RDP),blтолькоknown2/3/4d,u+cafL8matching,bc2отдельно,blтолько3/4d/slot2absent. Warnbeforestage(bp2initialenabled),одинразnew$<stage→bd2/bl/.bpcmds,итог2/3/4d,отдельныйgдажеприошибке. Recoveryзаранееbd2/bd3/bd4/bl/gпоодной. Stageнеповторятьповерх2;ниbeниRun. Прислатьполныйconsole,затемfreshfourkit/newmanifest икороткаяпроба. Старыеkitsнеподходят/неResume/refreeze. Не переспрашивать про параллельную работу; продуктне менять. Все нижниеNEXT исторические.
 
 ## Bounded accept/query: восемь отказов имеют NULL уже на accept join — 2026-10-17
 

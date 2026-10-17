@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "method": "kd-retrieve-query-pair-candidate-v1",
+  "status": "FILES_CHECKED_DISABLED_REGISTRATION_AND_FOUR_PROBE_PENDING",
+  "stage_entry": "scripts/debugger/pb-kd-retrieve-query-add-disabled-20261017.wdbg",
+  "stage_sha256": "d83ba15c44f70dc3a912677dcf7a8c4ed05afe39b3b284c2ae98e7f7a03a52aa",
+  "registered_before_replacement": [
+    2,
+    3,
+    4
+  ],
+  "all_registered_before_must_be_disabled": true,
+  "user_clears_only_id2_as_separate_command": true,
+  "registered_before_stage": [
+    3,
+    4
+  ],
+  "slot2_must_be_absent": true,
+  "registered_after_stage": [
+    2,
+    3,
+    4
+  ],
+  "active_candidate": [
+    2,
+    3
+  ],
+  "inactive_candidate": [
+    4
+  ],
+  "point_count_active": 2,
+  "points_redefined": [
+    2
+  ],
+  "old_point2_target": "tcpip!WfpAleAuthorizeAccept+0xcbe",
+  "query_point3_unchanged": true,
+  "automatic_debugger_control": false,
+  "outer_g_included": false,
+  "load_authorized": false,
+  "runtime_verified": false,
+  "root_cause_proven": false,
+  "filter": {
+    "local_port": 34010,
+    "raw_word": "0xda84",
+    "port_range": "rbp-0x7c,4",
+    "output_range": "rbp-0x28,8",
+    "status_zero_required": false,
+    "null_output_excluded": false,
+    "execution_pid_is_owner": false,
+    "common_breakpoint_hits_eliminated": false
+  },
+  "points": [
+    {
+      "id": 2,
+      "event": "RETRIEVE_RESULT",
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcaf",
+      "rva": "0x1567b",
+      "action": ".if ($vvalid(@rbp-0x7c,4) == 1) { .if (wo(@rbp-0x7c) == 0xda84) { .if ($vvalid(@rbp-0x28,8) == 1) { .printf \"PBKDR RETRIEVE_RESULT ep=%p nbl=%p local_raw=%x peer_raw=%x status=%x output_raw=%p\\n\", @rdi, @rbx, wo(@rbp-0x7c), wo(@rbp-0x7a), @eax, poi(@rbp-0x28); } .else { .printf \"PBKDR_UNREADABLE event=RETRIEVE_RESULT ep=%p status=%x capture=incomplete\\n\", @rdi, @eax; } } } .else { .printf \"PBKDR_UNREADABLE event=RETRIEVE_FILTER ep=%p status=%x capture=incomplete\\n\", @rdi, @eax; }; gc;",
+      "registration_command": "bp2 tcpip!WfpAleAuthorizeAccept+0xcaf \".if ($vvalid(@rbp-0x7c,4) == 1) { .if (wo(@rbp-0x7c) == 0xda84) { .if ($vvalid(@rbp-0x28,8) == 1) { .printf \\\"PBKDR RETRIEVE_RESULT ep=%p nbl=%p local_raw=%x peer_raw=%x status=%x output_raw=%p\\\\n\\\", @rdi, @rbx, wo(@rbp-0x7c), wo(@rbp-0x7a), @eax, poi(@rbp-0x28); } .else { .printf \\\"PBKDR_UNREADABLE event=RETRIEVE_RESULT ep=%p status=%x capture=incomplete\\\\n\\\", @rdi, @eax; } } } .else { .printf \\\"PBKDR_UNREADABLE event=RETRIEVE_FILTER ep=%p status=%x capture=incomplete\\\\n\\\", @rdi, @eax; }; gc;\"",
+      "argument_count": 6,
+      "return_status": "eax",
+      "output_raw": "poi(rbp-0x28)",
+      "output_validity_on_nonzero_status": "not_assumed",
+      "proves_store": false
+    },
+    {
+      "id": 3,
+      "event": "QUERY_READ",
+      "target": "tcpip!WfpAleProcessSocketOption+0x2c4",
+      "action": ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_READ thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;",
+      "registration_command": "bp3 tcpip!WfpAleProcessSocketOption+0x2c4 \".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \\\"PBKDM QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\\\n\\\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; } .else { .printf \\\"PBKDM_UNREADABLE event=QUERY_READ thread=%p scope=%p capture=incomplete\\\\n\\\", @$thread, @rsp; } }; gc;\"",
+      "rva": "0x12157c"
+    }
+  ],
+  "prerequisites": [
+    "known 2 3 4 disabled inventory",
+    "matching selected live instructions",
+    "clear old 2 then verify slot absent",
+    "single new disabled registration review",
+    "fresh four-only kit",
+    "short USER four-flow probe before bounded decision"
+  ]
+}

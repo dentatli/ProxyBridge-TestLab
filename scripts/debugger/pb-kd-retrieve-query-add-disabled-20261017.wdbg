@@ -1,0 +1,11 @@
+$$ New retrieve result point only; no clearing or enabling commands
+$$ USER first verifies known points 2 3 4 disabled and reviewed live code
+$$ USER clears only old point 2 separately and verifies only 3 4 disabled
+$$ Precondition slot 2 absent; never reload or load over existing point 2
+$$ New bp starts enabled so remain stopped until bd2 has completed
+$$ Recovery bd2 then bd3 then bd4 then bl then separate g
+$$ This file neither resumes execution nor authorizes Run
+bp2 tcpip!WfpAleAuthorizeAccept+0xcaf ".if ($vvalid(@rbp-0x7c,4) == 1) { .if (wo(@rbp-0x7c) == 0xda84) { .if ($vvalid(@rbp-0x28,8) == 1) { .printf \"PBKDR RETRIEVE_RESULT ep=%p nbl=%p local_raw=%x peer_raw=%x status=%x output_raw=%p\\n\", @rdi, @rbx, wo(@rbp-0x7c), wo(@rbp-0x7a), @eax, poi(@rbp-0x28); } .else { .printf \"PBKDR_UNREADABLE event=RETRIEVE_RESULT ep=%p status=%x capture=incomplete\\n\", @rdi, @eax; } } } .else { .printf \"PBKDR_UNREADABLE event=RETRIEVE_FILTER ep=%p status=%x capture=incomplete\\n\", @rdi, @eax; }; gc;"
+bd2
+bl
+.bpcmds
