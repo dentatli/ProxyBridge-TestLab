@@ -2,6 +2,12 @@
 
 Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущее исправление retrieve/query stage r2](KERNEL_RETRIEVE_QUERY_STAGE_REPAIR_2026-10-17.md), основанный на [результате bounded accept/query](KERNEL_ACCEPT_QUERY_BOUNDED_RESULT_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
 
+## Требование USER: применять Dejavu Gates — 2026-10-17
+
+USER указал на повторение ошибок staging и потребовал использовать Dejavu Gates для предотвращения идентичных ошибок. В текущем сеансе его callable tools не обнаружены; targeted search локальных skills/CLI/config/project и Plugin Management searchDejavu не дали доступного инструмента. Это не доказательство отсутствия инструмента у USER в другом окружении. Задан вопрос о MCP/server/path/plugin для подключения к существующему инструменту. Не выдавать локальные structuralchecks или чтениежурнала за выполнениеDejavuGates; фактическийcheckpending. При появленииинструмента сначалапрочитатьегоинструкции/найтипредыдущиеинциденты иприменитькstage.
+
+Известный повторяемый дефект: semicolonв$$comment превращаетостатокстроки вкоманду; structuralquote/bracketchecks не равныWinDbgparserexecution. R2только4ASCII/CRLFкомандыбезcomments,провереныactualbytes/ZIPCRC/bodyidentity. R2ещёнепровереннаhost;необъявлятьуспешнымисполнениеилиfreshfourreadiness. Продукт/VM/debugger/Run поэтойпросьбене трогать. Последний подтверждённыйinventory —3/4d,g,point2absent.
+
 ## Retrieve/query stage1 не зарегистрировал2; r2 готов — 2026-10-17
 
 USERconsole db8fa300/7978bytes/SHA73b2258a38438e64b9467e02a60a6b80ad0cf87121f09e0a3ae21cb6625e162a:2/3/4d→u+caf8exact→bc2→3/4d→stageerrors→итогтолько3/4d/.bpcmds3/4→g. Новая2не зарегистрирована. ДвеSyntaxerror из-заsemicolonв$$comments(документированоMS). ОтдельныйRun иp2parseerror тоже наблюдались; причинапотериbне установлена, LF-only старогоstageнеобъявлятьдоказаннойпричиной. Этоstagingfailure,неTCPрезультат/неподтверждённыйstep/неRun.
