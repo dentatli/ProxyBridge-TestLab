@@ -6,7 +6,9 @@
 
 **Актуальное обновление:** USER liveinspection выполнен. bl только3/4d/exactactions/addresses,slot2нет,MASM,отдельныйg.56instructions:55exactdisk,1classifiedcalltargetdifference14a8d(diskmemset1b78c0→live_memset_spec_ermsb1b7b00),bothPDBsymbolsconfirmed; механизмпереписываниянеустановлен. Criticalframe/portsaves/return/store/joinexact;полнуюbyteidentityнеутверждать. Private live-review.json иselectedtranscriptionSHAf2da21a2…9d984d7,неindependenthostlog. Portread/action/runtimeещёнепроверены.
 
-**Нынешний стоп:** USER скачатьподготовленныйZIPнафизПКD:\Загрузки иautoSHAcompare/ExpandвНОВЫЙC:\PB-KD-Accept-Query-Candidate-20261017 поlinkedcheckpoint,прислатьрезультат. Пока никакихновыхBreak/stage/be/Run. Послеhostcopyотдельнаяdisabledрегистрацияодной2/review(нестарый7/25stage,неoverwrite3/4),затемfreshfourkitиотдельныйUSERrun. Нижепрежнийpendingliveinspectionзавершён,неповторятьавтоматически.
+USER подтвердил `ARCHIVE_SHA_OK_AND_EXTRACTED`: host SHA compare и Expand в новый C:\PB-KD-Accept-Query-Candidate-20261017 завершились без показанной ошибки. Архив/распаковку не повторять без причины.
+
+**Нынешний стоп:** USER BreakWARNwholeVM/Codex/RDP, проверитьblтолько3/4d/slot2нет, один раз загрузить НОВЫЙ add-disabled-stage, которыйдобавляеттолькоbp2→bd2→bl/bpcmds,затемотдельныйgдажеприошибке. Recovery заранее наhost:bd2,bd3,bd4,bl,gпоодной;начальнаяbp2enabledпоэтомуVMнепродолжатьдоотключения. Прислатьполныйconsole,ожидаем2/3/4всеd/exactactions. Неreload/неoverwriteexisting2,неbe/Run. ПослеregistrationreviewfreshfourkitиотдельныйUSERrun;старыеkitsнеподходят. Нижепрежнийpendingliveinspection/hostcopyзавершён,неповторятьавтоматически.
 
 Текущий tcpipSHA b0683bd7…a3b595a. Один прямойE8caller135c4 в TcpInspectListenerReceive по matchingPDB: TCPdestword[rdi+2]→caller[rsp+7a]→R8W→accept[rbp-7c]; TCPsource[rdi]→шестойarg→[rbp-7a]. Формат TCP_HDR сверён сWDK/RFC9293.881accept+250caller/entryinstructions exactcurrentPE. RawlocalCore34010=da84,sourceportдлядополнительнойпривязки;RBPслотывнутриframe(currentRSP+e4/e6). r13неиспользуем:переиспользуетсянавнесколькихветках. Это staticproof, не liveport/coverage; косвенныеcallersнеисключены.
 
