@@ -4,6 +4,10 @@
 
 ## Accept port dataflow установлен статически; live/registration pending — 2026-10-17
 
+**Актуальное обновление:** USER liveinspection выполнен. bl только3/4d/exactactions/addresses,slot2нет,MASM,отдельныйg.56instructions:55exactdisk,1classifiedcalltargetdifference14a8d(diskmemset1b78c0→live_memset_spec_ermsb1b7b00),bothPDBsymbolsconfirmed; механизмпереписываниянеустановлен. Criticalframe/portsaves/return/store/joinexact;полнуюbyteidentityнеутверждать. Private live-review.json иselectedtranscriptionSHAf2da21a2…9d984d7,неindependenthostlog. Portread/action/runtimeещёнепроверены.
+
+**Нынешний стоп:** USER скачатьподготовленныйZIPнафизПКD:\Загрузки иautoSHAcompare/ExpandвНОВЫЙC:\PB-KD-Accept-Query-Candidate-20261017 поlinkedcheckpoint,прислатьрезультат. Пока никакихновыхBreak/stage/be/Run. Послеhostcopyотдельнаяdisabledрегистрацияодной2/review(нестарый7/25stage,неoverwrite3/4),затемfreshfourkitиотдельныйUSERrun. Нижепрежнийpendingliveinspectionзавершён,неповторятьавтоматически.
+
 Текущий tcpipSHA b0683bd7…a3b595a. Один прямойE8caller135c4 в TcpInspectListenerReceive по matchingPDB: TCPdestword[rdi+2]→caller[rsp+7a]→R8W→accept[rbp-7c]; TCPsource[rdi]→шестойarg→[rbp-7a]. Формат TCP_HDR сверён сWDK/RFC9293.881accept+250caller/entryinstructions exactcurrentPE. RawlocalCore34010=da84,sourceportдлядополнительнойпривязки;RBPслотывнутриframe(currentRSP+e4/e6). r13неиспользуем:переиспользуетсянавнесколькихветках. Это staticproof, не liveport/coverage; косвенныеcallersнеисключены.
 
 Новые publicstagepb-kd-accept-query-add-disabled-20261017.wdbg иcandidateJSON:добавитьтолько2→сразуbd2,bl/bpcmds,noouterg. PreconditionUSERonlyknown3/4d иslot2нет;stageсамнепредотвращаетoverwrite/reload. Candidateactive2/3,4d;QUERY_READunchanged. Portwordreadтолькопослеvvalid4bytes,recordNULLнеотбрасывать,endpoint/Cidguards,11args,gcснаружи. Необещатьнеторможенияотостальныхsoftwarehits/fulltuple/store/CREATE/FREEcoverage.

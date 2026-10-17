@@ -2,6 +2,12 @@
 
 Следующий вопрос после [восьми исходных отказов](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md) — состояние redirect record у того же принятого endpoint до исходного запроса Core. USER просит минимум точек/тормозов. Выбран кандидат с двумя активными точками: новый ACCEPT_STATE на общем accept join и прежний QUERY_READ; QUERY_STATUS остаётся отключённой. Это не полный lifecycle capture и не новый Run.
 
+## USER live inspection проверен — 2026-10-17
+
+USER показал только прежние3/4d с точными адресами/actions, slot2 отсутствует, MASM, пролог WfpAleAuthorizeAccept и восемь инструкций от+caf, затем отдельныйg. Из56 показанных инструкций55 exactdisk; сохранения портов `[rbp-7c]`/`[rbp-7a]`, frame setup и return/store/join совпадают. НаRVA14a8d отличается rel32 цели call: diskmemsetRVA1b78c0, live_memset_spec_ermsbRVA1b7b00. Оба символа проверены matchingPDB; источник переписывания вызова не установлен, loader rewrite не объявлять доказанным. Это отличие не инструкция сохранения/чтения наших port slots. Полной byteidentity функции/образа не утверждать.
+
+Private `live-review.json` и selected instruction transcriptionSHA `f2da21a235837a518e836098e7956b5d7054a2e365ce42ce06f7e2cbb9d984d7` сохраняют границы: пользовательский chat, не независимыйhostlog. Точка2 ещё не регистрировалась, реальные port values/action/gc/flowbinding не проверены. Текущий шаг — hostcopy ниже, без новых Break/загрузки/enable/Run до результата переноса.
+
 ## Что удалось установить офлайн
 
 В executable sections текущего tcpip.sys найден один прямой E8-вызов WfpAleAuthorizeAccept, RVA135c4. По matching PDB он относится к TcpInspectListenerReceive. Скан не исключает косвенных вызовов/других модулей. Caller и entry разобраны ограниченными disassembly ranges, а не выполнением кода.
@@ -35,12 +41,34 @@ Private audit `artifacts/diagnostics/pb-kd-accept-filter-review-20261017/`: dire
 
 Все8294 старых frozen files и63 inputs предыдущего результата проверены неизменными. Raw user console дополнительно скопирован в private audit с прежним SHAf5233813…879cdf. Начальная private package-проверка прочитала Unicode path map с системной кодировкой и не нашла имя; исправлено чтение UTF-8, исходный файл существовал и полный SHA совпал. Продуктовые источники/установка/BCD/VM settings не менялись.
 
-Desktop `PB-KD-Accept-Query-Candidate-20261017.zip`,3603bytes,SHA256 `F12E10AFE5ABA682A1412F0C6223662BAE37A332A06CAB618BE5C902C77F584B`. ZIPCRC и byte roundtrip всех4entries exact. StageSHA `0cae2e9f96ec148f0f44a54a61e7f93ff4477e322a8a0b3a32fc177be93e5d2c`, profileSHA `0eea0b0cf65c91c3e0008bf0e57bc15dfb848cd658a09491dec6cefa25e89e6a`. Это подготовленный кандидат, **host copy/live review/registration ещё не выполнены**. Runtime kit для нового профиля ещё не создан; старые preparations не подходят.
+Desktop `PB-KD-Accept-Query-Candidate-20261017.zip`,3603bytes,SHA256 `F12E10AFE5ABA682A1412F0C6223662BAE37A332A06CAB618BE5C902C77F584B`. ZIPCRC и byte roundtrip всех4entries exact. StageSHA `0cae2e9f96ec148f0f44a54a61e7f93ff4477e322a8a0b3a32fc177be93e5d2c`, profileSHA `0eea0b0cf65c91c3e0008bf0e57bc15dfb848cd658a09491dec6cefa25e89e6a`. Это подготовленный кандидат; live selected code/inventory review теперь выполнен выше, **host copy/registration ещё не выполнены**, реальные port reads pending. Runtime kit для нового профиля ещё не создан; старые preparations не подходят.
 
-## Ближайший USER шаг — только read-only live inspection
+## Завершённый USER шаг — read-only live inspection
 
 Не загружать stage и не включать точки до проверки следующего console. Заранее сохранить команды на физическом хосте. **Break останавливает всю PB-BUILD-W11-25H2, включая Codex и RDP.** Recovery для нынешних известных3/4: bd3,bd4,bl, затем отдельныйg. Каждая команда отдельно, g даже после ошибки.
 
 USER Break, если ещё нет kd>. По одной: `bl`, `.expr`, `u tcpip!WfpAleAuthorizeAccept L30`, `u tcpip!WfpAleAuthorizeAccept+0xcaf L8`, затем обязательно **отдельный `g`**. Ожидаем только известные3/4d/слот2нет/MASM и matching frame/retrieve/store/join bytes. Если inventory другой — никаких загрузок/enable; прислать полный console. Это не Run и не регистрация.
 
 После live review — автоматический SHA compare перед переносом/распаковкой нового ZIP на host, отдельная USER disabled registration одной2, reviewbl/.bpcmds, затем fresh four-only kit с новым контрактом registration/active IDs и новое согласование конкретного USER Run. Не reload stage поверх существующих точек, не refreeze/Resume/reuse старые kits. Перед каждым будущим USER Break/register/enable предупредить о паузе всейVM/Codex/RDP, recovery после регистрации включает только нашу проверенную2 и3/4, все команды по одной/g отдельно. Причина исходного отсутствия record всё ещё не установлена.
+
+## Ближайший USER шаг — host copy с автоматическим SHA compare
+
+Скачать новый ZIP на физический ПК в `D:\Загрузки`. Весь блок в host PowerShell (не VM):
+
+```powershell
+& {
+    $ErrorActionPreference = 'Stop'
+    $pbZip = 'D:\Загрузки\PB-KD-Accept-Query-Candidate-20261017.zip'
+    $pbDestination = 'C:\PB-KD-Accept-Query-Candidate-20261017'
+    if ((Get-FileHash -LiteralPath $pbZip -Algorithm SHA256).Hash -ine 'F12E10AFE5ABA682A1412F0C6223662BAE37A332A06CAB618BE5C902C77F584B') {
+        throw 'ARCHIVE_SHA_MISMATCH: распаковка не выполнялась'
+    }
+    if (Test-Path -LiteralPath $pbDestination) {
+        throw 'DESTINATION_EXISTS: существующий каталог не изменялся'
+    }
+    Expand-Archive -LiteralPath $pbZip -DestinationPath $pbDestination
+    'ARCHIVE_SHA_OK_AND_EXTRACTED'
+}
+```
+
+Прислать результат. Без Break/stage/enable/Run на этом шаге. Существующий архив/каталог не перезаписывать и не удалять при ошибке. После подтверждения hostcopy будет отдельная регистрация одной2 в disabled state с предупреждением о паузе всейVM, не загрузка старого7/25 stage и не перерегистрация существующих3/4.
