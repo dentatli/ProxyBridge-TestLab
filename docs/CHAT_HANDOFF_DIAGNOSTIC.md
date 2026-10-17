@@ -1,6 +1,12 @@
 # Передача чату диагностики TCP / WinDbg
 
-Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий результат и стоп-пункт после повторения96 отказов17 октября](REDIRECT_CONTEXT_CONTROL_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий стоп-пункт восстановления WinDbg после перезагрузки17 октября](KERNEL_QUERY_PROBE_PREPARATION_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
+
+## Подготовка двух query точек и восстановление после выключения — 2026-10-17
+
+До лимита подготовлены новые isolated sources Invoke-KdQueryProbe/Workload,KdQueryProbeConnectionLoad,pb_prepare_kd_query_probe,pb_kd_query_probe_report и noninstallable queryprofile. Только4 соединения, нет load/recovery entry point, минимумRAM2ГиБ, только исторические IDs3/4 при известной регистрации7. Fresh195830-aaf0be71, planSHA367b313170201aa9650ef295da4ae7cc33e1e89de8c516b15e6311b5de2f5925, PS5Prepareexit0/FILES_VALIDATED8287/8197. PS5/7parse/preset иreportнаадаптированнойкопиистарогоfour pass/debuggerpending, full968negativefixture rejected. Это не новыйRun/не изменённыеoldcaptures. Privateauditpb-kd-query-probe-preparation-review-20261017.
+
+USER сообщил, что выключил всё после лимита. CIM теперь boot17окт11:04:48+05, RAMfreeоколо1.98ГиБ. **Текущий стоп:** только USER восстановление физического WinDbg через прежний com pipe PB-Context-KD/reconnect; получить новый connection output. Если подключение остановит VM, g отдельно; заранее предупредить, что всяVM/Codex/RDP остановится, сохранить recoveryнафизхосте. Не be/stage/Run. Текущие IDs/адреса/symbols неизвестны после закрытия/boot. Если points пусты/иные, профильexisting7/IDs3/4 не применять: сначала новая подтверждённая двухточечная регистрация и новый соответствующий frozenkit,195830не переписывать. После connection — отдельный inventory/livecodegate и согласованная4; до console-review не переходить к64/256. Агент debugger/Run/питание/BCD/гипервизор/процессы не меняет. Далее сохранены завершённые этапы, их pending команды не повторять.
 
 ## Отказ исходного API повторился:96/968 — 2026-10-17
 

@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "method": "redirect-kd-query-four-v1",
+  "kind": "noninstallable-selection-of-existing-points",
+  "control_policy": {
+    "method": "redirect-kd-query-four-v1",
+    "phase_connections": [
+      4
+    ],
+    "total_connections": 4,
+    "hold_seconds": 8,
+    "load_levels": [],
+    "final_four_same_session": false,
+    "connect_method": "ConnectEx",
+    "pending_limit": 32,
+    "original_single_query": true,
+    "listener_case": "original",
+    "listener_delay_ms": 0,
+    "debugger_points": "query-read-status-only",
+    "active_point_ids": [
+      3,
+      4
+    ],
+    "registered_point_ids": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6
+    ],
+    "logger_verification_required_before_load": true,
+    "load_authorized": false,
+    "cohort_budget_ms": 180000,
+    "client_wait_limit_ms": 60000,
+    "driver_installation": false,
+    "automatic_debugger_control": false,
+    "diagnostic_only": true,
+    "performance_comparable": false
+  },
+  "active_point_ids": [
+    3,
+    4
+  ],
+  "disabled_point_ids": [
+    0,
+    1,
+    2,
+    5,
+    6
+  ],
+  "expected_registered_ids": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6
+  ],
+  "stage_reload_allowed": false,
+  "historical_query_actions_observed_in_seven_point_four_run": true,
+  "current_host_inventory_verified": false,
+  "reduced_profile_run_verified": false,
+  "lifecycle_coverage_verified": false,
+  "root_cause_proven": false,
+  "limitations": [
+    "No CREATE/attach/free coverage",
+    "No shared Core/KD QPC or independent socket/seq in KD",
+    "UNREADABLE branch and general gc safety not proven",
+    "No automatic debugger control"
+  ],
+  "points": [
+    {
+      "id": 3,
+      "event": "QUERY_READ",
+      "target": "tcpip!WfpAleProcessSocketOption+0x2c4",
+      "action": ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_READ thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;"
+    },
+    {
+      "id": 4,
+      "event": "QUERY_STATUS",
+      "target": "tcpip!WfpAleProcessSocketOption+0x47b",
+      "action": ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_STATUS thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p status=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @ebx; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_STATUS thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;"
+    }
+  ]
+}
