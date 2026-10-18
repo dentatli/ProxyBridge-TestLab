@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий retrieve/query bounded — 2026-10-18
+
+USER зарегистрировал только2/3, каждую отключил; bl/.bpcmds показывают exact actions и адресаfffff8026a75567b/fffff8026a86157c,2/3d,отдельныйg. Новая source policy честно registered2/3/inactive[], без4. Читать [новый bounded checkpoint](KERNEL_RETRIEVE_QUERY_BOUNDED_PREPARATION_2026-10-18.md). Source b48dfdd: отдельные4файла и профиль, 4→64→256→4/328/512KiB/8s/ConnectEx32/originalsinglequery,120sclient/240scohort/2GiBgate. PS5/7parse/purepreset/AST и адаптированный328report(24fail=8Core10022+16unidentified10061/CAPTURE_INCOMPLETE), wrongprofile/fourphases rejected.28oldsourcesunchanged. Registrationreview явно является разбором USER chat paste, не выдуманным raw console file.
+
+Prepare завершён files-only новым kit064359-6cb715b3/Event12 record16566/BootId113: WindowsPS5exit0/FILES_VALIDATED8330/8197runtime, безповторInspect. PlanSHA D9B8DBA66645527FB5D4CB9A191651687CF8AC27BA8B7E8E66F3896F73518200.28oldsourcesпослеPrepareunchanged. DesktopPB-KD-Retrieve-Query-Bounded-20261018.txt содержит полный порядок одного USER Run328 с закрытымGPT, autoSHAcompare/throw и тремяreviewflags. Агент ни Run, ни debuggercontrol, ни продукт/драйвер/systemchanges не выполнял. Следующий шагUSER: только2/3d inventory, предупреждённыеbe2/be3/bl/gпоодной, одинRun, послеPSилиошибкиrecoverybd2/bd3/bl/gпоодной. При debuggererror не Run. ПередкаждымBreak/enablewarningwholeVM/Codex/RDP; gотдельноevenerror. Stageнеreload,старыеkitsне Resume/refreeze,новыйrebootтребуетновогоreview. Затем полныйconsole/nativebindingreview,неповторRun/не640. Ниже старые NEXT исторические.
+
 ## Актуальный стоп — 2026-10-18: retrieve/query four выполнен и разобран, новый boot
 
 Обновление: USER после подключения показал пустой bl и отдельный g. Затем прислал live console69ef2137 SHA277062ca5cfefddb0a283b0efd904b1fadb50f1602acd27560f059c78538bb73. Tcpip pdb symbols загружены, timestampD26770CA/checksum355D78/size35A000 прежние, новая базаfffff8026a740000. MASM/Cid508/frame согласуются. Проверены bytes16инструкций retrieval/query, включая EAX test/store и NULL→C0000225; новые адреса2=fffff8026a75567b,3=fffff8026a86157c. Console закончен отдельным g, ошибок не показано. Приватный auditpb-kd-retrieve-query-live-review-20261018. Никаких точек/трафика агент не запускал.
