@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: qualified bu2 проверена и отключена; подготовка four
+
+Prepare exit0: `pb-kd-session-plan-20261018-171328-b9b861da/runtime-plan.json`, SHA256 `6E501BF56B1B37B1CA151BEE6A7F8C8383EB290E4E473B23F11E714C0D64FAB3`. Только four/4, active+registered2, original listener/query, 512KiB/8s; product_started/traffic_generated/debugger_control=false. Повторно Inspect не запускать: Prepare уже проверил общие файлы. Один USER Run с PlanPath/PlanSha/ProfileReviewed/DebuggerLoggerEnabled после enable2; агент не Run. Результата пока нет.
+
+USER matching private PDB/load metadata/`ClassifyCore+3de` call RVA1696 подтверждены. Старая unqualified bu2 удалена, новая `ProxyBridgeDrv!ClassifyCore+0x3de`/bu2/bd2 подтверждена .bpcmds, затем отдельный g. Старые предупреждения перед bc2 не относятся к новой точке. SCM агентом read-only: Stopped. Private review `pb-driver-apply-symbol-registration-review-20261018`, boot16566/113, только four, без runtime/rebind/coverage claims. Читать начало [Apply candidate](KERNEL_DRIVER_APPLY_INPUT_CANDIDATE_2026-10-18.md). Перед USER Break/be2 предупредить whole VM/Codex/RDP, заранее recovery bd2/g отдельно. Известная2d, лишний initial bl не нужен. r t0=0, be2, g по одной; один USER four Run, после Run/error bd2 и отдельный g, console+TOTAL. Не bounded/не repeat/не product changes. Нижние стопы исторические.
+
 ## Текущий стоп: PDB_SHA_OK на хосте, далее проверка символов и отключённая точка
 
 USER сообщил `PDB_SHA_OK`: guarded copy matching PDB в `C:\PB-KD-Symbols-20261016\ProxyBridgeDrv.pdb` подтверждён его выводом. Загрузка PDB в WinDbg и qualified registration ещё не проверены. Текущая известная точка 2 — disabled unqualified bu; 3 удалена, последний g отдельный. Новый runtime plan/Run не создавался.

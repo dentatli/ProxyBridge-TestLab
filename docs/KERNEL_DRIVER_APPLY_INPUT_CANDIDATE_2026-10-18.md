@@ -1,5 +1,13 @@
 # Одна точка: входные данные драйвера перед Apply
 
+## Именованная отключённая точка подтверждена на хосте
+
+Files-only Prepare завершён exit0: `pb-kd-session-plan-20261018-171328-b9b861da/runtime-plan.json`, SHA256 `6E501BF56B1B37B1CA151BEE6A7F8C8383EB290E4E473B23F11E714C0D64FAB3`. Общие ресурсы переиспользованы, продукт/трафик/WinDbg не запускались. Policy проверена: four/4, active+registered2, original single query/listener, 8s. Plan ещё не использован, runtime результата нет.
+
+USER console: matching private PDB загружен из `C:\PB-KD-Symbols-20261016\ProxyBridgeDrv.pdb`; module base fffff8026c2c0000, ImageSize61000, timestamp6ABD1109/checksum143BA. `ClassifyCore` RVA12b8; `+3de` точно call FwpsApplyModifiedLayerData0, bytes e8d3110000, затем 488b4de8. Старую unqualified bu2 удалили; новая `bu2 ProxyBridgeDrv!ClassifyCore+0x3de` и `bd2` подтверждены `.bpcmds`, затем отдельный g. Предшествующие предупреждения WUDFRd/IndirectKmd относятся к старому выражению до bc2, не к новой точке. Agent read-only SCM подтвердил Stopped после USER unload.
+
+Private registration review: `pb-driver-apply-symbol-registration-review-20261018`. Источник — USER chat paste, не raw console с независимым SHA; review разрешает только four с новым точным profile SHA и текущим boot. Работа action, чтение request, ненулевой client port/корреляция, автоматическая привязка при следующей загрузке и полнота событий ещё не проверены. Продукт и предыдущие профили не менялись; агент Run/WinDbg не выполняет. Следующая проба — четыре соединения только с2; после неё отключить2 и отдельно g даже при ошибке, разобрать console до любой нагрузки.
+
 ## Перенос PDB подтверждён, загрузка символов ещё не проверена
 
 USER вывел `PDB_SHA_OK` после guarded copy на физическом хосте. Это подтверждает сравнение SHA подготовленного файла и destination `C:\PB-KD-Symbols-20261016\ProxyBridgeDrv.pdb`, но не его загрузку WinDbg. Private observation сохранён в `pb-driver-symbol-binding-review-20261018/host-copy-observation.json`.
