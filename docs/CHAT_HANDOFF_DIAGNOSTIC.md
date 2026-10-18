@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий шаг: только чтение live-кода создания и узкого caller прикрепления
+
+Читать [план association](KERNEL_REDIRECT_ASSOCIATION_PLAN_2026-10-18.md). По текущему tcpip diskSHA b0683bd7... проверены IAT FwppNetBufferListAssociateContext RVA24dde8,20instr caller (кандидат WfpTlShimInspectFastLoopbackSendDatagram, RVA d7e80..d7fec) и6instr store кандидата AlepCreateRedirectRecord (RVA108520,store1088af/+38f). Исторический RVA guess d68e0 отвергнут по prologue, preferred PEbase140000000; текущий caller найден по import xref/unwind, не старому абсолютному адресу. Privateaudit pb-kd-association-offline-review-20261018 сохраняет failed guess и current proof.
+
+Caller branch берётrecord изsourceep+1c0, key5/NBL/callback и проверяет результат прикрепления. Diskcall+94 return+9b/NOP/test+a0, currentlive ещё не читали. Не называть+a0 live return, не обещать once-per-connection или малую частоту. Record tuple layout/устойчивая связь с Core ещё не установлены. Новых profile/stage/plan/Run нет, продукт не менялся.
+
+Следующий USER read-only шаг: beforeBreak wholeVM/Codex/RDP warning/recoverybd2/bd3/bl/g отдельно; bl только2/3d, затем uf tcpip!WfpTlShimInspectFastLoopbackSendDatagram и uf tcpip!AlepCreateRedirectRecord по одной; g отдельно даже после ошибки. При unexpected inventory не исследовать далее, recovery/g и прислать вывод. Ниbp/be/step/Run, не старую17/25stage. Затем reviewlive и выбор минимальных точек; не считать record assignment/associate attempt/success одним событием и NBL address lifetimeID.10061 вне активного разбора,Desktopинструкцийне делать. НижеNEXTисторические.
+
 ## Актуальный результат: одна QUERY_NULL воспроизвела32исходныхотказа
 
 Читать последний раздел [диагностического документа](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). USER114550-9996e992:328attempts/296success/32nativefail, все32uniquelycorrelatedCore10022 seq279..310/load256, остальныефазы/recovery успешны, errors[]. Controller42.654s, workload/cleanupcompleted/graceful. Rawconsole0da2599c/SHA276b1d861945f260265afbd022527d408cfc287d9bf247d3f3bf80df2f64a594:32QUERY_NULL/32uniqueEP/record0/IOCTL980000dd, noUNEXPECTED/loggererrors,2disabled.105refs/sharedruntimeSHA/62inputsunchanged. Privateaudit pb-kd-query-null-only-bounded-result-review-20261018.
