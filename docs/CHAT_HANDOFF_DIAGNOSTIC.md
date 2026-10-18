@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: PDB_SHA_OK на хосте, далее проверка символов и отключённая точка
+
+USER сообщил `PDB_SHA_OK`: guarded copy matching PDB в `C:\PB-KD-Symbols-20261016\ProxyBridgeDrv.pdb` подтверждён его выводом. Загрузка PDB в WinDbg и qualified registration ещё не проверены. Текущая известная точка 2 — disabled unqualified bu; 3 удалена, последний g отдельный. Новый runtime plan/Run не создавался.
+
+Следующий USER цикл без трафика: ADMIN PowerShell внутри VM Start-Service/WaitRunning; перед Break предупредить об остановке всей VM/Codex/RDP, recovery bd2 и отдельный g. В WinDbg по одной: reload driver PDB, lmvm, x ClassifyCore, u ClassifyCore+3de L2. При несовпадении не регистрировать/не force symbols: отдельный g и USER Stop-Service/WaitStopped. Если символы и call RVA1696 совпали — bc2, qualified bu2 из symbol candidate, сразу bd2, .bpcmds, отдельный g, USER Stop-Service/WaitStopped. Перед созданием bu предупредить: точка первоначально enabled, VM остаётся остановленной. Не be/не Run. Разрешение краткого load/read/unload уже есть; агент не повышен и Start-Service не повторяет. Затем разобрать полный USER PS/KD вывод. Нижние стопы исторические.
+
 ## Текущий стоп: unqualified bu предупреждение, нужен перенос matching driver PDB
 
 Читать начало [driver Apply candidate](KERNEL_DRIVER_APPLY_INPUT_CANDIDATE_2026-10-18.md). USERсоздалbu2module+1696/bd2, TOTAL0/g,ноwarning contains symbols not qualified with module name. Необъявлятьdeferredbindingготовым/неbe/неRun. Только2disabledтеперьзарегистрирована;3удалена. НашёлmatchingPDB610304bytes/SHA8196d1d70ff10317bb460390f125f3906a1cfb8ad1a90130122ebd03e039d1d6/GUID9edddca7-4d9e-4bad-be1d-2bfc2d491344/DBIage1совпалоRSDS SYS3cd. LocalDbgHelpfile-onlySymFromNameClassifyCoreRVA12b8/+3de=1696подтверждён. НеDriverEntry/WinDbg/traffic. MSFprefixinitial24mistakeисправленаstartswith, исходникнеизменён.

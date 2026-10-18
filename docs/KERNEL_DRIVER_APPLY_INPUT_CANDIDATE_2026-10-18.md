@@ -1,5 +1,11 @@
 # Одна точка: входные данные драйвера перед Apply
 
+## Перенос PDB подтверждён, загрузка символов ещё не проверена
+
+USER вывел `PDB_SHA_OK` после guarded copy на физическом хосте. Это подтверждает сравнение SHA подготовленного файла и destination `C:\PB-KD-Symbols-20261016\ProxyBridgeDrv.pdb`, но не его загрузку WinDbg. Private observation сохранён в `pb-driver-symbol-binding-review-20261018/host-copy-observation.json`.
+
+Следующий шаг объединяет один USER ADMIN load/read/unload с проверкой matching PDB и заменой отключённой unqualified bu2 на `ProxyBridgeDrv!ClassifyCore+0x3de`. Сначала `.reload /f ProxyBridgeDrv.sys`, `lmvm`, `x` и `u` должны подтвердить символ и call RVA1696. При ошибке остановить регистрацию, отдельно g и выгрузить драйвер. При совпадении bc2, qualified bu2, немедленно bd2, .bpcmds и отдельно g; затем USER Stop-Service/WaitStopped. Предупредить перед Break и созданием bu об остановке всей VM/Codex/RDP; recovery bd2 и отдельный g. Нагрузки, be и нового runtime plan пока нет. Краткий load/read/unload уже согласован; агент сам драйвер не загружает. Предыдущие профили и комплекты сохранены.
+
 ## Текущий стоп: предупреждение unqualified, подготовлен matching PDB и target v2
 
 USER bu2 module+1696 был создан и .bpcmds показал именноbu2/bd2; TOTAL0 иотдельныйg подтверждены. Но WinDbg предупредил contains symbols not qualified with module name. Это не успешная проверка автоматической привязки. Не включать/неRun и не игнорировать предупреждение только потому, что запись появилась. Выражениебезmodule!symbolбылонедостаточнонадёжнымвыбором; теперьперейтикквалифицированномусимволу, неугадыватьдругойabsolute/moduleoffset.
