@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: query-only four успешен и быстрее; готов один bounded256 только с3
+
+Читать последний раздел [диагностического документа](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). USER113758-9093adbe:4native/4Core success/32bytes/errors[],cleanupcompleted/graceful. Controller16.664s vs111.605s, snapshot0.981s/4sockets vs85.349s/0sockets. Workload кромеdebugpolicy/assets/Python/boot16566/113/выбранныеsourceSHA совпали. Поддерживает существенный вклад точки2 в тормоза, неproof исключительнойпричины/исходного10022.61refs/runtimeSHA/37inputs unchanged. Console USERchatpaste (неraw):2/3d→be3/g→bl2d3e→bd3/g, безpost-bdbl; QUERY_NULL/loggererrors не показано. НовыйBreakрадиblне нужен, проверить передenable. Privateaudit pb-kd-query-null-only-four-result-review-20261018.
+
+ОбщийPrepare WindowsPS5exit0: bounded plan114113-16636491, SHA569026639052181202ED5DA5A3453F1726A5E6B04DA9CC3C0AA4377EEC5796D7. Толькоactive3/inactive2, зарегистрированы2/3.4→64→256→4/328, прежние512KiB/8s/ConnectEx32/originalquery/client120s/cohort240s. Review привязан к actualquery-onlyfour/profile/boot; runtime/source/product не менялись, agentнеRun/WinDbg. Privateaudit pb-kd-query-null-only-bounded-preparation-review-20261018.
+
+Далее один USER Run с PlanPath/PlanSha/ProfileReviewed/DebuggerLoggerEnabled/BoundedLoadReviewed. BeforeBreak/enable3 предупредить wholeVM/Codex/RDP, recoverybd2/bd3/bl/g по одной. Inventory2/3d, толькоbe3/bl2d3e/g отдельно; послеRun/error bd3/bl/g отдельно, полныйPS/console.2неbe/неbp/staging/неrepeat/не640. Раннийmiss/егоисториянепокрыты, queryreturnNTSTATUSнеизмеряется.10061отдельнонеразбирать,Desktopинструкцийне делать. НижеNEXTисторические.
+
 ## Следующий USER шаг: четыре соединения, активна только QUERY_NULL (3)
 
 После лимита USER попросил продолжить. Remote362c438 подтверждён, boot16566/113 не изменился. Подготовлен профиль `pb-kd-query-null-only-candidate-20261018.json`: зарегистрированы2/3, активна только3,2отключена; actions не менялись. Перерегистрировать точки не нужно. Это изолирующая проба задержки безEARLY_MISS, не восстановление полного coverage и не доказательство причины10022.
