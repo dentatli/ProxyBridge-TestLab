@@ -46,3 +46,14 @@ ETW final/header loss=0, helpers stopped, resident DISABLE after completed,
 служба Running; независимого readback gEnabled нет. План использован, не повторять.
 Добавлена предварительная проверка тех же 2 GiB до run-claim/ETW/worker start,
 порог не снижен; действующая проверка внутри cohort сохраняется.
+
+После reboot и подтверждения USER `bc2`/отдельного `g` применяется новый
+`scripts/debugger/pb-etw-tcpip-no-points-v1.json` с пустыми registered/active/
+inactive/points. Предыдущий профиль с отключённой2 не изменяется.
+Проба190824-00e55c9d:4native successes/4Core queries32bytes/errors[],
+ETWfinal+header loss0. Для каждого Corepeer найден ровно один1553v0 с тем же
+local/remote sockaddr. Во всех четырёх Succeeded1, Redirected0, CodePath2;
+значение Redirected этого event нельзя считать индикатором отсутствия
+WFP redirect context, поскольку Core его получил.1315 не наблюдался.
+Нет доказательства причины10022/полноты kernel lifecycle; нужны failure-side
+данные. Драйвер остаётся Running после completed DISABLE, ETW остановлен.

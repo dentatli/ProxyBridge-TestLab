@@ -1,5 +1,43 @@
 # Передача чату диагностики TCP / WinDbg
 
+## ETW four завершён после увеличения RAM; 4/4 Core context и 1553 tuples
+
+USER увеличил RAM до10GB и перезапустил VM: boot event16953/prefetch114,
+start2026-10-18T19:02:39.5000000+00:00; прежнийboot113/addresses/plans не использовать.
+USER «Готово» подтвердил host bc2/отдельныйg; это user acknowledgement,
+не direct inventory отладчика. Новых host commands/Break/be агент не выполнял.
+Новый профиль `scripts/debugger/pb-etw-tcpip-no-points-v1.json`: zero registered,
+active/inactive/points, тот же ETW observer/mask0x2080/level5/resident-disabled.
+Файл прежнего профиля и старые frozen kits сохранены.
+
+SCM был Stopped; перед Start-Service сверены registered path и pinned SYS SHA
+3cd79cfc2a9ec6e45a11b2c225d11cb18c504fec3535e3ef1cb730e0e7732c9e.
+Start/Running проверены, установки/BCD/proxy/hypervisor changes агентом нет.
+Free memory перед подготовкой3687571456bytes, прошлый memory blocker снят.
+Fresh plan190741-64ce9fb2 SHAfea166a6a385b74b61e366ad8f2cf7ead27c680c7ce8c3cdd76742d7ffce638f
+использован один раз, не Resume/refreeze.
+
+Run `pb-kd-session-run-20261018-190824-00e55c9d`: native4success/0failed,
+Core4singlequeries success/32bytes/errors[], ETWfinal/header loss0/errors[],
+107buffers,132total1553 (остальные background),1315 отсутствует в capture.
+Private review `pb-etw-four-review-20261019/review.json` сопоставляет четыре
+unique peer endpoints127.0.0.1:55452..55455 с Corelocal127.0.0.1:34010:
+ровно один1553v0 на каждый peer, ETWLocalSockAddr тоже34010, общийlistener.
+Все четыре Succeeded1/Redirected0/CodePath2/RedirectedListener0/
+RedirectSockAddrzero. Поскольку Core успешно получил context, поле Redirected0
+этого event НЕ является критерием отсутствия WFP redirect context.
+CodePath semantic/private record history не установлены. UTC alignment не
+подтверждён (tracerptXML offset+04:59); join по уникальным tuples, не по wallclock.
+Исходный10022 наfour не воспроизведён; kernelNTSTATUS/root cause не доказаны.
+
+Cleanup: modeCOMPLETED/helpersstoppedtrue, resident DISABLE aftercompleted,
+SCMRunning/driver_unloadedfalse/independentflagreadbackfalse; ownETWstopped/exported.
+Следующий разумный этап — review и новый bounded256 план с тем же zero-points
+profile/boot, priorfour bound к этому capture; ещё не подготовлен/не запускался.
+Цель сравнить события accepted endpoint для10022 иsuccess, не объявлять1553
+полным наблюдением WFP-record lifecycle. Не добавлять hardware points, не640,
+10061 только incidental. Старые разделы ниже исторические.
+
 ## ETW подключён; four остановлен по ОЗУ, USER освобождает память
 
 Последующее замечание USER: приложение агента занимает всю память. Read-only
