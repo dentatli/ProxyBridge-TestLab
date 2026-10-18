@@ -1,0 +1,51 @@
+{
+  "schema_version": 1,
+  "method": "kd-retrieve-null-pair-candidate-20261018-v1",
+  "status": "DISABLED_REPLACEMENT_REGISTRATION_PENDING",
+  "point_count_active": 2,
+  "registered_point_ids": [
+    2,
+    3
+  ],
+  "active_point_ids": [
+    2,
+    3
+  ],
+  "inactive_point_ids": [],
+  "all_points_must_be_disabled_before_registration": true,
+  "point2_unchanged": true,
+  "replaces_only_id3": true,
+  "slot3_must_be_absent_before_bp3": true,
+  "prior_profile_sha256": "fe22c068336ba12010142363d54da17fada51aa5fa71c8b050f09d5b04b2b530",
+  "live_console_sha256": "277062ca5cfefddb0a283b0efd904b1fadb50f1602acd27560f059c78538bb73",
+  "branch_event_is_not_query_return_status": true,
+  "successful_query_events_removed": true,
+  "automatic_debugger_control": false,
+  "load_authorized": false,
+  "runtime_verified": false,
+  "root_cause_proven": false,
+  "points": [
+    {
+      "id": 2,
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcaf",
+      "rva": "0x1567b",
+      "action": ".if ($vvalid(@rbp-0x7c,4) == 1) { .if (wo(@rbp-0x7c) == 0xda84) { .if ($vvalid(@rbp-0x28,8) == 1) { .printf \"PBKDR RETRIEVE_RESULT ep=%p nbl=%p local_raw=%x peer_raw=%x status=%x output_raw=%p\\n\", @rdi, @rbx, wo(@rbp-0x7c), wo(@rbp-0x7a), @eax, poi(@rbp-0x28); } .else { .printf \"PBKDR_UNREADABLE event=RETRIEVE_RESULT ep=%p status=%x capture=incomplete\\n\", @rdi, @eax; } } } .else { .printf \"PBKDR_UNREADABLE event=RETRIEVE_FILTER ep=%p status=%x capture=incomplete\\n\", @rdi, @eax; }; gc;"
+    },
+    {
+      "id": 3,
+      "event": "QUERY_NULL",
+      "target": "tcpip!WfpAleProcessSocketOption+0x2d0",
+      "rva": "0x121588",
+      "action": ".if (@r15d == 0x980000dd) { .if (@rdx == 0) { .printf \"PBKDN QUERY_NULL ep=%p record_reg=%p ioctl=%x scope=%p\\n\", @rdi, @rdx, @r15d, @rsp; } .else { .printf \"PBKDN_UNEXPECTED event=QUERY_NULL ep=%p record_reg=%p capture=incomplete\\n\", @rdi, @rdx; } }; gc;",
+      "printf_arguments": [
+        "rdi",
+        "rdx",
+        "r15d",
+        "rsp"
+      ],
+      "status_assignment_executed_at_point": false,
+      "query_return_status_measured": false,
+      "cid_or_endpoint_memory_dereferenced": false
+    }
+  ]
+}

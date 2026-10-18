@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Retrieve/NULL кандидат готов офлайн — 2026-10-18
+
+USER«Окей,давай»послеконтроля32Core10022. Читать [retrieve/NULL кандидат](KERNEL_RETRIEVE_NULL_CANDIDATE_2026-10-18.md). НовыйJSONprofilemethodkd-retrieve-null-pair-candidate-20261018-v1/SHAb0fbb8dfc62a0fbd323aba7a721769ac438ace846a923cb61dd2210361c47f91:2unchangedretrievalreturn,3candidateNULLветка+0x2d0/RVA121588/currentfffff8026a861588. Activecount2.3actionregister-onlyep/RDX/IOCTL/RSP,безCid/poi/wo,финальныйgc,UNEXPECTEDнаrdxnonzero. ЭтоNULLpathobservationдоmovr8dC0000225,неизмеренныйqueryreturnstatus. Успешныеqueryeventsбудутотсутствовать,покрытиесокращено;observereffectможетсохранитьсяот2. Выбранные4liveinstructionbytes/offset/structurechecksпрошли,oldinputsunchanged. Boot16566/113подтверждёнread-only. Новыйstage/ZIPне создавался,rawprivateauditpb-kd-retrieve-null-candidate-review-20261018. Ниregistrationниruntimeнепроверены,kit/Runещёнет.
+
+СледующийUSERшаг:beforeBreakwholeVM/Codex/RDPwarning/recoverybd2/bd3/bl/gпоодной. blтолько2/3d,3old+2c4 → bc3 → blтолько2d. Передbp3warnenabledpoint/VMостаётсяостановленнойдоbd3. Одинновыйbp3+2d0 → bd3/bl/.bpcmds → отдельныйgevenerror. 2неперерегистрировать,stageнеreload,bc3/bp3неповторятьповерхаlreadychanged3. Затемполныйconsolereview;ниbeниRunдоfreshkit/newmanifest. СтарыеkitsнеResume/refreeze,продуктне менять. НижестарыеNEXTисторические.
+
 ## Актуальный контроль — 2026-10-18: без точек32исходныхAPIотказа
 
 Читать [результат matched328контроля](REDIRECT_BOUNDED_CONTROL_RESULT_2026-10-18.md). USER Run070522-24f1bd43 завершён:328attempts/296success/32nativefail,все32uniquelycorrelatedCoreapi_return-1/error10022,seq283..314/load256;unidentified10061=0,reporterrors[]. NTSTATUSвэтомконтроленеизмерен. Workloadвсе4фазыCOMPLETED/cleanupreceipttrue/CLIgraceful/no forced/errorпуст.8285frozenSHAexact,62runinputsunchanged,originalreportsнепереписаны,privateauditpb-redirect-bounded-control-result-review-20261018.
