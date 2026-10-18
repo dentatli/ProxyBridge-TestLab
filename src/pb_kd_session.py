@@ -83,6 +83,11 @@ def boot_identity(evidence):
 def policy(workload, profile):
     if workload not in SHAPES:
         raise ValueError('KD_SESSION_WORKLOAD_UNSUPPORTED')
+    lifecycle = profile.get('driver_lifecycle', 'unload')
+    if lifecycle not in ('unload', 'resident-disabled'):
+        raise ValueError('KD_SESSION_DRIVER_LIFECYCLE_INVALID')
+    if lifecycle == 'resident-disabled' and workload != 'four':
+        raise ValueError('KD_SESSION_RESIDENT_FOUR_ONLY')
     ids = profile['active_point_ids']
     registered = profile['registered_point_ids']
     inactive = profile['inactive_point_ids']
@@ -95,7 +100,7 @@ def policy(workload, profile):
             or profile['automatic_debugger_control'] or profile['load_authorized']
             or profile['root_cause_proven']):
         raise ValueError('KD_SESSION_DEBUGGER_PROFILE_INVALID')
-    return dict(method=METHOD, workload=workload, **SHAPES[workload],
+    result = dict(method=METHOD, workload=workload, **SHAPES[workload],
                 total_connections=sum(SHAPES[workload]['phase_connections']), hold_seconds=8,
                 final_four_same_session=workload != 'four', connect_method='ConnectEx', pending_limit=32,
                 original_single_query=True, listener_case='original', listener_delay_ms=0,
@@ -104,6 +109,9 @@ def policy(workload, profile):
                 logger_verification_required_before_load=True, load_authorized=False,
                 driver_installation=False, automatic_debugger_control=False,
                 diagnostic_only=True, performance_comparable=False)
+    if lifecycle == 'resident-disabled':
+        result['driver_lifecycle'] = lifecycle
+    return result
 
 
 def register_assets(root, seed_plan, expected_sha):

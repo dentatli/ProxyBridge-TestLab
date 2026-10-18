@@ -6,6 +6,11 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 $policy=$SessionPlan.control_policy
+$residentDriver=$policy.PSObject.Properties['driver_lifecycle'] -and $policy.driver_lifecycle -eq 'resident-disabled'
+if ($residentDriver) {
+    if ($policy.workload -ne 'four') {throw 'KD_SESSION_RESIDENT_FOUR_ONLY'}
+    Import-Module (Join-Path $root 'modules/KdResidentDriver.psm1')
+}
 if ($SessionPlan.method -cne 'redirect-kd-session-v1' -or
     $policy.cohort_module -notin @('KdQueryProbeConnectionLoad','KdQueryBoundedConnectionLoad')) {throw 'KD_SESSION_ENGINE_CONTRACT_INVALID'}
 foreach ($name in @('Env','ProductBuild','RuntimeEnvironment','InterceptionState','ProxyBridgeCli','ProcessAdapter','ProxyBridgeEvidence',$policy.cohort_module)) {
@@ -65,9 +70,14 @@ function Assert-ConnectionOff([string]$Directory,[ValidateSet('before','after')]
     Write-ConnectionJson $state (Join-Path $Directory ('interception-'+$Phase+'.json'))
     Write-ConnectionJson $loaded (Join-Path $Directory ('loaded-drivers-'+$Phase+'.json'))
     Write-ConnectionJson @($processes | Select-Object ProcessId,Name,ExecutablePath) (Join-Path $Directory ('product-processes-'+$Phase+'.json'))
-    if (-not $state.current_driver_preparation_allowed -or -not $state.wfp_detachment_observed -or $state.wfp.service_state -ne 'Stopped' -or
+    $driverReady=if ($residentDriver) {
+        $state.wfp.service_state -eq 'Running' -and $loaded.selected_driver_loaded -and @($loaded.known_interception_drivers).Count -eq 1
+    } else {
+        $state.wfp_detachment_observed -and $state.wfp.service_state -eq 'Stopped' -and $loaded.known_interception_driver_names_absent
+    }
+    if (-not $state.current_driver_preparation_allowed -or -not $driverReady -or
         -not $state.windivert.configured -or -not $state.windivert.files_verified -or -not $state.windivert.capture_complete -or $state.windivert.status -ne 'NO_HANDLES_OBSERVED' -or $state.windivert.observed_handle_count -ne 0 -or
-        -not $loaded.query_complete -or -not $loaded.known_interception_driver_names_absent -or $processes.Count) { throw 'CONNECTION_REQUIRES_CONFIRMED_PRODUCT_OFF' }
+        -not $loaded.query_complete -or $processes.Count) { throw 'CONNECTION_REQUIRES_CONFIRMED_PRODUCT_OFF_OR_RESIDENT_DISABLED' }
     return [pscustomobject]@{state=$state;loaded=$loaded}
 }
 function Start-ConnectionWorker($Name,$Arguments,$Workers) {
@@ -107,10 +117,16 @@ function Wait-ConnectionWorker($Worker,$Path) {
 function Invoke-ConnectionMode($Mode,$Directory) {
     $null=New-Item -ItemType Directory -Path $Directory
     $workers=[Collections.Generic.List[object]]::new();$startedProduct=$false
+    $residentHandle=$null;$residentSession=[guid]::NewGuid().ToString('N')
     $receipt=[ordered]@{schema_version=1;mode=$Mode;status='RUNNING';phases=@();workers_stopped=$false;driver_stop_observed=$false;version_switch_ready=$false;error=''}
     $adapter=New-SystemProcessAdapter
     try {
         $before=Assert-ConnectionOff -Directory $Directory -Phase before
+        if ($residentDriver) {
+            # Never enable interception here. Keep a device handle through this run.
+            $residentHandle=Open-KdResidentDriver
+            Write-ConnectionJson (Disable-KdResidentDriver -Handle $residentHandle -SessionId $residentSession -Phase before) (Join-Path $Directory 'resident-disable-before.json')
+        }
         Write-ConnectionJson $identity (Join-Path $Directory 'product-build.json')
         foreach ($port in @(54122,54123)) { if (@(Get-NetTCPConnection -State Listen -LocalPort $port -ErrorAction SilentlyContinue).Count) { throw 'CONNECTION_PORT_IN_USE' } }
         $proxyLog=Join-Path $Directory 'proxy.jsonl'
@@ -209,11 +225,17 @@ function Invoke-ConnectionMode($Mode,$Directory) {
         }
         $receipt.workers_stopped=$clean
         try {
-            if ($startedProduct) { $service=Get-Service -Name $environment['PB_PROXYBRIDGE_SERVICE'];if ($service.Status -ne 'Stopped') { Stop-Service -Name $service.Name -Force;$service.WaitForStatus('Stopped',[TimeSpan]::FromSeconds(10)) } }
+            if ($residentDriver) {
+                if ($null -eq $residentHandle) {throw 'KD_RESIDENT_HANDLE_NOT_OPENED'}
+                Write-ConnectionJson (Disable-KdResidentDriver -Handle $residentHandle -SessionId $residentSession -Phase after) (Join-Path $Directory 'resident-disable-after.json')
+            } elseif ($startedProduct) { $service=Get-Service -Name $environment['PB_PROXYBRIDGE_SERVICE'];if ($service.Status -ne 'Stopped') { Stop-Service -Name $service.Name -Force;$service.WaitForStatus('Stopped',[TimeSpan]::FromSeconds(10)) } }
             $after=Assert-ConnectionOff -Directory $Directory -Phase after
-            $receipt.driver_stop_observed=$true
+            if ($residentDriver) {$receipt['resident_disable_observed']=$true;$receipt['driver_lifecycle']='resident-disabled'}
+            else {$receipt.driver_stop_observed=$true}
         } catch { $receipt.error+='; '+$_.Exception.Message }
-        if (-not $receipt.workers_stopped -or -not $receipt.driver_stop_observed) { $receipt.status='FAILED' }
+        finally {if ($null -ne $residentHandle) {$residentHandle.Dispose()}}
+        $driverClean=if ($residentDriver) {$receipt.Contains('resident_disable_observed') -and $receipt.resident_disable_observed} else {$receipt.driver_stop_observed}
+        if (-not $receipt.workers_stopped -or -not $driverClean) { $receipt.status='FAILED' }
         Write-ConnectionJson $receipt (Join-Path $Directory 'run-receipt.json')
     }
     if ($receipt.status -eq 'FAILED') { throw ('CONNECTION_RUN_FAILED: '+$receipt.error) }

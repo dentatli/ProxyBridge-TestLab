@@ -32,7 +32,8 @@ def parse_queries(stdout):
     return records
 
 def evaluate(path, *, diagnostic_method='tcp-redirect-context-diagnostic-v1', report_method='redirect-context-logging-v1',
-             distinguish_unidentified_connect_failures=False, target_ip='127.0.0.1', receiver_evaluator=None):
+             distinguish_unidentified_connect_failures=False, target_ip='127.0.0.1', receiver_evaluator=None,
+             driver_cleanup_evaluator=None):
     errors=[];source={str(p.relative_to(path)):hashlib.sha256(p.read_bytes()).hexdigest() for p in path.rglob('*')
         if p.is_file() and p.name not in ('redirect-context-report.json','redirect-context-summary.md','diagnostic-run.json')}
     result=dict(schema_version=1,method=report_method,diagnostic_only=True,performance_comparable=False,
@@ -66,7 +67,8 @@ def evaluate(path, *, diagnostic_method='tcp-redirect-context-diagnostic-v1', re
         if any(q['relay_pid']!=cli['pid'] for q in queries):errors.append('QUERY_RELAY_PID_DIFFERS')
         if not all(cli[k] for k in ('ready','graceful_stop','post_stop_verified','output_capture_complete')) or cli['forced_stop'] or cli['error']:
             errors.append('PRODUCT_LIFECYCLE_INCOMPLETE')
-        if manifest['status']!='COMPLETED' or mode['status']!='COMPLETED' or not mode['workers_stopped'] or not mode['driver_stop_observed']:
+        driver_clean = driver_cleanup_evaluator(path, mode) if driver_cleanup_evaluator else mode['driver_stop_observed']
+        if manifest['status']!='COMPLETED' or mode['status']!='COMPLETED' or not mode['workers_stopped'] or not driver_clean:
             errors.append('RUN_OR_CLEANUP_INCOMPLETE')
         assigned=[]
         for phase in mode['phases']:

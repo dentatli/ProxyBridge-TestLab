@@ -21,13 +21,47 @@ def summarize_original_queries(queries, matched):
                 kernel_c0000225_proven=False, root_cause_proven=False)
 
 
+def resident_cleanup_confirmed(path, mode):
+    if (mode.get('driver_lifecycle') != 'resident-disabled'
+            or mode.get('resident_disable_observed') is not True
+            or mode.get('driver_stop_observed') is not False):
+        return False
+    before = read(path / 'proxy/resident-disable-before.json')
+    after = read(path / 'proxy/resident-disable-after.json')
+    if not before.get('session_id') or before['session_id'] != after.get('session_id'):
+        return False
+    for phase, receipt in (('before', before), ('after', after)):
+        if (receipt.get('schema_version') != 1 or receipt.get('phase') != phase
+                or receipt.get('operation') != 'PBDRV_IOCTL_DISABLE'
+                or receipt.get('ioctl') != '0x22a00c' or receipt.get('device') != r'\\.\ProxyBridgeDrv'
+                or receipt.get('completed') is not True or receipt.get('service_state') != 'Running'
+                or receipt.get('driver_unloaded') is not False):
+            return False
+        snapshot = read(path / f'proxy/interception-{phase}.json')
+        loaded = read(path / f'proxy/loaded-drivers-{phase}.json')
+        processes = read(path / f'proxy/product-processes-{phase}.json')
+        if (snapshot['wfp']['status'] != 'SERVICE_FILE_VERIFIED'
+                or snapshot['wfp']['service_state'] != 'Running'
+                or not snapshot['current_driver_preparation_allowed']
+                or not loaded['query_complete'] or not loaded['selected_driver_loaded']
+                or len(loaded['known_interception_drivers']) != 1 or processes):
+            return False
+    return True
+
+
 def evaluate(path, plan):
     POLICY = plan["control_policy"]
     expected = policy(POLICY["workload"], read_plan(Path(plan["preparation"]) / "debugger-profile.json"))
     if POLICY != expected:
         raise ValueError("KD_SESSION_POLICY_DIFFERS")
+    resident = POLICY.get('driver_lifecycle') == 'resident-disabled'
     result = evaluate_native(path, diagnostic_method='tcp-' + METHOD, report_method=METHOD,
-                             distinguish_unidentified_connect_failures=True)
+                             distinguish_unidentified_connect_failures=True,
+                             driver_cleanup_evaluator=resident_cleanup_confirmed if resident else None)
+    if resident:
+        result.update(driver_lifecycle='resident-disabled', driver_unloaded=False,
+                      disable_ioctl_evidence_required=True, enabled_flag_independent_readback=False,
+                      version_switch_ready=False)
     result['source_sha256'].pop('kd-session-report.json', None)
     result['source_sha256'].pop('kd-session-summary.md', None)
     errors = result['errors']

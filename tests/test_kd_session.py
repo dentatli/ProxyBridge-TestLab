@@ -60,6 +60,16 @@ class DiagnosticSessionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'PROFILE_INVALID'):
             policy('four', self.profile)
 
+    def test_resident_mode_is_explicit_and_initially_four_only(self):
+        self.assertNotIn('driver_lifecycle', policy('four', self.profile))
+        self.profile['driver_lifecycle'] = 'resident-disabled'
+        self.assertEqual(policy('four', self.profile)['driver_lifecycle'], 'resident-disabled')
+        with self.assertRaisesRegex(ValueError, 'RESIDENT_FOUR_ONLY'):
+            policy('bounded256', self.profile)
+        self.profile['driver_lifecycle'] = 'anything'
+        with self.assertRaisesRegex(ValueError, 'LIFECYCLE_INVALID'):
+            policy('four', self.profile)
+
     def test_file_tamper_and_duplicate_rejected(self):
         entry = dict(path=str(self.evidence), sha256=digest(self.evidence))
         with self.assertRaisesRegex(ValueError, 'DUPLICATE'):

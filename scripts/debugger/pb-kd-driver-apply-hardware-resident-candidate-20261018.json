@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "method": "kd-driver-apply-hardware-resident-candidate-20261018-v1",
+  "status": "OFFLINE_CANDIDATE_REQUIRES_USER_RESIDENT_LOAD_LIVE_CODE_AND_DISABLED_BA_REGISTRATION",
+  "registered_point_ids": [
+    2
+  ],
+  "active_point_ids": [
+    2
+  ],
+  "inactive_point_ids": [],
+  "point_count_active": 1,
+  "replaces_only_ids": [
+    2,
+    3
+  ],
+  "automatic_debugger_control": false,
+  "load_authorized": false,
+  "root_cause_proven": false,
+  "points": [
+    {
+      "id": 2,
+      "event": "APPLY_INPUT",
+      "target": "ProxyBridgeDrv!ClassifyCore+0x3de",
+      "rva": "0x1696",
+      "kind": "ba",
+      "action": "r @$t0 = @$t0 + 1; .if (($vvalid(@rdx,0x138) == 1) and ($vvalid(ProxyBridgeDrv+0x138,4) == 1)) { .if (dwo(ProxyBridgeDrv+0x138) == 0x61000) { .printf \"PBDI APPLY_INPUT hit=%I64x thread=%p req=%p local0=%I64x remote0=%I64x target_pid=%x redirect=%p ctx=%p size=%I64x image_size=%x\\n\", @$t0, @$thread, @rdx, poi(@rdx), poi(@rdx+0x80), dwo(@rdx+0x108), poi(@rdx+0x120), poi(@rdx+0x128), poi(@rdx+0x130), dwo(ProxyBridgeDrv+0x138); } .else { .printf \"PBDI_IMAGE_MISMATCH hit=%I64x capture=incomplete\\n\", @$t0; } } .else { .printf \"PBDI_UNREADABLE hit=%I64x capture=incomplete\\n\", @$t0; }; gc;",
+      "registration_command": "ba2 e1 ProxyBridgeDrv!ClassifyCore+0x3de \"r @$t0 = @$t0 + 1; .if (($vvalid(@rdx,0x138) == 1) and ($vvalid(ProxyBridgeDrv+0x138,4) == 1)) { .if (dwo(ProxyBridgeDrv+0x138) == 0x61000) { .printf \\\"PBDI APPLY_INPUT hit=%I64x thread=%p req=%p local0=%I64x remote0=%I64x target_pid=%x redirect=%p ctx=%p size=%I64x image_size=%x\\\\n\\\", @$t0, @$thread, @rdx, poi(@rdx), poi(@rdx+0x80), dwo(@rdx+0x108), poi(@rdx+0x120), poi(@rdx+0x128), poi(@rdx+0x130), dwo(ProxyBridgeDrv+0x138); } .else { .printf \\\"PBDI_IMAGE_MISMATCH hit=%I64x capture=incomplete\\\\n\\\", @$t0; } } .else { .printf \\\"PBDI_UNREADABLE hit=%I64x capture=incomplete\\\\n\\\", @$t0; }; gc;\"",
+      "access": "e",
+      "size": 1
+    }
+  ],
+  "counter_init_commands": [
+    "r @$t0 = 0"
+  ],
+  "counter_read_command": ".printf \"PBDI TOTAL hits=%I64x\\n\", @$t0",
+  "driver_expected_sha256": "3cd79cfc2a9ec6e45a11b2c225d11cb18c504fec3535e3ef1cb730e0e7732c9e",
+  "driver_expected_image_size": "0x61000",
+  "driver_sizeofimage_header_rva": "0x138",
+  "local0_meaning": "first 8 bytes of request.localAddressAndPort; IPv4 sockaddr family/port/address",
+  "remote0_meaning": "first 8 bytes of request.remoteAddressAndPort after rewrite",
+  "target_pid_meaning": "relay PID, not original client PID",
+  "native_client_pid_measured": false,
+  "driver_payload_memory_read": false,
+  "request_reads_runtime_verified": false,
+  "source_port_correlation_verified": false,
+  "deferred_rebind_runtime_verified": false,
+  "all_call_coverage_verified": false,
+  "apply_completion_measured": false,
+  "query_or_record_lifecycle_measured": false,
+  "initial_workload": "four_only_after_registration_review",
+  "required_host_pdb_sha256": "8196d1d70ff10317bb460390f125f3906a1cfb8ad1a90130122ebd03e039d1d6",
+  "prior_unqualified_profile_sha256": "708701ce738701a41bd9846693c60ac2fd8802873464c385ba15adbd2cac8955",
+  "prior_registration_observation": {
+    "created_as_bu": true,
+    "disabled": true,
+    "counter_zero": true,
+    "separate_g": true,
+    "warning": "contains symbols not qualified with module name",
+    "rebind_verified": false
+  },
+  "driver_lifecycle": "resident-disabled",
+  "address_lifetime": "Only while the reviewed driver load remains present; disable and clear before any unload/reboot.",
+  "trap_type_only_comparison": false,
+  "comparison_limitation": "Both breakpoint type and driver lifecycle change; a better capture alone will not prove the prior missing-event mechanism."
+}

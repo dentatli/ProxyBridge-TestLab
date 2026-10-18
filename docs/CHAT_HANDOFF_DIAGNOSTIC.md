@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: resident mode подготовлен офлайн, нужен один USER load/live review
+
+USER предложил держать драйвер запущенным; выбран этот путь для одной аппаратной точки в самом драйвере, без общесистемного Apply trap. Читать [resident session](KD_RESIDENT_DRIVER_SESSION.md). Universal launcher получил opt-in profile driver_lifecycle=resident-disabled, пока four only. Before/after synchronous DISABLE IOCTL receipts/sessionbinding/Running/processabsence; без Stop-Service, не заявлять independent gEnabled readback или WFPdetachment. Legacy unload default неизменён.13tests/PS5parser/C#declarations/legacy2captures/syntheticresident+failuregate прошли, устройства/IOCTL/driver/traffic агентом не запускались; SCM Stopped.
+
+Новый hardware resident candidate JSON подготовлен, action прежняя, только ba2 e1 ClassifyCore+3de; live binding/registration/новогоplan пока нет. Первая USER операция — ADMIN VM Start-Service/WaitRunning; потом beforeBreak wholeVM/Codex/RDP warning, recovery bd2/отдельныйg, lmvmDriver/xClassifyCore/u+3deL2/xgEnabled/ddgEnabledL1/отдельныйg. Службу оставить Running, не Stop-Service/не Run/не включать точки. Existing2d softwarebu сохраняется до live review; новый initial bl без изменения не просить. Затем зарегистрировать ba2 disabled на проверенном load, новый registrationreview и толькоfourplan. Перед любым unload/reboot отключить/удалить hardwarepoint и отдельноg. Hardware+resident меняют два фактора — не чистое доказательство причины старых пропусков. Продукт не менялся. Нижние NEXT исторические.
+
 ## Текущий стоп: Apply four — 4 успеха, 3 снимка; нагрузку не повышать
 
 USER run171904-ce75c787 завершён: native4/4, Core4 IPV4_CONTEXT_AVAILABLE/32bytes/errors[], manifest COMPLETED, SCM Stopped. Console USER chat paste: t0=0/be2/g, hits1..3, TOTAL3, bd2/отдельныйg. local raw dbdd0002/d9dd0002/dcdd0002 дают порты56795/56793/56796; совпали с native/Core, relayPID3e2c=15916. Во всех3 ctx ненулевой/size20h=32/redirect1000e/image61000. Порт56794 имеет успешный Corequery32bytes без снимка. Не объявлять отсутствие Apply или ошибку драйвера: причина неполного захвата неизвестна. Ни UNREADABLE, ни IMAGE_MISMATCH не показаны; чтения и хотя бы часть rebind execution подтверждены, полнота нет. Исходный10022 не воспроизведён.
