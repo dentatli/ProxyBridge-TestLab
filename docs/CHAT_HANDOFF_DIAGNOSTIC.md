@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: bounded прерван на64; разобрать задержку наблюдения, не повторять Run
+
+Читать последний раздел [early/queryNULL](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). USER092903-6e083afa:baseline4Succeeded, load64 clienttimeout/forcedstop/CSVheaderonly, receiver64ErrorNotAllDataTransferred;256/recovery не выполнялись.68Corequeries (4PID16500+64PID7452) всеapi0/bytes32,10022не наблюдался; это не68native success. Original CAPTURE_INCOMPLETE/native_failednull сохранён. Console6316ad12/SHA dca7ceae6546df43f64ec8b55f466a606d2a7664ba875110a45626a7f6f6b998:точные2/3d/e/e/d,finalbl2/3d/g.0miss/NULL/unreadable,нетloggerMemory/Syntax/Bad register;traps не считались.
+
+Зацепка: snapshot loop intervals baseline80.735s/load64512.580s, хотя looplimit15s. Внутри синхронныйGet-NetTCPConnection/прочиеоперации, лимиты проверяются между ними; per-call timing нет. Послеsnapshot общий240sbudgetистёк, waitremainingclamped1ms→timeout. Не утверждатьcmdlet512s/исключительновиноватыточки. Ранееno-pointscontrolsnapshot3.956s/2.363s — историческое сравнение, не matched новогоисполнителя. Ресурсныйpreflightload64passed/~5.52GBRAM. Controller683.025s, сокращениеobservereffectне доказано. start_qpc_ms вторичнаяошибкаreport из-заотсутствующихполейtimeoutphase. CLI graceful/cleanup_errorempty,workers_stopped/driver_stop_observedtrue,primaryerrorcohorttimeout.106refs/sharedruntimeSHA/47inputsunchanged; rawreportsнепереписаны. Privateaudit pb-kd-early-null-bounded-result-review-20261018.
+
+Планconsumed, agentнеRun/WinDbg/productchanges. Неrepeat/не256/не640/неувеличиватьtimeoutавтоматически. Далееофлайнразделитьзадержкунаблюдения/влияниеточек; кандидат — одинQUERY_NULL trap безEARLY_MISS, с честнойпотерейраннегоcoverage; новогоplan/Runещёнет. Body2stackreadspending, исходный10022механизмнепрояснился. Общиестарыеfrozenмодули/продукт/киты сохранить;10061внеактивногоразбора. ПередUSERBreak/enablewholeVM/Codex/RDPwarning/recoverybd2/bd3/bl/g отдельно. НижеNEXTисторические.
+
 ## Актуальный стоп: four подтверждён, готов один USER bounded256
 
 Читать [early/queryNULL — результат и bounded-план](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). USER091910-2ed07351:4native/4Core success,bytes32,peer54574..54577,errors[],cleanup completed/graceful. Raw consolec85331a7/SHA649fd9cf4dc23e7292d60805cd696d60351166fd79b719bed51e8f8f0b3e522f: exact2/3d→e→e→d, finalbl2/3d/отдельныйg.0miss/NULL/unreadable/loggererrors. ОбщийRun отработал, stackreads2/filterpositive/kernelcoverage pending. Controller111.605197s неproof сниженияoverhead.61refs/sharedruntimeSHA/38inputs unchanged. Privateaudit pb-kd-early-null-four-result-review-20261018.
