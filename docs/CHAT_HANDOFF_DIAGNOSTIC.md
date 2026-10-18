@@ -1,5 +1,41 @@
 # Передача чату диагностики TCP / WinDbg
 
+## ETW bounded завершён:32/328 Core10022; прежний SO_PAUSE_ACCEPT trigger подтверждён
+
+USER «Продолжай» после four дал продолжение bounded256. Prepare/run выполнены
+автономно в VM, без debugger control/установки/изменений продукта. Полный
+[результат](ETW_REDIRECT_BOUNDED_2026-10-19.md). Fresh plan191134-e981253b
+SHAc9420fbd04736d007cbc4c03b5d1b34a32ba6446c0d206468b6d54e931525b45 consumed,
+не Resume/refreeze. Boot114/profileSHA d7d05fd2d7a79c75e596b4f0d2b8b91096e4b1a370969d7544780e73bb4dbd3a,
+zero points/driver resident; priorfour190824-00e55c9d checked.
+
+Run191222-7a5aa77a:328native/296success/32failed,328Corequeries/all32failed
+uniquely10022/bytes0 вload256/errors[]/recovery4success. Потерь/decoding errors
+ETW0,414buffers; owntrace stopped/exported, helpersstoppedtrue,
+resident DISABLEafter completed/SCMRunning/driver_unloadedfalse/no independentflagreadback.
+Private `pb-etw-bounded-review-20261019/{review,details,retransmission-review,drop-review}.json`.
+296success:1event1553 each/no1186/no1214reason30/no1479reason2.
+32failed:2event1553 each/1event1186 each/1214reason30 each/
+1479reason2 each. Reason30 rendered explicitly SO_PAUSE_ACCEPT SYNdrop,
+reason2 Listenerwaspaused. Gaps1553pairs511.760–512.134ms;32RTO1351v1/1186.
+Все1553Succeeded1/Redirected0/CodePath2,1315none. Tuple reuse отсутствует;
+Core/ETW clockalignment не доказан, только sameETW relative time.
+
+Важно: это воспроизведение УЖЕ известного trigger из диагностики6–7октября,
+не новая первопричина. Сверять прежний статус/endpointlifecycleplan перед новыми
+опытами. ETW не показываетprivate record transfer/free, queryNTSTATUS в этом
+Run не измерен. Нельзя объявлять Windowsbug/driverbug/fix/tableoverflow.
+Exploratory lifecycle.py/globalTCBjoin показал reuse адресов и загрязнение
+другими flows; lifecycle-examples.json не использовать как lifecycle proof.
+Corrected lifecycle-owned.py предпочитает sockaddr/предшествующийtimeanchor,
+но тоже не proofprivateownership. Captures/old frozen files сохранены.
+
+Следующий шаг только офлайн пересмотреть способ наблюдения private record
+между SYNdrop/retry/accept с учётом провалов прошлых WinDbg logger. Ту же
+ETWнагрузку не повторять, не добавлять большойнаборточек, не640, не продуктfix.
+HostWinDbgпоUSERbc2/g очищен; новыхBreak/be/bl не требуется. ДрайверRunning.
+НижниеNEXT исторические. Проверка RAM/C cleanup завершена ранее.
+
 ## ETW four завершён после увеличения RAM; 4/4 Core context и 1553 tuples
 
 USER увеличил RAM до10GB и перезапустил VM: boot event16953/prefetch114,
