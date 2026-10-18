@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Актуальный стоп: four подтверждён, готов один USER bounded256
+
+Читать [early/queryNULL — результат и bounded-план](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). USER091910-2ed07351:4native/4Core success,bytes32,peer54574..54577,errors[],cleanup completed/graceful. Raw consolec85331a7/SHA649fd9cf4dc23e7292d60805cd696d60351166fd79b719bed51e8f8f0b3e522f: exact2/3d→e→e→d, finalbl2/3d/отдельныйg.0miss/NULL/unreadable/loggererrors. ОбщийRun отработал, stackreads2/filterpositive/kernelcoverage pending. Controller111.605197s неproof сниженияoverhead.61refs/sharedruntimeSHA/38inputs unchanged. Privateaudit pb-kd-early-null-four-result-review-20261018.
+
+Ранее USER запросил256. После разбора four общий Prepare WindowsPS5exit0 создал plan092346-4adad3d3, SHA F98CE5E661F53139EDD09912D280CA6A0F2198198FDD2F4090854A2760E6F50B.6files/55750bytes/106refs, runtimecopies0/102oldSHA unchanged. Review привязан к actualfour/profile/boot16566/113; flagsProfileReviewed/DebuggerLoggerEnabled/BoundedLoadReviewed. Policy4→64→256→4/328/512KiB/8s/ConnectEx32/originalsinglequery/client120s/cohort240s/RAM2GiB. Sources/продукт не менялись, agentRun/debuggercontrol нет. Privateaudit pb-kd-early-null-bounded-preparation-review-20261018.
+
+Следующий шаг — один USER boundedRun. BeforeBreak/каждыйbe предупредить entireVM/Codex/RDP; recoverybd2/bd3/bl/g по одной/g отдельноevenerror. Existinginventory2/3d поfffff8026aaa3223/fffff8026a861588, толькоbe2/be3/bl/g. Никакихbp/staging/старыхplan. ПослеRun/error bd2/bd3/bl/g отдельно и полныйPS/console. Неrepeat/не640/непродолжатьавтоматическипослеошибки. PositiveEARLY_MISS→QUERY_NULL→Core10022 можетподтвердитьраннююгруппу; отсутствиеEARLY_MISS неproofsearchmiss.10061внеактивногоразбора,Desktopинструкцийне делать. НижеNEXTисторические.
+
 ## Текущий стоп: EARLY_MISS/QUERY_NULL зарегистрированы, готов один four Run
 
 USER chat paste подтвердил замену только3: finalbl/.bpcmds только2d fwpk+f3 (fffff8026aaa3223) и3d tcpip query+2d0 (fffff8026a861588), точные actions и отдельныйg. Регистрационных ошибок не показано; это chat attestation, не raw attachment. Читать обновлённый [кандидат и four-план](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md).
