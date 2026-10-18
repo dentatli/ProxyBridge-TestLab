@@ -1,5 +1,15 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий приоритет: исходный код WFP-драйвера и один снимок перед Apply
+
+USER спросил о возможной ошибке самого драйвера; читать [проверку драйвера](KERNEL_DRIVER_SOURCE_REVIEW_2026-10-18.md). Доэтогобылаозвученаидеяbp→ba comparator, ноprofile/командрегистрации/planнет. Приоритеттеперьdriver input review. SYS3cd79cfc.../base receiptSHAпроверены,5archivefilesсовпали сGit63be0eb поCRLF-normalization. ИспользованGitobjectизProxyBridge-228, неHEADдругогоDriverrepo. Чужиерабочиекопиинеменялись. Runtime service/filebindingнеравноSHAloadedimage.
+
+Staticfindings: ctxallocationNULLнеотменяетredirect, ctxNULL/size0передаютсяApply; незафиксированоуfailedflow иWindowsrecordNULLнеравноdriverpayloadNULL. ОтдельнаяветкаskiploopbackпослеAcquireWritableбезApplyнарушаетMSконтракт, ноguardredirectLoopbackApps0, асценарийзаявляетviaProxy/ожидается1; runtimegConfig/связьс10022неизмерены. WFPownershipctxподтвержденоMS, отсутствиеdriverfreeправильно. Eventring2048/UDPmapнеproofTCPtableoverflow. Продуктнеисправлять,10061невключатьвразбор.
+
+Privateaudit pb-driver-source-review-20261018: дискClassifyCoreRVA12b8/Applycall1696 E8→thunk286e FF25→IAT5088FwpsApplyModifiedLayerData0,11instrпроверены; RCXhandle/RDXrequest/R8d0, request+128ctx/+130size, localSOCKADDRport+2candidate/runtimepending. InitialdirectIATxrefguessотвергнут/исправленthunkdisplacements. ОднаfutureточкадоApplyможетдатьport/PID/ctx/sizeбезPREPOSTpairing, ноуспехApplyиWindowsrecordэтимнедоказываются. Покановыхpoints/profile/plan/Runнет.
+
+СледующийUSERтолькочтение: beforeBreakwholeVM/Codex/RDPwarning; известные2/3d/повторныйblненужен. lmvm ProxyBridgeDrv, u ProxyBridgeDrv+0x1650 L18, u ProxyBridgeDrv+0x286e L1 —поодной, отдельноg evenerror. Принеизвестномmoduleнеугадыватьадрес/g/вывод. Никакихbp/ba/be/step/Run/driverinstall. Затемlivecompare/минимальныйprofile/fourreview. Старыеcapturedkitsсохранены. НижниеNEXTисторические.
+
 ## Текущий стоп: counters six/six согласованы со строками, но только четыре пары
 
 Читать начало [результата counters](KERNEL_ASSOCIATION_COUNTERS_CANDIDATE_2026-10-18.md). USER135540-a544054a:4native success/4Core api0/bytes32, workload/cleanupCOMPLETED, CLIgraceful/post_stop_verified, controller16.69663с. PREhit1..6 иPOSThit1..6 непрерывны, TOTAL6/6 послеbd2/bd3; итоговыйbl2/3d/отдельныйg подтверждены.4полныепары; PRE1/3безPOST, POST2/3безPRE. Все6POST result0. Видимыеучтённыеactionsсогласованы, однойпотерейprintf-строкнеобъяснитьрасхождение; allkernelcalls/missedtraps/необычныйreturn/ошибкаcontextнеустановлены. Increment/read/монотонностьчерезнаблюдаемыепотокиположительны; sum6/6неproofpairing.
