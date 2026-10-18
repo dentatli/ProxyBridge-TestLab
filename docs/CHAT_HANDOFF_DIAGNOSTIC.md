@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Актуальный стоп: lookup four kit готов, ожидается один USER Run
+
+Читать [новую four-подготовку](KERNEL_LOOKUP_FOUR_PREPARATION_2026-10-18.md). Четыре новых source файла, commit78ff176, метод redirect-kd-lookup-four-v1, только4/512KiB/8s/ConnectEx32/original single query. Новый kit083735-2eb58055, plan SHA81FC33A6288B324DCB9880735728E0699729C5C804292FB07A2791C9DB4F3A24. WindowsPS5 Prepare exit0/FILES_VALIDATED8291/8197runtime. AST/PS5parser/purepreset/adaptedfourpassed; старый policy и328phases rejected; 98protectedoldfiles unchanged. Private audit pb-kd-lookup-four-preparation-review-20261018. Никаких agent Run/debugger/product/driver changes.
+
+Зарегистрированы только новые 2/3d и g, подтверждено предыдущим console. Не повторять bc/bp/staging. USER порядок: beforeBreak/каждыйenable wholeVM/Codex/RDP warning и recovery bd2/bd3/bl/g отдельно; inventory2/3d с новыми fwpk адресами, be2/be3 по одной, g отдельно, один Run с auto SHA/LookupFourProfileReviewed/DebuggerLoggerEnabled. Можно закрытьGPT радиRAM. ПослеRun/error отключить2/3/bl/g отдельно, полныйconsole+PS. Не повторять/неbounded/не640. Report честно kernelpending, пустыеmiss events не проверят action stack reads; +22e traps на успехах сохраняются. Старые kits не Resume/refreeze, 10061 отдельно не разбирать. Нижние NEXT исторические.
+
 ## Регистрация lookup 2/3 подтверждена; следующий шаг — отдельный four-only kit
 
 USER console d7185e82: старые 2/3d удалены, bl пустой, новые bp2/bd2 и bp3/bd3 зарегистрированы. Финальные bl и .bpcmds показывают только 2d по fffff8026aaa3223 и 3d по fffff8026aaa335e. Обе action побайтно совпадают с registration_command кандидата; отдельный g показан. Memory access/Syntax/Bad register ошибок в присланном выводе нет. Это подтверждение регистрации, не исполнения условий/стековых чтений. Private audit `pb-kd-lookup-registration-review-20261018`, console SHA256 e7e474540a93bdb82997b8f9fbe0d2b484977d9484331c06616f1d4abdfdb704.

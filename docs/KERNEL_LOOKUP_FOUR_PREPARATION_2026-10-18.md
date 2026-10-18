@@ -13,3 +13,9 @@
 Проверки без продукта: Python AST; Windows PowerShell5.1 parser двух новых scripts и чистый four preset; адаптированная приватная копия прежнего четырёхсоединительного capture дала 4 query success, errors[], kernel pending. Старый point policy и 328 фаз отвергнуты. SHA98 старых source/module/profile файлов совпали. Это проверки файлов и fixtures, не новый Run. Private audit `artifacts/diagnostics/pb-kd-lookup-four-preparation-review-20261018`.
 
 Следующий шаг после files-only Prepare — один USER Run четырёх соединений, после проверки plan SHA и inventory. Перед Break/каждым enable предупредить об остановке всей VM/Codex/RDP; recovery bd2/bd3/bl/g отдельно. Регистрацию не повторять. После Run или ошибки USER отключает 2/3, bl, отдельно g, присылает полный console и PowerShell output. При debugger ошибке прекратить пробу, не продолжать нагрузку. Старые kits не Resume/refreeze. Команды только в чате, без Desktop copies.
+
+## Подготовка завершена
+
+Source commit `78ff176`. Windows PowerShell5.1 Prepare завершён exit0, `KD_LOOKUP_FOUR_FILES_VALIDATED`: 8291 frozen files / 8197 runtime files. Новый каталог `artifacts/diagnostics/pb-kd-lookup-four-preparation-20261018-083735-2eb58055`; runtime-plan SHA256 `81FC33A6288B324DCB9880735728E0699729C5C804292FB07A2791C9DB4F3A24`. Повторный Inspect не запускался. После подготовки SHA98 защищённых старых файлов снова совпали. Это не runtime-ready: product_started/traffic_generated/driver_installed/debugger_control=false. Agent Run не выполнялся.
+
+Следующий USER шаг: закрыть GPT при необходимости экономии памяти, проверить только существующие новые 2/3d, включить по одной с предупреждением об остановке всей VM, отдельно g, один Run с auto SHA comparison и flags LookupFourProfileReviewed/DebuggerLoggerEnabled. После завершения или ошибки отключение с bl/g отдельно и полный вывод. Никакой bounded/640 нагрузки этим комплектом.
