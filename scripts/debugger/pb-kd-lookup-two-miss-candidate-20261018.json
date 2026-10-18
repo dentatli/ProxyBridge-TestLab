@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "method": "kd-lookup-two-miss-candidate-20261018-v1",
+  "status": "DISABLED_REPLACEMENT_REGISTRATION_PENDING",
+  "registered_point_ids": [
+    2,
+    3
+  ],
+  "active_point_ids": [
+    2,
+    3
+  ],
+  "inactive_point_ids": [],
+  "point_count_active": 2,
+  "replaces_only_ids": [
+    2,
+    3
+  ],
+  "caller_return": "tcpip!WfpAleAuthorizeAccept+0xcaf",
+  "caller_return_address": "fffff8026a75567b",
+  "scope_is_not_unique_lifetime": true,
+  "successful_lookup_traps_not_eliminated": true,
+  "frame_reads_runtime_verified": false,
+  "automatic_debugger_control": false,
+  "load_authorized": false,
+  "root_cause_proven": false,
+  "live_console_sha256": "6204908711127ff290aeb43a8bfba585528750aa06560fea0de5583a55b44dc2",
+  "points": [
+    {
+      "id": 2,
+      "event": "EARLY_MISS",
+      "target": "fwpkclnt!FwpsNetBufferListRetrieveContext0+0xf3",
+      "action": ".if (@rsi == 5) { .if ($vvalid(@rsp+0x68,8) == 1) { .if (poi(@rsp+0x68) == tcpip!WfpAleAuthorizeAccept+0xcaf) { .if ($vvalid(@rsp+0x58,0x28) == 1) { .if ($vvalid(poi(@rsp+0x58)-0x7c,4) == 1) { .if (wo(poi(@rsp+0x58)-0x7c) == 0xda84) { .printf \"PBKDL EARLY_MISS ep=%p nbl=%p local_raw=%x peer_raw=%x key=%I64x consume=%x state_raw=%p scope=%p\\n\", poi(@rsp+0x78), poi(@rsp+0x60), wo(poi(@rsp+0x58)-0x7c), wo(poi(@rsp+0x58)-0x7a), @rsi, @ebp, @rdi, @rsp; } } .else { .printf \"PBKDL_UNREADABLE event=EARLY_MISS stage=caller_ports scope=%p\\n\", @rsp; } } .else { .printf \"PBKDL_UNREADABLE event=EARLY_MISS stage=saved_frame scope=%p\\n\", @rsp; } } } .else { .printf \"PBKDL_UNREADABLE event=EARLY_MISS stage=caller_return scope=%p\\n\", @rsp; } }; gc;",
+      "registration_command": "bp2 fwpkclnt!FwpsNetBufferListRetrieveContext0+0xf3 \".if (@rsi == 5) { .if ($vvalid(@rsp+0x68,8) == 1) { .if (poi(@rsp+0x68) == tcpip!WfpAleAuthorizeAccept+0xcaf) { .if ($vvalid(@rsp+0x58,0x28) == 1) { .if ($vvalid(poi(@rsp+0x58)-0x7c,4) == 1) { .if (wo(poi(@rsp+0x58)-0x7c) == 0xda84) { .printf \\\"PBKDL EARLY_MISS ep=%p nbl=%p local_raw=%x peer_raw=%x key=%I64x consume=%x state_raw=%p scope=%p\\\\n\\\", poi(@rsp+0x78), poi(@rsp+0x60), wo(poi(@rsp+0x58)-0x7c), wo(poi(@rsp+0x58)-0x7a), @rsi, @ebp, @rdi, @rsp; } } .else { .printf \\\"PBKDL_UNREADABLE event=EARLY_MISS stage=caller_ports scope=%p\\\\n\\\", @rsp; } } .else { .printf \\\"PBKDL_UNREADABLE event=EARLY_MISS stage=saved_frame scope=%p\\\\n\\\", @rsp; } } } .else { .printf \\\"PBKDL_UNREADABLE event=EARLY_MISS stage=caller_return scope=%p\\\\n\\\", @rsp; } }; gc;\""
+    },
+    {
+      "id": 3,
+      "event": "SEARCH_MISS",
+      "target": "fwpkclnt!FwpsNetBufferListRetrieveContext0+0x22e",
+      "action": ".if ((@rsi == 5) and ((@r14 & 0xff) == 0)) { .if ($vvalid(@rsp+0x68,8) == 1) { .if (poi(@rsp+0x68) == tcpip!WfpAleAuthorizeAccept+0xcaf) { .if ($vvalid(@rsp+0x58,0x28) == 1) { .if ($vvalid(poi(@rsp+0x58)-0x7c,4) == 1) { .if (wo(poi(@rsp+0x58)-0x7c) == 0xda84) { .printf \"PBKDL SEARCH_MISS ep=%p nbl=%p local_raw=%x peer_raw=%x key=%I64x consume=%x state_raw=%p scope=%p\\n\", poi(@rsp+0x78), poi(@rsp+0x60), wo(poi(@rsp+0x58)-0x7c), wo(poi(@rsp+0x58)-0x7a), @rsi, @ebp, @rdi, @rsp; } } .else { .printf \"PBKDL_UNREADABLE event=SEARCH_MISS stage=caller_ports scope=%p\\n\", @rsp; } } .else { .printf \"PBKDL_UNREADABLE event=SEARCH_MISS stage=saved_frame scope=%p\\n\", @rsp; } } } .else { .printf \"PBKDL_UNREADABLE event=SEARCH_MISS stage=caller_return scope=%p\\n\", @rsp; } }; gc;",
+      "registration_command": "bp3 fwpkclnt!FwpsNetBufferListRetrieveContext0+0x22e \".if ((@rsi == 5) and ((@r14 & 0xff) == 0)) { .if ($vvalid(@rsp+0x68,8) == 1) { .if (poi(@rsp+0x68) == tcpip!WfpAleAuthorizeAccept+0xcaf) { .if ($vvalid(@rsp+0x58,0x28) == 1) { .if ($vvalid(poi(@rsp+0x58)-0x7c,4) == 1) { .if (wo(poi(@rsp+0x58)-0x7c) == 0xda84) { .printf \\\"PBKDL SEARCH_MISS ep=%p nbl=%p local_raw=%x peer_raw=%x key=%I64x consume=%x state_raw=%p scope=%p\\\\n\\\", poi(@rsp+0x78), poi(@rsp+0x60), wo(poi(@rsp+0x58)-0x7c), wo(poi(@rsp+0x58)-0x7a), @rsi, @ebp, @rdi, @rsp; } } .else { .printf \\\"PBKDL_UNREADABLE event=SEARCH_MISS stage=caller_ports scope=%p\\\\n\\\", @rsp; } } .else { .printf \\\"PBKDL_UNREADABLE event=SEARCH_MISS stage=saved_frame scope=%p\\\\n\\\", @rsp; } } } .else { .printf \\\"PBKDL_UNREADABLE event=SEARCH_MISS stage=caller_return scope=%p\\\\n\\\", @rsp; } }; gc;\""
+    }
+  ]
+}

@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: регистрация нового lookup-кандидата отключённым — 2026-10-18
+
+Читать [кандидат двух путей NOT_FOUND](KERNEL_LOOKUP_TWO_MISS_CANDIDATE_2026-10-18.md). Получен live console: сверены 37 выбранных инструкций, фактический caller return подтверждён как TCP/IP accept+caf. Подготовлен новый JSON `pb-kd-lookup-two-miss-candidate-20261018.json`: заменить старые 2/3 на fwpk retrieve+f3 (EARLY_MISS) и +22e (SEARCH_MISS). Новые stack guards проверены офлайн, runtime ещё не проверен. +22e ловит также успешный поиск; условие уменьшает строки, не traps. Не обещать исчезновение observer effect или полную историю контекста.
+
+Последний USER console: прежние 2/3 отключены, отдельный g. Следующий шаг только USER bp/bd регистрация каждой новой точки с bl/.bpcmds и отдельным g даже при ошибке. Before Break/каждый bp предупреждать об остановке всей VM/Codex/RDP; recovery bd2/bd3/bl/g по одной. При ошибке прекратить дальнейшую замену. Никаких be/Run сейчас. Нового исполняемого stage/ZIP/kit нет; после регистрации нужен собственный four-only kit, старые не переиспользовать. Продукт не менялся; агент не управляет отладчиком/нагрузкой. 10061 вне активного разбора, команды только в чате. Нижние NEXT исторические.
+
 ## Следующий шаг: live lookup/caller inspection, без точек — 2026-10-18
 
 USER «Продолжай». Читать [план проверки кадра](KERNEL_LOOKUP_FRAME_PLAN_2026-10-18.md). Офлайн проверены frame68h/saved caller RBP+58/RBX+60/return+68/RDI+78, но новые stack reads не выполнялись. CallerRBX=NBL/RDI=endpoint только при точном caller filter. Дисковый TCP/IP call RVA1566f возвращается на15676, test после NOP на1567b; нельзя без live-кода фильтровать return как+сaf. Все19callerinstructions снова совпали с текущим disk image.
