@@ -1,0 +1,64 @@
+{
+  "schema_version": 1,
+  "method": "kd-association-pair-candidate-20261018-v1",
+  "status": "LIVE_CALLSITE_REVIEWED_REGISTRATION_PENDING",
+  "registered_point_ids": [
+    2,
+    3
+  ],
+  "active_point_ids": [
+    2,
+    3
+  ],
+  "inactive_point_ids": [],
+  "point_count_active": 2,
+  "replaces_only_ids": [
+    2,
+    3
+  ],
+  "automatic_debugger_control": false,
+  "load_authorized": false,
+  "root_cause_proven": false,
+  "path_frequency_measured": false,
+  "once_per_connection_proven": false,
+  "frame_reads_runtime_verified": false,
+  "record_reads_runtime_verified": false,
+  "query_null_directly_observed": false,
+  "creation_directly_observed": false,
+  "free_directly_observed": false,
+  "full_context_history_covered": false,
+  "points": [
+    {
+      "id": 2,
+      "event": "ASSOC_PRE",
+      "target": "tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0x94",
+      "rva": "0xd7f14",
+      "action": ".printf \"PBKDA ASSOC_PRE thread=%p scope=%p source_ep=%p nbl=%p record=%p\\n\", @$thread, @rsp, @rbx, @rdx, @r9; .if ($vvalid(@r9+0x48,0x10) == 1) { .if ($vvalid(@r9+0xc8,0x10) == 1) { .printf \"PBKDA RECORD_RAW16 thread=%p scope=%p record=%p a0=%I64x a1=%I64x b0=%I64x b1=%I64x\\n\", @$thread, @rsp, @r9, poi(@r9+0x48), poi(@r9+0x50), poi(@r9+0xc8), poi(@r9+0xd0); } .else { .printf \"PBKDA_UNREADABLE event=RECORD_RAW16 field=b thread=%p scope=%p record=%p capture=incomplete\\n\", @$thread, @rsp, @r9; } } .else { .printf \"PBKDA_UNREADABLE event=RECORD_RAW16 field=a thread=%p scope=%p record=%p capture=incomplete\\n\", @$thread, @rsp, @r9; }; gc;",
+      "registration_command": "bp2 tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0x94 \".printf \\\"PBKDA ASSOC_PRE thread=%p scope=%p source_ep=%p nbl=%p record=%p\\\\n\\\", @$thread, @rsp, @rbx, @rdx, @r9; .if ($vvalid(@r9+0x48,0x10) == 1) { .if ($vvalid(@r9+0xc8,0x10) == 1) { .printf \\\"PBKDA RECORD_RAW16 thread=%p scope=%p record=%p a0=%I64x a1=%I64x b0=%I64x b1=%I64x\\\\n\\\", @$thread, @rsp, @r9, poi(@r9+0x48), poi(@r9+0x50), poi(@r9+0xc8), poi(@r9+0xd0); } .else { .printf \\\"PBKDA_UNREADABLE event=RECORD_RAW16 field=b thread=%p scope=%p record=%p capture=incomplete\\\\n\\\", @$thread, @rsp, @r9; } } .else { .printf \\\"PBKDA_UNREADABLE event=RECORD_RAW16 field=a thread=%p scope=%p record=%p capture=incomplete\\\\n\\\", @$thread, @rsp, @r9; }; gc;\""
+    },
+    {
+      "id": 3,
+      "event": "ASSOC_POST",
+      "target": "tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0xa0",
+      "rva": "0xd7f20",
+      "action": ".printf \"PBKDA ASSOC_POST thread=%p scope=%p source_ep=%p nbl=%p result_raw=%I64x\\n\", @$thread, @rsp, @rbx, @rbp, @rax; gc;",
+      "registration_command": "bp3 tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0xa0 \".printf \\\"PBKDA ASSOC_POST thread=%p scope=%p source_ep=%p nbl=%p result_raw=%I64x\\\\n\\\", @$thread, @rsp, @rbx, @rbp, @rax; gc;\""
+    }
+  ],
+  "pair_identity": [
+    "thread",
+    "scope",
+    "source_ep",
+    "nbl",
+    "ordered_pre_post_interval"
+  ],
+  "record_address_fields": {
+    "a": "record+0x48, 16 raw bytes",
+    "b": "record+0xc8, 16 raw bytes",
+    "semantic_labels_verified": false,
+    "full_ipv6_tuple_captured": false
+  },
+  "port_filter": false,
+  "callsite_key": 5,
+  "initial_workload": "four_only_after_registration_review"
+}

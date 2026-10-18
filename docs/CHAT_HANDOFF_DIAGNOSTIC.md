@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий шаг: регистрация отключённой пары association PRE/POST
+
+Читать [новый кандидат пары](KERNEL_ASSOCIATION_PAIR_CANDIDATE_2026-10-18.md). USER live AleAcceptRedirectProxyNblTag подтвердилkey9/callRVA d8069/return d806e, отдельныйg,2/3d. Новый JSON association-pair SHA b72e086ca81cf961d54f9c73da9032bd0d66cd78fd9b50977ef7daec9342d6ef: заменить2 на TCPIPcaller+94 PRE с точнымиrecordR9/NBLRDX/epRBX/thread/RSP иguardedRAW16 record+48/+c8;3 наcaller+a0 POST RAX/NBLRBP/epRBX/thread/RSP. Нетstackreads/globalpseudo/portfilter. Фактическаячастотанеизвестна, одинвызовнасоединениенедоказан. Retrieval/QUERY_NULL/free/createнепокрыты; полнаяисториянеобещается. Privateaudit pb-kd-association-pair-candidate-review-20261018; structure/guards/escape/policyfourpassed, parser/runtimepending. Initialofflinechecker falsepositive substringbp inrbp исправленcommand-boundaryregex, профильнеизменялся.
+
+USER предпочитает не повторять исходный bl при известном состоянии/без изменений; спрашивать после изменений/reconnect/reboot/неопределённости. ТеперьbeforeBreak wholeVM/Codex/RDP warning/recoverybd2/bd3/bl/g отдельно; bc2/bc3, beforeкаждыйbp initiallyenabled/VMstopped warning, bp2/bd2/bp3/bd3 поодной, одинитоговыйbl/отдельныйg evenerror. Никакихbe/Run наэтомшаге. Послеconsole review подготовитьfour-plan общимисполнителем; новогоplan/Runпоканет. Продукт/старыеkitsнетронуты,10061внеразбора. НижниеNEXTисторические.
+
 ## Live create/association подтверждены; следующий шаг — граница proxy NBL tag
 
 Читать начало [плана association](KERNEL_REDIRECT_ASSOCIATION_PLAN_2026-10-18.md). USER427bf7fb: только2/3d, обеuf и отдельныйg.345liveinstr:337disk-equal,8в4import-call rewrite pairs; symbols/RVA подтверждены. Key5 livecall+9b/return+a0; create store+38f/nextjump+396. Record+48/+c8 получают16/28bytes входныхадресов, local/remote semantics ещёнеподтверждены; неугадыватьportfilter. Privateaudit pb-kd-association-live-review-20261018, consoleSHA9e1cf84fc2431f976db6edd49d61e99ef6288cbf317029c68b330570c9ef1e96. Этоcode-review, неисполнениедляfailedconnections; rootcause/runtimefrequencyнеизвестны.
