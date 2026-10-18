@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Актуальный результат: одна QUERY_NULL воспроизвела32исходныхотказа
+
+Читать последний раздел [диагностического документа](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). USER114550-9996e992:328attempts/296success/32nativefail, все32uniquelycorrelatedCore10022 seq279..310/load256, остальныефазы/recovery успешны, errors[]. Controller42.654s, workload/cleanupcompleted/graceful. Rawconsole0da2599c/SHA276b1d861945f260265afbd022527d408cfc287d9bf247d3f3bf80df2f64a594:32QUERY_NULL/32uniqueEP/record0/IOCTL980000dd, noUNEXPECTED/loggererrors,2disabled.105refs/sharedruntimeSHA/62inputsunchanged. Privateaudit pb-kd-query-null-only-bounded-result-review-20261018.
+
+Существеннаяграница: Native↔Core join32подтверждён; kernel32events имеюттолькоep/record/ioctl/scope, нетPID/TID/socket/seq/peerport/QPC, поэтому независимый per-connection kernel↔Core join отсутствует. Не назначать EPfailedseq поиндексно какдоказательство. QueryreturnNTSTATUSнеизмерен,early/retrieval/create/attach/free не наблюдались; прошлые24retrievalfailнепереноситьнаэтиlifetimes. ПоложительнаяQUERY_NULLaction наблюдалась; исходнаяпричинапустогоrecordнеустановлена.
+
+USERinitial2/3d→be3/g→postRunbl2d3e→bd3/g, безpost-bdbl. Неутверждатьитоговыйinventoryнаблюдённым/непроситьлишнийBreak. Планconsumed,неrepeat/не640. Следующийофлайншаг: узкиеcreate/associate redirectrecord callsites иидентификаторыкорреляциидоquery; не возвращатьширокийf3trap/необещатьполноепокрытиедвумяточками. Новогоплана/активныхточек/agentRunнет. Продукт/старыеkitsне менять,10061внеактивногоразбора. BeforeUSERBreak/enablewholeVM/Codex/RDPwarning/recoverybd2/bd3/bl/g отдельно. НижеNEXTисторические.
+
 ## Текущий стоп: query-only four успешен и быстрее; готов один bounded256 только с3
 
 Читать последний раздел [диагностического документа](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). USER113758-9093adbe:4native/4Core success/32bytes/errors[],cleanupcompleted/graceful. Controller16.664s vs111.605s, snapshot0.981s/4sockets vs85.349s/0sockets. Workload кромеdebugpolicy/assets/Python/boot16566/113/выбранныеsourceSHA совпали. Поддерживает существенный вклад точки2 в тормоза, неproof исключительнойпричины/исходного10022.61refs/runtimeSHA/37inputs unchanged. Console USERchatpaste (неraw):2/3d→be3/g→bl2d3e→bd3/g, безpost-bdbl; QUERY_NULL/loggererrors не показано. НовыйBreakрадиblне нужен, проверить передenable. Privateaudit pb-kd-query-null-only-four-result-review-20261018.
