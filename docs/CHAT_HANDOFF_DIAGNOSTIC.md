@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Актуальный контроль — 2026-10-18: без точек32исходныхAPIотказа
+
+Читать [результат matched328контроля](REDIRECT_BOUNDED_CONTROL_RESULT_2026-10-18.md). USER Run070522-24f1bd43 завершён:328attempts/296success/32nativefail,все32uniquelycorrelatedCoreapi_return-1/error10022,seq283..314/load256;unidentified10061=0,reporterrors[]. NTSTATUSвэтомконтроленеизмерен. Workloadвсе4фазыCOMPLETED/cleanupreceipttrue/CLIgraceful/no forced/errorпуст.8285frozenSHAexact,62runinputsunchanged,originalreportsнепереписаны,privateauditpb-redirect-bounded-control-result-review-20261018.
+
+С предшествующимKD328свереныsameboot16566/113,productcomponents,engine/helpers/module/PythonSHA ивсепараметрынагрузкизаисключениемdebugger/reviewmetadata. Там0Core10022+21unidentified10061,здесь32Core10022+0unidentified. Это поддерживаетobservereffectгипотезу,неустанавливаетединственнуюпричинуразличий/механизмутратыконтекста. Disabledstate—USERlastbl2/3d/g+ack,нетавтоматическоговнутриRuninventory.
+
+**Стоп:** согласованныйконтрольизрасходован,точкиоставитьd,неповтор/не640/неbe. Далееофлайнподготовкаотдельногопрофиля2retrievalreturn+3редкаяNULLветка+0x2d0/RVA121588 вместообщегоQUERY_READ,счестнымсокращениемcoverage. Ещёнетnewstage/kit,ничегонепереставлено. Продуктне менять;агентнеDebuggercontrol/неRun. BeforeкаждымUSERBreak/enablewholeVM/Codex/RDPwarning/recovery/gотдельноevenerror. СтарыеkitsнеResume/refreeze.НижестарыеNEXTисторические.
+
 ## Новый приоритет USER — контроль без активных точек, 2026-10-18
 
 USER попросил проверитьвоспроизведениебезточек. Читать [matched328контроль](REDIRECT_BOUNDED_CONTROL_PREPARATION_2026-10-18.md). Готовятся отдельные4sources e2cd66b/методredirect-context-bounded-control-v1: теже4→64→256→4/328/120sclient/240scohort/512KiB/8s/ConnectEx32/originalsinglequery,active[]/registered2/3/inactive2/3. Недобавлять640одновременносвыключениемточек. Source/moduleold37SHAexact,AST/PS5parse/preset,адаптированные32Corefailpositiveи21unidentifiedincompleteпроверены,activepolicyrejected. ЭтоpurefixturechecksнеRun.
