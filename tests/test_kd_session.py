@@ -83,6 +83,18 @@ class DiagnosticSessionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'SHA_CHANGED'):
             checked(self.evidence, entry['sha256'])
 
+    def test_empty_active_set_requires_exact_etw_resident_profile(self):
+        self.profile.update(active_point_ids=[], inactive_point_ids=[2, 3], point_count_active=0)
+        with self.assertRaisesRegex(ValueError, 'PROFILE_INVALID'):
+            policy('four', self.profile)
+        self.profile.update(method='etw-tcpip-redirect-v1', observer='etw-tcpip', driver_lifecycle='resident-disabled')
+        result = policy('four', self.profile)
+        self.assertEqual(result['active_point_ids'], [])
+        self.assertEqual(result['etw_keywords'], '0x2080')
+        self.profile['active_point_ids'] = [2]
+        with self.assertRaisesRegex(ValueError, 'ETW_PROFILE_INVALID'):
+            policy('four', self.profile)
+
     def test_plan_is_create_only(self):
         p = self.root / 'plan.json'
         save(p, dict(value=1))

@@ -22,6 +22,7 @@ SOURCE_FILES = (
     'src/pb_tcp_redirect_context_report.py', 'src/pb_tcp_connections_report.py',
     'src/pb_tcp_kernel_timing_report.py', 'src/pb_controlled_tcp_proxy.py',
     'src/pb_pc_sampler.py', 'src/pb_proactor_close_guard.py', 'config/runtime.json',
+    'src/pb_etw_redirect_report.py',
 )
 BOOT_FIELDS = ('computer', 'provider', 'event_id', 'event_record_id', 'event_time_utc',
                'start_time_utc', 'prefetch_boot_id')
@@ -89,7 +90,10 @@ def policy(workload, profile):
     ids = profile['active_point_ids']
     registered = profile['registered_point_ids']
     inactive = profile['inactive_point_ids']
-    if (not ids or len(set(ids)) != len(ids) or len(set(registered)) != len(registered)
+    etw = profile['method'] == 'etw-tcpip-redirect-v1'
+    if etw and (ids or lifecycle != 'resident-disabled' or profile.get('observer') != 'etw-tcpip'):
+        raise ValueError('KD_SESSION_ETW_PROFILE_INVALID')
+    if ((not ids and not etw) or len(set(ids)) != len(ids) or len(set(registered)) != len(registered)
             or sorted(ids + inactive) != sorted(registered)
             or set(ids) & set(inactive) or any(type(i) is not int or i < 0 for i in registered)
             or profile['point_count_active'] != len(ids)
@@ -109,6 +113,10 @@ def policy(workload, profile):
                 diagnostic_only=True, performance_comparable=False)
     if lifecycle == 'resident-disabled':
         result['driver_lifecycle'] = lifecycle
+    if etw:
+        result.update(observer='etw-tcpip', logger_verification_required_before_load=False,
+                      etw_provider='2f07e2ee-15db-40f1-90ef-9d7ba282188a',
+                      etw_keywords='0x2080', etw_level=5)
     return result
 
 

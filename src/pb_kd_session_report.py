@@ -114,6 +114,10 @@ def evaluate(path, plan):
     result.update(debugger_coverage_verified=False, reduced_profile_run_verified=False,
                   active_point_ids=POLICY['active_point_ids'], registered_point_ids=POLICY['registered_point_ids'], inactive_point_ids=POLICY['inactive_point_ids'], load_authorized=False, lifecycle_coverage_verified=False, frame_reads_runtime_verified=False,
                   miss_actions_runtime_verified=False, successful_query_record_coverage=False)
+    if POLICY.get('observer') == 'etw-tcpip':
+        result['debugger_enabled_user_acknowledged_only'] = False
+        result['status'] = ('ETW_SESSION_NATIVE_CAPTURE_INCOMPLETE' if errors else
+                            'ETW_SESSION_NATIVE_EVIDENCE_CONFIRMED_ETW_REVIEW_PENDING')
     return result
 
 
@@ -129,6 +133,11 @@ def main():
              'РџСЂРѕР±Р° С‡РµС‚С‹СЂС‘С… СЃРѕРµРґРёРЅРµРЅРёР№ СЃ lookup miss С‚РѕС‡РєР°РјРё; kernel console РµС‰С‘ РЅРµ РїСЂРѕРІРµСЂРµРЅ. РќРµ PASS РїСЂРѕРґСѓРєС‚Р° Рё РЅРµ РґРѕРєР°Р·Р°С‚РµР»СЊСЃС‚РІРѕ РїСЂРёС‡РёРЅС‹.',
              'NTSTATUS СЏРґСЂР° Р·РґРµСЃСЊ РЅРµ РёР·РјРµСЂСЏРµС‚СЃСЏ.', '',
              '| Р¤Р°Р·Р° | Р—Р°РїСЂРѕС€РµРЅРѕ | РЈСЃРїРµС€РЅРѕ | РћС‚РєР°Р·С‹ |', '| --- | ---: | ---: | ---: |']
+    if read_plan(args.plan)['control_policy'].get('observer') == 'etw-tcpip':
+        lines = ['# Original Core query control', '', result['status'], '',
+                 'Debugger points disabled. ETW capture and connection correlation need separate review.',
+                 'This native report does not measure kernel NTSTATUS or prove root cause.', '',
+                 '| Phase | Requested | Succeeded | Failed |', '| --- | ---: | ---: | ---: |']
     lines += [f"| {p['id']} | {p['requested']} | {p['successful']} | {p['failed']} |" for p in result['phases']]
     lines += ['', result['original_failure_signature'], ''] + result['errors']
     (args.evidence_directory / 'kd-session-summary.md').write_text('\n'.join(lines) + '\n', encoding='utf-8')

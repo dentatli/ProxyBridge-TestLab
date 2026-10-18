@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "method": "etw-tcpip-redirect-v1",
+  "observer": "etw-tcpip",
+  "driver_lifecycle": "resident-disabled",
+  "registered_point_ids": [2],
+  "active_point_ids": [],
+  "inactive_point_ids": [2],
+  "point_count_active": 0,
+  "points": [{"id": 2, "target": "ProxyBridgeDrv!ClassifyCore+0x3de", "kind": "ba", "access": "e", "size": 1, "state": "disabled", "action": "Preserved existing host registration; no debugger commands are issued."}],
+  "automatic_debugger_control": false,
+  "load_authorized": false,
+  "root_cause_proven": false
+}

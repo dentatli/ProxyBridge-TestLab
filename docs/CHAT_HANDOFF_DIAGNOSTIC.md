@@ -1,5 +1,41 @@
 # Передача чату диагностики TCP / WinDbg
 
+## ETW подключён; four остановлен по ОЗУ, USER освобождает память
+
+USER разрешил автономное продолжение внутри VM и очистку C:. Добавлены opt-in
+ETW profile/observer в universal runner, без WinDbg control/active points,
+resident driver lifecycle сохранён. [Описание](ETW_REDIRECT_SESSION.md).
+18 offline tests + PS5 parser прошли до первой пробы. Пассивный ETW start/STOP/export
+подтверждён: TCPIP mask0x2080/level5, final/header loss0, 1553v0 decoded.
+Другие ETW sessions не останавливались. Product source не менялся.
+
+Run `pb-kd-session-run-20261018-185434-dad241dc` остановился до native
+client/receiver: free physical1098813440 <2147483648, disk39481131008
+>268435456. Поэтому client.csv/Core queries нет и новых выводов о10022 нет.
+ETW own session stopped/exported/final+header loss0,32 background1553;
+не приписывать их тестовым соединениям. Helpers stopped; resident DISABLE after
+completed, SCM Running, driver_unloadedfalse, independent flag readbackfalse.
+Plan185356-e014248e consumed; не повторять/не refreeze. Hardware2 по последнему
+console disabled/g, нового Break/be/bl нет.
+
+Добавлен early memory gate с теми же2GiB до claim/ETW/helpers, без снижения
+порога cohort. USER на предложение закрыть обычный ChatGPT ответил
+«Я освобожу память сам». Приложения не закрывать, следующую runtime-пробу
+отложить до его сообщения о готовности. Далее новый four plan после memory
+ready; bounded ещё не разрешён новым ETW review. Старые планы не Resume.
+Сохранять ограничения physical-host debugger/user-control, driver resident,
+10061 только incidental, продукт не исправлять без причины.
+
+Очистка C: private `pb-c-cleanup-20261018/result.json`: deleted173673779bytes,
+3files, skipped0 — два NuGet cachefiles и SHA-проверенный CoS2.1.40 installer.
+pip/npm targeted caches пустые. Полные пути/containment/reparse ancestors
+проверены, удаление только отдельных файлов; captures/kits/source/keys сохранены.
+free before36501217280/after36674895872; позднее39469051904 наблюдалось отдельно,
+не приписывать весь прирост нашей очистке. Broad scan session80029 stdin был
+отклонён caller-identity; не обходить отказ и не перезапускать его ради output.
+CoS new commands/file tools работают; durable JSON receipts обходом отказа
+процессу не являются. Private captures/cleanup scripts не коммитить.
+
 ## CoS elevation подтверждён, можно готовить ETW через подключение VM
 
 USER сообщил, что после запуска CoS от администратора пришлось повторно настроить подключение. CoS Core.exec read-only проверка: Computer PB-BUILD-25H2, Account PB-BUILD-25H2\LabAdmin, USERPROFILE C:\Users\LabAdmin, Administrator=true, cwd C:\src\ProxyBridge-TestLab, branch codex/checkpoint-20261007, Git clean, ProxyBridgeDrv Running. Причина сброса/повторной настройки не установлена, не объявлять смену аккаунта причиной. Повышение реально проверено, не выводится из слов USER.

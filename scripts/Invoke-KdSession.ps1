@@ -6,7 +6,8 @@ param(
     [string]$DebuggerProfile='',[string]$RegistrationReview='',
     [ValidateSet('four','bounded256')][string]$Workload='four',
     [string]$PlanPath='',[string]$PlanSha='',
-    [switch]$ProfileReviewed,[switch]$DebuggerLoggerEnabled,[switch]$BoundedLoadReviewed
+    [switch]$ProfileReviewed,[switch]$DebuggerLoggerEnabled,[switch]$BoundedLoadReviewed,
+    [switch]$DebuggerPointsDisabled
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
@@ -58,10 +59,19 @@ if ($Phase -eq 'Inspect') {
         product_started=$false;traffic_generated=$false;debugger_control=$false;runtime_ready=$false} | ConvertTo-Json
     return
 }
-if (-not $ProfileReviewed -or -not $DebuggerLoggerEnabled) {throw 'KD_SESSION_REQUIRES_USER_PROFILE_AND_ENABLED_POINTS_REVIEW'}
+$etwObserver=$plan.control_policy.PSObject.Properties['observer'] -and $plan.control_policy.observer -eq 'etw-tcpip'
+if ($etwObserver) {
+    if (-not $ProfileReviewed -or -not $DebuggerPointsDisabled -or $DebuggerLoggerEnabled) {throw 'ETW_SESSION_REQUIRES_REVIEW_AND_DISABLED_POINTS'}
+    Import-Module (Join-Path $root 'modules/EtwRedirectCapture.psm1')
+} elseif (-not $ProfileReviewed -or -not $DebuggerLoggerEnabled -or $DebuggerPointsDisabled) {throw 'KD_SESSION_REQUIRES_USER_PROFILE_AND_ENABLED_POINTS_REVIEW'}
 if ($plan.control_policy.workload -ne 'four' -and -not $BoundedLoadReviewed) {throw 'KD_SESSION_BOUNDED_REVIEW_REQUIRED'}
 $principal=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
 if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {throw 'KD_SESSION_RUN_REQUIRES_ADMINISTRATOR'}
+if ($etwObserver) {
+    # Refuse before consuming a plan or starting helpers; cohort repeats the existing gate.
+    $availableBytes=[long](Get-CimInstance Win32_OperatingSystem -OperationTimeoutSec 5).FreePhysicalMemory*1024
+    if ($availableBytes -lt 2147483648L) {throw ('ETW_SESSION_MEMORY_BEFORE_CLAIM: available='+$availableBytes+' required=2147483648; no Run claim or ETW start')}
+}
 $mutex=[Threading.Mutex]::new($false,'Global\ProxyBridgeTestLabPlannedBenchmark')
 $owns=$false;$lease=$null
 $previousRoute=[Environment]::GetEnvironmentVariable('PB_TESTLAB_ROUTE_CASE','Process')
@@ -128,22 +138,40 @@ try {
     $run=[ordered]@{status='RUNNING';method='redirect-kd-session-v1';diagnostic_only=$true;performance_comparable=$false;
         started_at_utc=[DateTime]::UtcNow.ToString('o');runtime_plan_sha256=$PlanSha;
         active_point_ids=$plan.control_policy.active_point_ids;registered_point_ids=$plan.control_policy.registered_point_ids;
-        debugger_enabled_user_acknowledged=$true;profile_reviewed_user_acknowledged=$true;
+        debugger_enabled_user_acknowledged=[bool]$DebuggerLoggerEnabled;profile_reviewed_user_acknowledged=$true;
         frame_reads_runtime_verified=$false;debugger_coverage_verified=$false;driver_installation=$false;error=''}
     Copy-Item -LiteralPath $PlanPath -Destination (Join-Path $evidence 'runtime-plan.json')
     $currentBoot | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidence 'boot-session-before-run.json') -Encoding UTF8
     $run | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidence 'diagnostic-run.json') -Encoding UTF8
+    $etwCapture=$null
     try {
+        if ($etwObserver) {
+            $etwCapture=New-RedirectEtwCapture (Join-Path $evidence 'etw')
+            Start-RedirectEtwCapture $etwCapture
+        }
         [Environment]::SetEnvironmentVariable('PB_TESTLAB_ROUTE_CASE','original','Process')
         & (Join-Path $PSScriptRoot 'Invoke-KdSessionWorkload.ps1') -SessionPlan $plan -SessionPlanPath $PlanPath -EvidenceDirectory (Join-Path $evidence 'workload')
-        $run.status='KD_SESSION_CONTROLLER_RETURNED_DEBUGGER_PENDING'
+        $run.status=if ($etwObserver) {'ETW_SESSION_CONTROLLER_RETURNED_REVIEW_PENDING'} else {'KD_SESSION_CONTROLLER_RETURNED_DEBUGGER_PENDING'}
     } catch {$run.status='FAILED';$run.error=$_.Exception.Message;throw}
     finally {
+        if ($etwCapture) {
+            try {
+                Stop-RedirectEtwCapture $etwCapture
+                Export-RedirectEtwCapture $etwCapture
+                & $sourcePython -B (Join-Path $root 'src/pb_etw_redirect_report.py') --capture-directory $etwCapture.Directory
+                if ($LASTEXITCODE -ne 0) {throw 'ETW_CAPTURE_INCOMPLETE'}
+            } catch {$run.status='FAILED';$run.error+='; '+$_.Exception.Message}
+        }
         $run['completed_at_utc']=[DateTime]::UtcNow.ToString('o')
         $run | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $evidence 'diagnostic-run.json') -Encoding UTF8
         Write-Host ('Results: '+$evidence)
-        Write-Host ('Отключить только проверенные IDs: '+($plan.control_policy.active_point_ids -join ', ')+'. Перед Break останавливается вся VM, включая Codex/RDP. Команды по одной; bl, затем отдельно g даже при ошибке. Run не повторять.')
+        if ($etwObserver) {
+            $stopped=($null -ne $etwCapture -and $etwCapture.Stopped)
+            Write-Host ('ETW stopped='+$stopped+'; status='+$run.status+'. Review capture/native evidence; leave debugger points disabled; do not repeat Run.')
+        }
+        else {Write-Host ('Отключить только проверенные IDs: '+($plan.control_policy.active_point_ids -join ', ')+'. Перед Break останавливается вся VM, включая Codex/RDP. Команды по одной; bl, затем отдельно g даже при ошибке. Run не повторять.')}
     }
+    if ($run.status -eq 'FAILED') {throw $run.error}
 } finally {
     [Environment]::SetEnvironmentVariable('PB_TESTLAB_ROUTE_CASE',$previousRoute,'Process')
     if ($lease) {$lease.Dispose()}
