@@ -1,5 +1,13 @@
 # Одна точка: входные данные драйвера перед Apply
 
+## Результат four: три корректных снимка при четырёх успешных соединениях
+
+Run `pb-kd-session-run-20261018-171904-ce75c787`:4 native success,4 Core IPV4_CONTEXT_AVAILABLE/32bytes, errors[], manifest COMPLETED; после USER bd2/отдельногоg SCM read-only Stopped. USER console: после t0=0/be2/g три APPLY_INPUT с hit1..3, TOTAL3, без показанных UNREADABLE/IMAGE_MISMATCH. Все3 содержат ненулевой ctx,size20h=32,redirect1000e,image61000,targetPID3e2c=15916, совпадающий с Core. Частичная работа action и привязки после load наблюдается; полнота не доказана.
+
+local0 dbdd0002/d9dd0002/dcdd0002 декодированы как AF_INET, порты56795/56793/56796; local address в этих8байтах нулевой. Порты сопоставлены с уникальными native/Core строками этого короткого run, remote0 задаёт127.0.0.1:34010. У четвёртого native/Core соединения порт56794 и успешный query32bytes, но снимка Apply нет. Эти события не содержат nativePID/QPC, поэтому совпадение port+relayPID в данном run не превращается в полную историю Windows record. Нулевого context на измеренных входах нет; это успешные соединения, не исходный failed lifetime.
+
+Private review `pb-driver-apply-four-result-review-20261018/review.json`; источник console — chat paste, не независимо сохранённый raw файл. Counter3 подтверждает три выполненных actions, не число всех Apply calls. Причина отсутствия четвёртого снимка неизвестна; software breakpoint capture остаётся гипотезой, не установленной ошибкой WinDbg. Не переходить к bounded и не повторять использованный plan. Следующий офлайн шаг — проверить пригодность одной аппаратной execute точки `ba e1` на том же адресе, особенно загрузку/выгрузку драйвера; готового профиля/команд регистрации/Run ещё нет. [Microsoft описывает ba e1 и действие kernel breakpoint на всех процессорах](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/ba--break-on-access-); это не гарантия устранения пропусков в нашем захвате.
+
 ## Именованная отключённая точка подтверждена на хосте
 
 Files-only Prepare завершён exit0: `pb-kd-session-plan-20261018-171328-b9b861da/runtime-plan.json`, SHA256 `6E501BF56B1B37B1CA151BEE6A7F8C8383EB290E4E473B23F11E714C0D64FAB3`. Общие ресурсы переиспользованы, продукт/трафик/WinDbg не запускались. Policy проверена: four/4, active+registered2, original single query/listener, 8s. Plan ещё не использован, runtime результата нет.

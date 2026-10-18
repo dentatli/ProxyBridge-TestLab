@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: Apply four — 4 успеха, 3 снимка; нагрузку не повышать
+
+USER run171904-ce75c787 завершён: native4/4, Core4 IPV4_CONTEXT_AVAILABLE/32bytes/errors[], manifest COMPLETED, SCM Stopped. Console USER chat paste: t0=0/be2/g, hits1..3, TOTAL3, bd2/отдельныйg. local raw dbdd0002/d9dd0002/dcdd0002 дают порты56795/56793/56796; совпали с native/Core, relayPID3e2c=15916. Во всех3 ctx ненулевой/size20h=32/redirect1000e/image61000. Порт56794 имеет успешный Corequery32bytes без снимка. Не объявлять отсутствие Apply или ошибку драйвера: причина неполного захвата неизвестна. Ни UNREADABLE, ни IMAGE_MISMATCH не показаны; чтения и хотя бы часть rebind execution подтверждены, полнота нет. Исходный10022 не воспроизведён.
+
+Private review `pb-driver-apply-four-result-review-20261018/review.json`. Plan171328-b9b861da использован, не повторять. Точка2disabled, g отдельно; не просить новый initial bl при неизменном состоянии. Не создавать bounded на основании этого four. Следующий шаг — офлайн проработать сравнение software bu с одной hardware execute ba e1 на том же callsite, включая адресную привязку при unload/reload и cleanup; пока hardware profile/регистрация/план не готовы, команд ba/нового Run не давали. Это проверка измерителя, не доказанная причина пропусков и не исправление10022. Продукт не менять,10061 вне разбора. Нижние NEXT исторические.
+
 ## Текущий стоп: qualified bu2 проверена и отключена; подготовка four
 
 Prepare exit0: `pb-kd-session-plan-20261018-171328-b9b861da/runtime-plan.json`, SHA256 `6E501BF56B1B37B1CA151BEE6A7F8C8383EB290E4E473B23F11E714C0D64FAB3`. Только four/4, active+registered2, original listener/query, 512KiB/8s; product_started/traffic_generated/debugger_control=false. Повторно Inspect не запускать: Prepare уже проверил общие файлы. Один USER Run с PlanPath/PlanSha/ProfileReviewed/DebuggerLoggerEnabled после enable2; агент не Run. Результата пока нет.
