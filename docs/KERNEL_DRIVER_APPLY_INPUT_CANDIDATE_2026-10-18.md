@@ -1,5 +1,17 @@
 # Одна точка: входные данные драйвера перед Apply
 
+## Текущий стоп: предупреждение unqualified, подготовлен matching PDB и target v2
+
+USER bu2 module+1696 был создан и .bpcmds показал именноbu2/bd2; TOTAL0 иотдельныйg подтверждены. Но WinDbg предупредил contains symbols not qualified with module name. Это не успешная проверка автоматической привязки. Не включать/неRun и не игнорировать предупреждение только потому, что запись появилась. Выражениебезmodule!symbolбылонедостаточнонадёжнымвыбором; теперьперейтикквалифицированномусимволу, неугадыватьдругойabsolute/moduleoffset.
+
+Matching PDB найден в сохранённой исходной сборке:610304bytes, SHA256 `8196d1d70ff10317bb460390f125f3906a1cfb8ad1a90130122ebd03e039d1d6`, GUID9edddca7-4d9e-4bad-be1d-2bfc2d491344, DBIage1. GUID/age совпали сRSDS diskSYS3cd. MSF-проверка сначала отклонила ошибочно заданную длинуprefix24; исправлено startswith, исходныйPDBне менялся. Privateaudit `pb-driver-symbol-binding-review-20261018` сохраняетreview/qualified-symbol/transfer-and-profile.
+
+Локальный DbgHelp в отдельномPythonпроцессе, толькоfile-symbol-read: SymFromName(ProxyBridgeDrv!ClassifyCore) далRVA12b8; +3de=1696. Драйвер не загружался, DriverEntry/WinDbg не исполнялись. Это доказательство соответствия symbolRVA/PDB/disk, не проверки загрузки PDB на физическомхосте. COFFsymbolcountSYS0; наличиесимволоввdumpbinобъясняетсядоступностьюmatchingPDBвVM, анеэкспортомClassifyCoreизSYS.
+
+ДляпереносаподготовлентолькоPDB+manifest: `artifacts/diagnostics/pb-driver-symbols-20261018/ProxyBridgeDrv.pdb`. Копияпобайтносовпала. Никакихновыхruntime/продуктовыхбинарников/архиваинструкцийнаDesktop. Новый JSON `pb-kd-driver-apply-input-symbol-candidate-20261018.json`, SHA256 `c8ff03a683cbc1e267dad6dc00a6c7443b44cb596b206fa1d8fff6873752bf10`, target `ProxyBridgeDrv!ClassifyCore+0x3de`. Actionровнопрежняя; старыйunqualifiedprofileсохранён. ХостоваязагрузкаPDB/регистрацияv2/егоreloadbindingпокаpending, плана/Runнет.
+
+Следующий USER шаг — перенести подготовленныйPDBизVMнаphysicalhostвD:/Загрузки/ProxyBridgeDrv.pdb икомандойсавтосравнениемSHAдобавитьвсуществующуюC:/PB-KD-Symbols-20261016/ProxyBridgeDrv.pdb. СуществующийdestinationсдругимSHAнеперезаписывать; приодинаковомSHAпереиспользовать. Проверитьпослекопирования, вывестиPDB_SHA_OK. Пока никакихBreak/be/driverload/Run. Послеhostcopy — отдельныйсогласованныйload/read/qualifiedsymbolreviewиdisabledregistration; разрешениеload/read/unloadUSERужеесть, ноагентнеповышен иStartServiceнеповторять. Неоставлятьunqualifiedbuактивной. СтарыеNT/TCPIP/FWPKPDBне менять, unsafeignore-symbol-mismatchflagsне применять.
+
 ## Свежий live-код и очистка подтверждены
 
 USER выполнил административный load/read/unload: показаны Running, Stopped и отдельныйg. Дополнительный read-only Get-Service подтвердил Stopped. Live module base fffff8026c130000/end fffff8026c191000, ImageSize61000, timestamp6ABD1109/checksum143BA совпали с текущим diskSYS SHA3cd79cfc... . Двадцать четыре инструкции начиная сRVA1650 и одна инструкция thunk286e побайтно совпали с файлом. WinDbg показал Unable to load image/Win32error2, но вывел эти25инструкций из target memory; предупреждение не превращается в утверждение о неработающем драйвере. При MASM L18 означает24инструкции, не18десятичных.

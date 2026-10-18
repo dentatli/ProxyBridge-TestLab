@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: unqualified bu предупреждение, нужен перенос matching driver PDB
+
+Читать начало [driver Apply candidate](KERNEL_DRIVER_APPLY_INPUT_CANDIDATE_2026-10-18.md). USERсоздалbu2module+1696/bd2, TOTAL0/g,ноwarning contains symbols not qualified with module name. Необъявлятьdeferredbindingготовым/неbe/неRun. Только2disabledтеперьзарегистрирована;3удалена. НашёлmatchingPDB610304bytes/SHA8196d1d70ff10317bb460390f125f3906a1cfb8ad1a90130122ebd03e039d1d6/GUID9edddca7-4d9e-4bad-be1d-2bfc2d491344/DBIage1совпалоRSDS SYS3cd. LocalDbgHelpfile-onlySymFromNameClassifyCoreRVA12b8/+3de=1696подтверждён. НеDriverEntry/WinDbg/traffic. MSFprefixinitial24mistakeисправленаstartswith, исходникнеизменён.
+
+ПодготовлентолькоPDB+manifest artifacts/diagnostics/pb-driver-symbols-20261018, byteexact; privateaudit pb-driver-symbol-binding-review-20261018. Новыйsymbolprofile SHA c8ff03a683cbc1e267dad6dc00a6c7443b44cb596b206fa1d8fff6873752bf10 targetProxyBridgeDrv!ClassifyCore+3de, actionровнопрежняя; старыйprofileсохранён, новогоplan/Runнет. СледующийUSERтолькопереносPDBвphysicalD:/Загрузки/ProxyBridgeDrv.pdb/autoSHAguardcopyвC:/PB-KD-Symbols-20261016/ProxyBridgeDrv.pdb/postcopySHA/PDB_SHA_OK. НеoverwriteдругойPDB, matchingexistingreuse; NT/tcpip/fwpkнеизменять. НикакихBreak/load/be/Runнаэтомшаге. Потомhostsymbol/livequalifiedreview/disabledregistration; existingloadapprovalнепроситьснова, агентнеповышен/неStartService. НижниеNEXTисторические.
+
 ## Следующий USER шаг: одна отключённая deferred точка в драйвере
 
 Читать [новый кандидат входа Apply](KERNEL_DRIVER_APPLY_INPUT_CANDIDATE_2026-10-18.md). USERADMINload/read/unloadуспешен, StoppedподтверждёнreadonlySCM. Свежийmodule61000/timestamp6ABD1109/checksum143BA/25liveinstr совпали сdisk3cd. L18MASM=24instr+1thunk. Image-loadwarningбыл, кодизпамятисверен; fullimageSHAнепроверен. Privateaudit pb-driver-image-live-review-20261018. Историческиеunloaded66000vsfresh61000необъяснены; старыеcapturesloaded-drivers-activeименаonly, не считатьисторическийsourcebindingполным/неотменятьдоказанныйCore10022.
