@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: load/read/unload согласован; нужен USER ADMIN PowerShell
+
+USER«делайчтонужно» разрешилкороткуюзагрузкусуществующегодрайвера/чтение/выгрузку. Повторнонепроситьсогласование. AgentguardsStopped/Type1/Start3/ImagePath/SHA3cdpassed; единственныйStart-ServicefailedCannotopenservice. AgenttokenLabAdminнеповышен(IsInRoleAdministratorfalse), postattemptStopped. Неretryизтого жетокена/неACL/неinstall/необъявлятьDriverEntryfailure. Lifecycleprivate pb-driver-image-inspection-20261018-152349-ea10dfa6: loadfalse/cleanup_pendingfalse/Stopped, Core/traffic/IOCTL/debuggercontrolnone.
+
+ДалееUSERADMINPowerShellвнутриVM Start-Service/WaitRunning/GetService. Приошибкенепродолжатьчтение/вывод. ЕслиRunning beforeBreakwholeVM/Codex/RDPwarning, lmvmProxyBridgeDrv/u1650L18/u286eL1поодной/отдельныйg evenerror. ПослегUSERADMINStop-Service/WaitStopped/GetService, полныйвыводPS/KD. Всеточкиостаютсяd, неRun/неbp/ba/be/install. Успехread/loadещёpending; drivercodeсравнитьдоprofile. Нижние согласования/NEXTисторические.
+
 ## Текущий стоп: USER согласование короткой загрузки драйвера для live-read
 
 Читать начало [driver review](KERNEL_DRIVER_SOURCE_REVIEW_2026-10-18.md). USERlmvm/uнеразрешились; lm m *Proxy* показываетProxyBridgeDrvтольковUnloaded, отдельноgвобоихвыводах. Предыдущийread-onlyшагнеучёлcleanup: executorстрока212вызываетStop-Service. Agentread-onlySCM/registry: ProxyBridgeDrvStopped/Type1/Start3/ожидаемыйImagePath/diskSHA3cdсовпал. АгентнеStart/Stop/IOCTL. Историческиеunloadedranges66000h vsdiskSizeOfImage61000h; причинанеизвестна, неприписыватьдругомубинарнику/Windows, свежийloadedmodule/codeсначалапроверить.

@@ -1,5 +1,13 @@
 # Проверка драйвера ProxyBridge перед дальнейшими точками
 
+## Загрузка согласована; запуск агентом не выполнен из-за доступа к службе
+
+USER ответил «делай что нужно»: короткий сеанс загрузки существующей службы/чтения/выгрузки согласован, повторно разрешение не запрашивать. Перед попыткой агент повторно проверил Stopped/Type1/Start3/точный ImagePath/SHA3cd. Единственный Start-Service завершился ошибкой Cannot open ProxyBridgeDrv service. Токен процесса PB-BUILD-25H2/LabAdmin не повышен (IsInRoleAdministrator=false), после попытки служба снова проверена: Stopped. Не объявлять успешную загрузку/частичную работу драйвера, не повторять тот же запуск из этого токена, не менять ACL/регистрацию/политику. Это не отказ kernel-driver initialization, подтверждённый кодом возврата DriverEntry: служба не была открыта для запуска.
+
+Private lifecycle `pb-driver-image-inspection-20261018-152349-ea10dfa6/inspection-lifecycle.json` сохраняет guards, ошибку, факт неповышенного токена/Stopped. cleanup_pending=false для этой неудачной попытки, load_confirmed=false. Core/traffic/IOCTL/debugger control не выполнялись; выгрузка агентом не нужна, поскольку Running не наступил.
+
+Следующий USER шаг не требует нового согласования: PowerShell внутриVM отимениAdministrator, Start-Service существующегоProxyBridgeDrv/WaitForRunning/Get-Service; приошибкеостановитьсяиприслатьвывод. ПриRunning beforeUSERBreakwholeVM/Codex/RDPwarning, lmvmProxyBridgeDrv/u1650L18/u286eL1 поодной, отдельныйg evenerror; потомвтомжеADMINPowerShell Stop-Service/WaitForStopped/Get-Service. НеCLI/Core/traffic/bp/ba/be/install. ПолныйвыводPS/WinDbgприслать; прежде дальнейшихточек сопоставитьfreshliveкод. Ниже ожидание согласования — историческое, согласие уже получено.
+
 ## Стоп: драйвер выгружен после cleanup, до загрузки нужно согласование
 
 USER lmvm ProxyBridgeDrv не нашёл загруженный модуль, u поимени неразрешился, отдельныйg выполнен. Следующий lm m *Proxy* показал ProxyBridgeDrv.sys только вUnloaded modules, сноваотдельныйg. Это подтверждает отсутствие текущего модуля и объясняет ошибку разрешения. Предыдущий предложенный live-read шаг не учёл жизненный цикл продукта; не повторять его без загрузки и не использовать старые абсолютные адреса unloaded image.
