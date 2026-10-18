@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: resident load/live code/gEnabled=0 подтверждены, далее disabled ba2
+
+USER lmvm: private PDB, base fffff8026c130000/end6c191000, ImageSize61000/timestamp6ABD1109/checksum143BA. ClassifyCore+3de=6c131696 bytes e8d3110000 (Apply thunk286e), next488b4de8. dd gEnabled по6c1362cc показал0; отдельноg. Agent read-only SCM Running. Это независимое чтение флага в данный момент, не runtime проверка нового resident Run и не полный loaded image SHA. Private observation `pb-resident-driver-review-20261018/live-load-observation.json`.
+
+Далее USER только замена точки: beforeBreak wholeVM/Codex/RDP warning/recoverybd2/отдельныйg. Известная2 — старая disabled bu, исходныйbl не нужен. bc2; beforeba2 предупредить о первоначальном enabled/VMpaused, ba2 e1 ClassifyCore+3de с прежней action из hardware candidate, сразуbd2; rt0=0;.bpcmds;отдельныйg даже после ошибки. Драйвер оставить Running, не unload/reboot/неbe/неRun. Затем разобрать actual hardware type/command/disabled, только после этого registrationreview и новыйfourplan. Нового plan пока нет. Нижние NEXT исторические.
+
 ## Текущий стоп: resident mode подготовлен офлайн, нужен один USER load/live review
 
 USER предложил держать драйвер запущенным; выбран этот путь для одной аппаратной точки в самом драйвере, без общесистемного Apply trap. Читать [resident session](KD_RESIDENT_DRIVER_SESSION.md). Universal launcher получил opt-in profile driver_lifecycle=resident-disabled, пока four only. Before/after synchronous DISABLE IOCTL receipts/sessionbinding/Running/processabsence; без Stop-Service, не заявлять independent gEnabled readback или WFPdetachment. Legacy unload default неизменён.13tests/PS5parser/C#declarations/legacy2captures/syntheticresident+failuregate прошли, устройства/IOCTL/driver/traffic агентом не запускались; SCM Stopped.

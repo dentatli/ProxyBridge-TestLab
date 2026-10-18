@@ -1,5 +1,9 @@
 # Диагностика с драйвером, оставленным в памяти
 
+## Live load перед регистрацией hardware
+
+USER подтвердил private PDB и live call ClassifyCore+3de на base fffff8026c130000 (RVA1696), bytes e8d3110000/488b4de8; PE метаданные совпали с reviewed SYS. gEnabled по6c1362cc равен0, отдельноg. Agent read-only SCM Running. Private `pb-resident-driver-review-20261018/live-load-observation.json`. Это чтение состояния до пробы; аппаратная регистрация и resident runtime пока не проверены. Следующий шаг только bc2/ba2 e1/bd2/rt0=0/.bpcmds/отдельныйg, с предупреждениями перед Break/созданием точки. Оставить драйвер Running, без нового Run до разбора регистрации.
+
 USER предложил не перезагружать драйвер между пробами. В pinned source `pb_driver_stop()` отключает перехват IOCTL и закрывает handle; выгрузка службы была отдельным действием TestLab. Служба Running и включённый перехват — разные состояния. Продукт не менялся.
 
 ## Изменение запускателя
