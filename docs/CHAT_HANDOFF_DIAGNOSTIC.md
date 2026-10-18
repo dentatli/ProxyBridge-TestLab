@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий USER шаг: four с новой парой association PRE/POST
+
+Читать начало [кандидата пары](KERNEL_ASSOCIATION_PAIR_CANDIDATE_2026-10-18.md). USERрегистрацияпоказала2d fffff8026a817f14/3d fffff8026a817f20 ссовпадающимиactions, отдельныйg, безвидимыхошибок. ChatpasteбезrawconsoleSHA; runtimeactionspending. Boot16566/113unchanged. Files-onlyPrepare WindowsPS5exit0: plan122340-181c1036 SHA196A422BB1AEE67AD1D72CE95116C0CD56CD83C5D1125E8345D63B2562336006,6files/24218bytes/64refs/51commonoldrefsSHAunchanged, runtimecopies0. Privateaudit pb-kd-association-four-preparation-review-20261018. Толькоfour/4connections/originalquery/512KiB/active2,3; noagentRun/runclaim/product/traffic/debuggercontrol.
+
+ПередUSERBreak/каждымbe wholeVM/Codex/RDP warning/recoverybd2/bd3/bl/g поодной. Безизмененийисходныйblнеповторять. be2/be3/отдельныйg, одинUSER Run общегоlauncherсновымPlanPath/PlanSha/ProfileReviewed/DebuggerLoggerEnabled. ПослеRun/error beforeBreakwarning, bd2/bd3/bl/отдельныйg evenerror, полныйPS/console. Неrepeat/не256доразбора. PRE/POSTpairing/RAW16/tuplecorrelation/частотапокаpending, fullhistoryнепокрыта; старыеkitsсохранены,10061нерасследовать. НижниеNEXTисторические.
+
 ## Следующий шаг: регистрация отключённой пары association PRE/POST
 
 Читать [новый кандидат пары](KERNEL_ASSOCIATION_PAIR_CANDIDATE_2026-10-18.md). USER live AleAcceptRedirectProxyNblTag подтвердилkey9/callRVA d8069/return d806e, отдельныйg,2/3d. Новый JSON association-pair SHA b72e086ca81cf961d54f9c73da9032bd0d66cd78fd9b50977ef7daec9342d6ef: заменить2 на TCPIPcaller+94 PRE с точнымиrecordR9/NBLRDX/epRBX/thread/RSP иguardedRAW16 record+48/+c8;3 наcaller+a0 POST RAX/NBLRBP/epRBX/thread/RSP. Нетstackreads/globalpseudo/portfilter. Фактическаячастотанеизвестна, одинвызовнасоединениенедоказан. Retrieval/QUERY_NULL/free/createнепокрыты; полнаяисториянеобещается. Privateaudit pb-kd-association-pair-candidate-review-20261018; structure/guards/escape/policyfourpassed, parser/runtimepending. Initialofflinechecker falsepositive substringbp inrbp исправленcommand-boundaryregex, профильнеизменялся.

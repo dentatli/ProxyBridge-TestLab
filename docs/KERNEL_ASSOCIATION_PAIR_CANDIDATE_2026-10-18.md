@@ -1,5 +1,13 @@
 # Две точки вокруг прикрепления redirect record
 
+## Регистрация проверена, four-plan готов
+
+USER прислал регистрацию: bc2/bc3, пустой bl, новые bp2/bd2 и bp3/bd3, итоговый bl только2d поfffff8026a817f14 и3d поfffff8026a817f20, отдельныйg. Actions вручную сопоставлены с JSON; видимых ошибок нет. Это подтверждение регистрации, не исполнения action/guards. Источник — сообщение USER, отдельный rawconsole/SHA полного сообщения не заявляется.
+
+Boot Event12record16566/Prefetch113 совпал с предыдущим review. Private audit `pb-kd-association-four-preparation-review-20261018`: registration-observation.json, boot-session.json, session-review.json (толькоfour), preparation-result.json. Prepare общим wrapper через WindowsPS5 завершился exit0, встроенная проверка файлов/runtime успешна. Новый plan `pb-kd-session-plan-20261018-122340-181c1036/runtime-plan.json`, SHA256 `196A422BB1AEE67AD1D72CE95116C0CD56CD83C5D1125E8345D63B2562336006`.6metadata files/24218bytes/64frozenrefs,51общийreference с предыдущим bounded-plan имеет тотжеSHA. Ноль новых runtime/product binary copies; run-claim отсутствует, Run не выполнялся.
+
+Следующий USER шаг — один four Run, active2/3. Перед Break и каждым be предупреждать об остановке всейVM/Codex/RDP; recoverybd2/bd3/bl/g поодной, g отдельноevenerror. Исходныйblнеповторять безизмененийсостояния. be2/be3/g поодной; USER Invoke-KdSession -Phase Run с новымPlanPath/PlanSha/ProfileReviewed/DebuggerLoggerEnabled. ПослеRun/error передBreak предупредитьwholeVM, bd2/bd3/bl/отдельныйg и полныйPS/console. Неrepeat/не256. Положительные PRE/POST/RAW16 и связь адресов с native/Core покаpending; частота/задержкинеизмерены, fullhistoryнепокрыта. Продукт не менялся.
+
 ## Основание и границы
 
 Продолжение [live review](KERNEL_REDIRECT_ASSOCIATION_PLAN_2026-10-18.md). USER дополнительно прислал uf AleAcceptRedirectProxyNblTag: live RVA d7ff4, association call d8069, return d806e, key9 в caller rsp+20. Это другой ключ, не key5 redirect record. Показаны только2/3d и отдельный g, ошибок нет. Источник — текст сообщения, не отдельный raw attachment; не утверждать SHA полного console.
