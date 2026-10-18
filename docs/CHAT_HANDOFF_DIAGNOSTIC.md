@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Регистрация lookup 2/3 подтверждена; следующий шаг — отдельный four-only kit
+
+USER console d7185e82: старые 2/3d удалены, bl пустой, новые bp2/bd2 и bp3/bd3 зарегистрированы. Финальные bl и .bpcmds показывают только 2d по fffff8026aaa3223 и 3d по fffff8026aaa335e. Обе action побайтно совпадают с registration_command кандидата; отдельный g показан. Memory access/Syntax/Bad register ошибок в присланном выводе нет. Это подтверждение регистрации, не исполнения условий/стековых чтений. Private audit `pb-kd-lookup-registration-review-20261018`, console SHA256 e7e474540a93bdb82997b8f9fbe0d2b484977d9484331c06616f1d4abdfdb704.
+
+Точки оставить отключёнными, повторные bc/bp/staging не нужны. Следующий офлайн шаг — собственный новый four-only kit для lookup-профиля с сохранёнными ограничениями покрытия и runtime pending. Пока такого kit нет, старые не использовать; никаких be/Run до подготовки и отдельного USER шага. Before Break/enable предупреждать об остановке всей VM/Codex/RDP, recovery bd2/bd3/bl/g по одной, g отдельно даже при ошибке. Продукт не менялся, агент не запускал нагрузку. Нижние NEXT исторические.
+
 ## Текущий стоп: регистрация нового lookup-кандидата отключённым — 2026-10-18
 
 Читать [кандидат двух путей NOT_FOUND](KERNEL_LOOKUP_TWO_MISS_CANDIDATE_2026-10-18.md). Получен live console: сверены 37 выбранных инструкций, фактический caller return подтверждён как TCP/IP accept+caf. Подготовлен новый JSON `pb-kd-lookup-two-miss-candidate-20261018.json`: заменить старые 2/3 на fwpk retrieve+f3 (EARLY_MISS) и +22e (SEARCH_MISS). Новые stack guards проверены офлайн, runtime ещё не проверен. +22e ловит также успешный поиск; условие уменьшает строки, не traps. Не обещать исчезновение observer effect или полную историю контекста.
