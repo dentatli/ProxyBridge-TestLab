@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: USER согласование короткой загрузки драйвера для live-read
+
+Читать начало [driver review](KERNEL_DRIVER_SOURCE_REVIEW_2026-10-18.md). USERlmvm/uнеразрешились; lm m *Proxy* показываетProxyBridgeDrvтольковUnloaded, отдельноgвобоихвыводах. Предыдущийread-onlyшагнеучёлcleanup: executorстрока212вызываетStop-Service. Agentread-onlySCM/registry: ProxyBridgeDrvStopped/Type1/Start3/ожидаемыйImagePath/diskSHA3cdсовпал. АгентнеStart/Stop/IOCTL. Историческиеunloadedranges66000h vsdiskSizeOfImage61000h; причинанеизвестна, неприписыватьдругомубинарнику/Windows, свежийloadedmodule/codeсначалапроверить.
+
+Подготовленконкретныйпланбезtraffic: USERпроверяетStopped/Type/ImagePath/SHA, загружаетсуществующуюслужбуStart-Service, ждётRunning; безCLI/Core/IOCTLENABLE, gEnabledinitial0посource(DriverEntryвсёжерегистрируетWFPobjects). BeforeBreakwholeVM/Codex/RDPwarning; lmvm/u1650L18/u286eL1поодной/отдельныйg evenerror; послеgUSERStop-Service/Stopped/сохранитьвывод. Старыеunloadedадресанеиспользовать, новыхbp/ba/beнет. ТребуетсяUSERсогласие ДОloadпоегоусловию«ЗапускинаобщейVMсогласуемотдельно». ПокаНЕсогласовано/НЕвыполнено; конкретныегардированныеPowerShellкомандыдатьпослесогласия. Старыеkits/продуктнетронуты,10061внеразбора. НижниеNEXTисторические.
+
 ## Текущий приоритет: исходный код WFP-драйвера и один снимок перед Apply
 
 USER спросил о возможной ошибке самого драйвера; читать [проверку драйвера](KERNEL_DRIVER_SOURCE_REVIEW_2026-10-18.md). Доэтогобылаозвученаидеяbp→ba comparator, ноprofile/командрегистрации/planнет. Приоритеттеперьdriver input review. SYS3cd79cfc.../base receiptSHAпроверены,5archivefilesсовпали сGit63be0eb поCRLF-normalization. ИспользованGitobjectизProxyBridge-228, неHEADдругогоDriverrepo. Чужиерабочиекопиинеменялись. Runtime service/filebindingнеравноSHAloadedimage.
