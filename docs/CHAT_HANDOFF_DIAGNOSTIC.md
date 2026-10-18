@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: association four успешен для продукта, пары событий неполны
+
+Читать начало [результата пары association](KERNEL_ASSOCIATION_PAIR_CANDIDATE_2026-10-18.md). Запуск123050-188878dc:4native success/4Core api0/bytes32, native↔Core join по60393..60396 подтверждён; workload/cleanupCOMPLETED, CLIgraceful/post_stop_verified, controller16.441541с. Consolece7bc915/SHA6187537dff05ffbe1475db1c5c5116c2957613c5581a1a76cb05b30d68e15a1c:7PRE/7RAW16/6POST, только5полных пар, все6POST result0.2PREбезPOST и1POSTбезPRE. USER подтвердил полный видимый вывод; не списывать отсутствие строк на копирование. Причина неполноты неизвестна, это не продуктовый association failure.
+
+RAW16 одинаковы у всех:127.0.0.1:54122 →127.0.0.1:34010, соответствуют получателю/relay, не содержат индивидуального client port.4разных sourceEP/record/NBL не доказывают per-connection kernel↔Core join. Есть повторные вызовы с теми же указателями; once-per-connection не подтверждён. Положительные actions/чтения наблюдались безUNREADABLE/loggererrors, но полное pairing/coverage не подтверждено.64frozenrefs/assetsmanifestSHA/38captureinputsunchanged, privateaudit pb-kd-association-four-result-review-20261018; исходныйpendingreportсохранён.
+
+Стоп:2/3отключены командамиbd2/bd3, отдельныйg; post-bdblнет, лишнийBreakнепросить. ИспользованныйRunнеповторять/неbounded. Следующийофлайншаг: рассмотреть counters существующих двух trap sites для различения полноты строк/срабатываний и найти проверенный источник client port. Пока counters/profile/новогоplanнет; не менять старые frozen snapshots. Продукт не менять,10061внеразбора. Before будущийUSERBreak/enable wholeVM/Codex/RDP warning, recoverybd2/bd3/bl/g отдельно; повторныйисходныйblтолькоприизменениях/reconnect/неопределённости. НижниеNEXTисторические.
+
 ## Следующий USER шаг: four с новой парой association PRE/POST
 
 Читать начало [кандидата пары](KERNEL_ASSOCIATION_PAIR_CANDIDATE_2026-10-18.md). USERрегистрацияпоказала2d fffff8026a817f14/3d fffff8026a817f20 ссовпадающимиactions, отдельныйg, безвидимыхошибок. ChatpasteбезrawconsoleSHA; runtimeactionspending. Boot16566/113unchanged. Files-onlyPrepare WindowsPS5exit0: plan122340-181c1036 SHA196A422BB1AEE67AD1D72CE95116C0CD56CD83C5D1125E8345D63B2562336006,6files/24218bytes/64refs/51commonoldrefsSHAunchanged, runtimecopies0. Privateaudit pb-kd-association-four-preparation-review-20261018. Толькоfour/4connections/originalquery/512KiB/active2,3; noagentRun/runclaim/product/traffic/debuggercontrol.
