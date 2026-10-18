@@ -2,6 +2,19 @@
 
 ## ETW подключён; four остановлен по ОЗУ, USER освобождает память
 
+Последующее замечание USER: приложение агента занимает всю память. Read-only
+агрегация обнаружила48WebView2/18Python/18Node, working-set sums1548/1101/929MiB;
+15ChatGPT1215MiB, Codex289MiB, CoS384MiB, free1269MiB. Shared pages могут
+суммироваться многократно, private committed не равно resident RAM.
+Проверка parent chains показала несколько Serena→Python→WebView2 ветвей под
+Codex→ChatGPT; Node helpers также под Codex. Это наблюдение о нескольких
+toolserver trees, не доказательство утечки или ненужности каждого процесса.
+Ничего не завершалось, конфигурации инструментов не менялись. USER память
+освобождает сам. Для8GiB VM предпочтителен перенос интерфейса чата на host с
+CoS внутри VM; подключение на host ещё не проверено. Перезапуск приложения
+возможен после сохранения checkpoint, VM/driver не reboot/не выгружать из-за
+зарегистрированного hardware address. Runtime до готовности USER не запускать.
+
 USER разрешил автономное продолжение внутри VM и очистку C:. Добавлены opt-in
 ETW profile/observer в universal runner, без WinDbg control/active points,
 resident driver lifecycle сохранён. [Описание](ETW_REDIRECT_SESSION.md).
