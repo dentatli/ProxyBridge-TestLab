@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Актуальный результат — 2026-10-18: retrieve/query bounded не поймал исходный отказ
+
+Сначала читать [результат retrieve/query bounded](KERNEL_RETRIEVE_QUERY_BOUNDED_RESULT_2026-10-18.md). USER Run065211-af6e15fb:328attempts/307success/21unidentifiednative10061, все307Corequeriesуспешны,10022=0. Console4a1c91c2/89180bytes/SHAbf6cbe7a24e7b941e7576ba1eb0a3baeaac0f6c3feb64f8433874a3440d03a63:305retrievalEAX0/nonnulloutput,307querynonnullrecord,289uniqueequalpairs/8queriesсдвумяequalcandidates/10безretrieval. Полногоcoverageнет,причинапропусков/дублейнеизвестна. PID/TID/order/peerport/epпривязкаусловнанаполнотуconsole. Нетloggererrors,final2/3d/g. WrapperFAILEDиз-заnative10061captureincomplete, workloadвсефазы/cleanupcompleted.8330frozenSHAexact,63inputsunchanged,originalreportsнепереписаны,privateauditpb-kd-retrieve-query-bounded-result-review-20261018.
+
+**Стоп:** Runизрасходован,неповторять/не640/неbe. Исходныйотказневоспроизведён, исправление/Windowsbug/driverbug/tableoverflow/queuecauseне доказаны. Следующийофлайнкандидат:2retrievalreturnоставить,3перенестинаNULLветку+0x2d0/RVA121588(currentfffff8026a861588),register-onlyQUERY_NULL вместообщегоQUERY_READ. Этоисключаетлогированиеуспешныхqueryиослабляетпокрытие; снижениеobservereffectожидаемое,непроверенное. Newprofile/stage/kitещёнет,ничегонепереставлено. Подготовитьотдельныйreviewableпрофиль/планбезпродуктовыхизменений,затемновыйсогласованныйUSERшаг. СтарыеkitsнеResume/refreeze, beforeBreak/enablewholeVM/Codex/RDPwarning/recovery/gотдельноevenerror. НижестарыеNEXTисторические.
+
 ## Текущий retrieve/query bounded — 2026-10-18
 
 USER зарегистрировал только2/3, каждую отключил; bl/.bpcmds показывают exact actions и адресаfffff8026a75567b/fffff8026a86157c,2/3d,отдельныйg. Новая source policy честно registered2/3/inactive[], без4. Читать [новый bounded checkpoint](KERNEL_RETRIEVE_QUERY_BOUNDED_PREPARATION_2026-10-18.md). Source b48dfdd: отдельные4файла и профиль, 4→64→256→4/328/512KiB/8s/ConnectEx32/originalsinglequery,120sclient/240scohort/2GiBgate. PS5/7parse/purepreset/AST и адаптированный328report(24fail=8Core10022+16unidentified10061/CAPTURE_INCOMPLETE), wrongprofile/fourphases rejected.28oldsourcesunchanged. Registrationreview явно является разбором USER chat paste, не выдуманным raw console file.
