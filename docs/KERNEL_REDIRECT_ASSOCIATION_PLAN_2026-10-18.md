@@ -1,5 +1,17 @@
 # Создание и прикрепление redirect record: следующий шаг
 
+## Live review получен 2026-10-18
+
+Console attachment `427bf7fb-2133-4be4-a219-8e2ca524b9fa`, SHA256 `9e1cf84fc2431f976db6edd49d61e99ef6288cbf317029c68b330570c9ef1e96`: исходный bl показывает только2/3d; обе uf выполнены, отдельный g показан. Ошибок чтения/дизассемблирования в выводе нет. Private audit `pb-kd-association-live-review-20261018` сохраняет raw console и review.json. Из345инструкций337 совпадают с текущим диском; оставшиеся8 образуют4пары import-call rewrite (disk indirect call+NOP, live mov r10+direct call). Это сравнение присланных инструкций, не runtime trace выполнения функций.
+
+Текущие live symbols подтвердили WfpTlShimInspectFastLoopbackSendDatagram RVA d7e80 и AlepCreateRedirectRecord RVA108520. Для key5 association live call находится на+9b, return/test RAX на+a0. Аргументы совпадают с офлайн-разбором: RBX source endpoint, RBP NBL, R9 record из endpoint+1c0, key5 в caller rsp+20. Ненулевой результат проходит ветку+a5 и пропускает следующий key4 association. Эти наблюдения подтверждают расположение кода, но не факт вызова/успеха для failed connection.
+
+Create-функция выделяет228h bytes, копирует16/28байт из двух входных адресов в record+48/+c8 в зависимости от family, заполняет метаданные, сохраняет прежний endpoint record в new_record+30, если он был. В TCP-ветке с очищенным битом10h endpoint+30 сохраняет новый указатель в endpoint+1c0 на+38f; на+396 уже следующий jump. Имена local/remote/original/redirected для скопированных адресов ещё не подтверждены caller-разбором. Не вводить port-фильтр по предположению о значении +48/+c8. Имеется и отдельная hash-table ветка для других условий; наличие её кода не доказывает переполнение таблицы.
+
+После key5/key4 участков caller вызывает AleAcceptRedirectProxyNblTag. В текущем disk-листинге его RVA d7ff4..d8073 содержит association с key9, а не5; текущий live body ещё не получен. Следующий короткий USER read-only шаг: beforeBreak wholeVM/Codex/RDP warning, recovery bd2/bd3/bl/g отдельно; bl только2/3d, затем uf tcpip!AleAcceptRedirectProxyNblTag, отдельно g даже после ошибки. Ниbp/be/step/Run. Это проверка границы key5/key9 перед выбором минимального профиля, не новая нагрузочная проба. Затем продолжить офлайн корреляцию адресов record с Core; новые stage/plan пока не подготовлены.
+
+Продукт и существующие профили не менялись. Причина10022, частота выбранных callsites и полная история failed lifetimes остаются неустановленными. Ниже исходный план до получения live-кода.
+
 Основание — [одноточечный bounded результат](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md):32Core10022 и32QUERY_NULL, без прямой связи kernel-события с конкретным socket/seq. Само повторение NULL дальше не объяснит предшествующее отсутствие записи. Продукт, точки и нагрузка агентом не менялись.
 
 ## Проверено по текущему дисковому образу

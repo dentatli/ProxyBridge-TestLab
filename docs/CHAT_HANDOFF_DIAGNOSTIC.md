@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Live create/association подтверждены; следующий шаг — граница proxy NBL tag
+
+Читать начало [плана association](KERNEL_REDIRECT_ASSOCIATION_PLAN_2026-10-18.md). USER427bf7fb: только2/3d, обеuf и отдельныйg.345liveinstr:337disk-equal,8в4import-call rewrite pairs; symbols/RVA подтверждены. Key5 livecall+9b/return+a0; create store+38f/nextjump+396. Record+48/+c8 получают16/28bytes входныхадресов, local/remote semantics ещёнеподтверждены; неугадыватьportfilter. Privateaudit pb-kd-association-live-review-20261018, consoleSHA9e1cf84fc2431f976db6edd49d61e99ef6288cbf317029c68b330570c9ef1e96. Этоcode-review, неисполнениедляfailedconnections; rootcause/runtimefrequencyнеизвестны.
+
+Следующий USER read-only шаг: beforeBreak wholeVM/Codex/RDP warning/recoverybd2/bd3/bl/g отдельно; bl только2/3d, затем uf tcpip!AleAcceptRedirectProxyNblTag и отдельноg дажеerror. Приunexpectedinventory остановитьчтение/восстановитьвыполнение/вывод. DiskbodyRVA d7ff4..d8073 используетkey9; livebodyпроверитьдляграницыпокрытия. Затемoffline tuple/caller correlation/минимальныйprofile. Новыхbp/be/step/Run/stage/planнет, продуктнеизменён;10061внеактивногоразбора. НижниеNEXTисторические.
+
 ## Следующий шаг: только чтение live-кода создания и узкого caller прикрепления
 
 Читать [план association](KERNEL_REDIRECT_ASSOCIATION_PLAN_2026-10-18.md). По текущему tcpip diskSHA b0683bd7... проверены IAT FwppNetBufferListAssociateContext RVA24dde8,20instr caller (кандидат WfpTlShimInspectFastLoopbackSendDatagram, RVA d7e80..d7fec) и6instr store кандидата AlepCreateRedirectRecord (RVA108520,store1088af/+38f). Исторический RVA guess d68e0 отвергнут по prologue, preferred PEbase140000000; текущий caller найден по import xref/unwind, не старому абсолютному адресу. Privateaudit pb-kd-association-offline-review-20261018 сохраняет failed guess и current proof.
