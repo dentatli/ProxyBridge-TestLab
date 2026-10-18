@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий USER шаг: four с association counters
+
+Читать начало [кандидата counters](KERNEL_ASSOCIATION_COUNTERS_CANDIDATE_2026-10-18.md). USERпоказал2/3d ссовпадающимиactions, r@$t0=0/r@$t1=0, TOTAL0/0, отдельныйg; видимыхошибокнет. Runtimeincrement/межпоточнаямонотонностьpending. Boot16566/113unchanged. Files-onlyPrepare WindowsPS5exit0: plan135304-62f88e06 SHA7BA88CCD8F321EB069C7535380925E23ACE85903A8D08C78F0DD521732C02C48,6files/24119bytes/65refs/53commonpreviousrefsSHAunchanged, runtimecopies0. Privateaudit pb-kd-association-counters-four-preparation-review-20261018. Толькоfour/4/originalquery/512KiB/active2,3; agentRun/runclaim/product/traffic/debuggercontrolнет.
+
+USERbeforeBreak/каждыйbe wholeVM/Codex/RDP warning/recoverybd2/bd3/bl/TOTAL/g отдельно. Безизмененийисходныйbl/reset0/0неповторять. be2/be3/отдельныйg, одинUSER Run общегоlauncher сновымPlanPath/PlanSha/ProfileReviewed/DebuggerLoggerEnabled. ПослеRun/error beforeBreakwarning, bd2/bd3/bl/отдельныйprintfTOTAL/отдельныйg evenerror, полныйPS/console. Неresetсчётчики/неrepeat/не256. Сравнитьhitпоследовательности/финальныесчётчики/видимыестроки/пары; countersнеproofвсехkernelcalls, PREhitнеPOSTpairID. Clientportнет/индивидуальнойCoreкорреляциинет; старыеkitsсохранены,10061внеразбора. НижниеNEXTисторические.
+
 ## Следующий шаг: отключённая регистрация двух прежних sites со счётчиками
 
 Читать [кандидат counters](KERNEL_ASSOCIATION_COUNTERS_CANDIDATE_2026-10-18.md). Новый профиль association-counters SHA48928a28d7b24453bc6febf0499907d2e6bd4b40ab0113be56b281f3cf6d2152, прежниеID2/caller+94 иID3/caller+a0. Actions увеличивают debugger t0/t1 и печатают одну строку сhit; RAW16убран, явных memory reads нет. Records/NBL/sourceEP/thread/scope иPOSTresultсохранены. Это счётчики выполненных actions, не доказательство охвата всех kernel calls; PREhit/POSThitнеpairID. Начальные0/0, монотонностьчерезпотоки/итогиверифицироватьпервойfourпробой. Пользовательские псевдорегистры/r сверены сMicrosoftLearn; runtimepending. Privateaudit pb-kd-association-counters-candidate-review-20261018. Исходныйпрофильсохранён; источникclientportвыборочнымcallerразборомнеустановлен, новыхполейнеугадано.

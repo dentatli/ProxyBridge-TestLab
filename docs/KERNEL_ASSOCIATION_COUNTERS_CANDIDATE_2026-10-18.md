@@ -1,5 +1,13 @@
 # Проверка полноты наблюдения association без дополнительных точек
 
+## Регистрация принята, готов один four-plan
+
+USER прислал команды регистрации и итоговый bl: только ID2d поfffff8026a817f14 иID3d поfffff8026a817f20, обе action совпадают с counters JSON. Отдельные r@$t0=0/r@$t1=0 и TOTAL pre=0 post=0 показаны, затем отдельныйg. Ошибок в сообщении не видно. Это проверяет регистрацию/инициализацию/чтение переменных, но не увеличение счётчиков при срабатывании. Источник — chat paste; SHA полного console не заявляется.
+
+Boot16566/113 совпал с предыдущими live reviews. Общий Prepare через WindowsPS5 завершился exit0 и встроенной проверкой файлов/runtime. Новый plan `pb-kd-session-plan-20261018-135304-62f88e06/runtime-plan.json`, SHA256 `7BA88CCD8F321EB069C7535380925E23ACE85903A8D08C78F0DD521732C02C48`.6metadata files/24119bytes/65frozenrefs;53общих reference с прежним association four-plan имеют прежниеSHA. Новых runtime/product binary copies0. Run/run-claim/трафика/agent debugger control нет. Private audit `pb-kd-association-counters-four-preparation-review-20261018` содержит observation/boot/review/preparation-result; allowed_workloads толькоfour.
+
+Следующий USER шаг: beforeBreak/каждыйbe wholeVM/Codex/RDP warning; recovery bd2/bd3/bl/TOTAL/отдельныйg даже приошибке. Исходныйblнеповторять, безизмененийWinDbg исходные0/0 уже подтверждены и повторныйreset не нужен. be2/be3/g поодной, один USER Run с новымPlanPath/PlanSha/ProfileReviewed/DebuggerLoggerEnabled. Можно закрытьGPT радипамяти. ПослеRun/error передBreak предупредитьwholeVM, bd2/bd3/bl, отдельноprintfTOTAL изprofile.counter_read_command, отдельноg, прислатьвесьPS/console. Еслиошибкаprintf, всёравноg; неresetсчётчики/неrepeatRun/не256. Послеreconnect/неизвестныхизменений не полагаться на сохранённые нули/регистрацию/boot. Старые планы неиспользовать.
+
 Основание: [предыдущая проба](KERNEL_ASSOCIATION_PAIR_CANDIDATE_2026-10-18.md) дала7PRE/6POST и5полных пар. USER подтвердил, что скопировал весь видимый вывод. Причина недостающих событий неизвестна. Продуктовая проба успешна, но переход к bounded не обоснован полнотой kernel capture.
 
 ## Новый профиль
