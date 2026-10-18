@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: аппаратная ba2 e1 зарегистрирована и отключена; первый resident four
+
+Prepare exit0, product_started/traffic_generated/debugger_control=false: `pb-kd-session-plan-20261018-173830-08d08690/runtime-plan.json`, SHA256 `55AD385EDDC0B76F1738CAE72D7FADDBED6F34041158966235EF803D931A0B59`. Policy проверена: resident-disabled, four/4, registered+active2, без install/debuggercontrol. Plan ещё не использован. Prepare уже проверил общие файлы, повторный Inspect не нужен. Ничего runtime агентом не запускалось.
+
+USER console: bc2/ba2 e1 ClassifyCore+3de/bd2/rt0=0/.bpcmds/отдельныйg. .bpcmds подтвердил аппаратную2e1 поfffff8026c131696, ту же action иbd2. SCM read-only Running; предыдущий live gEnabled0. Private review `pb-driver-hardware-resident-registration-review-20261018`, bootbound/profileSHA, толькоfour; runtime/coverage пока не подтверждены. Адрес действителен только для этого resident load. Драйвер не выгружать/не reboot; после unload нужен новый live review, не переиспользовать адрес/план.
+
+Следующий USER одинfour: beforeBreak/be2 предупредить wholeVM/Codex/RDP, recoverybd2/отдельныйg; initialbl не нужен, счётчик уже0, be2/отдельныйg. Новый Run только с resident планом, не старые unload планы. После результата/ошибки beforeBreak wholeVM warning, bd2/TOTAL/ddgEnabledL1/отдельныйg; оставить службу Running, не Stop-Service/не repeat/не bounded. При ошибке resident cleanup не заявлять отключение; разбирать evidence, дальнейший unload только после disabled/clear точки на хосте. Нижние NEXT исторические.
+
 ## Текущий стоп: resident load/live code/gEnabled=0 подтверждены, далее disabled ba2
 
 USER lmvm: private PDB, base fffff8026c130000/end6c191000, ImageSize61000/timestamp6ABD1109/checksum143BA. ClassifyCore+3de=6c131696 bytes e8d3110000 (Apply thunk286e), next488b4de8. dd gEnabled по6c1362cc показал0; отдельноg. Agent read-only SCM Running. Это независимое чтение флага в данный момент, не runtime проверка нового resident Run и не полный loaded image SHA. Private observation `pb-resident-driver-review-20261018/live-load-observation.json`.

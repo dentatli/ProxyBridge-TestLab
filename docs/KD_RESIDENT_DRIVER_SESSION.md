@@ -1,5 +1,11 @@
 # Диагностика с драйвером, оставленным в памяти
 
+## Hardware registration подтверждена USER console
+
+Подготовлен только files-only four plan `pb-kd-session-plan-20261018-173830-08d08690/runtime-plan.json`, SHA256 `55AD385EDDC0B76F1738CAE72D7FADDBED6F34041158966235EF803D931A0B59`; Prepare exit0, runtime/product/traffic/debugger не запускались. Policy resident-disabled/four/active2 проверена. Результата Run пока нет.
+
+После bc2 создана `ba2 e1 ProxyBridgeDrv!ClassifyCore+0x3de`, немедленно bd2; t0 обнулён. `.bpcmds` показывает именно аппаратную e1 поfffff8026c131696, прежнюю snapshot action иbd2; отдельноg. SCM read-only Running. Private review `pb-driver-hardware-resident-registration-review-20261018`, толькоfour/currentboot. Runtime action и полнота hardware захвата пока не проверены. Первый resident four должен после cleanup оставить Running и successful DISABLE receipts; после USER bd2 полезно независимо прочитать dd gEnabledL1 и TOTAL, затем отдельноg. Не выгружать/не reboot с сохранённой hardware точкой.
+
 ## Live load перед регистрацией hardware
 
 USER подтвердил private PDB и live call ClassifyCore+3de на base fffff8026c130000 (RVA1696), bytes e8d3110000/488b4de8; PE метаданные совпали с reviewed SYS. gEnabled по6c1362cc равен0, отдельноg. Agent read-only SCM Running. Private `pb-resident-driver-review-20261018/live-load-observation.json`. Это чтение состояния до пробы; аппаратная регистрация и resident runtime пока не проверены. Следующий шаг только bc2/ba2 e1/bd2/rt0=0/.bpcmds/отдельныйg, с предупреждениями перед Break/созданием точки. Оставить драйвер Running, без нового Run до разбора регистрации.
