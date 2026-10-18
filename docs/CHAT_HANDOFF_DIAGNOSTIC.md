@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий USER шаг: одна отключённая deferred точка в драйвере
+
+Читать [новый кандидат входа Apply](KERNEL_DRIVER_APPLY_INPUT_CANDIDATE_2026-10-18.md). USERADMINload/read/unloadуспешен, StoppedподтверждёнreadonlySCM. Свежийmodule61000/timestamp6ABD1109/checksum143BA/25liveinstr совпали сdisk3cd. L18MASM=24instr+1thunk. Image-loadwarningбыл, кодизпамятисверен; fullimageSHAнепроверен. Privateaudit pb-driver-image-live-review-20261018. Историческиеunloaded66000vsfresh61000необъяснены; старыеcapturesloaded-drivers-activeименаonly, не считатьисторическийsourcebindingполным/неотменятьдоказанныйCore10022.
+
+JSONdriver-apply-input SHA708701ce738701a41bd9846693c60ac2fd8802873464c385ba15adbd2cac8955: только2, targetProxyBridgeDrv+1696/bu. Guardrequest138bytesиmoduleSizeOfImage61000; одинsnapshot local0/remote0/targetrelayPID/redirect/ctx/size/thread/hit, безctxpayload/stackreads. Clientport/join/BUreloadruntimepending; Applycompletion/Windowsrecordhistoryнепокрыты. Privateaudit pb-driver-apply-input-candidate-review-20261018, structure/guards/printfcounts/escape/policyfourpassed. Старые2/3будутудалены. Новыхplan/Runнет.
+
+ТеперьUSERтолькорегистрацияdisabled: beforeBreakwholeVM/Codex/RDPwarning/recoverybd2/отдельныйg; безизмененийinitialblнепросить. bc2/bc3; beforebu2initiallyenabledwarning, bu2/bd2; r@$t0=0; .bpcmds(типbu+disabled); printfPBDITOTAL0; отдельноg evenerror. ДрайвернеStart/неbe/неRun. Приошибкеbuнеугадыватьабсолютныйадрес, bd2/g/вывод. Unresolvedожидаетсяпривыгруженноммодуле, неproofreloadbinding. Потомregistrationreview/новыйfourplanобщимlauncher. Existingloadapprovalесть, ноагентнеповышен(неповторятьStartServiceотнего); workloadRunuseronly. Продуктнетрогать,10061внеразбора. НижниеNEXTисторические.
+
 ## Текущий стоп: load/read/unload согласован; нужен USER ADMIN PowerShell
 
 USER«делайчтонужно» разрешилкороткуюзагрузкусуществующегодрайвера/чтение/выгрузку. Повторнонепроситьсогласование. AgentguardsStopped/Type1/Start3/ImagePath/SHA3cdpassed; единственныйStart-ServicefailedCannotopenservice. AgenttokenLabAdminнеповышен(IsInRoleAdministratorfalse), postattemptStopped. Неretryизтого жетокена/неACL/неinstall/необъявлятьDriverEntryfailure. Lifecycleprivate pb-driver-image-inspection-20261018-152349-ea10dfa6: loadfalse/cleanup_pendingfalse/Stopped, Core/traffic/IOCTL/debuggercontrolnone.
