@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Новый приоритет USER — контроль без активных точек, 2026-10-18
+
+USER попросил проверитьвоспроизведениебезточек. Читать [matched328контроль](REDIRECT_BOUNDED_CONTROL_PREPARATION_2026-10-18.md). Готовятся отдельные4sources e2cd66b/методredirect-context-bounded-control-v1: теже4→64→256→4/328/120sclient/240scohort/512KiB/8s/ConnectEx32/originalsinglequery,active[]/registered2/3/inactive2/3. Недобавлять640одновременносвыключениемточек. Source/moduleold37SHAexact,AST/PS5parse/preset,адаптированные32Corefailpositiveи21unidentifiedincompleteпроверены,activepolicyrejected. ЭтоpurefixturechecksнеRun.
+
+ПоследнийUSERconsole2/3d/g,согласие наодинконтрольдано. АгентнеRun/неDebuggercontrol/неproductchanges. Новаяfiles-onlyподготовка070201-6df5d2de:WindowsPS5exit0/FILES_VALIDATED8285/8197runtime,безповторInspect. PlanSHA534155E94FAD869C8994485B42DFF3A561A2A72CB3817C65CD66044CE34B46A7,37oldsourcesunchangedafterPrepare. DesktopPB-Redirect-Bounded-Control-20261018.txt — полныйблокодногоUSER RunсautoSHAcompare/throw/DebuggerPointsDisabled,безbe/безновогоBreakприпрежнемinventory. Еслисостояниеменялось—USERпроверка;beforeBreakwholeVM/Codex/RDPwarning/recoverybd2/bd3/bl/gпоодной. СтарыеkitsнеResume/refreeze. ПослеодногоRunполныйPS/resultsreview,неповтор/не640. Офлайнкандидатпереноса3наNULLветкуотложендоэтогоконтроля. НижестарыеNEXTисторические.
+
 ## Актуальный результат — 2026-10-18: retrieve/query bounded не поймал исходный отказ
 
 Сначала читать [результат retrieve/query bounded](KERNEL_RETRIEVE_QUERY_BOUNDED_RESULT_2026-10-18.md). USER Run065211-af6e15fb:328attempts/307success/21unidentifiednative10061, все307Corequeriesуспешны,10022=0. Console4a1c91c2/89180bytes/SHAbf6cbe7a24e7b941e7576ba1eb0a3baeaac0f6c3feb64f8433874a3440d03a63:305retrievalEAX0/nonnulloutput,307querynonnullrecord,289uniqueequalpairs/8queriesсдвумяequalcandidates/10безretrieval. Полногоcoverageнет,причинапропусков/дублейнеизвестна. PID/TID/order/peerport/epпривязкаусловнанаполнотуconsole. Нетloggererrors,final2/3d/g. WrapperFAILEDиз-заnative10061captureincomplete, workloadвсефазы/cleanupcompleted.8330frozenSHAexact,63inputsunchanged,originalreportsнепереписаны,privateauditpb-kd-retrieve-query-bounded-result-review-20261018.
