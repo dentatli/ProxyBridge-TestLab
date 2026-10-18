@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: после cleanup gEnabled0; нужен raw-контекст следующего 80000004
+
+Prepare files-only exit0: `pb-kd-session-plan-20261018-174702-762b150e/runtime-plan.json`, SHA256 `DDF521752B3198FAAA26C3E8C18A830600E607F8B308199126116B9C0EA96E8F`. Four/4/resident-disabled/active2 проверены, product_started/traffic_generated/debugger_control=false. Plan ещё не использован. Офлайнcompareboot сначала далложныйmismatch: PS7 ConvertFrom-Json преобразовалdate-stringвDateTime; исправлено чтение -DateKind String, все7полейточносовпали сregistrationboot. Это не reboot и не причина TCP/loggerfailure. Не менятьзамороженныйplan/review; privateотдельныйboot-comparison-check.json.
+
+USER read-only dd6c1362cc=0; sx показывает sse break/ssec handled, отдельноg. Running SCM. Это подтверждает отключённый перехват после completed resident Run; прежний screenshot1 не доказывает persistent cleanupfailure. sx не доказывает misconfiguration; фильтры/handling/gc не менять без evidence. Private review `pb-hardware-exception-audit-review-20261018`. Boot сверена с исходной hardware registration, профиль/action/адрес прежние; новая проба толькоfour с целью сохранить context до bd2/g, не повтор старого plan и не увеличение нагрузки.
+
+USER перед Break/be2 предупредить wholeVM/Codex/RDP, recoverybd2/отдельныйg. rt0=0/be2/g поодной; один новыйfourRun. Если самостоп80000004 — не жать новыйBreak/неbd2до чтения: .lastevent; r dr0,dr1,dr2,dr3,dr6,dr7,rip,efl; .bpcmds. Затемbd2/TOTAL/отдельныйg evenerror, датьPowerShellзавершиться, полныйвывод. Если самостопа нет — послеPowerShell beforeBreakwholeVMwarning, bd2/TOTAL/отдельныйg. Эти чтения сохраняют показанный debugger context, не гарантируют исходное DR6 до вмешательства debugengine. Службу оставитьRunning, неStop/reboot/неbounded/неfilterchanges. НижниеNEXTисторические.
+
 ## Текущий стоп: hardware four остановился на 80000004; только чтение sx/текущего gEnabled
 
 USER run174017-c0dcbb02:4 native/Core success,32bytes/errors[], resident receipts DISABLE before17:40:18.0687481Z/after17:41:45.8308471Z, controllercompleted17:41:46.1239689Z; mode COMPLETED/workersstopped/driver_stopfalse/resident_disabletrue/Running SCM. Исходный10022 не воспроизведён. Private screenshot/review `pb-hardware-resident-four-result-review-20261018`.

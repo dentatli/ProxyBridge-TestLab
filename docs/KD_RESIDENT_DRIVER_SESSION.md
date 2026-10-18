@@ -1,5 +1,13 @@
 # Диагностика с драйвером, оставленным в памяти
 
+## Текущий флаг и фильтры прочитаны после cleanup
+
+Под эту цель создан новый files-only four plan174702-762b150e, SHA256 `DDF521752B3198FAAA26C3E8C18A830600E607F8B308199126116B9C0EA96E8F`, Prepare exit0. Shared runtime и hardware profile прежние, нового staging/регистрации нет; старые планы не возобновляются. Офлайнсверкаboot потребовала -DateKind String: default PS7 JSON date conversion далложное несовпадение формата, послеисправления все7полейсовпали. Никакогоrebootнепроводилось. Runtimeпробыещёнет.
+
+USER dd gEnabled=0 и отдельныйg подтверждены; sx: sse break, ssec handled. Это не доказательство неправильных exception settings. Нет основания по этим данным менять gc, фильтры single step или скрывать80000004. Прежнее значение1 не является доказанным противоречием after-DISABLE receipt: оно не timestamped, а теперьнезависимыйreadback0 получен.
+
+Следующий одинfour измеряет именно неожиданную остановку логгера: при самостопе до bd2/g снять `.lastevent`, `r dr0,dr1,dr2,dr3,dr6,dr7,rip,efl`, `.bpcmds`; затемbd2/TOTAL/отдельныйg. Не нажимать новыйBreak на уже возникшем исключении: он изменит последнее событие. Это чтение контекста, не правка регистров/исключений. [Microsoft .lastevent](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-lastevent--display-last-event-) и [r](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/r--registers-) подтверждают синтаксис. Показанные debugregisters могут отражать действия debugengine, поэтому не обещать доказательство первичного CPUstatus одним этим набором. Private audit `pb-hardware-exception-audit-review-20261018`. Продукт/source/profile не менялись, агент workload/WinDbg не запускал.
+
 ## Первый resident four: workload прошёл, аппаратный автологгер остановился
 
 Run174017-c0dcbb02 имеет4 native/Core success, все query32bytes, errors[], resident before/after DISABLE success с одним session_id иRunning, run-receipt COMPLETED/workers_stopped=true/driver_stop_observed=false/resident_disable_observed=true. Controller17:40:17.1666918Z→17:41:46.1239689Z. Агент read-only SCM Running; original10022 не воспроизведён.
