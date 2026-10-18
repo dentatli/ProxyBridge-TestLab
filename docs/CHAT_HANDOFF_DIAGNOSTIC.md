@@ -1,5 +1,29 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Подготовлен one-shot accept barrier, native runtime интеграция ещё pending
+
+USER согласился на управляемое воспроизведение одного контрольного соединения.
+В этом ходе только offline prepare/build/fake tests, без product Run/traffic/
+WinDbg/service changes. [Текущая подготовка](TARGET_ACCEPT_REPRO.md) описывает
+оставшуюся интеграцию; не выдавать команду Run до неё.
+Новые public sources: pb_prepare_target_accept.py, diagnostics/pb_target_accept_gate.h,
+Build-TargetAcceptDiagnostic.ps1, TargetAcceptCohort.psm1, два offline test files.
+Private Core build r2 successful,19exports same, SHAe04fc3e39092328b8cb5a7edabf040dcf3f0906f39f88371b04eb3ea9111b720;
+status NOT_RUNNABLE/no runtime env.10CfakeAPI +9sequencefault cases,
+PS5 parser/real named-event smoke подтверждены. r1failedshadowwarning сохранён.
+CoS shell module import без -ExecutionPolicy Bypass снова был отклонён;
+его OKprint игнорировать. Проверенный путь — отдельный -NoProfile -ExecutionPolicy
+Bypass -File с ErrorActionPreferenceStop; не повторять прежнюю shell ошибку.
+
+Сценарий-кандидат200fillers +1control fixed source ports57001..57201,
+original backlog, управляемый release перед первым IPv4 accept. Это не ещё
+доказанное воспроизведение и не capacity200. Нужны native callbacks/controller,
+role-aware perPID/tuple report, SHA/Core binding/boot/resource/exclusive claim,
+ETW/cleanup/resident pre/post; shared runtime переиспользовать, старыеkits не менять.
+Прежний универсальный report нельзя прямо считать пригодным для двухclientPID
+в одной перекрывающейся фазе. Основная цель прежняя — private record lifecycle;
+не запускать очередной обычный328control и не ставить WinDbg points заранее.
+
 ## ETW bounded завершён:32/328 Core10022; прежний SO_PAUSE_ACCEPT trigger подтверждён
 
 USER «Продолжай» после four дал продолжение bounded256. Prepare/run выполнены
