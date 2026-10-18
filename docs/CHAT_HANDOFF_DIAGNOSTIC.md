@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий шаг: отключённая регистрация двух прежних sites со счётчиками
+
+Читать [кандидат counters](KERNEL_ASSOCIATION_COUNTERS_CANDIDATE_2026-10-18.md). Новый профиль association-counters SHA48928a28d7b24453bc6febf0499907d2e6bd4b40ab0113be56b281f3cf6d2152, прежниеID2/caller+94 иID3/caller+a0. Actions увеличивают debugger t0/t1 и печатают одну строку сhit; RAW16убран, явных memory reads нет. Records/NBL/sourceEP/thread/scope иPOSTresultсохранены. Это счётчики выполненных actions, не доказательство охвата всех kernel calls; PREhit/POSThitнеpairID. Начальные0/0, монотонностьчерезпотоки/итогиверифицироватьпервойfourпробой. Пользовательские псевдорегистры/r сверены сMicrosoftLearn; runtimepending. Privateaudit pb-kd-association-counters-candidate-review-20261018. Исходныйпрофильсохранён; источникclientportвыборочнымcallerразборомнеустановлен, новыхполейнеугадано.
+
+ТеперьUSERтолькорегистрацияdisabled: beforeBreak wholeVM/Codex/RDP warning/recoverybd2/bd3/bl/g отдельно; безизмененийисходныйblнепросить. bc2/bc3, beforeкаждыйbp initiallyenabledwarning, новыеbp2/bd2/bp3/bd3 поодной; r@$t0=0 иr@$t1=0 отдельно, итоговыйbl/TOTALожидается0/0/отдельныйg evenerror. Неbe/неRun. Послеconsole новыйfour-plan общимlauncher; покаprofile/actions/countersruntimepending/новогоplanнет. СтарыйRunнеповторять/неbounded, продуктнеизменён,10061внеразбора. НижниеNEXTисторические.
+
 ## Текущий стоп: association four успешен для продукта, пары событий неполны
 
 Читать начало [результата пары association](KERNEL_ASSOCIATION_PAIR_CANDIDATE_2026-10-18.md). Запуск123050-188878dc:4native success/4Core api0/bytes32, native↔Core join по60393..60396 подтверждён; workload/cleanupCOMPLETED, CLIgraceful/post_stop_verified, controller16.441541с. Consolece7bc915/SHA6187537dff05ffbe1475db1c5c5116c2957613c5581a1a76cb05b30d68e15a1c:7PRE/7RAW16/6POST, только5полных пар, все6POST result0.2PREбезPOST и1POSTбезPRE. USER подтвердил полный видимый вывод; не списывать отсутствие строк на копирование. Причина неполноты неизвестна, это не продуктовый association failure.

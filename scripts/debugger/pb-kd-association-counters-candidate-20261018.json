@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "method": "kd-association-counters-candidate-20261018-v1",
+  "status": "OFFLINE_REVIEWED_REGISTRATION_PENDING",
+  "registered_point_ids": [
+    2,
+    3
+  ],
+  "active_point_ids": [
+    2,
+    3
+  ],
+  "inactive_point_ids": [],
+  "point_count_active": 2,
+  "replaces_only_ids": [
+    2,
+    3
+  ],
+  "automatic_debugger_control": false,
+  "load_authorized": false,
+  "root_cause_proven": false,
+  "points": [
+    {
+      "id": 2,
+      "event": "ASSOC_PRE",
+      "target": "tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0x94",
+      "rva": "0xd7f14",
+      "action": "r @$t0 = @$t0 + 1; .printf \"PBKDAC ASSOC_PRE hit=%I64x thread=%p scope=%p source_ep=%p nbl=%p record=%p\\n\", @$t0, @$thread, @rsp, @rbx, @rdx, @r9; gc;",
+      "registration_command": "bp2 tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0x94 \"r @$t0 = @$t0 + 1; .printf \\\"PBKDAC ASSOC_PRE hit=%I64x thread=%p scope=%p source_ep=%p nbl=%p record=%p\\\\n\\\", @$t0, @$thread, @rsp, @rbx, @rdx, @r9; gc;\""
+    },
+    {
+      "id": 3,
+      "event": "ASSOC_POST",
+      "target": "tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0xa0",
+      "rva": "0xd7f20",
+      "action": "r @$t1 = @$t1 + 1; .printf \"PBKDAC ASSOC_POST hit=%I64x thread=%p scope=%p source_ep=%p nbl=%p result_raw=%I64x\\n\", @$t1, @$thread, @rsp, @rbx, @rbp, @rax; gc;",
+      "registration_command": "bp3 tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0xa0 \"r @$t1 = @$t1 + 1; .printf \\\"PBKDAC ASSOC_POST hit=%I64x thread=%p scope=%p source_ep=%p nbl=%p result_raw=%I64x\\\\n\\\", @$t1, @$thread, @rsp, @rbx, @rbp, @rax; gc;\""
+    }
+  ],
+  "initial_workload": "four_only_after_registration_review",
+  "purpose": "OBSERVATION_COMPLETENESS_PROBE",
+  "counter_init_commands": [
+    "r @$t0 = 0",
+    "r @$t1 = 0"
+  ],
+  "counter_read_command": ".printf \"PBKDAC TOTAL pre=%I64x post=%I64x\\n\", @$t0, @$t1",
+  "counter_meaning": "executed breakpoint command lists, not all real kernel calls",
+  "counters_runtime_verified": false,
+  "counter_sequence_cross_thread_verified": false,
+  "path_frequency_measured": false,
+  "record_memory_read": false,
+  "record_raw16_removed": true,
+  "source_client_port_captured": false,
+  "core_connection_join_verified": false,
+  "query_null_directly_observed": false,
+  "full_context_history_covered": false,
+  "prior_profile_sha256": "b72e086ca81cf961d54f9c73da9032bd0d66cd78fd9b50977ef7daec9342d6ef",
+  "pair_identity": [
+    "thread",
+    "scope",
+    "source_ep",
+    "nbl",
+    "ordered_pre_post_interval"
+  ],
+  "documentation": "https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/pseudo-register-syntax"
+}
