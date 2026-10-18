@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Актуальный стоп — 2026-10-18: retrieve/query four выполнен и разобран, новый boot
+
+Сначала читать [разбор сохранённого retrieve/query four](KERNEL_RETRIEVE_QUERY_FOUR_RESULT_2026-10-18.md). USER выполнил один Run `182317-8004fd9a` перед выключением ПК. Четыре native/query success, четыре уникальные retrieval/query пары: EAX0, nonnull output равен query record; peer ports и Core PID/TID/order проверены. Console SHA6995f8fc4999e9dd6cb2ef85c0a5c255298f2a53915299c83d1cfe62845cfd6f, final 2/3/4d и отдельный g. Все 8297 frozen SHA совпали, capture inputs unchanged. Приватный audit `pb-kd-retrieve-query-four-review-20261018`, исходный native DEBUGGER_PENDING report не переписан. Причина не установлена, query kernel NTSTATUS не измерен, UNREADABLE branch/lifetime/store/create/free не доказаны.
+
+Физический ПК выключался. Read-only evidence 18 октября: Event12 record16566/BootId113/StartTime06:22:30.5Z — новый boot. Последний сохранённый disabled inventory не является текущим inventory. Старый kit181712 НЕ запускать/не Resume/не refreeze. Новый bounded328 предложен с теми же двумя active2/3,4d; готового комплекта/Run ещё нет. Следующий шаг USER — подключение WinDbg и inventory/live code без stage/be. Перед каждым Break/enable/step предупреждать о паузе всей VM/Codex/RDP; g всегда отдельно даже после ошибки. При unexpected inventory остановиться для review, ничего автоматически не удалять. После matching live review — новый профиль/kit/boot binding, затем отдельный reviewable порядок запуска. Агент не управляет WinDbg/не запускает трафик/не меняет продукт. Все нижние pending NEXT исторические.
+
 Дата разделения: 2026-10-08. Эта задача продолжается в отдельном чате. Прочитать корневой AGENTS.md и затем [текущий готовый retrieve/query four-only комплект](KERNEL_RETRIEVE_QUERY_FOUR_PREPARATION_2026-10-17.md), основанный на [результате bounded accept/query](KERNEL_ACCEPT_QUERY_BOUNDED_RESULT_2026-10-17.md), подготовленный после [четырёхсоединительной пробы](KERNEL_ACCEPT_QUERY_FOUR_RESULT_2026-10-17.md), опирающийся на [результат восьми исходных NULL/C0000225 query failures](KERNEL_QUERY_BOUNDED_RESULT_2026-10-17.md). Старые NEXT из исторического журнала не выполнять как текущий план.
 
 ## Retrieve/query r2 зарегистрирован; новыйfour-onlykitготов — 2026-10-17
