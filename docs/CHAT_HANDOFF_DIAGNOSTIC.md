@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий шаг: live lookup/caller inspection, без точек — 2026-10-18
+
+USER «Продолжай». Читать [план проверки кадра](KERNEL_LOOKUP_FRAME_PLAN_2026-10-18.md). Офлайн проверены frame68h/saved caller RBP+58/RBX+60/return+68/RDI+78, но новые stack reads не выполнялись. CallerRBX=NBL/RDI=endpoint только при точном caller filter. Дисковый TCP/IP call RVA1566f возвращается на15676, test после NOP на1567b; нельзя без live-кода фильтровать return как+сaf. Все19callerinstructions снова совпали с текущим disk image.
+
+Важно: generic status +22e общий для успеха/промаха; условиеr14b0 не убирает traps на успехах. Не обещать две редкие точки с полным покрытием. +2f5 не покрывает отсутствие исходного lookup-списка. Privateaudit review-frame.py/frame-review.json сохранён. Новых profile/stage/kit нет, агентнеRun/неWinDbg/непродукт.
+
+Теперь USER read-only inspection: beforeBreak wholeVM/Codex/RDP warning/recoverybd2/bd3/bl/g отдельно; bl ожидаем2/3d, reloadfwpk/lmvm/u prologue/+f3/+1ce/+21d/+248 и TCPIPaccept+c7d; g отдельно даже при ошибке. Никаких be/bc/bp/Run. После вывода review актуального кадра/import-call и выбор минимальных точек. Desktopинструкцийне делать,10061внеактивногоразбора. НижестарыеNEXTисторические.
+
 ## Lookupkey5 офлайн: две группы NOT_FOUND и consumingretrieve — 2026-10-18
 
 USERспросилпроверкувсехверсийодновременно;продолженоофлайн,безновыхточек/Run. Читать [lookupoffline](KERNEL_LOOKUP_OFFLINE_2026-10-18.md). ТекущийfwpkclntSHAfae91d16768b1e0827eeaae71287ef12ef65dfcfd8e9209b4daf7b6a81001066/PEexportRVA3130/disasmMSVCdumpbin:25selectedinstructions/IATchecked. OldOct8listingимеет23noncallразличия,неполноеbyte-match;сохранённеудачныйcomparison,затемиспользованcurrentdiskdisasm. Currentlivefwpkещёнесмотрели,offsetsнеготовыдляinstall.
