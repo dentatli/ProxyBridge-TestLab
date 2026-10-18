@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Retrieve/NULL bounded328 подготовка — 2026-10-18
+
+USER«Хорошо,продолжаем». Читать [новыйboundedcheckpoint](KERNEL_RETRIEVE_NULL_BOUNDED_PREPARATION_2026-10-18.md). Новые4sourcesa1f36c6/methodredirect-kd-retrieve-null-bounded-v1:4→64→256→4/328/120sclient/240scohort/512KiB/8s/ConnectEx32/originalsinglequery,2retrieval+3NULL+2d0,registered2/3/inactive[]. NULLactionвfourнеисполнилась/нетsuccessfulquerypointercoverage—pendingсохранёнвguards. Все38fourcaptureinputsзамораживаютсяотдельно,oldkitsнеResume/refreeze. AST/PS5parse/preset/adapted32Corefailpositive/21unidentifiedincomplete/oldpolicyиfourphasesrejected,37oldsourcesunchanged. Source/sharedmodules/profile/stageпредыдущихсерийнеизменны.
+
+Preparefiles-onlyзавершёнWindowsPS5exit0/FILES_VALIDATED8329/8197runtime,безповторInspect. Freshkit072256-7aa95b90/planSHADCD3392484389AA935D83D78C06F840038BB09DC5A3D2B3DDD849DA846A22A45,37oldsourcesunchangedafterPrepare. НиagentRunниdebuggercontrolниproduct/driver/systemchanges. СледующийшагодинUSERboundedRunвчате/autoSHAcompare/3reviewflags,**никакихDesktopинструкций**. BeforeкаждымBreak/enablewholeVM/Codex/RDPwarning/recoverybd2/bd3/bl/gзаранее/gотдельноevenerror. Lastbd2/bd3/gбезфинальногоbl,поэтомуUSERinventory2/3dпередbe2/be3обязателен;старыйstage/bc/bpнеповторять. ПослеодногоRunconsole/nativebindingreview,неповтор/не640. НижестарыеNEXTисторические.
+
 ## Retrieve/NULL four выполнен — 2026-10-18
 
 **USER preference: больше не сохранять инструкции на Desktop, команды только в чате; старыефайлысохранить.** Читать [four result](KERNEL_RETRIEVE_NULL_FOUR_RESULT_2026-10-18.md). USER Run071824-e5983668:4native/4CoreAPIуспешны,4retrievalEAX0/nonnull поpeerport56049..56052привязаны,QUERY_NULL/UNEXPECTED/UNREADABLEeventsнет. НоваяNULLactionнеисполнилась,query-timepointerуспешныхнеизмерялся. Console—USERchatpaste,неrawattachment.8290frozenSHAexact,38runinputsunchanged,cleanupCOMPLETED/graceful/no forced. Privateauditpb-kd-retrieve-null-four-result-review-20261018. Source/nativeoriginalreportsнепереписаны.
