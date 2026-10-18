@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Актуальный результат: lookup four успешен, miss-actions не проверены
+
+Читать [результат lookup four](KERNEL_LOOKUP_FOUR_RESULT_2026-10-18.md). USER084301-49f7a3bd:4native success/4Core queries api0,32bytes,peer55745..55748. Console9868564e: точные2/3d→be→2/3e/g, ноль PBKDL events/UNREADABLE, нет Memory/Syntax/Bad register. Есть debugger image-load warning Ndu.sys, не доказательство сбоя драйвера. Конец bd2/bd3/g без ошибок, но post-bd bl нет; не утверждать separately verified disabled inventory и не просить лишний Break.8291frozenSHA exact/39captureinputs unchanged, cleanupcompleted/graceful. Controller107.345397s не speedtest/не proof причины длительности. Privateaudit pb-kd-lookup-four-result-review-20261018.
+
+Стоп: kit consumed, не repeat/неbounded/не640. Исполнение новых stack reads/body failure-actions не подтверждено и остаётся pending; ноль строк не доказывает отсутствие traps или работу фильтра. Следующий офлайн шаг — пересмотр точек ради сокращения traps успешного пути (+22e общий); до нового USER Run нужен отдельный рассмотренный профиль/kit. Продукт и старые kits не менять;10061 вне активного разбора. BeforeкаждымUSERBreak/enable wholeVM/Codex/RDP warning/recoverybd2/bd3/bl/g отдельно. НикакогоagentRun/debuggercontrol, команды только в чате. Нижние NEXT исторические.
+
 ## Актуальный стоп: lookup four kit готов, ожидается один USER Run
 
 Читать [новую four-подготовку](KERNEL_LOOKUP_FOUR_PREPARATION_2026-10-18.md). Четыре новых source файла, commit78ff176, метод redirect-kd-lookup-four-v1, только4/512KiB/8s/ConnectEx32/original single query. Новый kit083735-2eb58055, plan SHA81FC33A6288B324DCB9880735728E0699729C5C804292FB07A2791C9DB4F3A24. WindowsPS5 Prepare exit0/FILES_VALIDATED8291/8197runtime. AST/PS5parser/purepreset/adaptedfourpassed; старый policy и328phases rejected; 98protectedoldfiles unchanged. Private audit pb-kd-lookup-four-preparation-review-20261018. Никаких agent Run/debugger/product/driver changes.
