@@ -60,12 +60,17 @@ class DiagnosticSessionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'PROFILE_INVALID'):
             policy('four', self.profile)
 
-    def test_resident_mode_is_explicit_and_initially_four_only(self):
+    def test_resident_mode_is_explicit_and_bounded_requires_review(self):
         self.assertNotIn('driver_lifecycle', policy('four', self.profile))
         self.profile['driver_lifecycle'] = 'resident-disabled'
         self.assertEqual(policy('four', self.profile)['driver_lifecycle'], 'resident-disabled')
-        with self.assertRaisesRegex(ValueError, 'RESIDENT_FOUR_ONLY'):
-            policy('bounded256', self.profile)
+        self.assertEqual(policy('bounded256', self.profile)['total_connections'], 328)
+        with self.assertRaisesRegex(ValueError, 'NOT_APPROVED'):
+            validate_review(self.review, self.profile, 'a' * 64, self.boot, 'bounded256')
+        self.review['allowed_workloads'].append('bounded256')
+        self.review['prior_four_review'] = dict(native_probe_complete=False)
+        with self.assertRaisesRegex(ValueError, 'PRIOR_FOUR_REQUIRED'):
+            validate_review(self.review, self.profile, 'a' * 64, self.boot, 'bounded256')
         self.profile['driver_lifecycle'] = 'anything'
         with self.assertRaisesRegex(ValueError, 'LIFECYCLE_INVALID'):
             policy('four', self.profile)

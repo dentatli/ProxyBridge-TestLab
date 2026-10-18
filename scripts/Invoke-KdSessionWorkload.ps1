@@ -8,7 +8,6 @@ $root=Split-Path -Parent $PSScriptRoot
 $policy=$SessionPlan.control_policy
 $residentDriver=$policy.PSObject.Properties['driver_lifecycle'] -and $policy.driver_lifecycle -eq 'resident-disabled'
 if ($residentDriver) {
-    if ($policy.workload -ne 'four') {throw 'KD_SESSION_RESIDENT_FOUR_ONLY'}
     Import-Module (Join-Path $root 'modules/KdResidentDriver.psm1')
 }
 if ($SessionPlan.method -cne 'redirect-kd-session-v1' -or

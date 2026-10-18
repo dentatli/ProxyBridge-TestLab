@@ -1,5 +1,13 @@
 # Диагностика с драйвером, оставленным в памяти
 
+## Four захват4/4 подтверждён; следующий bounded256
+
+Files-only Prepare bounded256 exit0: `pb-kd-session-plan-20261018-175221-f125de76/runtime-plan.json`, SHA256 `D282E8F88EFBF19DE9EF97F365B4BA7AB73B98C04CA5E5055F210865620AD6D5`. Policy328/4→64→256→4/resident-disabled/active2 проверена. АгентнеRun/неWinDbg/неtraffic; результатаещёнет.
+
+USER run174932-c75dfba0/console:4 native success и4 Core32bytecontexts, hits1..4/TOTAL4, без80000004; manualBreak80000003/bd2/отдельныйg. localraw соответствуетпортам54702..54705, каждому найдена ровноодна native/Coreстрока с relayPID4088=ff8. Все4 ctxненулевые/size32/redirect1000f/image61000. Actual before/after residentcleanupreceipts+observationsпрошлипроверку, SCMRunning. Новый независимыйreadbackфлага не выполнялся. Private review `pb-hardware-resident-four-complete-review-20261018`. Это подтверждение4портовыхснимковэтогоrun, не гарантиязахватавсехвызововилиустраненияпредыдущей80000004.
+
+Теперьresident mode допускает bounded256 с темже общим gate: approvedworkload и priorfourreview boundкprofileSHA/boot. Ограничение initialfour-only снято после результата выше; старый профиль/actionнеизменён.9session+4receiptтестов/parserпрошли. Новыйboundedцель — сопоставитьданные передApply сnative/Core10022,еслионвоспроизведётся. Повтор80000004 сохранятьдоbd2/g; не скрыватьегофильтрами и не объявлятьloggerполностьюисправленным. Нижеописаниеinitialfour-only являетсяисториейпервогозапуска.
+
 ## Текущий флаг и фильтры прочитаны после cleanup
 
 Под эту цель создан новый files-only four plan174702-762b150e, SHA256 `DDF521752B3198FAAA26C3E8C18A830600E607F8B308199126116B9C0EA96E8F`, Prepare exit0. Shared runtime и hardware profile прежние, нового staging/регистрации нет; старые планы не возобновляются. Офлайнсверкаboot потребовала -DateKind String: default PS7 JSON date conversion далложное несовпадение формата, послеисправления все7полейсовпали. Никакогоrebootнепроводилось. Runtimeпробыещёнет.

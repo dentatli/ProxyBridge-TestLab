@@ -86,8 +86,6 @@ def policy(workload, profile):
     lifecycle = profile.get('driver_lifecycle', 'unload')
     if lifecycle not in ('unload', 'resident-disabled'):
         raise ValueError('KD_SESSION_DRIVER_LIFECYCLE_INVALID')
-    if lifecycle == 'resident-disabled' and workload != 'four':
-        raise ValueError('KD_SESSION_RESIDENT_FOUR_ONLY')
     ids = profile['active_point_ids']
     registered = profile['registered_point_ids']
     inactive = profile['inactive_point_ids']

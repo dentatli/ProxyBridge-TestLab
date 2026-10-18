@@ -1,5 +1,15 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: hardware resident four дал4/4 снимка; подготовка bounded256
+
+Prepare files-only exit0: plan175221-f125de76/runtime-plan.json, SHA256 `D282E8F88EFBF19DE9EF97F365B4BA7AB73B98C04CA5E5055F210865620AD6D5`. Policy bounded256/328/4,64,256,4/resident-disabled/active2 проверена. product_started/traffic_generated/debugger_control=false; новогоRunагентомнет. Planещёнеиспользован. Sharedruntime/profile/actionпрежние, Inspectповторятьненужно.
+
+USER run174932-c75dfba0:4 native/Core success/32bytes/errors[], consolehits1..4/TOTAL4, толькоmanualBreak80000003, bd2/отдельныйg. Портыизlocalrawaed50002/afd50002/b0d50002/b1d50002=54702..54705 уникальносовпали с4native/Coreстроками; targetPIDff8=4088/Core. Во всех4ctxненулевой/size20h=32/redirect1000f/image61000. Перед/после residentDISABLE receipts+observations подтверждены фактическимифайлами, SCM Running. Новый independent gEnabledreadbackне делался. Original10022не воспроизведён. Полнотапортовыхснимковэтогоfour подтверждена; не заявлять all-callcoverage/исправление80000004/причинустарыхsilentmisses.
+
+Private `pb-hardware-resident-four-complete-review-20261018`: review4matches, boundedreviewboundtosameprofileSHA/boot/address. Resident policy теперь допускает bounded256 только через прежний общий gateallowedworkload+priorfourreview с темжеprofile/boot; initialfour-onlyrestrictionснятпослеуспешногоfour.9session+4receiptтестов/parserпрошли. Hardwareprofile/actionнеизменны, источникпродуктанеизменён. Старыйplan174702использован, не repeat/refreeze.
+
+Далее один USERbounded4→64→256→4/328 с однойhardware2. BeforeBreak/be2wholeVM/Codex/RDPwarning, rt0=0/be2/отдельныйg, лишнийinitialblне нужен. При80000004доbd2прочитать .lastevent/rdr0,dr1,dr2,dr3,dr6,dr7,rip,efl/.bpcmds, затемbd2/TOTAL/отдельныйg evenerror, датьPowerShellзакончить. Еслибезсамостопа — послеRunbeforeBreakwholeVMwarning/bd2/TOTAL/ddgEnabledL1/отдельныйg. DriverRunningнеStop/reboot,не640/неrepeat/неfilterchanges;10061толькоincidental. НижниеNEXTисторические.
+
 ## Текущий стоп: после cleanup gEnabled0; нужен raw-контекст следующего 80000004
 
 Prepare files-only exit0: `pb-kd-session-plan-20261018-174702-762b150e/runtime-plan.json`, SHA256 `DDF521752B3198FAAA26C3E8C18A830600E607F8B308199126116B9C0EA96E8F`. Four/4/resident-disabled/active2 проверены, product_started/traffic_generated/debugger_control=false. Plan ещё не использован. Офлайнcompareboot сначала далложныйmismatch: PS7 ConvertFrom-Json преобразовалdate-stringвDateTime; исправлено чтение -DateKind String, все7полейточносовпали сregistrationboot. Это не reboot и не причина TCP/loggerfailure. Не менятьзамороженныйplan/review; privateотдельныйboot-comparison-check.json.
