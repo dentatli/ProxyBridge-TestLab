@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Актуальный результат — 2026-10-18:24retrievalNOT_FOUND→QUERY_NULL→Core10022
+
+Читать [retrieve/NULL bounded result](KERNEL_RETRIEVE_NULL_BOUNDED_RESULT_2026-10-18.md). USER Run073047-8b2a010e:328attempts/286success/24correlatedCore10022+18unidentified10061,всеотказыload256.310Corequeries/PID16864/TID15928/неперекрывающиесяtiming. Console8370650d/44945bytes/SHAd3be8d87f72f9c5be01570ef4b532f6c31050de511d642bd6d2506315918ff18:317retrieval(292EAX0/25C0000225),24QUERY_NULL. Все24failedseq283..306поpeerport/ep/orderимеютпредшествующийretrievalC0000225иNULL;23соднимкандидатом,seq283сдвумяодинаковымикандидатами. Непридумыватьоднократность/неигнорироватьдубль. Привязкаусловнанаполнотуconsole,нетindependentkernelPID/TID/socket/seq/sharedQPC.6NBLaddressesнеpacket/lifetimeproof.
+
+Существенноеновоенаблюдение:получениеконтекстауже неуспешнонаreturnFwpsNetBufferListRetrieveContext0(key5)вaccept,неуспешныйEAXстатическипропускаетstore. ПотомqueryNULL/Core10022. ПричинупредшествующегоNOT_FOUNDещёнезнаем,create/associate/freeнепокрыты,Windows/driver/tableoverflow/queuecauseнедоказаны. ИзмеренNTSTATUSretrieval,неqueryreturnNTSTATUS;nativeCAPTURE_INCOMPLETEиз-за18unidentifiedостаётся.8329frozenSHAexact/63inputsunchanged,originalreportsнепереписаны/privateauditpb-kd-retrieve-null-bounded-result-review-20261018.
+
+USERBreakсначаланереагировал;впоследующемchatпоказалbl2/3e→bd2/bd3→bl2/3d→g,теперьотключениеподтверждено. ПричиназадержкиBreakнеустановлена,loggererrorsнепоказаны,непутатьсо старымpoint17. **Стоп:**неповторRun/не640/неbe. Далееофлайнанализlookupkey5/раннихcreate-associate-removeдляминимальногоследующегозамера. Новогопрофиля/kit/Runнет. Продуктне менять;noagentdebugger/traffic. BeforeUSERBreak/enablewholeVM/Codex/RDPwarning/recovery/gотдельноevenerror. Толькоинструкциивчате,безDesktop. НижестарыеNEXTисторические.
+
 ## Retrieve/NULL bounded328 подготовка — 2026-10-18
 
 USER«Хорошо,продолжаем». Читать [новыйboundedcheckpoint](KERNEL_RETRIEVE_NULL_BOUNDED_PREPARATION_2026-10-18.md). Новые4sourcesa1f36c6/methodredirect-kd-retrieve-null-bounded-v1:4→64→256→4/328/120sclient/240scohort/512KiB/8s/ConnectEx32/originalsinglequery,2retrieval+3NULL+2d0,registered2/3/inactive[]. NULLactionвfourнеисполнилась/нетsuccessfulquerypointercoverage—pendingсохранёнвguards. Все38fourcaptureinputsзамораживаютсяотдельно,oldkitsнеResume/refreeze. AST/PS5parse/preset/adapted32Corefailpositive/21unidentifiedincomplete/oldpolicyиfourphasesrejected,37oldsourcesunchanged. Source/sharedmodules/profile/stageпредыдущихсерийнеизменны.
