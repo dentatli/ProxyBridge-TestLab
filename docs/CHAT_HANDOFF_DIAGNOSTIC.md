@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий шаг: заменить только отключённую3, оставить2 EARLY_MISS
+
+USER «Продолжаем». Читать [узкий early/query NULL профиль](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). Офлайн CFG подтвердил:330e объединяет getterNULL, успешныйmatch иlist-exhaustion;335e также общий. В просмотренных местах failure-only адрес для всехобщихmiss не найден,3425 пропускает начальныйNULL. Новый JSONprofile kd-early-miss-query-null-candidate-20261018-v1/SHA1b182afd166ece0d7b37df415c6c9997fdf7a327765537eccd489926bc6a2858:2 ровно прежний fwpk+f3;3 заменить fwpk+22e на tcpip query+2d0/QUERY_NULL register-only из прежнего проверенного профиля. Boot16566/113 и diskSHA совпали; восемь выбранных cached-live инструкций иdiskCFGbranches проверены, currentlive query-site повторно не смотрели. Старыеprofiles сохранены, stage/ZIP/plan/Run нет.
+
+Новый профиль убирает общий success lookup site, но не обещать измеренное снижение частоты/тормозов. Положительный EARLY_MISS→QUERY_NULL→Core10022 может подтвердить раннюю группу; одинQUERY_NULL безEARLY_MISS НЕ proof общегоmiss/отсутствияassociation. Stackreads2pending; directgeneral-search/successquery coverage теряется. Runtime общего запускателя ещё не проверен; нельзя назвать старый four проверкой нового сочетания. Далее USER disabled registration review, затем небольшой plan общим запускателем; bounded пока не готов/неавтоматически.
+
+Перед USERBreak wholeVM/Codex/RDP warning/recoverybd2/bd3/bl/g отдельно. Initialbl только2d fwpk+f3 и3d fwpk+22e; приunexpected неbc/bp, отдельноg. Приожидаемом bc3; beforebp3 warninitiallyenabled/VMstaystopped; newqueryNULLbp3/bd3/bl/.bpcmds/отдельныйg evenerror.2неперерегистрировать/stageнеreload/beнеRun. Последнийcleanupbd2/bd3/g безpost-bdbl, inventory нуженпередзаменой. Продукт/старыеkitsне менять,10061внеактивногоразбора,Desktopинструкцийне делать. Privateaudit pb-kd-early-null-candidate-review-20261018. НижеNEXTисторические.
+
 ## Текущий контекст: общий запускатель готов, agent Run не было
 
 USER попросил прекратить копирование комплекта/четырёх скриптов для каждого замера и сделать универсальный. Выполнено: [общий запускатель](KD_DIAGNOSTIC_SESSION.md), Invoke-KdSession.ps1/Workload, pb_kd_session.py/report и8unit tests, source4ede8e4. Старые scripts/modules/captures/kits сохранены,102protectedSHA совпали. Общий manifest ссылается на проверенный runtime и продуктовые бинарники lookup-four kit, без их копирования/изменения. Каждый новый замер получает небольшой immutable plan, сохраняющий SHA/profile/boot/review. Новый guard CreateNew run-claim запрещает повторный Run плана; legacy/interrupted/mutex/lease/boot gates сохранены. Profiles four/bounded256, не640.

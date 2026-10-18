@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "method": "kd-early-miss-query-null-candidate-20261018-v1",
+  "status": "DISABLED_POINT3_REPLACEMENT_PENDING",
+  "registered_point_ids": [
+    2,
+    3
+  ],
+  "active_point_ids": [
+    2,
+    3
+  ],
+  "inactive_point_ids": [],
+  "point_count_active": 2,
+  "replaces_only_ids": [
+    3
+  ],
+  "retains_point2_exactly": true,
+  "successful_lookup_site_removed": true,
+  "path_frequency_measured": false,
+  "general_search_miss_directly_observed": false,
+  "absence_proves_search_miss": false,
+  "frame_reads_runtime_verified": false,
+  "automatic_debugger_control": false,
+  "load_authorized": false,
+  "root_cause_proven": false,
+  "points": [
+    {
+      "id": 2,
+      "event": "EARLY_MISS",
+      "target": "fwpkclnt!FwpsNetBufferListRetrieveContext0+0xf3",
+      "action": ".if (@rsi == 5) { .if ($vvalid(@rsp+0x68,8) == 1) { .if (poi(@rsp+0x68) == tcpip!WfpAleAuthorizeAccept+0xcaf) { .if ($vvalid(@rsp+0x58,0x28) == 1) { .if ($vvalid(poi(@rsp+0x58)-0x7c,4) == 1) { .if (wo(poi(@rsp+0x58)-0x7c) == 0xda84) { .printf \"PBKDL EARLY_MISS ep=%p nbl=%p local_raw=%x peer_raw=%x key=%I64x consume=%x state_raw=%p scope=%p\\n\", poi(@rsp+0x78), poi(@rsp+0x60), wo(poi(@rsp+0x58)-0x7c), wo(poi(@rsp+0x58)-0x7a), @rsi, @ebp, @rdi, @rsp; } } .else { .printf \"PBKDL_UNREADABLE event=EARLY_MISS stage=caller_ports scope=%p\\n\", @rsp; } } .else { .printf \"PBKDL_UNREADABLE event=EARLY_MISS stage=saved_frame scope=%p\\n\", @rsp; } } } .else { .printf \"PBKDL_UNREADABLE event=EARLY_MISS stage=caller_return scope=%p\\n\", @rsp; } }; gc;",
+      "registration_command": "bp2 fwpkclnt!FwpsNetBufferListRetrieveContext0+0xf3 \".if (@rsi == 5) { .if ($vvalid(@rsp+0x68,8) == 1) { .if (poi(@rsp+0x68) == tcpip!WfpAleAuthorizeAccept+0xcaf) { .if ($vvalid(@rsp+0x58,0x28) == 1) { .if ($vvalid(poi(@rsp+0x58)-0x7c,4) == 1) { .if (wo(poi(@rsp+0x58)-0x7c) == 0xda84) { .printf \\\"PBKDL EARLY_MISS ep=%p nbl=%p local_raw=%x peer_raw=%x key=%I64x consume=%x state_raw=%p scope=%p\\\\n\\\", poi(@rsp+0x78), poi(@rsp+0x60), wo(poi(@rsp+0x58)-0x7c), wo(poi(@rsp+0x58)-0x7a), @rsi, @ebp, @rdi, @rsp; } } .else { .printf \\\"PBKDL_UNREADABLE event=EARLY_MISS stage=caller_ports scope=%p\\\\n\\\", @rsp; } } .else { .printf \\\"PBKDL_UNREADABLE event=EARLY_MISS stage=saved_frame scope=%p\\\\n\\\", @rsp; } } } .else { .printf \\\"PBKDL_UNREADABLE event=EARLY_MISS stage=caller_return scope=%p\\\\n\\\", @rsp; } }; gc;\""
+    },
+    {
+      "id": 3,
+      "event": "QUERY_NULL",
+      "target": "tcpip!WfpAleProcessSocketOption+0x2d0",
+      "rva": "0x121588",
+      "action": ".if (@r15d == 0x980000dd) { .if (@rdx == 0) { .printf \"PBKDN QUERY_NULL ep=%p record_reg=%p ioctl=%x scope=%p\\n\", @rdi, @rdx, @r15d, @rsp; } .else { .printf \"PBKDN_UNEXPECTED event=QUERY_NULL ep=%p record_reg=%p capture=incomplete\\n\", @rdi, @rdx; } }; gc;",
+      "printf_arguments": [
+        "rdi",
+        "rdx",
+        "r15d",
+        "rsp"
+      ],
+      "status_assignment_executed_at_point": false,
+      "query_return_status_measured": false,
+      "cid_or_endpoint_memory_dereferenced": false,
+      "registration_command": "bp3 tcpip!WfpAleProcessSocketOption+0x2d0 \".if (@r15d == 0x980000dd) { .if (@rdx == 0) { .printf \\\"PBKDN QUERY_NULL ep=%p record_reg=%p ioctl=%x scope=%p\\\\n\\\", @rdi, @rdx, @r15d, @rsp; } .else { .printf \\\"PBKDN_UNEXPECTED event=QUERY_NULL ep=%p record_reg=%p capture=incomplete\\\\n\\\", @rdi, @rdx; } }; gc;\""
+    }
+  ]
+}
