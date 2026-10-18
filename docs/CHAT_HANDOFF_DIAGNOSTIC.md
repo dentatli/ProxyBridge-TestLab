@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: EARLY_MISS/QUERY_NULL зарегистрированы, готов один four Run
+
+USER chat paste подтвердил замену только3: finalbl/.bpcmds только2d fwpk+f3 (fffff8026aaa3223) и3d tcpip query+2d0 (fffff8026a861588), точные actions и отдельныйg. Регистрационных ошибок не показано; это chat attestation, не raw attachment. Читать обновлённый [кандидат и four-план](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md).
+
+Общий запускатель Prepare WindowsPS5 exit0: plan091337-a586a7f5, SHA0107734BDF095669183788C9DA970FB88DA20D416DDFCC62FF1C9714F6B1128C.6files/22985bytes/61refs, повторных runtime/product copies нет;102oldSHA unchanged. Boot16566/113 совпал. Private audit pb-kd-early-null-four-preparation-review-20261018. НикакогоagentRun/WinDbg/traffic/productchanges.
+
+Следующий USER шаг — один four Run общего исполнителя и нового сочетания точек, не256. Before Break/каждыйenable предупредить wholeVM/Codex/RDP; recovery bd2/bd3/bl/g по одной. Existing inventory2/3d, только be2/be3/bl/отдельныйg; Invoke-KdSession -Phase Run -PlanPath/-PlanSha -ProfileReviewed -DebuggerLoggerEnabled, SHA сравнивается внутри. ПослеRun/error bd2/bd3/bl/g отдельно и весьconsole/PS. Не повторятьbp/staging, неrepeatRun/неbounded доразбора; можно закрытьGPT радиRAM. Новый body2 stack reads и универсальныйRun пока pending. Пустойfour неproofфильтра/coverage; прежниеkits/migrationplanнеиспользовать. Продуктне менять,10061внеактивногоразбора,Desktopинструкцийне делать. НижеNEXTисторические.
+
 ## Следующий шаг: заменить только отключённую3, оставить2 EARLY_MISS
 
 USER «Продолжаем». Читать [узкий early/query NULL профиль](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). Офлайн CFG подтвердил:330e объединяет getterNULL, успешныйmatch иlist-exhaustion;335e также общий. В просмотренных местах failure-only адрес для всехобщихmiss не найден,3425 пропускает начальныйNULL. Новый JSONprofile kd-early-miss-query-null-candidate-20261018-v1/SHA1b182afd166ece0d7b37df415c6c9997fdf7a327765537eccd489926bc6a2858:2 ровно прежний fwpk+f3;3 заменить fwpk+22e на tcpip query+2d0/QUERY_NULL register-only из прежнего проверенного профиля. Boot16566/113 и diskSHA совпали; восемь выбранных cached-live инструкций иdiskCFGbranches проверены, currentlive query-site повторно не смотрели. Старыеprofiles сохранены, stage/ZIP/plan/Run нет.
