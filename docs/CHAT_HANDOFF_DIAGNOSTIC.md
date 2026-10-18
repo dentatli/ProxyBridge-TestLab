@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## CoS подключён к VM; файловый доступ подтверждён, процесс без elevation
+
+USER завершил Setup и добавил папки после ошибки approved roots /downloads,/skills. Повторная проверка уже при изменённой конфигурации: CoS Core.read прочитал AGENTS.md и этот handoff; Core.exec подтвердил COS_HOST=PB-BUILD-25H2/COS_ADMIN=False, ветку codex/checkpoint-20261007 и чистое Git-состояние. Desktop.list_windows ранее ответил списком окон; ввод/управление elevated окнами не проверялись. Прежний cwd rejection устранён разрешением папки USER, не обходом ограничения. Попытка добавить целый C: отклонена самим CoS; не обходить запрет через junction/настройки/патч продукта. Не утверждать доступ ко всей системе или к физическому host WinDbg.
+
+Этот checkpoint записан через CoS.apply_patch — разрешённая запись документа подтверждается реальным результатом. Диагностические команды/трафик/WinDbg не запускались. Для последующего ETW нужны соответствующие административные права: USER может полностью закрыть CoS и запустить его от имени администратора в той же учётной записи LabAdmin, затем подключить; повторно проверить токен, не считать повышение уже выполненным. Внешние/account/host действия USER просил объяснять ему. Основной TCP стоп остаётся офлайн ETW-подготовкой ниже; hardware2 по последнему console disabled/driver resident, не возобновлять старые Run.
+
 ## Дополнение: USER запросил CoS для автоматизации, установка завершена, подключение pending
 
 USER явно попросил установить totec448-spec/chat-on-steroids и уточнил: внешние действия описывать ему. CoS2.1.40 установлен per-user внутриVM и запущен; exe ProductVersion2.1.40.0, HKCU uninstall DisplayVersion2.1.40 и живой процесс подтверждены. Installer SHA55a1b325e5cfadbc7cc443f4e2b979159c0a0937ad0a1565e2ea4e79b4579508 совпал сGitHub asset digest иSHA256SUMS. Локальный install audit внеGit вuserLOCALAPPDATA/Temp/codex-cos-install-v2.1.40; установщик/бинарники/аккаунтные данные вGitне добавлялись. NSIS per-user безelevation, штатный appfolder ACL; защитыWindows/BCD/proxy/гипервизорне менялись.
