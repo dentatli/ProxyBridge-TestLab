@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## CoS elevation подтверждён, можно готовить ETW через подключение VM
+
+USER сообщил, что после запуска CoS от администратора пришлось повторно настроить подключение. CoS Core.exec read-only проверка: Computer PB-BUILD-25H2, Account PB-BUILD-25H2\LabAdmin, USERPROFILE C:\Users\LabAdmin, Administrator=true, cwd C:\src\ProxyBridge-TestLab, branch codex/checkpoint-20261007, Git clean, ProxyBridgeDrv Running. Причина сброса/повторной настройки не установлена, не объявлять смену аккаунта причиной. Повышение реально проверено, не выводится из слов USER.
+
+Подключение даёт административный terminal внутриVM; доступ к физическому WinDbg не подтверждён. USER просил внутреннюю работу выполнять автономно, внешние действия объяснять ему. Следующая работа — офлайн узкий ETW-план по найденным TCPIP events, не новыйhardwareRun/не изменениепродукта. Во время этой проверки ETW/нагрузка/отладчик/службы не запускались и не менялись. Последнее известное hardware2disabled сохраняется; не считать это новым inventory отладчика. Ранее записи non-elevated/pending ниже исторические.
+
 ## CoS подключён к VM; файловый доступ подтверждён, процесс без elevation
 
 USER завершил Setup и добавил папки после ошибки approved roots /downloads,/skills. Повторная проверка уже при изменённой конфигурации: CoS Core.read прочитал AGENTS.md и этот handoff; Core.exec подтвердил COS_HOST=PB-BUILD-25H2/COS_ADMIN=False, ветку codex/checkpoint-20261007 и чистое Git-состояние. Desktop.list_windows ранее ответил списком окон; ввод/управление elevated окнами не проверялись. Прежний cwd rejection устранён разрешением папки USER, не обходом ограничения. Попытка добавить целый C: отклонена самим CoS; не обходить запрет через junction/настройки/патч продукта. Не утверждать доступ ко всей системе или к физическому host WinDbg.
