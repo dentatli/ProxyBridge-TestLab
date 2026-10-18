@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий контекст: общий запускатель готов, agent Run не было
+
+USER попросил прекратить копирование комплекта/четырёх скриптов для каждого замера и сделать универсальный. Выполнено: [общий запускатель](KD_DIAGNOSTIC_SESSION.md), Invoke-KdSession.ps1/Workload, pb_kd_session.py/report и8unit tests, source4ede8e4. Старые scripts/modules/captures/kits сохранены,102protectedSHA совпали. Общий manifest ссылается на проверенный runtime и продуктовые бинарники lookup-four kit, без их копирования/изменения. Каждый новый замер получает небольшой immutable plan, сохраняющий SHA/profile/boot/review. Новый guard CreateNew run-claim запрещает повторный Run плана; legacy/interrupted/mutex/lease/boot gates сохранены. Profiles four/bounded256, не640.
+
+RegisterAssets/Prepare через WindowsPS5 exit0, без agentRun/продукта/трафика/debugger control. Демонстрационный plan090504-775342a7, SHA FCA04367212E88830057A123E0D9D4C6EBB0F8A4E5D8AE3A19E3520B96EC5B47:6files/24169bytes/62frozenrefs, runtimecopies0. SharedmanifestSHA F14A2FADC257C3167655264C7C11AB2D5AE2D1561C197164AD4ABFDDD945E52D. Review four-only — это files-only миграция, не просьба повторить four Run; bounded этим review заблокирован.8unit tests/parser5.1/обаpurepresets/3capturefixtures passed (4success;32Core10022;42fail incl18unidentified incomplete), oldpolicy rejected. Первые офлайн encoding ошибки исправлены и описаны; WinDbg/продукт не запускались. Privateaudit pb-kd-session-implementation-review-20261018.
+
+Следующий шаг расследования — офлайн-пересмотр +22e общего trap перед будущим256. Runtime новогоуниверсальногопути и failure-action stack reads остаются pending. Последние bd2/bd3/g безpost-bdbl; не делать лишний Break, inventory перед следующим USERenable. Никаких новых bp/be/Run агентом. BeforeкаждыйUSERBreak/enable wholeVM/Codex/RDP warning/recovery bd2/bd3/bl/g отдельно;10061внеактивногоразбора;продуктне менять,веткуразработкинетрогать,Desktopинструкцийне делать. НижеNEXTисторические.
+
 ## Актуальный результат: lookup four успешен, miss-actions не проверены
 
 Читать [результат lookup four](KERNEL_LOOKUP_FOUR_RESULT_2026-10-18.md). USER084301-49f7a3bd:4native success/4Core queries api0,32bytes,peer55745..55748. Console9868564e: точные2/3d→be→2/3e/g, ноль PBKDL events/UNREADABLE, нет Memory/Syntax/Bad register. Есть debugger image-load warning Ndu.sys, не доказательство сбоя драйвера. Конец bd2/bd3/g без ошибок, но post-bd bl нет; не утверждать separately verified disabled inventory и не просить лишний Break.8291frozenSHA exact/39captureinputs unchanged, cleanupcompleted/graceful. Controller107.345397s не speedtest/не proof причины длительности. Privateaudit pb-kd-lookup-four-result-review-20261018.

@@ -32,3 +32,11 @@ Unit tests `tests/test_kd_session.py` проверяют изменение SHA/
 При первоначальной проверке обнаружены ошибки кодировки в локальном генераторе проверки и перекодированная строка нового PS wrapper; исправлены явным UTF-8 и UTF-8 BOM для PS5.1. Это офлайн-ошибки подготовки, продукт/WinDbg не запускались. Старые source/module/profile SHA сохранены. Private audit: `artifacts/diagnostics/pb-kd-session-implementation-review-20261018`.
 
 Runtime исполнения нового универсального пути пока не проверен. Тест продукта/нагрузки агентом не выполняется. Перед каждым USER Break/enable/single-step предупреждать: вся VM, Codex и RDP могут остановиться; заранее иметь bd для проверенных IDs, bl и отдельный g, даже после ошибки. Регистрацию точек и текущее состояние WinDbg общий запускатель не меняет и автоматически не проверяет. Инструкции только в чате, без Desktop copies.
+
+## Проверенный files-only переход, 2026-10-18
+
+Source `4ede8e4`. Восемь unit tests прошли; три capture fixtures, оба presets и parser Windows PowerShell5.1 проверены.102старых source/module/profile SHA совпали. RegisterAssets и Prepare через новый wrapper завершены exit0, без продукта/трафика/управления WinDbg. Новый Inspect не повторялся: Prepare уже вызывает полную проверку плана и ресурсов.
+
+Общий manifest `artifacts/diagnostics/pb-kd-shared-assets/81fc33a6288b324dcb9880735728e0699729c5c804292fb07a2791c9db4f3a24.json`, SHA256 `F14A2FADC257C3167655264C7C11AB2D5AE2D1561C197164AD4ABFDDD945E52D`. Runtime находится в неизменённом lookup-four kit083735-2eb58055. Использованный four Run этого kit не повторялся.
+
+Демонстрационный план `artifacts/diagnostics/pb-kd-session-plan-20261018-090504-775342a7/runtime-plan.json`, SHA256 `FCA04367212E88830057A123E0D9D4C6EBB0F8A4E5D8AE3A19E3520B96EC5B47`:6новых файлов/24169байт/62frozen references, ноль новых runtime/product binary copies. Review ограничен four и явно сохраняет runtime_actions_verified=false и отсутствие post-disable inventory. Это проверка миграции файлов, не назначение повторной четырёхсоединительной пробы. Bounded256 этим review не разрешён. Точки не включать и ничего не запускать по одному факту готовности универсального кода. Следующий диагностический шаг остаётся офлайн-пересмотром общего lookup trap перед замером256.
