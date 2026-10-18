@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "method": "kd-retrieve-query-two-registered-20261018-v1",
+  "registration_method": "user_entered_separate_commands",
+  "registered_point_ids": [
+    2,
+    3
+  ],
+  "active_point_ids": [
+    2,
+    3
+  ],
+  "inactive_point_ids": [],
+  "point_count_active": 2,
+  "automatic_debugger_control": false,
+  "load_authorized": false,
+  "root_cause_proven": false,
+  "prior_actions_profile_sha256": "c915afa3d8b0188c3cde343de51d3b225ef33290605fc1d811bc1b0daeba9866",
+  "points": [
+    {
+      "id": 2,
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcaf",
+      "rva": "0x1567b",
+      "action": ".if ($vvalid(@rbp-0x7c,4) == 1) { .if (wo(@rbp-0x7c) == 0xda84) { .if ($vvalid(@rbp-0x28,8) == 1) { .printf \"PBKDR RETRIEVE_RESULT ep=%p nbl=%p local_raw=%x peer_raw=%x status=%x output_raw=%p\\n\", @rdi, @rbx, wo(@rbp-0x7c), wo(@rbp-0x7a), @eax, poi(@rbp-0x28); } .else { .printf \"PBKDR_UNREADABLE event=RETRIEVE_RESULT ep=%p status=%x capture=incomplete\\n\", @rdi, @eax; } } } .else { .printf \"PBKDR_UNREADABLE event=RETRIEVE_FILTER ep=%p status=%x capture=incomplete\\n\", @rdi, @eax; }; gc;"
+    },
+    {
+      "id": 3,
+      "target": "tcpip!WfpAleProcessSocketOption+0x2c4",
+      "rva": "0x12157c",
+      "action": ".if (@r15d == 0x980000dd) { .if (($vvalid(@@c++(&@$thread->Cid),0x10) == 1) and ($vvalid(@rdi+0x1c0,8) == 1)) { .printf \"PBKDM QUERY_READ thread=%p pid=%I64x tid=%I64x scope=%p ep=%p record=%p ioctl=%x\\n\", @$thread, @@c++(@$thread->Cid.UniqueProcess), @@c++(@$thread->Cid.UniqueThread), @rsp, @rdi, poi(@rdi+0x1c0), @r15d; } .else { .printf \"PBKDM_UNREADABLE event=QUERY_READ thread=%p scope=%p capture=incomplete\\n\", @$thread, @rsp; } }; gc;"
+    }
+  ]
+}
