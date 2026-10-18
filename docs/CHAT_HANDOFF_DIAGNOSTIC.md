@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий USER шаг: четыре соединения, активна только QUERY_NULL (3)
+
+После лимита USER попросил продолжить. Remote362c438 подтверждён, boot16566/113 не изменился. Подготовлен профиль `pb-kd-query-null-only-candidate-20261018.json`: зарегистрированы2/3, активна только3,2отключена; actions не менялись. Перерегистрировать точки не нужно. Это изолирующая проба задержки безEARLY_MISS, не восстановление полного coverage и не доказательство причины10022.
+
+Общий Prepare WindowsPS5 exit0: plan113532-4ac7ca83, SHA C2A300CFFCF7DB31BB354FEA3535DAF9B9B01C76FC935520FB100D0E1B4AE72F. Толькоfour; runtime не копируется, source исполнителя/продукт не менялись. Privateaudit pb-kd-query-null-only-preparation-review-20261018. Читать последний раздел [диагностического документа](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). AgentRun/WinDbg не было.
+
+USER beforeBreak wholeVM/Codex/RDP warning/recoverybd2/bd3/bl/g отдельно. Inventory2/3d поfffff8026aaa3223/fffff8026a861588; включить только3 с отдельным предупреждением wholeVM, bl2d/3e, отдельноg. Один Run с новымPlanPath/PlanSha/ProfileReviewed/DebuggerLoggerEnabled. ПослеRun/error bd3/bl/g отдельно, полныйconsole/PS.2неbe/неbp/неstaging/неповторстарогоplan/не256/не640. Сравнить с двухточечными4(~112s) иsnapshotdelay; одинбыстрыйRunнеproof исключительнойпричины.10061внеактивногоразбора. НижеNEXTисторические.
+
 ## Текущий стоп: bounded прерван на64; разобрать задержку наблюдения, не повторять Run
 
 Читать последний раздел [early/queryNULL](KERNEL_EARLY_MISS_QUERY_NULL_CANDIDATE_2026-10-18.md). USER092903-6e083afa:baseline4Succeeded, load64 clienttimeout/forcedstop/CSVheaderonly, receiver64ErrorNotAllDataTransferred;256/recovery не выполнялись.68Corequeries (4PID16500+64PID7452) всеapi0/bytes32,10022не наблюдался; это не68native success. Original CAPTURE_INCOMPLETE/native_failednull сохранён. Console6316ad12/SHA dca7ceae6546df43f64ec8b55f466a606d2a7664ba875110a45626a7f6f6b998:точные2/3d/e/e/d,finalbl2/3d/g.0miss/NULL/unreadable,нетloggerMemory/Syntax/Bad register;traps не считались.
