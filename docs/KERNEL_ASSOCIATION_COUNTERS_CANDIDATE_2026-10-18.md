@@ -1,5 +1,19 @@
 # Проверка полноты наблюдения association без дополнительных точек
 
+## Результат four: счётчики согласованы со строками, пары всё ещё неполны
+
+USER запуск `pb-kd-session-run-20261018-135540-a544054a` завершён. Четыре native success по524288байт, четыре Core query api_return=0/api_error=0/bytes32; соответствие native↔Core проверено по клиентским портам. Workload/cleanupCOMPLETED, CLIgraceful/post_stop_verified, forced_stop=false, ошибки пусты. Controller16.69663с. Это положительный результат небольшой пробы, исходный10022 в ней не наблюдался.
+
+USER console показывает исходные2/3d, be2/be3/g, затем PRE hit1..6 иPOSThit1..6 без пропусков/повторов. Послеbd2/bd3 итоговыйbl подтверждает2/3d, TOTALpre6/post6, отдельныйg. Счётчики монотонны между4наблюдаемыми PREthreads и3POSTthreads. Все6POST result_raw=0; видимых ошибок actions нет. Исходные0/0 зафиксированы предыдущей регистрацией. Источник — сообщение USER; private events-excerpt.txt сохраняет только события/TOTAL, не выдаётся за полный rawconsole и его SHA.
+
+Сопоставление по thread+scope+source_ep+nbl дало4полные пары. БезPOST остались PREhit1 и3 (source_ep ffff9987669e7010, scopes ffff8187898fa130/ffff8187898fa560). БезPRE остались POSThit2 (source_ep ffff9987663b2ce0/scope ffff8187898ec130) иPOSThit3 (source_ep ffff998764d869f0/scope ffff8187898d0560). Совпадение сумм6/6 не означает шесть пар. У всех учтённых инкрементов есть строка; версия потери только printf-строк не объясняет неполные пары этого запуска. Однако счётчики ничего не говорят о breakpoint occurrences, для которых command list не выполнился. Не объявлять доказанным ни missed trap, ни нестандартный return, ни ошибку сопоставления/контекста.
+
+Private audit `pb-kd-association-counters-four-result-review-20261018`: excerpt, events/pairs, review.json иSHA исходных входов.65frozenrefs/assetsmanifestSHA совпали,37capture inputs не изменились. Исходный report KD_SESSION_NATIVE_EVIDENCE_CONFIRMED_DEBUGGER_PENDING оставлен без изменений. Положительно проверены increment/read/наблюдаемая межпоточная монотонность, но полное покрытие kernel calls и per-connection kernel↔Core join не подтверждены. Старый Run consumed; не повторять/неbounded. Точки отключены итоговымbl, повторногоBreakнепросить.
+
+При проверке документации обнаружено ограничение возможного обхода: [Microsoft .bpsync](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/-bpsync--synchronize-threads-at-breakpoint-) описывает временное снятие точек при возобновлении и возможность пропустить другое обращение, но в Environment явно указано User mode only. Не переносить это описание в доказанную причину нашего kernel capture и не предлагать .bpsync1 как KD fix. [Processor Breakpoints](https://learn.microsoft.com/en-us/windows-hardware/drivers/debugger/processor-breakpoints---ba-breakpoints-) подтверждает, что иbp, иba применяются ко всем процессорам; нельзя объяснять неполноту просто тем, что bp якобы установлен только на CPU0. Переход наba сам по себе ещё не проверен и не гарантирует полноты.
+
+Следующий офлайн шаг — выбрать наблюдение, не требующее считать отсутствие пар доказательством отсутствия association: рассмотреть ограниченный comparator реализации breakpoint либо один самодостаточный event с явно проверенными аргументами и идентификатором соединения. Это пока план исследования, не подготовленный профиль или разрешение новогоRun. Клиентский порт не установлен; прежние сырые адреса record его не содержат. Продукт не менять,10061 не исследовать.
+
 ## Регистрация принята, готов один four-plan
 
 USER прислал команды регистрации и итоговый bl: только ID2d поfffff8026a817f14 иID3d поfffff8026a817f20, обе action совпадают с counters JSON. Отдельные r@$t0=0/r@$t1=0 и TOTAL pre=0 post=0 показаны, затем отдельныйg. Ошибок в сообщении не видно. Это проверяет регистрацию/инициализацию/чтение переменных, но не увеличение счётчиков при срабатывании. Источник — chat paste; SHA полного console не заявляется.

@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: counters six/six согласованы со строками, но только четыре пары
+
+Читать начало [результата counters](KERNEL_ASSOCIATION_COUNTERS_CANDIDATE_2026-10-18.md). USER135540-a544054a:4native success/4Core api0/bytes32, workload/cleanupCOMPLETED, CLIgraceful/post_stop_verified, controller16.69663с. PREhit1..6 иPOSThit1..6 непрерывны, TOTAL6/6 послеbd2/bd3; итоговыйbl2/3d/отдельныйg подтверждены.4полныепары; PRE1/3безPOST, POST2/3безPRE. Все6POST result0. Видимыеучтённыеactionsсогласованы, однойпотерейprintf-строкнеобъяснитьрасхождение; allkernelcalls/missedtraps/необычныйreturn/ошибкаcontextнеустановлены. Increment/read/монотонностьчерезнаблюдаемыепотокиположительны; sum6/6неproofpairing.
+
+Privateaudit pb-kd-association-counters-four-result-review-20261018: chat-excerptбезfullconsoleSHA, events/pairs/review/inputSHA;65frozenrefs/assetsmanifestSHA/37captureinputsunchanged, исходныйpendingreportсохранён. Runconsumed,неrepeat/неbounded; точкивыключеныитоговымbl, лишнийBreakнепросить. MS.bpsyncдокументируетmisswindow,ноUsermodeonly — непредлагать.bpsync1какKDfix/недоказыватьэтимнашумеханику. Иbp/baпоMSприменяютсяковсемCPU, неверсия«bpтолькоCPU0». ba comparator ещёнеподготовлен/непроверен, не обещатьполноту. Следующийofflineшаг: comparatorреализацииbreakpointилисамодостаточныйeventсдоказаннымиаргументами/connectionID; clientportнеустановлен. Новыхprofile/plan/Runнет,продуктнетрогать,10061внеразбора. НижниеNEXTисторические.
+
 ## Следующий USER шаг: four с association counters
 
 Читать начало [кандидата counters](KERNEL_ASSOCIATION_COUNTERS_CANDIDATE_2026-10-18.md). USERпоказал2/3d ссовпадающимиactions, r@$t0=0/r@$t1=0, TOTAL0/0, отдельныйg; видимыхошибокнет. Runtimeincrement/межпоточнаямонотонностьpending. Boot16566/113unchanged. Files-onlyPrepare WindowsPS5exit0: plan135304-62f88e06 SHA7BA88CCD8F321EB069C7535380925E23ACE85903A8D08C78F0DD521732C02C48,6files/24119bytes/65refs/53commonpreviousrefsSHAunchanged, runtimecopies0. Privateaudit pb-kd-association-counters-four-preparation-review-20261018. Толькоfour/4/originalquery/512KiB/active2,3; agentRun/runclaim/product/traffic/debuggercontrolнет.
