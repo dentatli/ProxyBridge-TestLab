@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Retrieve/NULL four выполнен — 2026-10-18
+
+**USER preference: больше не сохранять инструкции на Desktop, команды только в чате; старыефайлысохранить.** Читать [four result](KERNEL_RETRIEVE_NULL_FOUR_RESULT_2026-10-18.md). USER Run071824-e5983668:4native/4CoreAPIуспешны,4retrievalEAX0/nonnull поpeerport56049..56052привязаны,QUERY_NULL/UNEXPECTED/UNREADABLEeventsнет. НоваяNULLactionнеисполнилась,query-timepointerуспешныхнеизмерялся. Console—USERchatpaste,неrawattachment.8290frozenSHAexact,38runinputsunchanged,cleanupCOMPLETED/graceful/no forced. Privateauditpb-kd-retrieve-null-four-result-review-20261018. Source/nativeoriginalreportsнепереписаны.
+
+ВконцеUSERbd2/bd3/gбезошибок,нофинальногопослеbdblнет;необъявлятьdisabledinventoryподтверждённым,незапрашиватьлишнийBreakсейчас. Следующийофлайншаг—собственныйbounded328kitсэтимипрофилем/NULLactionpending,затемUSERinventoryпередenableсwholeVM/Codex/RDPwarning/recovery/gотдельно. FourRunизрасходован,неповтор/не328старымkit. Новогоboundedkit/Runещёнет,агентнеRun/неDebuggercontrol/неproductchanges. НижеNEXTисторические.
+
 ## Retrieve/NULL зарегистрирован; four-only подготовка — 2026-10-18
 
 USERconsoleпоказалinitial2/3d(old3+2c4)→bc3→только2d→newbp3+2d0/bd3→bl/.bpcmds2/3d→g. 2unchangedfffff8026a75567b,3fffff8026a861588/PBKDNQUERY_NULL,ошибок/actualeventsнет. Registrationreview—USERchatpasteattestation,неfabricatedrawattachment. Читать [новыйfourcheckpoint](KERNEL_RETRIEVE_NULL_FOUR_PREPARATION_2026-10-18.md). Четыреновыхsources4dbb7cc,methodredirect-kd-retrieve-null-four-v1,4/512KiB/8s/ConnectEx32/originalsinglequery,2/3only,60sclient/180scohort/2GiB. PS5parse/purepreset/AST/adaptedoldfourpositivekernelpending/oldpolicyи328rejected,39oldsourcesunchanged. Sharedmodules/stages/kitsне менялись.
