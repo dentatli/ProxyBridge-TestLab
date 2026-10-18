@@ -1,5 +1,11 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Дополнение: USER запросил CoS для автоматизации, установка завершена, подключение pending
+
+USER явно попросил установить totec448-spec/chat-on-steroids и уточнил: внешние действия описывать ему. CoS2.1.40 установлен per-user внутриVM и запущен; exe ProductVersion2.1.40.0, HKCU uninstall DisplayVersion2.1.40 и живой процесс подтверждены. Installer SHA55a1b325e5cfadbc7cc443f4e2b979159c0a0937ad0a1565e2ea4e79b4579508 совпал сGitHub asset digest иSHA256SUMS. Локальный install audit внеGit вuserLOCALAPPDATA/Temp/codex-cos-install-v2.1.40; установщик/бинарники/аккаунтные данные вGitне добавлялись. NSIS per-user безelevation, штатный appfolder ACL; защитыWindows/BCD/proxy/гипервизорне менялись.
+
+Browser extension/account/tunnel/Core+DesktopMCPещёне подключены и агентомне настраивались. Не утверждать, что CoStools уже доступны в этомчате. USERследующийUIшаг Settings→Setup в открытом CoS, дальнейшие внешние/accountшаги ему объяснить; ключи не просить вчат. ПриложениевVMсамопосебене даётдоступкWinDbgнаphysicalhost; hostподключение отдельноUSER. НовогоdiagnosticRun/WinDbgcontrolне было, hardware2по последнемуUSERdisabled/службаRunningread-onlyподтверждена. ОсновнойTCPстопостаётсяboundedreview/офлайнETWpolicyниже, механизм10022неустановлен. USERхочетбольшеавтономности, но техническуюдоступность/границыконтролянадопроверять, аневыводитьизфактаустановки.
+
 ## Текущий стоп: bounded32 исходных10022, аппаратный захват90успешных; перейти к офлайн ETW-плану
 
 USER run175552-01a8fc90:328attempts/296success/32nativefails, все32 uniquelyCore10022/load256, errors[], residentafterDISABLEsuccess/SCMRunning. Consoleattachments d8bc3fb9 иbb0a68f4 побайтноодинаковы SHA6320435decbb8d643128002f2d698f8a1d4eb8a484d5f1998d9b4ea31d7a146a; privatecopy+review `pb-hardware-resident-bounded-result-review-20261018`.
