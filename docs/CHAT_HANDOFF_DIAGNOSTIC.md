@@ -1,5 +1,13 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: hardware four остановился на 80000004; только чтение sx/текущего gEnabled
+
+USER run174017-c0dcbb02:4 native/Core success,32bytes/errors[], resident receipts DISABLE before17:40:18.0687481Z/after17:41:45.8308471Z, controllercompleted17:41:46.1239689Z; mode COMPLETED/workersstopped/driver_stopfalse/resident_disabletrue/Running SCM. Исходный10022 не воспроизведён. Private screenshot/review `pb-hardware-resident-four-result-review-20261018`.
+
+Screenshot: be2/g, один APPLY_INPUT hit1 (localraw eec30002=порт50158, targetPID1ba8=7080/CorePID совпал), затем Single step first chance80000004 на том жеApply6c131696, prompt5kd. USERbd2/TOTAL1/ddgEnabled=1/отдельныйg. Полный snapshot справа обрезан, не утверждать все невидимые поля. Не считать это прежним silent3/4: точки после остановки отключены, длительность покрытия не установлена. Время чтенияфлага относительно cleanup не независимо timestamped; receipt success не независимый readback. Hardwareавтопродолжение/coverage не подтверждены, причина остановки не установлена. Не менять gc→gh/фильтры наугад и не скрывать все single step события.
+
+Следующий USER толькоread: beforeBreakwholeVM/Codex/RDPwarning, точки2disabledнеbe, ddProxyBridgeDrv!gEnabledL1/sx/отдельныйg evenerror. Initialbl не нужен. Еслиflag1послезавершения действительносохраняется — разобрать cleanupрасхождение, не утверждатьперехватотключён. Не Run/не repeat/не bounded/не Stop-Service/не reboot. Службу оставить Running, аппаратную2disabled. Нижние NEXT исторические.
+
 ## Текущий стоп: аппаратная ba2 e1 зарегистрирована и отключена; первый resident four
 
 Prepare exit0, product_started/traffic_generated/debugger_control=false: `pb-kd-session-plan-20261018-173830-08d08690/runtime-plan.json`, SHA256 `55AD385EDDC0B76F1738CAE72D7FADDBED6F34041158966235EF803D931A0B59`. Policy проверена: resident-disabled, four/4, registered+active2, без install/debuggercontrol. Plan ещё не использован. Prepare уже проверил общие файлы, повторный Inspect не нужен. Ничего runtime агентом не запускалось.

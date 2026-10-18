@@ -1,5 +1,13 @@
 # Диагностика с драйвером, оставленным в памяти
 
+## Первый resident four: workload прошёл, аппаратный автологгер остановился
+
+Run174017-c0dcbb02 имеет4 native/Core success, все query32bytes, errors[], resident before/after DISABLE success с одним session_id иRunning, run-receipt COMPLETED/workers_stopped=true/driver_stop_observed=false/resident_disable_observed=true. Controller17:40:17.1666918Z→17:41:46.1239689Z. Агент read-only SCM Running; original10022 не воспроизведён.
+
+USER screenshot послеbe2/g показывает один снимок порт50158/PID7080, затем first chance Single step80000004 наClassifyCore+3de, processor5. Послеэтого USERbd2/TOTAL1/ddgEnabled1/отдельныйg. Порядок этого чтения относительно записанной17:41:45.8308471Z after-cleanupкоманды не установлен; нельзя объявитьниcleanupfailure,нидоказанное текущееgEnabled0. Автологгер не оставался подтверждённо активным на весьcohort, поэтому TOTAL1 не является доказательствомпропуска3Applycalls. Eventcauseне установлена; не делать вывод Windows/драйверbug. Screenshot справаобрезан; невидимые поляне достраивать. Privatecopy/review `pb-hardware-resident-four-result-review-20261018`.
+
+Следующий шаг — USERread-only sx и текущийddgEnabled послезавершения Run; beforeBreakwholeVMwarning, затемотдельныйg evenerror. Не менятьфильтры/gc и не повторятьRunдоразбора. [Microsoft sx](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/sx--sxd--sxe--sxi--sxn--sxr--sx---set-exceptions-) разделяет настройки остановки и обработки исключений; чтение sx ихне меняет. [gc](https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/gc--go-from-conditional-breakpoint-) документирован для loggerbreakpoints; факт остановки здесь сам по себе не доказывает ошибку gc.
+
 ## Hardware registration подтверждена USER console
 
 Подготовлен только files-only four plan `pb-kd-session-plan-20261018-173830-08d08690/runtime-plan.json`, SHA256 `55AD385EDDC0B76F1738CAE72D7FADDBED6F34041158966235EF803D931A0B59`; Prepare exit0, runtime/product/traffic/debugger не запускались. Policy resident-disabled/four/active2 проверена. Результата Run пока нет.
