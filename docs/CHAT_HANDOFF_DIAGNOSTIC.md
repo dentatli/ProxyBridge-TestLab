@@ -1,5 +1,15 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий стоп: bounded32 исходных10022, аппаратный захват90успешных; перейти к офлайн ETW-плану
+
+USER run175552-01a8fc90:328attempts/296success/32nativefails, все32 uniquelyCore10022/load256, errors[], residentafterDISABLEsuccess/SCMRunning. Consoleattachments d8bc3fb9 иbb0a68f4 побайтноодинаковы SHA6320435decbb8d643128002f2d698f8a1d4eb8a484d5f1998d9b4ea31d7a146a; privatecopy+review `pb-hardware-resident-bounded-result-review-20261018`.
+
+90APPLY_INPUT/hits1..5a безпропусковпечатныхномеров/TOTAL5a=90; все90 уникальноnative/Corejoined поport+relayPID3c2c, исключительноуспешные:baseline2/4,load64 56/64,load256 32/224success. Нетснимковнидляодногоиз32Core10022. Все90ctxnonnull,size20h,image61000. Затемсамостоп80000004, USERсохранил .lastevent/r/.bpcmdsдоbd2: dr0/rip6c131696,dr6ffff0ff0,dr7401,efl40202,CPU4; .bpcmdsаппаратная2e1ещёenabled. USERbd2/TOTAL/ddgEnabled1/отдельныйg; послеэтогоRuncompleted/cleanupreceipt. Новогоindependentafterreadbackнет. Не считатьdebugregsнетронутымCPUtrapstatus: debugengineмогизменить. Причинусамостопа/отсутствующихснимковнеустановили. ОтсутствиеApplysnapshotне доказываетотсутствиеApply. НеrepeatэтотRun/неновыйhardwareRun/неfilterchanges.
+
+ОтветUSER«из-заточек?» разделять: Core10022 тойжесигнатурыестьбезточеквконтроле070522-24f1bd43, поэтомуточкинеобязательноеусловие; внынешнемRunонимоглиизменитьtiming, вкладнеизмерен. 80000004 — отдельнаяостановкадиагностики, не доказаннаяпричинаTCP10022. ЦельпокаНЕдостигнута, механизмнеустановлен.
+
+Новыйread-onlyETWmetadatareview: WFP46events,TCPIP753events. TCPIP1553v0 taskTcpAcceptRedirect:OriginalListener/RedirectedListener/Succeeded/Redirected/CodePath/SockAddrLength/LocalSockAddr/RemoteSockAddr/RedirectSockAddr. TCPIP1315v0 taskTcpCreateNotificationChannelRequestProcessing:IsRedirected/WfpFailure/Status/WaitStatus/Tcb/IPaddresses/ports. Этоименносхема, runtimeeventsнеполучены; значенияCodePath/privateWindowsrecordhistoryнерасшифрованы. WFPtemplatekeywordredirectне найден, не доказываетотсутствиевсехнужныхсобытий. Private etw-manifest-metadata.json. ДалееофлайнподготовитьузкуюETWcapturepolicy/проверкупотерисобытий/сопоставлениеport, согласованныйUSERRunпозже. ETWsessionне стартовала, новогоplanнет. Точка2disabled,gотдельный,службаRunning,неStop/reboot. НижниеNEXTисторические.
+
 ## Текущий стоп: hardware resident four дал4/4 снимка; подготовка bounded256
 
 Prepare files-only exit0: plan175221-f125de76/runtime-plan.json, SHA256 `D282E8F88EFBF19DE9EF97F365B4BA7AB73B98C04CA5E5055F210865620AD6D5`. Policy bounded256/328/4,64,256,4/resident-disabled/active2 проверена. product_started/traffic_generated/debugger_control=false; новогоRunагентомнет. Planещёнеиспользован. Sharedruntime/profile/actionпрежние, Inspectповторятьненужно.

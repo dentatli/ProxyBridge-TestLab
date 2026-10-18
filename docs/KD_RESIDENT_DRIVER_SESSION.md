@@ -1,5 +1,15 @@
 # Диагностика с драйвером, оставленным в памяти
 
+## Bounded: исходная сигнатура вернулась, захват не покрывает отказавшие соединения
+
+Run175552-01a8fc90:328попыток,296успехов,32nativefail/Core10022 вload256, errors[]. Console имеет90последовательныхhits1..5a/TOTAL5a(90dec). Все90уникальносопоставленыport+CorePID суспешными:2baseline,56load64,32load256. Ниодинснимокнесоответствует32failedCorequeries. Все90ctxненулевые/size32/image61000. Это не позволяет оценить данныеApplyнаfailedlifetimes; отсутствиестрокнеравноотсутствиювызовов.
+
+После90гоWinDbg80000004; .lasteventCPU4/event17:57:59.127Z,dr0/ripfffff8026c131696,dr6ffff0ff0,dr7401,efl40202; .bpcmdsещёba2e1enabled. ЗатемUSERbd2/TOTAL/ddgEnabled1/g,controllercompleted17:59:24.8652419Z,afterDISABLEsuccess17:59:24.5446753Z/Running. Послеcleanupновогоindependentreadbackнебыло. Не расшифровыватьэтиDR6какнеизменённыйаппаратныйtraprecord. Причинаостановкине доказана; этотhardwareprofileпока непригодендляполногоcohortcoverage. Печатные90eventsполныпосчётчику, аcoverageconnectionsнет.
+
+ОбаUSERattachmentsодинаковы поSHA6320435decbb8d643128002f2d698f8a1d4eb8a484d5f1998d9b4ea31d7a146a; private `pb-hardware-resident-bounded-result-review-20261018` сохраняетconsole/review/полныйmetadataexportдвухETWproviders. Безточекnative/Core10022ужевоспроизводился; точкимоглименятьtimingэтогопрогона, ихвкладнеопределён. 80000004иCore10022необъединятьв одну установленнуюпричину.
+
+Read-only Get-WinEvent metadata нашёлTCPIP1553 TcpAcceptRedirect(обаlistener,успех,redirected,CodePath,триадреса) и1315 TcpCreateNotificationChannelRequestProcessing(Tcb,redirected,WfpFailure,Status,WaitStatus,tuple). Следующийофлайншаг — узкийETWпланссогласованнымUSERcaptureипроверкойlostevents. ЭтоальтернативакповторнымостановкамWinDbg; покаmetadataonly, ниодногоETWсобытияне собрано, полнаяисторияredirectrecordнеобещается. Не готовитьочереднойhardwareRun и не менятьsingle-stepfilters наугад. Точка2disabled/driverRunning/gотдельныйсохранены.
+
 ## Four захват4/4 подтверждён; следующий bounded256
 
 Files-only Prepare bounded256 exit0: `pb-kd-session-plan-20261018-175221-f125de76/runtime-plan.json`, SHA256 `D282E8F88EFBF19DE9EF97F365B4BA7AB73B98C04CA5E5055F210865620AD6D5`. Policy328/4→64→256→4/resident-disabled/active2 проверена. АгентнеRun/неWinDbg/неtraffic; результатаещёнет.
