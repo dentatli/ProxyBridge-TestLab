@@ -1,5 +1,7 @@
 # Передача чату диагностики TCP / WinDbg
 
+Граница USER после результата d67dda1: активно расследовать только исходный10022/redirectcontext.10061отдельнонеразбирать,непланироватьрадинихзамеры;еслиприразборе10022появятсязацепкипо10061—фиксироватькакпобочныенаблюдения,нерасширятьзадачуавтоматически. Сохранятьисходныеcaptureincompleteстатусыиучёт10061вотчётах.
+
 ## Актуальный результат — 2026-10-18:24retrievalNOT_FOUND→QUERY_NULL→Core10022
 
 Читать [retrieve/NULL bounded result](KERNEL_RETRIEVE_NULL_BOUNDED_RESULT_2026-10-18.md). USER Run073047-8b2a010e:328attempts/286success/24correlatedCore10022+18unidentified10061,всеотказыload256.310Corequeries/PID16864/TID15928/неперекрывающиесяtiming. Console8370650d/44945bytes/SHAd3be8d87f72f9c5be01570ef4b532f6c31050de511d642bd6d2506315918ff18:317retrieval(292EAX0/25C0000225),24QUERY_NULL. Все24failedseq283..306поpeerport/ep/orderимеютпредшествующийretrievalC0000225иNULL;23соднимкандидатом,seq283сдвумяодинаковымикандидатами. Непридумыватьоднократность/неигнорироватьдубль. Привязкаусловнанаполнотуconsole,нетindependentkernelPID/TID/socket/seq/sharedQPC.6NBLaddressesнеpacket/lifetimeproof.
