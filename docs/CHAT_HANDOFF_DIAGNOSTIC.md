@@ -1,5 +1,39 @@
 # Передача чату диагностики TCP / WinDbg
 
+## FLOW115931: наблюдались два CONTEXT_REMOVED, ошибок callback не наблюдалось
+
+USER run115931-42767672 plan115555-09401ddd consumed once: COLLECTED,
+cleanup_errors[], resident_disabled_after=true, registrationacktrue. Offline native
+TARGET_FAILURE_REPRODUCED/errors[]/201matches;200fillers success; unique control
+42201/PID1388 query10022/bytes0. ETW same tuple Reason30drop→1186retry~1.044s→1553,
+затемReason10. Loss counters0/BuffersWritten190. Host все2/3/4disabled, separate g.
+
+Один TRACK record/context nonzero/size32/refs1. Для этого record/tag5 три полные
+пары ENTER/EXIT в порядке event5(CONTEXT_REMOVED),4(EXIT_NETIO),5(CONTEXT_REMOVED).
+Во всех один адрес NBL, new_nbl0, layer0x10, все returns0. Clone events1/2/3 не
+наблюдались; это не proof отсутствия вызовов. Нет наблюдаемой ошибки переноса.
+Есть положительное наблюдение снятия ассоциации конкретной контрольной записи,
+но два event5 сами по себе не доказывают double-free или неправильную очистку.
+Refs сняты только приCREATE, не передdereference; callbacks не дают полного lifetime.
+Одинаковый NBL address не доказывает отсутствие reuse. Нет timestamps PBTF→ETW.
+Предыдущий accept-side NOT_FOUND был в другомRun; не склеивать в доказанную
+последовательность снятие→NOT_FOUND одногои того жеобъекта.
+
+ВложениеUSER29afe3e2 сохранено byte-for-byte private
+pb-target-flow-target-review-20261019-115931/user-console-original.txt. Послеbd2/3/4
+USER набрал кириллическую п, получил syntaxerror и затемg. Full-console strict
+parser INCOMPLETE/DEBUGGER_ERROR сохранён отдельно. Только PBTF logger excerpt
+с явным provenance/exclusion этой post-disable keyboard error дал
+CALLBACK_SUCCESS_SNAPSHOTS_OBSERVED/errors[]. Raw не исправлен; runtime action
+syntaxerror не показан. CoS read не имел доступа к attachment path; штатный
+filesystem tool прочитал USER-attached файл и сохранил копиювdiagnostics.
+
+Следующий вопрос — кто вызывает первый CONTEXT_REMOVED и сколько refs перед
+каждым из двух снятий. Следующий observer: тот же controlrecord selector,
+stack и guarded pre-dereference refs только для event5; лишний callback exit
+можно отключить. Это различит replacement/обычную очистку/потенциально раннее
+освобождение. Пока новый профиль/Run не создавался; повтор старогоRun запрещён.
+
 ## FLOW комплект готов, Run ещё не выполнялся
 
 Свежий Prepare115555-09401ddd exit0/PREPARED_NOT_RUN, planSHA
