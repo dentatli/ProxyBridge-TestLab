@@ -1,5 +1,40 @@
 # Передача чату диагностики TCP / WinDbg
 
+## REMOVAL R2: два стека получены, преждевременное free не подтверждено
+
+USER Run123833-c0a05875, plan122428-835df4ca (SHA941948b7f1feb8cb5a57e25b4acbdb875640ce259f1399a19ddaea409eefc567)
+consumed; native TARGET_FAILURE_REPRODUCED/errors[]. Offline:201matches,
+200fillers success, только control42201/PID6368 query10022/bytes0. Cleanup errors[],
+resident_disabled_after=true. USER отключил2/3 и отдельноg;4остаётсяdisabled.
+ПовторныйRun не нужен. Private review pb-target-removal-r2-target-review-20261019-123833
+содержит chat excerpt/provenance/removal-report.json; report
+REMOVAL_STACKS_AND_PRECALL_REFS_OBSERVED/errors[]. Это USER-associated latestRun,
+не независимо наблюдавшаяся граница hostcapture.
+
+Один TRACK refs1/context nonzero/size32; два полных REMOVE stack для той жеrecord/NBL:
+первый refs3 через FwppCheckAndRemoveDuplicatedContext → AssociateContext →
+WfpTlShimInspectFastLoopbackSendDatagram; второй refs2 через
+FwppNetBufferListEventNotify → WfppTaggedContextFree → NdisFreeNetBufferList →
+TcpTcbSendDatagramsComplete. Дублирующая привязка и cleanup отправленногоNBL
+объясняют эти два события без доказанного раннегоfree. Снимки refs3/2 совместимы
+с сохранением другой ссылки, но не доказывают фактические postcounts/lifetime.
+Отсутствие дальнейшихcallbacks не является полным покрытием.
+
+ETW того же controltuple: Reason30 →1186retry примерно1.336s→1553→Reason10;
+loss counters0/BuffersWritten183. C0000225 измерялся в другом retrieveRun,
+не приписывать этомуRun. Не считать найденным дефект Windows или драйвера.
+
+Offline retry-path review: TcpRetransmitSynTcbSend вызывает TcpSynTcbSend с
+DL=12h (SYN|ACK); TcpCreateSynTcb вызывается из TcpListenerReceive. Это ветвь
+слушателя, её нельзя объявлять путём повторного клиентскогоSYN по одному имени.
+Раннее commentary о якобы найденном другом пути клиентскогоretry исправлено.
+Для этой ветви statically SYN_TCB+60 → InetSendDatagramsAf request+8 →
+IppSendDatagramsCommon RCX при вызове WfpTlShimInspectFastLoopbackSendDatagram;
+выбранный RBP из SYN_TCB+58 идёт в request+18, это другое поле. Не путать их.
+Клиентский timeout начинается TcpRetransmitTimeout(RVA51150) →
+TcpRtoTimeout(RVA51650), требует дальнейшего offline разбора до новогоobserver.
+Новые точки/профили/Prepare/нагрузка/изменения продукта не выполнялись.
+
 ## REMOVAL R1 остановки вызваны ошибкой action; R2 реально проверен CDB и подготовлен
 
 USER run121519-2ef58ccd TARGET_FAILURE_REPRODUCED/errors[]; две самостоятельные
