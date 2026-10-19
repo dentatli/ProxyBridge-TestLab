@@ -1,5 +1,23 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Offline NBL transfer review: callback снимает старую привязку и ассоциирует новую
+
+Читать [разбор переноса NBL](REDIRECT_NBL_TRANSFER_REVIEW_2026-10-19.md).
+В текущем tcpip SHA b068...95a callback TlShimNblEventNotifyFn RVA108970 для
+clone/duplicate events1/2/3 и key5 вызывает RetrieveContext(oldNBL,5,TRUE,0,NULL),
+затем Associate(newNBL, passed record). Event5/key5 вызывает record dereference;
+реальное освобождение только при прежнем refs1. Событие удаления ассоциации
+не считать доказательством освобождения payload. Причина10022 ещё не доказана.
+Новых точек/профиля/Run не было; old point2 RETRIEVE disabled/VM resumed.
+Следующий USER read-only host шаг: проверить callback entry L5 и callback+ea L9,
+затем отдельный g evenerror. Перед Break wholeVM/Codex/RDP pause warning.
+После этого готовить один-record observer для исходного/нового NBL и результата
+переноса; не повторять CREATE/QUERY сами по себе и горячие широкие ASSOC logger.
+Read-only DbgHelp126 дважды; далее прямое MSF чтение PDB: GUID и DBI age1 совпали
+с PE, info-stream age3 отличается. Force-symbol loading не применялось.
+Dejavu skill отсутствует по native catalog path и в пустом CoS /skills;
+сообщений dejavu gate не было. Нельзя заявлять, что плагин выполнил проверку.
+
 ## Target201 reproduced: RETRIEVE returned C0000225 / record NULL
 
 USER run113318-fdff4bb4, plan112635-c469b1ea consumed once. Offline native replay:
