@@ -1,5 +1,22 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Staged target201: prefill готов, подтверждение не принято до deadline
+
+USER run054801-65faecc6 consumed plan054552-cbaf3805 once. Error
+TARGET_HOST_WINDOW_EXPIRED_NO_CONTROL. Сохранён один stage fillers-established:
+200 unique ports42001..42200, allState5/ownedPID5976. USER READY remaining14820ms
+означает быстрыйprefill безактивнойpoint; это одно наблюдение, не отдельныйA/B proof.
+Host-confirmed/control-launch отсутствуют. Elapsed22255ms включает cleanup,
+не считать его измерением длительности ручного переключения. Нет вывода о10022/CREATEabsence.
+Core gate exited released1/wait_result0; resident_disabled_after=true. RawFAILED
+сcleanup_error TARGET_RECEIVER_CONTROLLED_STOP_FAILED сохранён; текущийCIM не нашёл
+ctsTraffic/receiver/CLI. USER host показалbe2/g затемBreak/bd2/separateg;
+BEGIN/END вpaste отсутствуют, но первичная отмена — hostconfirmationdeadline.
+Агент признал15sручное окно неудобным ограничением своегоworkflow. Не повторятьRun,
+не refreeze/не требоватьбыстрее/не повышатьwatchdog. Следующийdesign должен убрать
+ручнуюгонку; автоматическоеуправлениеhost пока не подготовлено/не авторизовано
+этим протоколом (automatic_debugger_control=false, действияhost USER-controlled).
+
 ## Staged CREATE target201 подготовлен: prefill с отключённой точкой, подтверждение C
 
 USER согласился на двухэтапную реализацию после prefill timeout. Новый explicit
