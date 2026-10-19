@@ -1,5 +1,23 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Найден кандидат source-port selector в CREATE_POST; требуется USER live-код
+
+CoS offline review: [план и команды](TARGET_RECORD_SELECTOR_2026-10-19.md).
+Current tcpip SHA b0683bd7... unchanged,23instruction starts/PE call target/unwind
+bounds проверены. Caller108050..1083da передаёт arg5=RBP-80; calleeCreate сохраняет
+arg5вR14. ВsiteCreate+396 R14 — кандидат local sockaddr с clientport42201/rawd9a4,
+вместо прежних record+48/+c8 remote address snapshots без sourceport.
+record+1d0 redirecttargetPID/+1d8handle не nativePID: не строить по ним ownerfilter.
+Private audit `pb-target-record-review-20261019/{review.py,review.json}`.
+
+Следующий USER шаг только read-only текущего live code после boot115:
+wholeVM/Codex/RDP warning передBreak; .reload/s, .reload/f tcpip.sys,
+u Create L0n24, u Create+36c L0n20, u tcpip+1082d1 L0n24, отдельноg.
+Приошибке g ивывод, неforcePDB. bl безизменениярегистрациине просить.
+Нет новойнагрузки/точек/сборок/установки. Current ETW controller не готов
+кdebuggerpoint: сначала livecompare, disabledprofile/formatprobe, затем отдельный
+freshplan сявным observer. Не запускатьстарыйETWплансвключённойточкой.
+
 ## Целевой control10022 воспроизведён; raw RunFAILED из-за post-collect schema error
 
 Продолжение USER выполнено черезCoS; [подробный результат](TARGET_ACCEPT_RESULT_2026-10-19.md).
