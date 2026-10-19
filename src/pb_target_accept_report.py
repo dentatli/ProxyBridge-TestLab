@@ -110,14 +110,15 @@ def evaluate(path):
         if observer:
             policy = read(path / 'runtime-plan.json')['policy']
             retrieve = policy.get('observer') == 'etw+kd-target-retrieve'
-            flow = policy.get('observer') == 'etw+kd-target-flow'
+            removal = policy.get('observer') == 'etw+kd-target-removal'
+            flow = removal or policy.get('observer') == 'etw+kd-target-flow'
             probe = policy.get('workload') in ('create-four-probe','retrieve-four-probe')
-            staged = policy.get('workload') in ('create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged')
+            staged = policy.get('workload') in ('create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged','removal-target-201-staged')
             if flow and (run.get('flow_registration_acknowledged') is not True):
                 errors.append('FLOW_REGISTRATION_ACK_MISSING')
             if probe and policy != (retrieve_policy(False) if retrieve else create_policy()):
                 errors.append('CREATE_FOUR_OBSERVER_POLICY_INVALID')
-            elif not probe and policy != (flow_policy() if flow else (retrieve_policy() if retrieve else create_policy(True, staged))):
+            elif not probe and policy != (flow_policy(removal) if flow else (retrieve_policy() if retrieve else create_policy(True, staged))):
                 errors.append('CREATE_TARGET_OBSERVER_POLICY_INVALID')
         filler_count = 3 if probe else 200
         control_stage = 'control-established' if probe else 'control-synsent'

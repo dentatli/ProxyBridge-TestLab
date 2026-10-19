@@ -141,8 +141,8 @@ function Invoke-TargetNativeCohort {
         $beforeControl={param($fillers)
             # Discard buffered keys: confirmation must follow this ready message.
             while ([Console]::KeyAvailable) {$null=[Console]::ReadKey($true)}
-            $hostCommands=if ($flowObserver) {'reset t1=0, be2, be3, be4'} else {'be2'}
-            $hostRecovery=if ($flowObserver) {'bd2, bd3, bd4'} else {'bd2'}
+            $hostCommands=if ($flowObserver) {'reset t1=0, '+(($Context.debugger_point_ids | ForEach-Object {'be'+$_}) -join ', ')} else {'be2'}
+            $hostRecovery=if ($flowObserver) {($Context.debugger_point_ids | ForEach-Object {'bd'+$_}) -join ', '} else {'bd2'}
             Write-Host ('TARGET_PREFILL_READY: 200 connections; host Break, '+$hostCommands+', separate g; then press C here. Remaining window ms: '+(15000-$Context.clock.ElapsedMilliseconds))
             Write-Host ('Break/be can pause the entire VM including Codex/RDP. After completion/error: host '+$hostRecovery+', separate g. No repeat Run.')
             $elapsed={$Context.clock.ElapsedMilliseconds}.GetNewClosure()

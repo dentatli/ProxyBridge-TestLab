@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
-from pb_target_accept_plan import CREATE_PROFILE_SHA, RETRIEVE_PROFILE_SHA, FLOW_PROFILE_SHA, POLICY, create_policy, retrieve_policy, flow_policy, validate_registration, validate_positive_probe
+from pb_target_accept_plan import CREATE_PROFILE_SHA, RETRIEVE_PROFILE_SHA, FLOW_PROFILE_SHA, REMOVAL_PROFILE_SHA, POLICY, create_policy, retrieve_policy, flow_policy, validate_registration, validate_positive_probe
 
 
 class TargetCreateBinding(unittest.TestCase):
@@ -163,6 +163,21 @@ class TargetCreateBinding(unittest.TestCase):
         changed = copy.deepcopy(self.boot)
         changed['identity']['prefetch_boot_id'] += 1
         with self.assertRaises(ValueError): self.validate(changed)
+
+    def test_removal_profile_keeps_exit_point_inactive(self):
+        self.flow_fixture()
+        self.profile = ROOT/'scripts/debugger/pb-kd-target-removal-disabled-candidate-20261019.json'
+        self.review['profile_sha256'] = REMOVAL_PROFILE_SHA
+        p = self.validate()
+        self.assertEqual(p['proposed_active_point_ids'], [2, 3])
+        self.assertEqual(p['required_inactive_point_ids'], [4])
+        self.assertEqual(flow_policy(True)['debugger_points'], [2, 3])
+        self.assertEqual(flow_policy(True)['inactive_debugger_points'], [4])
+
+    def test_old_flow_receipt_does_not_approve_removal_profile(self):
+        self.flow_fixture()
+        self.profile = ROOT/'scripts/debugger/pb-kd-target-removal-disabled-candidate-20261019.json'
+        with self.assertRaises(ValueError): self.validate()
 
 
 if __name__ == '__main__':

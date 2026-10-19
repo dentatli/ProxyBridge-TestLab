@@ -159,6 +159,17 @@ class FourCapture(unittest.TestCase):
             resident_disabled_after=True, debugger_observer=True, flow_registration_acknowledged=True))
         self.assertEqual(self.evaluate()['errors'], [])
 
+    def test_removal_mode_has_exact_two_point_native_contract(self):
+        self.staged_fixture()
+        self.save('runtime-plan.json', dict(policy=flow_policy(True)))
+        self.save('diagnostic-run.json', dict(status='COLLECTED', cleanup_errors=[],
+            resident_disabled_after=True, debugger_observer=True, flow_registration_acknowledged=True))
+        self.assertEqual(self.evaluate()['errors'], [])
+        p = flow_policy(True)
+        p['debugger_points'].append(4)
+        self.save('runtime-plan.json', dict(policy=p))
+        self.assertIn('CREATE_TARGET_OBSERVER_POLICY_INVALID', self.evaluate()['errors'])
+
 
 if __name__=='__main__':
     unittest.main()

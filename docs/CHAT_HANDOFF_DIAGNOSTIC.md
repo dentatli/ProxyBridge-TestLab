@@ -1,5 +1,36 @@
 # Передача чату диагностики TCP / WinDbg
 
+## REMOVAL stack/refcount комплект готов; активировать только2/3 послеREADY
+
+USER согласился продолжать. Новый pinned profile removal-disabled-candidate SHA
+01ce15520ea2f4f40db9fbd41cb65001ce77c656427f5959c34695280e8a0041.
+Сохраняет verified CREATE point2/action; заменяет только3 на callback entry,
+selectedrecord t1/tag5/event5. Guarded reads record+1e0..1f3: context/size/refs.
+Печатает PBRM REMOVE и STACK_BEGIN/END с thread/scope/record, k10 (16frames max).
+Точка4 сохраняется отключённой; два active IDs2/3. В stage codeguard перед
+изменением, bd2/3/4, bc3/bp3/bd3/reset t1; success PBRM_DISABLED_READY, noouterg/be.
+Текущая host регистрация пока стараяFLOW2/3/4d попоследнемуUSERconsole.
+
+Общий launcher removal-target-201-staged/etw+kd-target-removal, та же нагрузка
+200+1/512KiB/singlequery, prefill приpointsdisabled, те же15s/Core30s. Стандартная
+USER регистрационнаяattestation сохраняется; нет fictitious host review. Sameboot
+positive retrievalfour112504 используется как baseline, не proof новогоstacklogger.
+Source legacy profiles/старыеcaptures/kits не менялись. Новый report связывает
+REMOVE и ограниченный stack поthread/scope/record; missing/empty/mismatchedstack
+отвергается. Отсутствиеevent не proof; refs snapshot не атомарный lastref/freeproof.
+Указатели/valid memory не исключаютreuse, payload не проверяется. Native report
+требуетточный2-pointcontract/inactive4/ack, возвратыcallbackтеперьнеизмеряются.
+
+86Python tests, PS parser, HostWindow5 faultcases, Cleanup, stage/action roundtrip,
+diffcheck passed безtraffic/productruntime. FreeRAM4.36GiB/driverRunning.
+Свежий Prepare121236-d5df3c99 exit0/PREPARED_NOT_RUN, SHA
+62cfa5e8f62b14b28002dc9183c6ae01806407ad7490a2ed9c69523a0079ca21.
+NoRun. USER получает registration/отдельныйg/RunсFlowProfileRegisteredDisabled и
+BoundedLoadReviewed; приregistrationerrorнеRun. ПослеREADY USERBreak (wholeVM/
+Codex/RDPpause), reset t1,be2,be3,отдельныйg,латинскаяCбезEnterвVM.
+Послеcompletion/error Break→bd2→bd3→отдельныйg.4не включать. Не repeatRun.
+Прислатьвесьconsoleвключаяkstack, не толькоPBRMстроки.
+
 ## FLOW115931: наблюдались два CONTEXT_REMOVED, ошибок callback не наблюдалось
 
 USER run115931-42767672 plan115555-09401ddd consumed once: COLLECTED,
