@@ -35,11 +35,14 @@ def correlate(text):
                     event['source_matches_create']=event['source_ep']==track['source_ep']
                 elif kind in ('INSPECT','ASSOC_RETURN'):
                     if event['source_ep']!=track['source_ep']:raise ValueError('ENDPOINT_DIFFERS')
-                    key=(event['thread'],event['scope']-(0x70 if kind=='INSPECT' else 0),event['nbl'])
+                    # Live prologue: three pushes (0x18) plus sub rsp,0x50.
+                    key=(event['thread'],event['scope']-(0x68 if kind=='INSPECT' else 0),event['nbl'])
                     if kind=='INSPECT':
                         event['record_matches_create']=event['record']==track['record']
                         event['skip_bit21']=bool(event['flags30']&(1<<21))
                         event['associate_bit13']=bool(event['flags34']&(1<<13))
+                        event['association_branch_eligible']=not event['skip_bit21'] and event['associate_bit13']
+                        if key in pending:raise ValueError('INSPECT_SCOPE_REUSED_BEFORE_RETURN')
                         pending[key]=event
                     else:
                         before=pending.pop(key,None)

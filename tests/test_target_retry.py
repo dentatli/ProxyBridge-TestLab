@@ -7,13 +7,13 @@ import tempfile
 import unittest
 sys.path.insert(0,str(Path(__file__).resolve().parents[1]/'src'))
 from pb_target_retry_profile import profile, fixture, stage, PROFILE_SHA, PROFILE_NAME, STAGE_NAME, validate_parser_proof
-from pb_target_accept_plan import flow_policy, validate_registration
+from pb_target_accept_plan import flow_policy, validate_registration, prepare
 from pb_target_retry_report import correlate
 
 TRACK='PBRT TRACK thread=1 source_ep=10 record=20 context=30 size=20 refs=1\n'
 SEND='PBRT SEND thread=1 scope=200 tcb=40 nbl=50 source_ep=10 local_raw=d9a4 peer_raw=da84\n'
 ENTRY='PBRT INSPECT thread=1 scope=200 source_ep=10 nbl=50 family=2 flags30=0 flags34=2000 record=20\n'
-POST='PBRT ASSOC_RETURN thread=1 scope=190 source_ep=10 nbl=50 result_raw=0\n'
+POST='PBRT ASSOC_RETURN thread=1 scope=198 source_ep=10 nbl=50 result_raw=0\n'
 ACCEPT='PBRT RETRIEVE thread=2 scope=300 ep=60 nbl=50 local_raw=da84 peer_raw=d9a4 status=c0000225 output_raw=0\n'
 
 
@@ -36,12 +36,27 @@ class RetryEvidence(unittest.TestCase):
         self.assertEqual(r['errors'],[])
 
     def test_post_from_another_scope_cannot_match(self):
-        r=correlate(TRACK+ENTRY+POST.replace('scope=190','scope=191'))
+        r=correlate(TRACK+ENTRY+POST.replace('scope=198','scope=199'))
         self.assertIn('ASSOC_RETURN_WITHOUT_INSPECT',r['errors'])
 
     def test_partial_printf_error_and_duplicate_fail_closed(self):
         for suffix in ('PBRT_DUPLICATE capture=incomplete','Extra character error'):
             self.assertTrue(correlate(TRACK+suffix)['errors'])
+
+    def test_bit21_skips_association_despite_preserved_record(self):
+        first=ENTRY.replace('flags30=0','flags30=1101641')
+        later=ENTRY.replace('scope=200','scope=400').replace('flags30=0','flags30=1301641')
+        r=correlate(TRACK+SEND+first+POST+later+ACCEPT)
+        entries=[e for e in r['events'] if e['kind']=='INSPECT']
+        self.assertTrue(entries[0]['association_branch_eligible'])
+        self.assertFalse(entries[1]['association_branch_eligible'])
+        self.assertTrue(entries[1]['record_matches_create'])
+        self.assertEqual(len(r['association_pairs']),1)
+        self.assertFalse(r['root_cause_proven'])
+
+    def test_hot_trace_cannot_be_prepared_again(self):
+        with self.assertRaisesRegex(ValueError,'PROFILE_RETIRED_HOT_TRACE'):
+            prepare(None,None,None,retry_target=True)
 
     def test_fixture_does_not_replace_wo_inside_dwo(self):
         text=fixture(profile()['points'][2]['action'],{})

@@ -1,5 +1,49 @@
 # Передача чату диагностики TCP / WinDbg
 
+## RETRY130643: VM stall, observer retired; bit21 skip followed by NOT_FOUND observed
+
+USER отключил2/3/4/5/6 и отдельноg после сильного зависания. Не просить повторный
+bl, не включать точки, не повторять Run. Ошибка нашей стратегии: пять горячих
+softwarepoints останавливают обработку всего подходящего кода до commandfilter;
+SEND_SELECTOR unreadable печатается до отбора tuple и не принадлежит автоматически
+контрольному соединению. CDB grammar proof не проверяет runtimeстоимость/$vvalid.
+НовыйPrepare RetryTarget теперь запрещён с PROFILE_RETIRED_HOT_TRACE_NO_RUNTIME;
+frozen profile/stage и consumedplan сохранены, historical report работает.
+
+Raw attachment3aa5801d сохранён private pb-target-retry-review-20261019-130643.
+Исправлена отдельная ошибка offlineparser: entry→post RSP delta68h (триpush=18h,
+sub50h), не70h. Две первоначальныеASSOC_RETURN теперь сопоставляются корректно.
+105tests passed включая live-shaped scope/bit21 и запретновогоPrepare.
+ReportINCOMPLETE сохраняет все положительныеsnapshots; 44SEND_SELECTOR warnings
+не скрыты. Raw/native files не переписывались, фиктивный COLLECTED не выставлялся.
+
+Наблюдения одногоRun: TRACK1, SEND3, INSPECT8, ASSOC_RETURN2, RETRIEVE1.
+ПервыйNBL: source_ep и record соответствуютCREATE, flags30=01101641,
+flags34=2080, двеассоциации result_raw0. Последующие SEND — тотжеTCB/source_ep,
+другойадресNBL; INSPECT flags30=01301641 (затем01301665), recordтотже,
+flags34=22080 (позже2180). Добавился00200000/bit21. Проверенный livecode
+d7ead..d7eb4 приbit21 уходитвd7fcf ДО ассоциацииkey5. Соответствующихpostстрок
+нет; это согласуется с положительным наблюдением skipусловия, не proofпоодному
+отсутствиюстрок. Затем acceptRETRIEVE наадресе второгоNBL: C0000225/output0.
+Потеря самогоrecord не показана: он остаётсянаsourceendpoint. NBLreuse/полное
+покрытие/автоматическийETWclockjoin не доказаны; не называтькаждыйSENDretry.
+
+Native local review: control42201/PID3172 originalquery10022/bytes0. Общийstatus
+INCOMPLETE: RUN_CONTROLLER_STATUS_NOT_COLLECTED/COHORT_INCOMPLETE; обеstatejson
+осталисьRUNNING. Приэтом native_processes_stopped=true, CLIgraceful/poststoptrue,
+resident_disabled_after=true, cleanup_errors[]. Завершениеcapture полностью не
+подтверждено; нельзя объявить полноценныйуспешныйпрогон/cleanup поодному полю.
+
+Статический установщиктого жебита: WfpTlShimInspectRecvTcpDatagram RVA23670
+(function+190), lock or [rbx+30],200000h; RBXполученизвходногоRCX. Передэтим
+условие bit20 [rbx+30], которое присутствовало уже в01101641. Это найденный
+кандидатустановщик, не наблюдавшийсяruntime write. Не называть Windowsbug и
+не сбрасыватьбит/патчитькод. Следующий offlinefocus — условия установкиbit20/21
+и контракт receive→subsequent send; новаянагрузка пока не нужна.
+
+CoS read/exec вернули tunnel_client_not_seen300s. Использован штатныйлокальный
+filesystem/exec для анализа; туннель/сервисы/питание/driverinstallation не менялись.
+
 ## RETRY пять точек: live-код сверён, план подготовлен; Run ещё не выполнялся
 
 USER attachmentd5c051dd live SEND953c2/fastsend95fd6,961b4/loopback entry/d7f20

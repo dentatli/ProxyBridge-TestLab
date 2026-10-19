@@ -218,6 +218,10 @@ def validate(plan_path, sha, root):
 
 def prepare(root, build, output, debugger_profile=None, registration_review=None,
             create_target=False, positive_capture=None, positive_console=None, manual_host_window=False, retrieve_target=False, retrieve_probe=False, flow_target=False, removal_target=False, command_parser_proof=None, retry_target=False):
+    # Preserve the profile and consumed captures for offline evaluation, but
+    # prohibit new runs of the hot five-point observer after the VM stall.
+    if retry_target:
+        raise ValueError('TARGET_RETRY_PROFILE_RETIRED_HOT_TRACE_NO_RUNTIME')
     output = plain(output)
     if output.parent != root / 'artifacts/diagnostics' or set(output.iterdir()) != {output / 'boot-session.json'}:
         raise ValueError('TARGET_FRESH_PLAN_DIRECTORY_REQUIRED')
