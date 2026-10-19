@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Target CREATE four-plan подготовлен, RAM ниже floor, точка2 остаётсяdisabled
+
+USER disabledregistrationreview принят:emptybl/exactbp2@fffff807656888b6/bd2/
+.bpcmdsсbd2/separateg. Повторятьbl/probe/registerне надо. Read-onlycurrentboot115
+event17081; private `pb-target-create-preparation-review-20261019/registration-review.json`,
+sourcechatpaste, неrawfileSHA/неindependenthostproof. USERпопросилсоблюдатьправила
+послеUIcontent-not-shown; ограничение не обходили, продолжилиofflineподготовку.
+
+Теперьcontroller/planexplicitobserver etw+kd-target-create допускаетТОЛЬКОfour:
+3fillers42001..42003+1control42201,originalquery/512KiB,activeID2only.
+ControlготовностьEstablished→release, неSynSent (очередь4неполная).
+Новыйpb_target_create_reportсSHA-scoped BEGIN/END, positiveCREATE exactport,
+noeventнеabsenceproof/multipleнеoneevent. До200сновымloggerнепереходить.
+23Python+10fakecallbacks+PSparser/TCPreadsmokepassed; gluedmarkercasefailedfirst,
+parserисправлен+testдобавлен. ActualR14/action/gc/coverageнепроверены.
+
+Freshplan050848-cd614ef4 SHA b2039e764851dcfc9736a5c748a74fa6e0bc98e2eff9ad53075ca952e3a0414b
+Prepareexit0/files/runtimevalidated, oldkitsнеизменены/binarycopies0/noRunclaim.
+Currentpreflightfree1920880640bytes<2GiBfloor,serviceRunning/pinnedregistrationSHAok,
+reservedportsfree/nativeCLI0. Нагрузка/driverchanges/hostbeне выполнялись.
+USER долженосвободитьRAMсам (предпочтениеизсессии), agentappsне закрывает.
+ПослеRAMresourcecheck подготовитьконкретныеhostBEGIN→be2→separateg иVMRun
+сэтимplanSHA/-DebuggerLoggerEnabled, cleanupbd2→END→separateg evenerror.
+BeforeкаждыйBreak/be предупредитьwholeVM/Codex/RDPpause. Неlowerfloor/
+неoldRun/неrefreeze. ДоRAMнеактивироватьточку. ПодробностиTARGET_RECORD_SELECTOR.
+
 ## Format probe USER прошла; ожидается одна disabled CREATE registration
 
 USER показал PBTR BEGIN/CREATEsize20refs1/TRUE_OK/FALSE_OK/NULL_GUARD_OK/END/g,

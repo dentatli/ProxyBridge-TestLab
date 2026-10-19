@@ -1,7 +1,8 @@
 #Requires -RunAsAdministrator
 [CmdletBinding()]
 param([ValidateSet('Prepare','Inspect','Run')][string]$Phase='Inspect',
-      [string]$BuildDirectory='', [string]$PlanPath='', [string]$PlanSha='')
+      [string]$BuildDirectory='', [string]$PlanPath='', [string]$PlanSha='',
+      [string]$DebuggerProfile='', [string]$RegistrationReview='', [switch]$DebuggerLoggerEnabled)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -25,7 +26,9 @@ if ($Phase -eq 'Prepare') {
     Assert-TargetPlain $directory
     $null=New-Item -ItemType Directory -Path $directory
     Write-TargetJson (Get-KdBootSessionEvidence) (Join-Path $directory 'boot-session.json')
-    $output=@(& $sourcePython -B $entry prepare --root $root --build $BuildDirectory --output $directory 2>&1)
+    $prepareArgs=@('prepare','--root',$root,'--build',$BuildDirectory,'--output',$directory)
+    if ($DebuggerProfile -or $RegistrationReview) {$prepareArgs+=@('--debugger-profile',$DebuggerProfile,'--registration-review',$RegistrationReview)}
+    $output=@(& $sourcePython -B $entry @prepareArgs 2>&1)
     $code=$LASTEXITCODE
     $output | Out-String | Set-Content -LiteralPath (Join-Path $directory 'prepare-output.txt') -Encoding UTF8
     Write-TargetJson ([ordered]@{status=$(if ($code -eq 0) {'PREPARED_NOT_RUN'} else {'FAILED'});
@@ -43,6 +46,8 @@ $plan=Read-TargetJson $PlanPath
 $bootEvidence=Read-TargetJson (Join-Path $plan.preparation 'boot-session.json')
 Assert-KdBootSessionEvidence -Expected $bootEvidence -Actual (Get-KdBootSessionEvidence)
 if ($Phase -eq 'Inspect') {Write-Output 'TARGET_PLAN_INSPECTED_NO_RUNTIME';return}
+$kdObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -eq 'etw+kd-target-create'
+if ([bool]$DebuggerLoggerEnabled -ne [bool]$kdObserver) {throw 'TARGET_DEBUGGER_ACTIVATION_ACK_MUST_MATCH_PLAN_NO_RUNTIME'}
 
 function Assert-TargetHistory($Boot) {
     # Preserve the existing legacy/interrupted-run stop gates; no Resume.
@@ -134,6 +139,8 @@ try {
     $null=New-Item -ItemType Directory -Path $evidence
     $run=[ordered]@{method='target-accept-session-v1';status='RUNNING';started_at_utc=[DateTime]::UtcNow.ToString('o');
         plan_sha256=$PlanSha;error='';cleanup_errors=@();resident_disabled_after=$false;debugger_control=$false;driver_installation=$false;free_memory_before=$available}
+    $run['debugger_observer']=[bool]$kdObserver
+    $run['debugger_console_pending']=[bool]$kdObserver
     Write-TargetJson $run (Join-Path $evidence 'diagnostic-run.json')
     Copy-Item -LiteralPath $PlanPath -Destination (Join-Path $evidence 'runtime-plan.json')
     Assert-TargetOff $evidence 'before'
@@ -146,7 +153,8 @@ try {
     $capture=New-RedirectEtwCapture (Join-Path $evidence 'etw');Start-RedirectEtwCapture $capture
     $client=Join-Path $root 'bin/tools/ctstraffic-2.0.3.9/ctsTraffic.exe'
     $server=Join-Path $root 'bin/tools/ctstraffic-2.0.3.9/ctsTrafficReceiver.exe'
-    $serverPlan=[pscustomobject]@{executable=$server;arguments=@('-listen:127.0.0.1','-serverexitlimit:201',
+    $serverLimit=if ($kdObserver) {4} else {201}
+    $serverPlan=[pscustomobject]@{executable=$server;arguments=@('-listen:127.0.0.1',('-serverexitlimit:'+$serverLimit),
         '-protocol:tcp','-pattern:push','-transfer:524288','-ratelimit:65536','-verify:data','-port:54122',
         '-buffer:65536','-consoleverbosity:1','-statusupdate:250',('-connectionfilename:'+(Join-Path $evidence 'receiver.csv')));
         console_host_path=(Join-Path $root 'bin/pb_console_host.exe');console_identity_ack=$true;stop_timeout_ms=5000}
@@ -181,7 +189,7 @@ try {
     Write-TargetJson ([ordered]@{Version='1.0';LocalhostViaProxy=$true;IsTrafficLoggingEnabled=$true;
         ProxyConfigs=@([ordered]@{Id=1;Name='Target accept';Type='SOCKS5';Host='127.0.0.1';Port='54123';Username='';Password='';SendDomainToProxy=$false});
         ProxyRules=@([ordered]@{Name='Target accept';ProcessName='ctsTraffic.exe';TargetHosts='127.0.0.1';TargetPorts='54122';TargetDomains='';Protocol='TCP';Action='PROXY';ProxyConfigId=1;IsEnabled=$true})}) $profile
-    $context=[pscustomobject]@{root=$root;directory=$evidence;adapter=$adapter;client=$client}
+    $context=[pscustomobject]@{root=$root;directory=$evidence;adapter=$adapter;client=$client;probe_only=[bool]$kdObserver}
     $cohortCommand=Get-Command Invoke-TargetNativeCohort
     $writeCommand=Get-Command Write-TargetJson
     $workload={param($cli)
@@ -244,6 +252,7 @@ try {
         if ($run.cleanup_errors.Count) {$run.status='FAILED'}
         Invoke-TargetCleanupStep {Write-TargetJson $run (Join-Path $evidence 'diagnostic-run.json')}
         Write-Host ('Results: '+$evidence)
+        if ($kdObserver) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2 then PBTR_RUN_END marker then separate g. Preserve full console. No repeat Run.'}
     }
     [Environment]::SetEnvironmentVariable('PB_TESTLAB_ROUTE_CASE',$oldRoute,'Process')
     [Environment]::SetEnvironmentVariable('PB_TESTLAB_TARGET_GATE',$oldGate,'Process')
@@ -252,3 +261,4 @@ try {
 }
 & $sourcePython -B (Join-Path $root 'src/pb_target_accept_report.py') --evidence-directory $evidence
 if ($LASTEXITCODE -ne 0 -or $run.status -ne 'COLLECTED') {throw 'TARGET_CAPTURE_INCOMPLETE_NO_REPEAT'}
+if ($kdObserver) {Write-Host 'TARGET_NATIVE_CAPTURE_DEBUGGER_CONSOLE_PENDING: no kernel coverage verdict yet'}

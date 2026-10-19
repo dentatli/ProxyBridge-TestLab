@@ -103,6 +103,15 @@ def evaluate(path):
                   clock_alignment_verified=False, matches=matches, control_events=events)
     try:
         run, cli, cohort = [read(path / name) for name in ('diagnostic-run.json', 'cli-lifecycle.json', 'cohort.json')]
+        probe = run.get('debugger_observer', False)
+        if probe:
+            policy = read(path / 'runtime-plan.json')['policy']
+            if (policy.get('observer') != 'etw+kd-target-create' or policy.get('workload') != 'create-four-probe' or
+                    policy.get('fillers') != 3 or policy.get('debugger_points') != [2]):
+                errors.append('CREATE_FOUR_OBSERVER_POLICY_INVALID')
+        filler_count = 3 if probe else 200
+        control_stage = 'control-established' if probe else 'control-synsent'
+        expected_stages = ['fillers-established', control_stage, 'release-request']
         if run['status'] != 'COLLECTED':
             errors.append('RUN_CONTROLLER_STATUS_NOT_COLLECTED')
         if run['cleanup_errors'] or not run['resident_disabled_after']:
@@ -113,15 +122,15 @@ def evaluate(path):
         if cohort['status'] != 'COLLECTED' or not cohort['native_processes_stopped'] or cohort['cleanup_errors']:
             errors.append('COHORT_INCOMPLETE')
         stages = [o['stage'] for o in cohort['observations']]
-        if stages != ['fillers-established', 'control-synsent', 'release-request']:
+        if stages != expected_stages:
             errors.append('TARGET_OBSERVATION_SEQUENCE_INCOMPLETE')
         else:
             fill, syn, release = cohort['observations']
-            if (not fill['qpc'] < syn['qpc'] < release['qpc'] or len(fill['sockets']) != 200 or
-                    {s['LocalPort'] for s in fill['sockets']} != set(range(42001, 42201)) or
+            if (not fill['qpc'] < syn['qpc'] < release['qpc'] or len(fill['sockets']) != filler_count or
+                    {s['LocalPort'] for s in fill['sockets']} != set(range(42001, 42001+filler_count)) or
                     any(s['Pid'] != fill['pid'] or s['State'] != 5 for s in fill['sockets']) or
                     len(syn['sockets']) != 1 or syn['sockets'][0]['LocalPort'] != 42201 or
-                    syn['sockets'][0]['Pid'] != syn['pid'] or syn['sockets'][0]['State'] != 3):
+                    syn['sockets'][0]['Pid'] != syn['pid'] or syn['sockets'][0]['State'] != (5 if probe else 3)):
                 errors.append('TARGET_OWNED_SOCKET_OBSERVATION_INVALID')
         gate_ready = [line for line in cli['stdout'].splitlines() if '[TARGETGATE] stage=ready ' in line]
         gate_exit = [line for line in cli['stdout'].splitlines() if '[TARGETGATE] stage=exit ' in line]
@@ -134,13 +143,13 @@ def evaluate(path):
         if not receiver_process['output_capture_complete'] or receiver_process['timed_out']:
             errors.append('RECEIVER_CAPTURE_INCOMPLETE')
         roles = {}
-        for role, ports in (('fillers', list(range(42001, 42201))), ('control', [42201])):
+        for role, ports in (('fillers', list(range(42001, 42001+filler_count))), ('control', [42201])):
             launch = read(path / (role + '-launch.json'))
             process = read(path / (role + '-process.json'))
             if process['pid'] != launch['pid'] or not process['output_capture_complete']:
                 errors.append(role + ':PROCESS_IDENTITY_OR_CAPTURE_INCOMPLETE')
             roles[role] = dict(pid=launch['pid'], ports=ports, rows=csv_rows(path / (role + '.csv')))
-            if stages == ['fillers-established', 'control-synsent', 'release-request']:
+            if stages == expected_stages:
                 observed_pid = cohort['observations'][0 if role == 'fillers' else 1]['pid']
                 if observed_pid != launch['pid']:
                     errors.append(role + ':SOCKET_OWNER_DIFFERS')
@@ -161,7 +170,10 @@ def evaluate(path):
                        datetime.fromisoformat(accepts[-1]['time']))
         result['target_trigger_observed'] = ordered
         result['control_original_api_failure'] = len(controls) == 1 and controls[0]['original_api_failure']
+        if probe and any(m['native']['Result'] != 'Succeeded' for m in matches):
+            errors.append('CREATE_FOUR_PROBE_NATIVE_FAILURE')
         result['status'] = ('INCOMPLETE' if errors else
+                            'CREATE_PROBE_NATIVE_SUCCESS_DEBUGGER_PENDING' if probe else
                             'TARGET_FAILURE_REPRODUCED' if ordered and result['control_original_api_failure'] else
                             'INCONCLUSIVE_TARGET_NOT_REPRODUCED')
     except (OSError, ValueError, TypeError, KeyError, ET.ParseError) as exc:

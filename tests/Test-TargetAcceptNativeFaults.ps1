@@ -13,6 +13,7 @@ $module=Import-Module (Join-Path $root 'modules/TargetAcceptNative.psm1') -Force
         try {$f=& $StartFillers;$c=& $StartControl;& $Collect $f $c}
         finally {& $Cleanup $f $c}
     }
+    foreach ($probeOnly in @($false,$true)) {
     foreach ($script:fault in @('none','path','wait','save','dispose')) {
         $script:launches=[Collections.Generic.List[object]]::new()
         $script:disposed=0
@@ -30,18 +31,21 @@ $module=Import-Module (Join-Path $root 'modules/TargetAcceptNative.psm1') -Force
             GetProcessResult={param($child);[pscustomobject]@{pid=$child.pid;exit_code=0}}
             DisposeProcess={param($child);$script:disposed++;if ($script:fault -eq 'dispose') {throw 'fixture-dispose-failed'}}
         }
-        $context=[pscustomobject]@{client='C:\fake\ctsTraffic.exe';directory='C:\fixture';adapter=$adapter}
+        $context=[pscustomobject]@{client='C:\fake\ctsTraffic.exe';directory='C:\fixture';adapter=$adapter;probe_only=$probeOnly}
         $failed=$false
         try {Invoke-TargetNativeCohort -Context $context -Gate ([pscustomobject]@{})} catch {$failed=$true}
         if ($failed -ne ($script:fault -ne 'none')) {throw ('FAULT_VERDICT_DIFFERS_'+$script:fault)}
         $expected=$(if ($script:fault -eq 'path') {1} else {2})
         if ($script:disposed -ne $expected) {throw ('PARTIAL_CHILD_OWNERSHIP_LOST_'+$script:fault)}
         if ($script:fault -eq 'none') {
-            if ('-LocalPort:[42001,42200]' -notin $script:launches[0].arguments -or
+            $expectedCount=if ($probeOnly) {3} else {200}
+            $expectedRange=if ($probeOnly) {'-LocalPort:[42001,42003]'} else {'-LocalPort:[42001,42200]'}
+            if ($expectedRange -notin $script:launches[0].arguments -or
                 '-LocalPort:42201' -notin $script:launches[1].arguments -or
-                '-connections:200' -notin $script:launches[0].arguments -or
+                ('-connections:'+$expectedCount) -notin $script:launches[0].arguments -or
                 '-connections:1' -notin $script:launches[1].arguments) {throw 'NATIVE_ROLE_ARGUMENTS_DIFFERS'}
         }
     }
+    }
 }
-Write-Output 'TARGET_NATIVE_FAULTS_5_PASSED_NO_PROCESSES_OR_TRAFFIC'
+Write-Output 'TARGET_NATIVE_FAULTS_10_PASSED_NO_PROCESSES_OR_TRAFFIC'

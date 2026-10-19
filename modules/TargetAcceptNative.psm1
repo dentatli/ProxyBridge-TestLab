@@ -71,23 +71,26 @@ function Start-TargetNative($Context,[string]$Role,[string[]]$Arguments) {
 function Invoke-TargetNativeCohort {
     param([Parameter(Mandatory)]$Context,[Parameter(Mandatory)]$Gate)
     Initialize-TargetTcpTable
+    $probeOnly=$Context.PSObject.Properties['probe_only'] -and $Context.probe_only
+    $fillerCount=if ($probeOnly) {3} else {200}
+    $fillerPortEnd=42000+$fillerCount
     $Context | Add-Member -NotePropertyName children -NotePropertyValue ([Collections.Generic.List[object]]::new())
     $Context | Add-Member -NotePropertyName clock -NotePropertyValue ([Diagnostics.Stopwatch]::StartNew())
-    $record=[ordered]@{method='target-native-cohort-v1';status='RUNNING';fillers=200;control_port=42201;
+    $record=[ordered]@{method='target-native-cohort-v1';status='RUNNING';fillers=$fillerCount;control_port=42201;
         error='';cleanup_errors=@();native_processes_stopped=$false;observations=@();hold_ms=100}
     $Context | Add-Member -NotePropertyName record -NotePropertyValue $record
     $common=@('-protocol:tcp','-pattern:push','-transfer:524288','-ratelimit:65536','-verify:data',
         '-port:54122','-buffer:65536','-consoleverbosity:1','-statusupdate:250','-target:127.0.0.1',
         '-iterations:1','-throttleconnections:32','-conn:ConnectEx','-shutdown:rude')
     $startCommand=Get-Command Start-TargetNative
-    $startFillers={& $startCommand $Context 'fillers' ($common+@('-connections:200','-LocalPort:[42001,42200]',('-connectionfilename:'+(Join-Path $Context.directory 'fillers.csv'))))}.GetNewClosure()
+    $startFillers={& $startCommand $Context 'fillers' ($common+@(('-connections:'+$fillerCount),('-LocalPort:[42001,'+$fillerPortEnd+']'),('-connectionfilename:'+(Join-Path $Context.directory 'fillers.csv'))))}.GetNewClosure()
     $startControl={& $startCommand $Context 'control' ($common+@('-connections:1','-LocalPort:42201',('-connectionfilename:'+(Join-Path $Context.directory 'control.csv'))))}.GetNewClosure()
     $waitFillers={param($child)
         do {
             $rows=@([PBTargetTcpTable]::Read() | Where-Object {$_.Pid -eq $child.pid -and $_.State -eq 5 -and
-                $_.LocalAddress -eq '127.0.0.1' -and $_.LocalPort -ge 42001 -and $_.LocalPort -le 42200 -and
+                $_.LocalAddress -eq '127.0.0.1' -and $_.LocalPort -ge 42001 -and $_.LocalPort -le $fillerPortEnd -and
                 $_.RemoteAddress -eq '127.0.0.1' -and $_.RemotePort -in @(34010,54122)})
-            if ($rows.Count -eq 200 -and @($rows.LocalPort | Sort-Object -Unique).Count -eq 200) {
+            if ($rows.Count -eq $fillerCount -and @($rows.LocalPort | Sort-Object -Unique).Count -eq $fillerCount) {
                 $Context.record.observations+=@([ordered]@{stage='fillers-established';qpc=[Diagnostics.Stopwatch]::GetTimestamp();pid=$child.pid;sockets=$rows});return
             }
             if (-not $child.session.IsRunning) {throw 'TARGET_FILLERS_EARLY_EXIT'}
@@ -100,8 +103,15 @@ function Invoke-TargetNativeCohort {
         do {
             $rows=@([PBTargetTcpTable]::Read() | Where-Object {$_.Pid -eq $child.pid -and $_.LocalPort -eq 42201 -and
                 $_.LocalAddress -eq '127.0.0.1' -and $_.RemoteAddress -eq '127.0.0.1' -and $_.RemotePort -in @(34010,54122)})
-            if (@($rows | Where-Object State -eq 5).Count) {throw 'TARGET_CONTROL_ALREADY_ESTABLISHED'}
+            if (@($rows | Where-Object State -eq 5).Count) {
+                if (-not $probeOnly) {throw 'TARGET_CONTROL_ALREADY_ESTABLISHED'}
+                $Context.record.observations+=@([ordered]@{stage='control-established';qpc=[Diagnostics.Stopwatch]::GetTimestamp();pid=$child.pid;sockets=$rows});return
+            }
             if (@($rows | Where-Object State -eq 3).Count -eq 1) {
+                if ($probeOnly) {
+                    if ($timer.ElapsedMilliseconds -ge 1000 -or $Context.clock.ElapsedMilliseconds -ge 20000) {throw 'TARGET_CONTROL_ESTABLISH_TIMEOUT'}
+                    Start-Sleep -Milliseconds 1;continue
+                }
                 $Context.record.observations+=@([ordered]@{stage='control-synsent';qpc=[Diagnostics.Stopwatch]::GetTimestamp();pid=$child.pid;sockets=$rows});return
             }
             if (-not $child.session.IsRunning -or $timer.ElapsedMilliseconds -ge 1000 -or $Context.clock.ElapsedMilliseconds -ge 20000) {throw 'TARGET_CONTROL_SYN_NOT_OBSERVED'}

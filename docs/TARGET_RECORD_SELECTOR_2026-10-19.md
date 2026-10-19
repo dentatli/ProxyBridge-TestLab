@@ -1,5 +1,48 @@
 # Одна точка создания записи: проверка выбора контрольного соединения
 
+## Disabled registration принята, four-plan готов, запуск остановлен по памяти
+
+USER показал пустойbl, точнуюbp2поfffff807656888b6,bd2,.bpcmdsсbd2 иотдельныйg.
+Повторнаярегистрация/новыйbl сейчас не нужны. Derivedregistration review хранится
+в `pb-target-create-preparation-review-20261019/registration-review.json`:
+source=user-chat-paste, беззаявленияSHAполногоrawсообщения/автоматическогодоступакhost.
+Текущийboot115/event17081 совпал с текущимсеансом; связьhost↔VM — контекстUSER,
+а не криптографическипровереннаяпривязка.
+
+Добавлен явныйobserver `etw+kd-target-create` в target runner/plan. Он допускает
+ТОЛЬКО новуюfourprobe:3fillers42001..42003+1control42201,4×512KiB,
+control-established→release (безожиданияSYNdrop). Перваяцель — проверить positive
+CREATE/sourceport/actualR14read, не повторить failure200fillers с непроверенным
+logger. Target201 с активнойточкой пока не поддерживается этимobserver.
+Прежний ETW201 режим/рабочаяCoreDLL/driver не менялись; новыеbinarycopies0.
+
+Fresh plan `pb-target-accept-plan-20261019-050848-cd614ef4/runtime-plan.json`, SHA
+`b2039e764851dcfc9736a5c748a74fa6e0bc98e2eff9ad53075ca952e3a0414b`,
+Prepare exit0/собственнаявалидацияpassed, run-claim отсутствует, Runневызывался.
+Plan связываетпрофиль/registration review/boot/source/runtimeSHA.
+Run требует `-DebuggerLoggerEnabled` только дляэтогопрофиля; указанныйflag
+не управляетhostавтоматически и сампо себе не доказывает фактическуюактивацию.
+
+Дляпоследующейconsolecorrelation понадобятся строкиотдельныхprintf наhost:
+`PBTR_RUN_BEGIN plan=<полныйSHA>` доbe2 и `PBTR_RUN_END plan=<полныйSHA>` послеbd2,
+затемотдельныйg. Это исключаетстарыеprobeCREATE и echoedcommands. Новый
+`pb_target_create_report.py` не меняетисходныйnativecapture и пишетотдельныйreport
+черезexclusivecreate. Unique positive CREATE сопоставляетсясcontrolport/этимRun;
+noevent→coverageunproven, multiples→reviewpending, неabsenceproof/freehistory.
+
+Проверкибезтрафика:23Pythoncases(binding6/parser14/fournativecapture3),
+10fake nativecallback/faultcases длядвухshapes,PS5parser/read-onlyTCPtablesmoke.
+Первыйtestсgluedmarkers обнаружилпропуск malformedmarker; исправленparser,
+добавленотдельныйcase,все23прошли. Actual action/gc иkernelmetadata всёещёpending.
+
+Последнийread-onlypreflight:free1920880640bytes (1.79GiB)<2147483648floor,
+serviceRunning/registeredSYS SHA3cd79cfc... совпал, reservedportsfree,
+native/CLIprocesses0. `pb-target-create-preparation-review-20261019/preflight.json`.
+Ничего не закрывали, driverнепереключали, be/Run/traffic отсутствуют.
+USER освобождаетпамять самостоятельно; до≥2GiB не даватьактивацию/неRun.
+ОставитьID2disabled. ПослеRAM проверитьтолькоизменившийсяresourcegate,
+неповторятьуспешныеformatprobe/registration/bl, неrefreezeплан.
+
 ## Format probe подтверждена USER, подготовлена отключённая регистрация
 
 USER показал BEGIN/END, synthetic CREATE сsize20/refs1, обеSELECTOR_*_OK,
