@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Staged target201 завершён: CREATE snapshot и исходный10022 в одном USER-attributed Run
+
+USER run060106-62098b23 plan055926-aabaa7c9 collected/cleanup_errors[]/
+resident_disabled_after=true. Offline native re-evaluation TARGET_FAILURE_REPRODUCED,
+errors[],201matches:200fillersSucceeded, uniquecontrol42201/PID15092 seq201
+api_return-1/api_error10022/bytes0/required32. ETW samecontroltuple:
+1214Reason30(SO_PAUSE_ACCEPT SYNdrop)→1186retry~505.5ms→1553; losscounters0.
+Host confirmation accepted8022ms<15000; no current native/receiver/CLI processes.
+USERconsole показывает один CREATE дляport42201: assigned==record, nonzero
+context pointer, size32, refs1; затемbd2/separateg. Самcontext memory не читался:
+это pointer/size metadata, не proof содержимого32bytes или его lifetime.
+
+USER явно не вводил BEGIN/END и уточнил, что сам отслеживает и присылает только
+последнийRun. Принять association по сообщениюUSER+uniquecontrolport; не требовать
+маркеры/повторныйconsole/повторRun. Provenance должна честно отражать userattribution,
+не независимую автоматическую SHA-scoped boundary. Старый strictparser закономерно
+INCOMPLETE/EXACT_CAPTURE_SCOPE_REQUIRED сохранён отдельно; rawcapture не переписан.
+Private pb-target-create-target-review-20261019-060106/{review.json,strict-parser-result.json,
+user-console-excerpt.txt,provenance.json}. Human review status
+USER_ATTRIBUTED_CREATE_AND_TARGET_FAILURE_OBSERVED, rootcause/trapcoverage/lifetime false.
+Вывод: для USER-reported control наблюдалась созданная и assigned запись до
+последующего API10022. Не объявлять record/context never-created, но и не объявлять
+доказанное удаление/повреждение/вину Windows илидрайвера. Accepted endpoint в этом
+Run ещёне снят. Следующий поиск — передача/ассоциация/извлечение послеCREATE;
+подготовить минимальное наблюдение, без повторной нагрузки сейчас.
+
 ## USER разрешил ещё одну ручную staged попытку; свежий план подготовлен
 
 После explicit USER «Давай еще раз попробуем вручную, я буду быстрее» создан
