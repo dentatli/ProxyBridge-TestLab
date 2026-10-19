@@ -1,5 +1,29 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Подготовлен CREATE target201: одна прежняя точка2, Run ещё не выполнен
+
+USER продолжил после успешногоfour. Новый explicit workload create-target-201:
+200fillers42001..42200 +1control42201, прежний accept gate/100ms hold/SynSent,
+один original query/512KiB. Observer прежний CREATE+396/ID2; host registration
+не менялась, USER ранее показалbd2/separateg. Не просить повторныйbl.
+Controller различает four иtarget, target требует -DebuggerLoggerEnabled и
+-BoundedLoadReviewed. Никаких automatic host actions. Runtime watchdog не изменён.
+Plan binds positive four capture+console hashes; validate повторно разбирает
+сохранённую пробу, проверяет sameboot/exactfour/pinnedprofile/positive uniqueCREATE.
+Report target201 допускает original10022, не требует четырёх successful какfour;
+без ETW trigger остаётся inconclusive, noCREATE по-прежнему не absence proof.
+
+30Python cases passed, PS parser и cleanup guard test passed. Initial synthetic
+failure case имел inconsistent complete/wsa_after, fixture исправлена. Первая
+preparation053319-e7fe2264 failed при чтении JSON string paths в plain(Path):
+runtime-plan сохранён, Run не было; не refreeze/не использовать. Исправлено
+Path conversion + regression с повторным чтением строкового proof.
+Fresh plan053427-2b540406 SHA2d3eb99ee9addc0764c3bfcf0fef1a82e9a7fbd84e091823fd1911dd806375f8,
+Prepareexit0/validated. Перед hostbe проверить Inspect/current resources.
+USER host BEGIN(planSHA)→be2→separateg; передBreak/be предупредить wholeVM pause.
+VM Run только с новым plan идвумя ack switches. Cleanup дажеerror: USERBreak,
+bd2→END(planSHA)→separateg. No repeatRun; original frozen assets unchanged.
+
 ## CREATE four: положительное событие сопоставлено, нагрузку не повторять
 
 USER выполнил plan050848-cd614ef4 один раз: run052807-9667bc3c COLLECTED,

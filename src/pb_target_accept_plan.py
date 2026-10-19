@@ -13,12 +13,31 @@ POLICY = dict(fillers=200, filler_ports=[42001, 42200], control_port=42201,
 CREATE_PROFILE_SHA = '42f1426e0a5c6ba0f98794692598e30ed22c30ae6416c194e66c5c12d2fa5aa5'
 
 
-def create_policy():
-    # A new pointer-reading action first gets a four-connection positive probe.
-    # This policy does not authorize the 201-connection experiment with KD active.
-    return dict(POLICY, fillers=3, filler_ports=[42001, 42003], workload='create-four-probe',
+def create_policy(target=False):
+    return dict(POLICY, fillers=200 if target else 3,
+                filler_ports=[42001, 42200 if target else 42003],
+                workload='create-target-201' if target else 'create-four-probe',
                 debugger_points=[2], observer='etw+kd-target-create',
                 automatic_debugger_control=False, debugger_console_required=True)
+
+
+def validate_positive_probe(capture, console, boot):
+    # Replay the existing positive capture; never execute or refreeze it.
+    from pb_target_create_report import evaluate
+    capture, console = plain(Path(capture)), plain(Path(console))
+    prior = read(capture / 'runtime-plan.json')
+    if prior['policy'] != create_policy():
+        raise ValueError('TARGET_POSITIVE_FOUR_POLICY_REQUIRED')
+    if boot_identity(read(Path(prior['preparation']) / 'boot-session.json')) != boot_identity(boot):
+        raise ValueError('TARGET_POSITIVE_PROBE_BOOT_DIFFERS')
+    checked(prior['debugger_profile'], CREATE_PROFILE_SHA)
+    result = evaluate(capture, console)
+    if (result['status'] != 'CONTROL_CREATE_OBSERVED' or result['errors'] or
+            result['unique_control_creation_observed'] is not True or
+            len(result['create_events']) != 1):
+        raise ValueError('TARGET_POSITIVE_CREATE_REQUIRED')
+    return dict(capture=str(capture), console=str(console),
+                plan_sha256=result['plan_sha256'], console_sha256=result['console_sha256'])
 
 
 def validate_registration(profile_path, review_path, review_sha, boot):
@@ -64,9 +83,10 @@ def validate(plan_path, sha, root):
     plan_path = checked(plan_path, sha)
     p = read(plan_path)
     kd = p.get('policy', {}).get('debugger_points') == [2]
+    target = p.get('policy', {}).get('workload') == 'create-target-201'
     if (p['method'] != 'target-accept-session-v1' or Path(p['root']) != root or
             Path(p['preparation']) != plan_path.parent or
-            plan_path.parent.parent != root / 'artifacts/diagnostics' or p['policy'] != (create_policy() if kd else POLICY)):
+            plan_path.parent.parent != root / 'artifacts/diagnostics' or p['policy'] != (create_policy(target) if kd else POLICY)):
         raise ValueError('TARGET_PLAN_CONTRACT_INVALID')
     check_files(p['files'])
     verify_build(root, Path(p['build']))
@@ -79,10 +99,17 @@ def validate(plan_path, sha, root):
         validate_registration(p['debugger_profile'], p['registration_review'], p['registration_review_sha256'], boot)
     elif any(p.get(k) for k in ('debugger_profile', 'registration_review', 'registration_review_sha256')):
         raise ValueError('TARGET_ETW_PLAN_HAS_DEBUGGER_BINDINGS')
+    if target:
+        proof = p.get('positive_probe')
+        if not proof or validate_positive_probe(proof['capture'], proof['console'], boot) != proof:
+            raise ValueError('TARGET_POSITIVE_PROBE_BINDING_DIFFERS')
+    elif p.get('positive_probe'):
+        raise ValueError('TARGET_UNEXPECTED_POSITIVE_PROBE_BINDING')
     return p
 
 
-def prepare(root, build, output, debugger_profile=None, registration_review=None):
+def prepare(root, build, output, debugger_profile=None, registration_review=None,
+            create_target=False, positive_capture=None, positive_console=None):
     output = plain(output)
     if output.parent != root / 'artifacts/diagnostics' or set(output.iterdir()) != {output / 'boot-session.json'}:
         raise ValueError('TARGET_FRESH_PLAN_DIRECTORY_REQUIRED')
@@ -96,6 +123,12 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         validate_registration(debugger_profile, registration_review, digest(registration_review), read(output/'boot-session.json'))
         bindings = dict(debugger_profile=str(plain(debugger_profile)), registration_review=str(plain(registration_review)),
                         registration_review_sha256=digest(registration_review))
+    if create_target:
+        if not bindings or not positive_capture or not positive_console:
+            raise ValueError('TARGET_CREATE_TARGET_REQUIRES_PROFILE_AND_POSITIVE_PROBE')
+        bindings['positive_probe'] = validate_positive_probe(positive_capture, positive_console, read(output/'boot-session.json'))
+    elif positive_capture or positive_console:
+        raise ValueError('TARGET_POSITIVE_PROBE_REQUIRES_EXPLICIT_CREATE_TARGET')
     paths = (list((root / 'modules').glob('*.psm1')) + list((root / 'src').glob('*.py')) +
              list((root / 'src').glob('*.cs')))
     paths += [root / 'scripts/Invoke-TargetAccept.ps1', output / 'boot-session.json',
@@ -107,7 +140,7 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         paths += [Path(bindings['debugger_profile']), Path(bindings['registration_review'])]
     plan = dict(method='target-accept-session-v1', root=str(root), preparation=str(output), build=str(build),
                 assets=str(assets_path), python=assets['python'], core_sha256=CORE,
-                policy=create_policy() if bindings else POLICY, files=inventory(paths), **bindings)
+                policy=create_policy(create_target) if bindings else POLICY, files=inventory(paths), **bindings)
     boot_identity(read(output / 'boot-session.json'))
     save(output / 'runtime-plan.json', plan)
     validate(output / 'runtime-plan.json', digest(output / 'runtime-plan.json'), root)
@@ -124,9 +157,13 @@ if __name__ == '__main__':
     p.add_argument('--sha')
     p.add_argument('--debugger-profile', type=Path)
     p.add_argument('--registration-review', type=Path)
+    p.add_argument('--create-target', action='store_true')
+    p.add_argument('--positive-capture', type=Path)
+    p.add_argument('--positive-console', type=Path)
     a = p.parse_args()
     if a.phase == 'prepare':
-        target = prepare(plain(a.root), plain(a.build), a.output, a.debugger_profile, a.registration_review)
+        target = prepare(plain(a.root), plain(a.build), a.output, a.debugger_profile, a.registration_review,
+                         a.create_target, a.positive_capture, a.positive_console)
         print(str(target))
         print(digest(target))
     else:

@@ -9,6 +9,7 @@ import xml.etree.ElementTree as ET
 from pb_tcp_connections_report import csv_rows
 from pb_tcp_redirect_context_report import parse_queries
 from pb_etw_redirect_report import evaluate as evaluate_etw, NS, PROVIDER
+from pb_target_accept_plan import create_policy
 
 
 def correlate(roles, queries, receiver, relay_pid):
@@ -103,12 +104,15 @@ def evaluate(path):
                   clock_alignment_verified=False, matches=matches, control_events=events)
     try:
         run, cli, cohort = [read(path / name) for name in ('diagnostic-run.json', 'cli-lifecycle.json', 'cohort.json')]
-        probe = run.get('debugger_observer', False)
-        if probe:
+        observer = run.get('debugger_observer', False)
+        probe = False
+        if observer:
             policy = read(path / 'runtime-plan.json')['policy']
-            if (policy.get('observer') != 'etw+kd-target-create' or policy.get('workload') != 'create-four-probe' or
-                    policy.get('fillers') != 3 or policy.get('debugger_points') != [2]):
+            probe = policy.get('workload') == 'create-four-probe'
+            if probe and policy != create_policy():
                 errors.append('CREATE_FOUR_OBSERVER_POLICY_INVALID')
+            elif not probe and policy != create_policy(True):
+                errors.append('CREATE_TARGET_OBSERVER_POLICY_INVALID')
         filler_count = 3 if probe else 200
         control_stage = 'control-established' if probe else 'control-synsent'
         expected_stages = ['fillers-established', control_stage, 'release-request']

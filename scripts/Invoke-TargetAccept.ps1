@@ -2,7 +2,8 @@
 [CmdletBinding()]
 param([ValidateSet('Prepare','Inspect','Run')][string]$Phase='Inspect',
       [string]$BuildDirectory='', [string]$PlanPath='', [string]$PlanSha='',
-      [string]$DebuggerProfile='', [string]$RegistrationReview='', [switch]$DebuggerLoggerEnabled)
+      [string]$DebuggerProfile='', [string]$RegistrationReview='', [switch]$DebuggerLoggerEnabled,
+      [switch]$CreateTarget, [string]$PositiveCapture='', [string]$PositiveConsole='', [switch]$BoundedLoadReviewed)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -28,6 +29,9 @@ if ($Phase -eq 'Prepare') {
     Write-TargetJson (Get-KdBootSessionEvidence) (Join-Path $directory 'boot-session.json')
     $prepareArgs=@('prepare','--root',$root,'--build',$BuildDirectory,'--output',$directory)
     if ($DebuggerProfile -or $RegistrationReview) {$prepareArgs+=@('--debugger-profile',$DebuggerProfile,'--registration-review',$RegistrationReview)}
+    if ($CreateTarget) {$prepareArgs+=@('--create-target')}
+    if ($PositiveCapture) {$prepareArgs+=@('--positive-capture',$PositiveCapture)}
+    if ($PositiveConsole) {$prepareArgs+=@('--positive-console',$PositiveConsole)}
     $output=@(& $sourcePython -B $entry @prepareArgs 2>&1)
     $code=$LASTEXITCODE
     $output | Out-String | Set-Content -LiteralPath (Join-Path $directory 'prepare-output.txt') -Encoding UTF8
@@ -47,7 +51,10 @@ $bootEvidence=Read-TargetJson (Join-Path $plan.preparation 'boot-session.json')
 Assert-KdBootSessionEvidence -Expected $bootEvidence -Actual (Get-KdBootSessionEvidence)
 if ($Phase -eq 'Inspect') {Write-Output 'TARGET_PLAN_INSPECTED_NO_RUNTIME';return}
 $kdObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -eq 'etw+kd-target-create'
+$createTarget=$kdObserver -and $plan.policy.workload -eq 'create-target-201'
+$fourProbe=$kdObserver -and $plan.policy.workload -eq 'create-four-probe'
 if ([bool]$DebuggerLoggerEnabled -ne [bool]$kdObserver) {throw 'TARGET_DEBUGGER_ACTIVATION_ACK_MUST_MATCH_PLAN_NO_RUNTIME'}
+if ($createTarget -and -not $BoundedLoadReviewed) {throw 'TARGET_CREATE_BOUNDED_LOAD_ACK_REQUIRED_NO_RUNTIME'}
 
 function Assert-TargetHistory($Boot) {
     # Preserve the existing legacy/interrupted-run stop gates; no Resume.
@@ -153,7 +160,7 @@ try {
     $capture=New-RedirectEtwCapture (Join-Path $evidence 'etw');Start-RedirectEtwCapture $capture
     $client=Join-Path $root 'bin/tools/ctstraffic-2.0.3.9/ctsTraffic.exe'
     $server=Join-Path $root 'bin/tools/ctstraffic-2.0.3.9/ctsTrafficReceiver.exe'
-    $serverLimit=if ($kdObserver) {4} else {201}
+    $serverLimit=if ($fourProbe) {4} else {201}
     $serverPlan=[pscustomobject]@{executable=$server;arguments=@('-listen:127.0.0.1',('-serverexitlimit:'+$serverLimit),
         '-protocol:tcp','-pattern:push','-transfer:524288','-ratelimit:65536','-verify:data','-port:54122',
         '-buffer:65536','-consoleverbosity:1','-statusupdate:250',('-connectionfilename:'+(Join-Path $evidence 'receiver.csv')));
@@ -189,7 +196,7 @@ try {
     Write-TargetJson ([ordered]@{Version='1.0';LocalhostViaProxy=$true;IsTrafficLoggingEnabled=$true;
         ProxyConfigs=@([ordered]@{Id=1;Name='Target accept';Type='SOCKS5';Host='127.0.0.1';Port='54123';Username='';Password='';SendDomainToProxy=$false});
         ProxyRules=@([ordered]@{Name='Target accept';ProcessName='ctsTraffic.exe';TargetHosts='127.0.0.1';TargetPorts='54122';TargetDomains='';Protocol='TCP';Action='PROXY';ProxyConfigId=1;IsEnabled=$true})}) $profile
-    $context=[pscustomobject]@{root=$root;directory=$evidence;adapter=$adapter;client=$client;probe_only=[bool]$kdObserver}
+    $context=[pscustomobject]@{root=$root;directory=$evidence;adapter=$adapter;client=$client;probe_only=[bool]$fourProbe}
     $cohortCommand=Get-Command Invoke-TargetNativeCohort
     $writeCommand=Get-Command Write-TargetJson
     $workload={param($cli)
