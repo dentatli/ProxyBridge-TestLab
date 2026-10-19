@@ -1,5 +1,19 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий шаг: live-чтение пяти переходов перед подготовкой нового профиля
+
+USER разрешил расширенный observer. Offline design:
+docs/REDIRECT_RETRY_OBSERVER_DESIGN_2026-10-19.md. Предложены CREATE2,
+TcpTcbSend+812 SEND3, loopback entry4, post-associate+а0 ID5, accept+caf ID6.
+TCB+74 raw localport установлен через helper sockaddr; source endpoint идёт
+из TCB+388 через fastsend request+8 в RCX loopback helper. Не путать с+390.
+SEND отбирается по tuple/family, а не по endpoint equality, чтобы не скрыть
+нулевой/подменённый source_ep. Старые REMOVE больше не нужны в активномнаборе.
+Это design, не проверенный runnableprofile; новыхpoints/Prepare/Run ещё нет.
+Нужна user-controlled host Break и указанное в design live disassembly, затем
+actual CDB grammar proof, расширение exact launcher contract и единый комплект.
+Новые проверки bl/markers/Desktopinstructions не требуются. Текущее2/3off,4off,g.
+
 ## REMOVAL R2: два стека получены, преждевременное free не подтверждено
 
 USER Run123833-c0a05875, plan122428-835df4ca (SHA941948b7f1feb8cb5a57e25b4acbdb875640ce259f1399a19ddaea409eefc567)
