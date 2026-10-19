@@ -13,12 +13,19 @@ POLICY = dict(fillers=200, filler_ports=[42001, 42200], control_port=42201,
 CREATE_PROFILE_SHA = '42f1426e0a5c6ba0f98794692598e30ed22c30ae6416c194e66c5c12d2fa5aa5'
 
 
-def create_policy(target=False):
-    return dict(POLICY, fillers=200 if target else 3,
+def create_policy(target=False, staged=False):
+    if staged and not target:
+        raise ValueError('TARGET_STAGED_REQUIRES_201')
+    policy = dict(POLICY, fillers=200 if target else 3,
                 filler_ports=[42001, 42200 if target else 42003],
                 workload='create-target-201' if target else 'create-four-probe',
                 debugger_points=[2], observer='etw+kd-target-create',
                 automatic_debugger_control=False, debugger_console_required=True)
+    if staged:
+        policy.update(workload='create-target-201-staged', initial_debugger_points=[],
+                      host_confirmation='user-console-C-after-host-g', host_deadline_ms=15000,
+                      control_deadline_ms=20000, core_watchdog_ms=30000)
+    return policy
 
 
 def validate_positive_probe(capture, console, boot):
@@ -83,10 +90,11 @@ def validate(plan_path, sha, root):
     plan_path = checked(plan_path, sha)
     p = read(plan_path)
     kd = p.get('policy', {}).get('debugger_points') == [2]
-    target = p.get('policy', {}).get('workload') == 'create-target-201'
+    staged = p.get('policy', {}).get('workload') == 'create-target-201-staged'
+    target = staged or p.get('policy', {}).get('workload') == 'create-target-201'
     if (p['method'] != 'target-accept-session-v1' or Path(p['root']) != root or
             Path(p['preparation']) != plan_path.parent or
-            plan_path.parent.parent != root / 'artifacts/diagnostics' or p['policy'] != (create_policy(target) if kd else POLICY)):
+            plan_path.parent.parent != root / 'artifacts/diagnostics' or p['policy'] != (create_policy(target, staged) if kd else POLICY)):
         raise ValueError('TARGET_PLAN_CONTRACT_INVALID')
     check_files(p['files'])
     verify_build(root, Path(p['build']))
@@ -109,7 +117,7 @@ def validate(plan_path, sha, root):
 
 
 def prepare(root, build, output, debugger_profile=None, registration_review=None,
-            create_target=False, positive_capture=None, positive_console=None):
+            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False):
     output = plain(output)
     if output.parent != root / 'artifacts/diagnostics' or set(output.iterdir()) != {output / 'boot-session.json'}:
         raise ValueError('TARGET_FRESH_PLAN_DIRECTORY_REQUIRED')
@@ -117,6 +125,8 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
     assets_path = root / 'artifacts/diagnostics/pb-kd-shared-assets' / ASSETS
     assets = validate_assets(assets_path, ASSETS_SHA, root)
     bindings = {}
+    if manual_host_window and not create_target:
+        raise ValueError('TARGET_STAGED_REQUIRES_201')
     if debugger_profile or registration_review:
         if not debugger_profile or not registration_review:
             raise ValueError('TARGET_PROFILE_AND_REGISTRATION_BOTH_REQUIRED')
@@ -140,7 +150,7 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         paths += [Path(bindings['debugger_profile']), Path(bindings['registration_review'])]
     plan = dict(method='target-accept-session-v1', root=str(root), preparation=str(output), build=str(build),
                 assets=str(assets_path), python=assets['python'], core_sha256=CORE,
-                policy=create_policy(create_target) if bindings else POLICY, files=inventory(paths), **bindings)
+                policy=create_policy(create_target, manual_host_window) if bindings else POLICY, files=inventory(paths), **bindings)
     boot_identity(read(output / 'boot-session.json'))
     save(output / 'runtime-plan.json', plan)
     validate(output / 'runtime-plan.json', digest(output / 'runtime-plan.json'), root)
@@ -160,10 +170,11 @@ if __name__ == '__main__':
     p.add_argument('--create-target', action='store_true')
     p.add_argument('--positive-capture', type=Path)
     p.add_argument('--positive-console', type=Path)
+    p.add_argument('--manual-host-window', action='store_true')
     a = p.parse_args()
     if a.phase == 'prepare':
         target = prepare(plain(a.root), plain(a.build), a.output, a.debugger_profile, a.registration_review,
-                         a.create_target, a.positive_capture, a.positive_console)
+                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window)
         print(str(target))
         print(digest(target))
     else:

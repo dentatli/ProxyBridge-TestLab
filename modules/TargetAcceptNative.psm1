@@ -72,6 +72,8 @@ function Invoke-TargetNativeCohort {
     param([Parameter(Mandatory)]$Context,[Parameter(Mandatory)]$Gate)
     Initialize-TargetTcpTable
     $probeOnly=$Context.PSObject.Properties['probe_only'] -and $Context.probe_only
+    $manualHost=$Context.PSObject.Properties['manual_host_window'] -and $Context.manual_host_window
+    if ($manualHost -and $probeOnly) {throw 'TARGET_MANUAL_HOST_REQUIRES_TARGET_201'}
     $fillerCount=if ($probeOnly) {3} else {200}
     $fillerPortEnd=42000+$fillerCount
     $Context | Add-Member -NotePropertyName children -NotePropertyValue ([Collections.Generic.List[object]]::new())
@@ -84,7 +86,10 @@ function Invoke-TargetNativeCohort {
         '-iterations:1','-throttleconnections:32','-conn:ConnectEx','-shutdown:rude')
     $startCommand=Get-Command Start-TargetNative
     $startFillers={& $startCommand $Context 'fillers' ($common+@(('-connections:'+$fillerCount),('-LocalPort:[42001,'+$fillerPortEnd+']'),('-connectionfilename:'+(Join-Path $Context.directory 'fillers.csv'))))}.GetNewClosure()
-    $startControl={& $startCommand $Context 'control' ($common+@('-connections:1','-LocalPort:42201',('-connectionfilename:'+(Join-Path $Context.directory 'control.csv'))))}.GetNewClosure()
+    $startControl={
+        if ($manualHost -and $Context.clock.ElapsedMilliseconds -ge 15000) {throw 'TARGET_HOST_WINDOW_EXPIRED_NO_CONTROL'}
+        & $startCommand $Context 'control' ($common+@('-connections:1','-LocalPort:42201',('-connectionfilename:'+(Join-Path $Context.directory 'control.csv'))))
+    }.GetNewClosure()
     $waitFillers={param($child)
         do {
             $rows=@([PBTargetTcpTable]::Read() | Where-Object {$_.Pid -eq $child.pid -and $_.State -eq 5 -and
@@ -128,6 +133,32 @@ function Invoke-TargetNativeCohort {
         }
         $Context.record.status='COLLECTED'
     }.GetNewClosure()
+    $beforeControl=$null
+    if ($manualHost) {
+        Import-Module (Join-Path $PSScriptRoot 'TargetHostWindow.psm1')
+        $windowCommand=Get-Command Wait-TargetHostWindow
+        $beforeControl={param($fillers)
+            # Discard buffered keys: confirmation must follow this ready message.
+            while ([Console]::KeyAvailable) {$null=[Console]::ReadKey($true)}
+            Write-Host ('TARGET_PREFILL_READY: 200 connections; host Break, PBTR_RUN_BEGIN, be2, separate g; then press C here. Remaining window ms: '+(15000-$Context.clock.ElapsedMilliseconds))
+            Write-Host 'Break/be can pause the entire VM including Codex/RDP. After completion/error: host bd2, PBTR_RUN_END, separate g. No repeat Run.'
+            $elapsed={$Context.clock.ElapsedMilliseconds}.GetNewClosure()
+            $confirmed={
+                if (-not [Console]::KeyAvailable) {return $false}
+                return [Console]::ReadKey($true).KeyChar -in @('c','C')
+            }
+            $validateReady={
+                if (-not $fillers.session.IsRunning) {throw 'TARGET_FILLERS_EARLY_EXIT'}
+                $rows=@([PBTargetTcpTable]::Read() | Where-Object {$_.Pid -eq $fillers.pid -and $_.State -eq 5 -and
+                    $_.LocalAddress -eq '127.0.0.1' -and $_.LocalPort -ge 42001 -and $_.LocalPort -le 42200 -and
+                    $_.RemoteAddress -eq '127.0.0.1' -and $_.RemotePort -in @(34010,54122)})
+                if ($rows.Count -ne 200 -or @($rows.LocalPort | Sort-Object -Unique).Count -ne 200) {throw 'TARGET_PREFILL_CHANGED_NO_CONTROL'}
+            }.GetNewClosure()
+            $window=& $windowCommand -Elapsed $elapsed -Confirmed $confirmed -ValidateReady $validateReady
+            $Context.record['host_window']=$window
+            $Context.record.observations+=@([ordered]@{stage='host-confirmed';qpc=[Diagnostics.Stopwatch]::GetTimestamp();elapsed_ms=$Context.clock.ElapsedMilliseconds})
+        }.GetNewClosure()
+    }
     $writeCommand=Get-Command Write-TargetJson
     $cleanup={param($fillers,$control)
         foreach ($entry in $Context.children) {
@@ -146,7 +177,10 @@ function Invoke-TargetNativeCohort {
         $Context.record.native_processes_stopped=$Context.record.cleanup_errors.Count -eq 0
     }.GetNewClosure()
     try {
-        Invoke-TargetAcceptSequence -Gate $Gate -StartFillers $startFillers -WaitFillers $waitFillers -StartControl $startControl -WaitControlSyn $waitSyn -Hold $hold -Collect $collect -Cleanup $cleanup
+        $sequenceArgs=@{Gate=$Gate;StartFillers=$startFillers;WaitFillers=$waitFillers;StartControl=$startControl;
+            WaitControlSyn=$waitSyn;Hold=$hold;Collect=$collect;Cleanup=$cleanup}
+        if ($beforeControl) {$sequenceArgs.BeforeControl=$beforeControl}
+        Invoke-TargetAcceptSequence @sequenceArgs
     } catch {$record.status='INCOMPLETE';$record.error=$_.Exception.Message}
     finally {
         if ($record.cleanup_errors.Count) {$record.status='INCOMPLETE'}

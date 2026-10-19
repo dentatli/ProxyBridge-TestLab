@@ -111,6 +111,35 @@ class FourCapture(unittest.TestCase):
         self.save('cohort.json', self.cohort)
         self.assertIn('TARGET_OWNED_SOCKET_OBSERVATION_INVALID', self.evaluate()['errors'])
 
+    def staged_fixture(self):
+        self.populate(200)
+        self.save('runtime-plan.json', dict(policy=create_policy(True, True)))
+        for o in self.cohort['observations']:
+            o['qpc'] *= 10
+        self.cohort['observations'].insert(1,dict(stage='host-confirmed', qpc=15, elapsed_ms=4501))
+        self.cohort['host_window']=dict(opened_ms=1000, confirmed_ms=4500, deadline_ms=15000,
+            source='user-console-C-after-host-g', independent_host_verification=False)
+        self.save('cohort.json',self.cohort)
+
+    def test_staged_capture_requires_confirmation_between_prefill_and_control(self):
+        self.staged_fixture()
+        r=self.evaluate()
+        self.assertEqual(r['errors'], [])
+        self.assertEqual(len(r['matches']), 201)
+        self.assertFalse(r['root_cause_proven'])
+
+    def test_staged_late_confirmation_cannot_be_accepted(self):
+        self.staged_fixture()
+        self.cohort['host_window']['confirmed_ms']=15000
+        self.save('cohort.json',self.cohort)
+        self.assertIn('TARGET_HOST_CONFIRMATION_INVALID',self.evaluate()['errors'])
+
+    def test_staged_confirmation_after_control_cannot_be_accepted(self):
+        self.staged_fixture()
+        self.cohort['observations'][1]['qpc']=25
+        self.save('cohort.json',self.cohort)
+        self.assertIn('TARGET_HOST_CONFIRMATION_INVALID',self.evaluate()['errors'])
+
 
 if __name__=='__main__':
     unittest.main()

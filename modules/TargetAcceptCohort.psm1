@@ -23,7 +23,8 @@ function Invoke-TargetAcceptSequence {
     param([Parameter(Mandatory)]$Gate,[Parameter(Mandatory)][scriptblock]$StartFillers,
           [Parameter(Mandatory)][scriptblock]$WaitFillers,[Parameter(Mandatory)][scriptblock]$StartControl,
           [Parameter(Mandatory)][scriptblock]$WaitControlSyn,[Parameter(Mandatory)][scriptblock]$Hold,
-          [Parameter(Mandatory)][scriptblock]$Collect,[Parameter(Mandatory)][scriptblock]$Cleanup)
+          [Parameter(Mandatory)][scriptblock]$Collect,[Parameter(Mandatory)][scriptblock]$Cleanup,
+          [scriptblock]$BeforeControl=$null)
     if ($Gate.used) {throw 'TARGET_GATE_ALREADY_USED'}
     $Gate.used=$true
     $fillers=$null;$control=$null
@@ -31,6 +32,7 @@ function Invoke-TargetAcceptSequence {
         $fillers=& $StartFillers
         if (-not $Gate.ready.WaitOne(5000)) {throw 'TARGET_CORE_GATE_NOT_READY'}
         & $WaitFillers $fillers
+        if ($BeforeControl) {& $BeforeControl $fillers}
         $control=& $StartControl
         & $WaitControlSyn $control
         & $Hold

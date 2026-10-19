@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Staged CREATE target201 подготовлен: prefill с отключённой точкой, подтверждение C
+
+USER согласился на двухэтапную реализацию после prefill timeout. Новый explicit
+workload create-target-201-staged, initial_debugger_points=[], activeafter=[2].
+Старые frozen kits/consumed plans не изменены. Controller требует initial
+-DebuggerPointsDisabled и -BoundedLoadReviewed, запрещает initialLoggerEnabled;
+нужна интерактивная ConsoleHost с не redirected stdin (не запускать агентом вCoS).
+На TARGET_PREFILL_READY после200ownedEstablished пользователь наhost выполняет
+Break→BEGIN(planSHA)→be2→separateg, затем латинскую C в консолиVM.
+BeforeBreak/be warning: всяVM/Codex/RDP может остановиться. Не включать точку,
+если READY не появился. Послеcompletion/error USERbd2→END→separateg evenerror.
+
+Окно подтверждения использует общий native cohort elapsed<15000ms; не новый
+15s timeout послеprefill. Старые buffered console keys отбрасываются. ПослеC
+повторная проверка200ownedEstablished иtime; отдельно перед StartControl ещё
+deadline check. Late/missingC/changedprefill→no control, gate released beforecleanup.
+Core30s watchdog/control20s deadline/100ms hold не изменены. Host confirmation
+является userattestation, не независимой проверкой WinDbg. Полныйruntime handoff
+пока не проверен. Report требует host-confirmed междуfillers иcontrol +validbudget.
+
+34Python tests +hostwindow5fakefaultcases +sequence9 +nativefault10 +cleanup
+guard +PSparser passed, безnetwork/product/hostactions. Fresh Prepareexit0:
+plan054552-cbaf3805 SHAce4cf8ea578b3f6a717e555a91193319d7db56ae1c58c25839bd62384cbde346.
+Run не был, freeRAM~3.9GiB. Следующее действиеUSER: Run сточкой2disabled в обычной
+VM PowerShellконсоли, заранее открытьhostWinDbg. Нельзя Resume/refreeze/repeatRun.
+
 ## CREATE target201 остановлен на prefill; контрольное соединение не запускалось
 
 USER run053636-67765378 plan053427-2b540406 consumed once. Первичная ошибка

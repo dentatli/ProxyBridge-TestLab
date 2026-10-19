@@ -108,6 +108,16 @@ class TargetCreateBinding(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'POSITIVE_FOUR_POLICY_REQUIRED'):
             validate_positive_probe(capture, console, self.boot)
 
+    def test_staged_contract_starts_disabled_and_preserves_watchdog(self):
+        p = create_policy(True, True)
+        self.assertEqual(p['initial_debugger_points'], [])
+        self.assertEqual(p['debugger_points'], [2])
+        self.assertEqual(p['core_watchdog_ms'], 30000)
+        self.assertLess(p['host_deadline_ms'], p['control_deadline_ms'])
+        self.assertLess(p['control_deadline_ms'], p['core_watchdog_ms'])
+        with self.assertRaisesRegex(ValueError, 'STAGED_REQUIRES_201'):
+            create_policy(False, True)
+
 
 if __name__ == '__main__':
     unittest.main()

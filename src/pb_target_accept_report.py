@@ -106,16 +106,20 @@ def evaluate(path):
         run, cli, cohort = [read(path / name) for name in ('diagnostic-run.json', 'cli-lifecycle.json', 'cohort.json')]
         observer = run.get('debugger_observer', False)
         probe = False
+        staged = False
         if observer:
             policy = read(path / 'runtime-plan.json')['policy']
             probe = policy.get('workload') == 'create-four-probe'
+            staged = policy.get('workload') == 'create-target-201-staged'
             if probe and policy != create_policy():
                 errors.append('CREATE_FOUR_OBSERVER_POLICY_INVALID')
-            elif not probe and policy != create_policy(True):
+            elif not probe and policy != create_policy(True, staged):
                 errors.append('CREATE_TARGET_OBSERVER_POLICY_INVALID')
         filler_count = 3 if probe else 200
         control_stage = 'control-established' if probe else 'control-synsent'
         expected_stages = ['fillers-established', control_stage, 'release-request']
+        if staged:
+            expected_stages.insert(1, 'host-confirmed')
         if run['status'] != 'COLLECTED':
             errors.append('RUN_CONTROLLER_STATUS_NOT_COLLECTED')
         if run['cleanup_errors'] or not run['resident_disabled_after']:
@@ -129,7 +133,14 @@ def evaluate(path):
         if stages != expected_stages:
             errors.append('TARGET_OBSERVATION_SEQUENCE_INCOMPLETE')
         else:
-            fill, syn, release = cohort['observations']
+            fill, syn, release = [o for o in cohort['observations'] if o['stage'] != 'host-confirmed']
+            if staged:
+                host = cohort['observations'][1]
+                window = cohort['host_window']
+                if (not fill['qpc'] < host['qpc'] < syn['qpc'] or
+                        not 0 <= window['opened_ms'] <= window['confirmed_ms'] <= host['elapsed_ms'] < 15000 or
+                        window['deadline_ms'] != 15000 or window['source'] != 'user-console-C-after-host-g'):
+                    errors.append('TARGET_HOST_CONFIRMATION_INVALID')
             if (not fill['qpc'] < syn['qpc'] < release['qpc'] or len(fill['sockets']) != filler_count or
                     {s['LocalPort'] for s in fill['sockets']} != set(range(42001, 42001+filler_count)) or
                     any(s['Pid'] != fill['pid'] or s['State'] != 5 for s in fill['sockets']) or
@@ -154,7 +165,7 @@ def evaluate(path):
                 errors.append(role + ':PROCESS_IDENTITY_OR_CAPTURE_INCOMPLETE')
             roles[role] = dict(pid=launch['pid'], ports=ports, rows=csv_rows(path / (role + '.csv')))
             if stages == expected_stages:
-                observed_pid = cohort['observations'][0 if role == 'fillers' else 1]['pid']
+                observed_pid = cohort['observations'][0 if role == 'fillers' else (2 if staged else 1)]['pid']
                 if observed_pid != launch['pid']:
                     errors.append(role + ':SOCKET_OWNER_DIFFERS')
         matches, native_errors = correlate(roles, parse_queries(cli['stdout']), csv_rows(path / 'receiver.csv'), cli['pid'])
