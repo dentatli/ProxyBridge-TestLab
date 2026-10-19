@@ -1,5 +1,36 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Target201 reproduced: RETRIEVE returned C0000225 / record NULL
+
+USER run113318-fdff4bb4, plan112635-c469b1ea consumed once. Offline native replay:
+TARGET_FAILURE_REPRODUCED/errors[]/201matches; 200fillers successful, unique control
+127.0.0.1:42201/PID992 original query10022/bytes0. Cleanup complete, native processes
+stopped, resident_disabled_after=true. Host C confirmed8526ms <15000. No repeat Run.
+
+USER console: t0 reset before activation, be2/g, one PBTA RETRIEVE hit1:
+ep ffff810bc530e8a0, nbl ffff810bc629d900, local da84/peer d9a4,
+status c0000225, record0; then bd2/separate g. User-associated latest Run excerpt and
+provenance private pb-target-retrieve-target-review-20261019-113318. Report
+RETRIEVE_NOT_FOUND_OBSERVED/errors[]. Same-boot positive four previously status0,
+record/context nonzero/size32/refs2. No automatic capture boundary or full trap
+coverage claim. No successful retrieval observed in failed Run; this does NOT prove
+there was no earlier successful retrieval or identify a first packet.
+
+ETW same full control tuple: four Reason30 SYN drops and four1186 retransmits;
+final1553 then Reason10. Loss counters EventsLost/LogBuffersLost/RealTimeBuffersLost0,
+BuffersWritten187. Retries in THIS Run are roughly1.7-2.1s apart, not prior0.5s.
+WinDbg pauses can affect timing. No automatic timestamp alignment of PBTA snapshot.
+
+Finding: failure is visible before user-mode IOCTL: the observed accept-side
+RetrieveContext(key5) returned not-found with NULL output, so the conditional
+record assignment at WfpAleAuthorizeAccept+cb7 is skipped for that invocation.
+This localizes an observable missing NBL record; it does not prove context freed,
+Windows fault, driver innocence, or complete accepted-endpoint lifetime. Strong
+working hypothesis is redirect-record propagation across SYN retry/NBL changes.
+Next inspect association/clone/retry paths offline before designing any new probe;
+do not repeat CREATE/QUERY or broad hot ASSOC loggers. Point2 remains disabled,
+VM resumed. No10061 in this control; no new10061 investigation.
+
 ## RETRIEVE four positive; fresh staged201 plan ready, not run
 
 USER run112504-9ac96569 COLLECTED/cleanup_errors[]/resident_disabled_after=true.
