@@ -1,5 +1,20 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Format probe USER прошла; ожидается одна disabled CREATE registration
+
+USER показал PBTR BEGIN/CREATEsize20refs1/TRUE_OK/FALSE_OK/NULL_GUARD_OK/END/g,
+безошибок. Newcandidate `pb-kd-target-create-disabled-candidate-20261019.json`
+SHA42f1426e0a5c6ba0f98794692598e30ed22c30ae6416c194e66c5c12d2fa5aa5,
+stage `pb-kd-target-create-disabled-20261019.wdbg`: толькоbp2 Create+396→bd2→.bpcmds,
+active[]/inactive[2]/loadfalse.9formatargs/quote roundtrip/braces/onepoint/outer
+noresume offlinechecked private prepare-disabled.py/disabled-preparation.json.
+NoVMaction/runtime/traffic byagent. Actualpointerreads/gc/coverageunverified.
+
+NextUSER beforeBreak wholeVMwarning, firstinventorybl новогосеанса долженempty,
+затемregistration/bd2/.bpcmds/separateg. Еслиblнеempty — неoverwrite, g/send.
+Неbe/неRun: старыйETWcontrollerнеподдерживаетточку. Послеregistration нужно
+подготовитьновыйobservercontract/freshplan безrefreeze/повторастарыхkits.
+
 ## CREATE selector live-код совпал; ожидается короткая format/guard probe
 
 USER attachment f88dd436... проверен CoS audit:68/68instr exact,current tcpipbase

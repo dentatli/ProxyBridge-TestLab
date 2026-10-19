@@ -1,5 +1,29 @@
 # Одна точка создания записи: проверка выбора контрольного соединения
 
+## Format probe подтверждена USER, подготовлена отключённая регистрация
+
+USER показал BEGIN/END, synthetic CREATE сsize20/refs1, обеSELECTOR_*_OK,
+NULL_GUARD_OK и отдельныйg, безUNEXPECTED/errors. Это проверяет формат и
+константные ветви; actual R14/record reads/action/gc ещё не исполнены.
+
+Новый candidate `pb-kd-target-create-disabled-candidate-20261019.json`,
+SHA42f1426e0a5c6ba0f98794692598e30ed22c30ae6416c194e66c5c12d2fa5aa5,
+содержит одинID2/siteCreate+396. Initial active[],inactive[2],loadfalse.
+Stage `pb-kd-target-create-disabled-20261019.wdbg` регистрируетbp2 приостановленной
+VM и сразуbd2, затем.bpcmds; внешнегоg/активации/Runнет. Текст можно копировать
+изчата, новыйархив/рабочийстолне нужны. Privategenerator/validation:
+`pb-target-record-live-review-20261019/prepare-disabled.py`, `disabled-preparation.json`.
+Проверены9formatarguments, quote roundtrip, balancedbraces/quotes, однаbp→bd,
+отсутствиеouterresume/memorywrites. Это не WinDbg parser/runtime proof action.
+
+Перед первым выделениемID в этом новомсеансе нужен пустойbl; это не повтор
+inventoryбезизменений, после переподключения ID ещё не наблюдались. При непустом
+bl ничего не перезаписывать, отдельноg и прислатьвывод. При пустомbl команды
+registration/bd2/.bpcmds поодной; отдельноg даже приошибке. BeforeBreak wholeVM/
+Codex/RDP warning обязателен. Точку не включать, старыйRunне запускать.
+После подтверждения disabledregistration остаётся явная debuggerobserver
+интеграция/freshplan и проверка positive CREATE сknowncontroltuple.
+
 ## Получена сверка live-кода
 
 USER attachment f88dd436-35c0-4fc3-9b21-f4d9239a7ebe:68/68 инструкций

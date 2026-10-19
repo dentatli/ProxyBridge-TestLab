@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "method": "kd-target-create-disabled-candidate-20261019-v1",
+  "status": "FORMAT_PROBE_USER_CONFIRMED_REGISTRATION_PENDING",
+  "registered_point_ids": [
+    2
+  ],
+  "active_point_ids": [],
+  "inactive_point_ids": [
+    2
+  ],
+  "point_count_active": 0,
+  "proposed_active_point_ids": [
+    2
+  ],
+  "automatic_debugger_control": false,
+  "load_authorized": false,
+  "frame_reads_runtime_verified": false,
+  "root_cause_proven": false,
+  "existing_point_inventory_required": "empty before registering ID2",
+  "control_source_port": 42201,
+  "control_source_port_raw": "0xd9a4",
+  "runtime_contract": "NEW_TARGET_DEBUGGER_OBSERVER_REQUIRED_NOT_OLD_ETW_RUN",
+  "selected_live_review_sha256": "3551a7a7ee848680107456e7ae8f2508d898d118d8fc3e01c278a0135c76be16",
+  "limitations": [
+    "Only positive CREATE evidence; absence does not prove missing creation.",
+    "Actual R14 selector and action/gc behavior not runtime verified.",
+    "Port filter reduces output, not the number of traps.",
+    "No transfer/free/complete lifetime coverage."
+  ],
+  "points": [
+    {
+      "id": 2,
+      "event": "CREATE",
+      "target": "tcpip!AlepCreateRedirectRecord+0x396",
+      "rva": "0x1088b6",
+      "action": ".if ($vvalid(@r14,0x10) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { .if (($vvalid(@rdi+0x1c0,8) == 1) and ($vvalid(@rax+0x1e0,0x14) == 1)) { .printf \"PBTR CREATE thread=%p source=%p local_raw=%I64x ep=%p assigned=%p record=%p context=%p size=%I64x refs=%x\\n\", @$thread, @r14, poi(@r14), @rdi, poi(@rdi+0x1c0), @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0); } .else { .printf \"PBTR_UNREADABLE event=CREATE_FIELDS capture=incomplete\\n\"; } } } .else { .printf \"PBTR_UNREADABLE event=CREATE_SELECTOR capture=incomplete\\n\"; }; gc;",
+      "format_string": "PBTR CREATE thread=%p source=%p local_raw=%I64x ep=%p assigned=%p record=%p context=%p size=%I64x refs=%x\\n",
+      "arguments": [
+        "@$thread",
+        "@r14",
+        "poi(@r14)",
+        "@rdi",
+        "poi(@rdi+0x1c0)",
+        "@rax",
+        "poi(@rax+0x1e0)",
+        "poi(@rax+0x1e8)",
+        "dwo(@rax+0x1f0)"
+      ],
+      "registration_command": "bp2 tcpip!AlepCreateRedirectRecord+0x396 \".if ($vvalid(@r14,0x10) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { .if (($vvalid(@rdi+0x1c0,8) == 1) and ($vvalid(@rax+0x1e0,0x14) == 1)) { .printf \\\"PBTR CREATE thread=%p source=%p local_raw=%I64x ep=%p assigned=%p record=%p context=%p size=%I64x refs=%x\\\\n\\\", @$thread, @r14, poi(@r14), @rdi, poi(@rdi+0x1c0), @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0); } .else { .printf \\\"PBTR_UNREADABLE event=CREATE_FIELDS capture=incomplete\\\\n\\\"; } } } .else { .printf \\\"PBTR_UNREADABLE event=CREATE_SELECTOR capture=incomplete\\\\n\\\"; }; gc;\""
+    }
+  ]
+}

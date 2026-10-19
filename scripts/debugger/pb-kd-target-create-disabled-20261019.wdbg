@@ -1,0 +1,4 @@
+$$ Requires empty point inventory and target stopped
+bp2 tcpip!AlepCreateRedirectRecord+0x396 ".if ($vvalid(@r14,0x10) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { .if (($vvalid(@rdi+0x1c0,8) == 1) and ($vvalid(@rax+0x1e0,0x14) == 1)) { .printf \"PBTR CREATE thread=%p source=%p local_raw=%I64x ep=%p assigned=%p record=%p context=%p size=%I64x refs=%x\\n\", @$thread, @r14, poi(@r14), @rdi, poi(@rdi+0x1c0), @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0); } .else { .printf \"PBTR_UNREADABLE event=CREATE_FIELDS capture=incomplete\\n\"; } } } .else { .printf \"PBTR_UNREADABLE event=CREATE_SELECTOR capture=incomplete\\n\"; }; gc;"
+bd2
+.bpcmds
