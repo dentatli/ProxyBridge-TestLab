@@ -1,5 +1,26 @@
 # Передача чату диагностики TCP / WinDbg
 
+## CREATE four: положительное событие сопоставлено, нагрузку не повторять
+
+USER выполнил plan050848-cd614ef4 один раз: run052807-9667bc3c COLLECTED,
+cleanup_errors=[], resident_disabled_after=true. Все четыре native соединения
+успешны; control source port42201/PID7660, original query вернул32bytes/ctx_pid7660.
+В USER console между SHA-scoped BEGIN/END ровно один CREATE: assigned==record,
+context ненулевой, size32, refs1, sourceport42201. bd2 и отдельноg выполнены.
+CoS offline report: CONTROL_CREATE_OBSERVED/errors[]/unique_control_creation_observed=true.
+Private review: pb-target-create-four-review-20261019-052807/report/create-report.json.
+Console сохранён как диагностические строки из chat paste с явной provenance;
+это excerpt без повторных printf command echoes/стандартного break banner, не raw attachment.
+Root cause/полное покрытие точек/история transfer/free не доказаны. В этой пробе
+10022 не ожидался и не наблюдался. No repeat Run/no additional host actions.
+Следующий этап: отдельный явный контракт CREATE observer для целевого200+1
+сценария и review перед Run; текущий four-only план не расширять/не refreeze.
+
+RAM blocker устранён отдельно: USER разрешил разбор памяти;8 Serena families
+удерживались Codex. Serena enabled=false в user config, backup сохранён,
+проверенные descendants завершены; free RAM выросла1.67→3.99GiB. TOML parsed.
+CoS работает. Повторные Node helpers ещё есть; причина удержания Codex не доказана.
+
 ## Target CREATE four-plan подготовлен, RAM ниже floor, точка2 остаётсяdisabled
 
 USER disabledregistrationreview принят:emptybl/exactbp2@fffff807656888b6/bd2/
