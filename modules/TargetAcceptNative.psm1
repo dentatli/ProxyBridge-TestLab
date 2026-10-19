@@ -140,8 +140,8 @@ function Invoke-TargetNativeCohort {
         $beforeControl={param($fillers)
             # Discard buffered keys: confirmation must follow this ready message.
             while ([Console]::KeyAvailable) {$null=[Console]::ReadKey($true)}
-            Write-Host ('TARGET_PREFILL_READY: 200 connections; host Break, PBTR_RUN_BEGIN, be2, separate g; then press C here. Remaining window ms: '+(15000-$Context.clock.ElapsedMilliseconds))
-            Write-Host 'Break/be can pause the entire VM including Codex/RDP. After completion/error: host bd2, PBTR_RUN_END, separate g. No repeat Run.'
+            Write-Host ('TARGET_PREFILL_READY: 200 connections; host Break, be2, separate g; then press C here. Remaining window ms: '+(15000-$Context.clock.ElapsedMilliseconds))
+            Write-Host 'Break/be can pause the entire VM including Codex/RDP. After completion/error: host bd2, separate g. No repeat Run.'
             $elapsed={$Context.clock.ElapsedMilliseconds}.GetNewClosure()
             $confirmed={
                 if (-not [Console]::KeyAvailable) {return $false}

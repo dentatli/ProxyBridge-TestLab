@@ -1,0 +1,30 @@
+{
+  "method": "kd-target-retrieve-disabled-candidate-20261019-v1",
+  "status": "DISK_REVIEWED_USER_REGISTRATION_PENDING_NOT_RUNNABLE",
+  "registered_point_ids": [
+    2
+  ],
+  "active_point_ids": [],
+  "inactive_point_ids": [
+    2
+  ],
+  "proposed_active_point_ids": [
+    2
+  ],
+  "control_source_port": 42201,
+  "relay_port": 34010,
+  "automatic_debugger_control": false,
+  "load_allowed": false,
+  "tcpip_sha256": "b0683bd7ed0f309e63b4e6e71675d8f04cfb0ea5533c3f5e8a13c6daca3b595a",
+  "target": "tcpip!WfpAleAuthorizeAccept+0xcaf",
+  "function_rva": "0x149cc",
+  "site_rva": "0x1567b",
+  "action": ".if ($vvalid(@rbp-0x7c,4) == 1) { .if ((wo(@rbp-0x7c) == 0xda84) and (wo(@rbp-0x7a) == 0xd9a4)) { r @$t0 = @$t0 + 1; .if ($vvalid(@rbp-0x28,8) == 1) { .printf \"PBTA RETRIEVE hit=%I64x ep=%p nbl=%p local_raw=%x peer_raw=%x status=%x record=%p\\n\", @$t0, @rdi, @rbx, wo(@rbp-0x7c), wo(@rbp-0x7a), @eax, poi(@rbp-0x28); .if (@eax == 0) { .if (poi(@rbp-0x28) != 0) { .if ($vvalid(poi(@rbp-0x28)+0x1e0,0x14) == 1) { .printf \"PBTA RECORD hit=%I64x record=%p context=%p size=%I64x refs=%x\\n\", @$t0, poi(@rbp-0x28), poi(poi(@rbp-0x28)+0x1e0), poi(poi(@rbp-0x28)+0x1e8), dwo(poi(@rbp-0x28)+0x1f0); } .else { .printf \"PBTA_UNREADABLE event=RECORD hit=%I64x capture=incomplete\\n\", @$t0; } } } } .else { .printf \"PBTA_UNREADABLE event=RETRIEVE hit=%I64x capture=incomplete\\n\", @$t0; } } } .else { .printf \"PBTA_UNREADABLE event=SELECTOR capture=incomplete\\n\"; }; gc;",
+  "registration_code_guard": "(dwo(tcpip!WfpAleAuthorizeAccept+0xcaf) == 0x0b75c085) and (dwo(tcpip!WfpAleAuthorizeAccept+0xcb3) == 0xd8458b48) and (dwo(tcpip!WfpAleAuthorizeAccept+0xcb7) == 0xc0878948)",
+  "interpretation": "Raw Retrieve key5 consume=1 return before conditional endpoint assignment. No packet/context payload reads; debugger t0 counter only.",
+  "limitations": [
+    "New disabled profile; no claim of conformity to an older frozen kit.",
+    "User-associated console, optional markers; absent events never prove absent execution.",
+    "No automatic host activation, no Run in this stage."
+  ]
+}

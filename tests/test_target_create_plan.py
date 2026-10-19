@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
-from pb_target_accept_plan import CREATE_PROFILE_SHA, POLICY, create_policy, validate_registration, validate_positive_probe
+from pb_target_accept_plan import CREATE_PROFILE_SHA, RETRIEVE_PROFILE_SHA, POLICY, create_policy, retrieve_policy, validate_registration, validate_positive_probe
 
 
 class TargetCreateBinding(unittest.TestCase):
@@ -117,6 +117,17 @@ class TargetCreateBinding(unittest.TestCase):
         self.assertLess(p['control_deadline_ms'], p['core_watchdog_ms'])
         with self.assertRaisesRegex(ValueError, 'STAGED_REQUIRES_201'):
             create_policy(False, True)
+
+    def test_retrieve_registration_uses_own_pinned_profile(self):
+        self.profile=ROOT/'scripts/debugger/pb-kd-target-retrieve-disabled-candidate-20261019.json'
+        self.review.update(method='target-retrieve-registration-review-v1', profile_sha256=RETRIEVE_PROFILE_SHA)
+        self.assertIn('retrieve',self.validate()['method'])
+        self.assertEqual(retrieve_policy()['debugger_points'],[2])
+        self.assertEqual(retrieve_policy()['initial_debugger_points'],[])
+
+    def test_create_review_cannot_approve_retrieve_profile(self):
+        self.profile=ROOT/'scripts/debugger/pb-kd-target-retrieve-disabled-candidate-20261019.json'
+        with self.assertRaises(ValueError): self.validate()
 
 
 if __name__ == '__main__':

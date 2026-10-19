@@ -1,5 +1,34 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий шаг: одна отключённая точка RETRIEVE, регистрация пользователем ещё не выполнена
+
+Подготовлены retrieve-target-201-staged, профиль
+scripts/debugger/pb-kd-target-retrieve-disabled-candidate-20261019.json и отдельный
+pb_target_retrieve_report.py. Точка2: tcpip!WfpAleAuthorizeAccept+0xcaf, после вызова
+RetrieveContext с key5 и сырым третьим аргументом1, перед проверкой EAX и присвоением
+record принимающему endpoint. Значение аргумента не доказывает lifetime/ownership.
+Фильтр local_raw=da84, peer_raw=d9a4; вывод status/record и доступных pointer/size/refs.
+Команда регистрации проверяет три DWORD кода до замены известной отключённой CREATE
+точки2; затем оставляет новую точку отключённой. No activation/Run/outer g.
+
+Причина10022 пока не доказана. CREATE с ненулевым context наблюдался в последнем
+USER-attributed failed control; ETW показывает SO_PAUSE_ACCEPT SYN drop и retry.
+Гипотеза: запись теряется между попытками доставки. Новый отчёт различает успешное
+извлечение, NOT_FOUND и их последовательность; отсутствие строк не является proof.
+Он не заявляет полное покрытие точек, валидность payload или автоматическую привязку
+каждой строки к SYN. BEGIN/END не обязательны; provenance user-associated latest Run.
+
+Проверены 55 test_target_*.py, HostWindow5 fault cases, Cleanup и PS parser; diffcheck OK.
+Продуктовые исходники/сборка/установка/нагрузка не менялись и не запускались.
+Сейчас старая CREATE точка2 отключена, VM resumed по последнему выводу пользователя.
+Следующий шаг только USER регистрация новой отключённой точки на физическом host,
+затем отдельный g даже при ошибке. Перед Break предупредить о паузе всей VM/Codex/RDP.
+После проверки её вывода создать новый registration-review и свежий план, используя
+существующий положительный CREATE four probe. Старый CREATE review не подходит новой
+точке. Не повторять consumed Run, не создавать новый kit и не требовать повторный bl.
+Manual staged201 сохраняет prefill200 при точке off, C в пределах общего15s,
+контроль42201; host Break/be/g остаются USER-controlled. Новый Run ещё не подготовлен.
+
 ## Staged target201 завершён: CREATE snapshot и исходный10022 в одном USER-attributed Run
 
 USER run060106-62098b23 plan055926-aabaa7c9 collected/cleanup_errors[]/

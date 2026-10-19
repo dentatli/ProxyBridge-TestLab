@@ -4,7 +4,7 @@ param([ValidateSet('Prepare','Inspect','Run')][string]$Phase='Inspect',
       [string]$BuildDirectory='', [string]$PlanPath='', [string]$PlanSha='',
       [string]$DebuggerProfile='', [string]$RegistrationReview='', [switch]$DebuggerLoggerEnabled,
       [switch]$CreateTarget, [string]$PositiveCapture='', [string]$PositiveConsole='', [switch]$BoundedLoadReviewed,
-      [switch]$ManualHostWindow, [switch]$DebuggerPointsDisabled)
+      [switch]$ManualHostWindow, [switch]$DebuggerPointsDisabled, [switch]$RetrieveTarget)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -31,6 +31,7 @@ if ($Phase -eq 'Prepare') {
     $prepareArgs=@('prepare','--root',$root,'--build',$BuildDirectory,'--output',$directory)
     if ($DebuggerProfile -or $RegistrationReview) {$prepareArgs+=@('--debugger-profile',$DebuggerProfile,'--registration-review',$RegistrationReview)}
     if ($CreateTarget) {$prepareArgs+=@('--create-target')}
+    if ($RetrieveTarget) {$prepareArgs+=@('--retrieve-target')}
     if ($ManualHostWindow) {$prepareArgs+=@('--manual-host-window')}
     if ($PositiveCapture) {$prepareArgs+=@('--positive-capture',$PositiveCapture)}
     if ($PositiveConsole) {$prepareArgs+=@('--positive-console',$PositiveConsole)}
@@ -52,9 +53,9 @@ $plan=Read-TargetJson $PlanPath
 $bootEvidence=Read-TargetJson (Join-Path $plan.preparation 'boot-session.json')
 Assert-KdBootSessionEvidence -Expected $bootEvidence -Actual (Get-KdBootSessionEvidence)
 if ($Phase -eq 'Inspect') {Write-Output 'TARGET_PLAN_INSPECTED_NO_RUNTIME';return}
-$kdObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -eq 'etw+kd-target-create'
-$stagedHost=$kdObserver -and $plan.policy.workload -eq 'create-target-201-staged'
-$createTarget=$kdObserver -and $plan.policy.workload -in @('create-target-201','create-target-201-staged')
+$kdObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -in @('etw+kd-target-create','etw+kd-target-retrieve')
+$stagedHost=$kdObserver -and $plan.policy.workload -in @('create-target-201-staged','retrieve-target-201-staged')
+$createTarget=$kdObserver -and $plan.policy.workload -in @('create-target-201','create-target-201-staged','retrieve-target-201-staged')
 $fourProbe=$kdObserver -and $plan.policy.workload -eq 'create-four-probe'
 if ($stagedHost) {
     if (-not $DebuggerPointsDisabled -or $DebuggerLoggerEnabled) {throw 'TARGET_STAGED_INITIAL_POINTS_MUST_BE_DISABLED_NO_RUNTIME'}
@@ -266,7 +267,7 @@ try {
         if ($run.cleanup_errors.Count) {$run.status='FAILED'}
         Invoke-TargetCleanupStep {Write-TargetJson $run (Join-Path $evidence 'diagnostic-run.json')}
         Write-Host ('Results: '+$evidence)
-        if ($kdObserver) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2 then PBTR_RUN_END marker then separate g. Preserve full console. No repeat Run.'}
+        if ($kdObserver) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2 then separate g. Preserve console from this Run. No repeat Run.'}
     }
     [Environment]::SetEnvironmentVariable('PB_TESTLAB_ROUTE_CASE',$oldRoute,'Process')
     [Environment]::SetEnvironmentVariable('PB_TESTLAB_TARGET_GATE',$oldGate,'Process')

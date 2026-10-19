@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from pb_target_accept_plan import create_policy
+from pb_target_accept_plan import create_policy, retrieve_policy
 from pb_target_accept_report import evaluate
 from pb_tcp_redirect_context_report import FIELDS
 
@@ -139,6 +139,11 @@ class FourCapture(unittest.TestCase):
         self.cohort['observations'][1]['qpc']=25
         self.save('cohort.json',self.cohort)
         self.assertIn('TARGET_HOST_CONFIRMATION_INVALID',self.evaluate()['errors'])
+
+    def test_retrieve_observer_reuses_verified_staged_native_shape(self):
+        self.staged_fixture()
+        self.save('runtime-plan.json',dict(policy=retrieve_policy()))
+        self.assertEqual(self.evaluate()['errors'],[])
 
 
 if __name__=='__main__':

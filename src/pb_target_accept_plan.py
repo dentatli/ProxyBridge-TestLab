@@ -11,6 +11,7 @@ POLICY = dict(fillers=200, filler_ports=[42001, 42200], control_port=42201,
               control_connections=1, hold_ms=100, original_single_query=True,
               debugger_points=[], driver_installation=False, driver_lifecycle='resident-disabled')
 CREATE_PROFILE_SHA = '42f1426e0a5c6ba0f98794692598e30ed22c30ae6416c194e66c5c12d2fa5aa5'
+RETRIEVE_PROFILE_SHA = '19490d337a14b149c275d5d801f12ddb7c86290b5357b76b9639c369083be35c'
 
 
 def create_policy(target=False, staged=False):
@@ -26,6 +27,11 @@ def create_policy(target=False, staged=False):
                       host_confirmation='user-console-C-after-host-g', host_deadline_ms=15000,
                       control_deadline_ms=20000, core_watchdog_ms=30000)
     return policy
+
+
+def retrieve_policy():
+    return dict(create_policy(True, True), workload='retrieve-target-201-staged',
+                observer='etw+kd-target-retrieve')
 
 
 def validate_positive_probe(capture, console, boot):
@@ -48,14 +54,18 @@ def validate_positive_probe(capture, console, boot):
 
 
 def validate_registration(profile_path, review_path, review_sha, boot):
-    profile = read(checked(profile_path, CREATE_PROFILE_SHA))
+    actual_sha = digest(Path(profile_path))
+    retrieve = actual_sha == RETRIEVE_PROFILE_SHA
+    expected_sha = RETRIEVE_PROFILE_SHA if retrieve else CREATE_PROFILE_SHA
+    kind = 'retrieve' if retrieve else 'create'
+    profile = read(checked(profile_path, expected_sha))
     review = read(checked(review_path, review_sha))
-    if (profile['method'] != 'kd-target-create-disabled-candidate-20261019-v1' or
+    if (profile['method'] != 'kd-target-'+kind+'-disabled-candidate-20261019-v1' or
             profile['registered_point_ids'] != [2] or profile['active_point_ids'] != [] or
             profile['control_source_port'] != 42201 or profile['automatic_debugger_control']):
         raise ValueError('TARGET_CREATE_PROFILE_INVALID')
-    if (review['method'] != 'target-create-registration-review-v1' or
-            review['profile_sha256'] != CREATE_PROFILE_SHA or review['registered_ids'] != [2] or
+    if (review['method'] != 'target-'+kind+'-registration-review-v1' or
+            review['profile_sha256'] != expected_sha or review['registered_ids'] != [2] or
             review['disabled_ids'] != [2] or review['action_matches_profile'] is not True or
             review['separate_g_shown'] is not True or review['source'] != 'user-chat-paste' or
             boot_identity(review['boot']) != boot_identity(boot)):
@@ -90,11 +100,13 @@ def validate(plan_path, sha, root):
     plan_path = checked(plan_path, sha)
     p = read(plan_path)
     kd = p.get('policy', {}).get('debugger_points') == [2]
+    retrieve = p.get('policy', {}).get('observer') == 'etw+kd-target-retrieve'
     staged = p.get('policy', {}).get('workload') == 'create-target-201-staged'
-    target = staged or p.get('policy', {}).get('workload') == 'create-target-201'
+    target = retrieve or staged or p.get('policy', {}).get('workload') == 'create-target-201'
+    expected_policy = retrieve_policy() if retrieve else (create_policy(target, staged) if kd else POLICY)
     if (p['method'] != 'target-accept-session-v1' or Path(p['root']) != root or
             Path(p['preparation']) != plan_path.parent or
-            plan_path.parent.parent != root / 'artifacts/diagnostics' or p['policy'] != (create_policy(target, staged) if kd else POLICY)):
+            plan_path.parent.parent != root / 'artifacts/diagnostics' or p['policy'] != expected_policy):
         raise ValueError('TARGET_PLAN_CONTRACT_INVALID')
     check_files(p['files'])
     verify_build(root, Path(p['build']))
@@ -104,7 +116,9 @@ def validate(plan_path, sha, root):
     boot = read(plan_path.parent / 'boot-session.json')
     boot_identity(boot)
     if kd:
-        validate_registration(p['debugger_profile'], p['registration_review'], p['registration_review_sha256'], boot)
+        profile = validate_registration(p['debugger_profile'], p['registration_review'], p['registration_review_sha256'], boot)
+        if ('retrieve' in profile['method']) != retrieve:
+            raise ValueError('TARGET_OBSERVER_PROFILE_DIFFERS')
     elif any(p.get(k) for k in ('debugger_profile', 'registration_review', 'registration_review_sha256')):
         raise ValueError('TARGET_ETW_PLAN_HAS_DEBUGGER_BINDINGS')
     if target:
@@ -117,7 +131,7 @@ def validate(plan_path, sha, root):
 
 
 def prepare(root, build, output, debugger_profile=None, registration_review=None,
-            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False):
+            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False, retrieve_target=False):
     output = plain(output)
     if output.parent != root / 'artifacts/diagnostics' or set(output.iterdir()) != {output / 'boot-session.json'}:
         raise ValueError('TARGET_FRESH_PLAN_DIRECTORY_REQUIRED')
@@ -125,15 +139,19 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
     assets_path = root / 'artifacts/diagnostics/pb-kd-shared-assets' / ASSETS
     assets = validate_assets(assets_path, ASSETS_SHA, root)
     bindings = {}
-    if manual_host_window and not create_target:
+    if retrieve_target and (create_target or not manual_host_window):
+        raise ValueError('TARGET_RETRIEVE_REQUIRES_EXCLUSIVE_STAGED_TARGET')
+    if manual_host_window and not (create_target or retrieve_target):
         raise ValueError('TARGET_STAGED_REQUIRES_201')
     if debugger_profile or registration_review:
         if not debugger_profile or not registration_review:
             raise ValueError('TARGET_PROFILE_AND_REGISTRATION_BOTH_REQUIRED')
-        validate_registration(debugger_profile, registration_review, digest(registration_review), read(output/'boot-session.json'))
+        profile = validate_registration(debugger_profile, registration_review, digest(registration_review), read(output/'boot-session.json'))
+        if ('retrieve' in profile['method']) != retrieve_target:
+            raise ValueError('TARGET_OBSERVER_PROFILE_DIFFERS')
         bindings = dict(debugger_profile=str(plain(debugger_profile)), registration_review=str(plain(registration_review)),
                         registration_review_sha256=digest(registration_review))
-    if create_target:
+    if create_target or retrieve_target:
         if not bindings or not positive_capture or not positive_console:
             raise ValueError('TARGET_CREATE_TARGET_REQUIRES_PROFILE_AND_POSITIVE_PROBE')
         bindings['positive_probe'] = validate_positive_probe(positive_capture, positive_console, read(output/'boot-session.json'))
@@ -150,7 +168,7 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         paths += [Path(bindings['debugger_profile']), Path(bindings['registration_review'])]
     plan = dict(method='target-accept-session-v1', root=str(root), preparation=str(output), build=str(build),
                 assets=str(assets_path), python=assets['python'], core_sha256=CORE,
-                policy=create_policy(create_target, manual_host_window) if bindings else POLICY, files=inventory(paths), **bindings)
+                policy=retrieve_policy() if retrieve_target else (create_policy(create_target, manual_host_window) if bindings else POLICY), files=inventory(paths), **bindings)
     boot_identity(read(output / 'boot-session.json'))
     save(output / 'runtime-plan.json', plan)
     validate(output / 'runtime-plan.json', digest(output / 'runtime-plan.json'), root)
@@ -171,10 +189,11 @@ if __name__ == '__main__':
     p.add_argument('--positive-capture', type=Path)
     p.add_argument('--positive-console', type=Path)
     p.add_argument('--manual-host-window', action='store_true')
+    p.add_argument('--retrieve-target', action='store_true')
     a = p.parse_args()
     if a.phase == 'prepare':
         target = prepare(plain(a.root), plain(a.build), a.output, a.debugger_profile, a.registration_review,
-                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window)
+                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window, a.retrieve_target)
         print(str(target))
         print(digest(target))
     else:
