@@ -1,5 +1,35 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Bounded flag candidate: три одноразовых снимка, новыеRun/Prepare не выполнялись
+
+USER хочет более богатыйзахват без повторенияstall и переподключилCoS. CoS
+после reconnect снова exec/readable. Разработан nonrunnable кандидат
+src/pb_target_flag_candidate.py; design docs/REDIRECT_BOUNDED_FLAG_CAPTURE_2026-10-19.md.
+IDs2CREATE,3RecvTcpDatagram+190 setter,4Accept+caf. Поодномуselectedsnapshots,
+одинk8; selectedpoint отключаетсебя, selectedaccept отключаетвсе. Rawhitcounter
+доfilter, cap16наpoint (консервативный общийbound48), приcapbd2/3/4 иINCOMPLETE.
+Нечитаемыйunidentifiedselector молчит; нетSEND/loopback-entryhotpoints.
+Automaticdisable толькоbd, usercontrolled Break/enable/step остаютсяhost.
+Это ещё не runnableprofile/launcher mode; старыйRetryTarget retired не разблокирован.
+
+CDB actualparser/realbd/.bpcmds:4cases×3actions passed, выбранный/лимитный
+point реальноdisabled, nonselectedenabled доcap. Private proof
+pb-target-flag-candidate-parser-20261019-r4; kernelsession/product/trafficfalse.
+Промежуточные ошибкиsafeharness: unreadablefixtureнепроходилidentityfilter;
+dummybpодинаковыйIPпереопределялID. Исправленыfixture иразныеdummyадреса,
+не менялсяgate несвязанногоpackaging. DejavuSKILLпрочитан, нетобходаgate.
+
+Offline bit20writers: WfpAleAuthorizeConnect+RVA5be77, ConnectCompletion
+a9d8a/a9e12, AuthorizeSend13b80d, SecureCompletion1647e5; clear15fa54.
+Recvwriter23670 требуетbit20 иnonnullRBX, которыйполученизincomingRCX.
+Передветкой callback2363f: rawreturnEDI; return1 можетраньшевыйтипоAL/stackarg.
+Названия/семантикафлаговнеустановлены, Windowsbug/patchнеобъявлять.
+
+Следующее: USER liveчтение RecvTcpDatagram L18 и+15fL18, отдельныйg.
+WarnbeforeBreakwholeVM/Codex/RDP. Регистрацию/Run пока не выдавать: live setter
+непроверен, oldrunstateRUNNING сохраняется. Не исправлятьstatusфиктивно, gateнеобходить.
+Текущие2..6off, VMresumed по последнемуUSERconsole. Новыхbl/архивов/Desktopнет.
+
 ## RETRY130643: VM stall, observer retired; bit21 skip followed by NOT_FOUND observed
 
 USER отключил2/3/4/5/6 и отдельноg после сильного зависания. Не просить повторный
