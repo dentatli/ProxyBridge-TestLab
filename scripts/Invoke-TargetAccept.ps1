@@ -6,7 +6,7 @@ param([ValidateSet('Prepare','Inspect','Run')][string]$Phase='Inspect',
       [switch]$CreateTarget, [string]$PositiveCapture='', [string]$PositiveConsole='', [switch]$BoundedLoadReviewed,
       [switch]$ManualHostWindow, [switch]$DebuggerPointsDisabled, [switch]$RetrieveTarget, [switch]$RetrieveProbe,
       [switch]$FlowTarget, [switch]$FlowProfileRegisteredDisabled, [switch]$RemovalTarget,
-      [string]$CommandParserProof='')
+      [string]$CommandParserProof='', [switch]$RetryTarget)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -37,6 +37,7 @@ if ($Phase -eq 'Prepare') {
     if ($RetrieveProbe) {$prepareArgs+=@('--retrieve-probe')}
     if ($FlowTarget) {$prepareArgs+=@('--flow-target')}
     if ($RemovalTarget) {$prepareArgs+=@('--removal-target')}
+    if ($RetryTarget) {$prepareArgs+=@('--retry-target')}
     if ($CommandParserProof) {$prepareArgs+=@('--command-parser-proof',$CommandParserProof)}
     if ($ManualHostWindow) {$prepareArgs+=@('--manual-host-window')}
     if ($PositiveCapture) {$prepareArgs+=@('--positive-capture',$PositiveCapture)}
@@ -59,11 +60,11 @@ $plan=Read-TargetJson $PlanPath
 $bootEvidence=Read-TargetJson (Join-Path $plan.preparation 'boot-session.json')
 Assert-KdBootSessionEvidence -Expected $bootEvidence -Actual (Get-KdBootSessionEvidence)
 if ($Phase -eq 'Inspect') {Write-Output 'TARGET_PLAN_INSPECTED_NO_RUNTIME';return}
-$flowObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -in @('etw+kd-target-flow','etw+kd-target-removal')
+$flowObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -in @('etw+kd-target-flow','etw+kd-target-removal','etw+kd-target-retry')
 if ([bool]$FlowProfileRegisteredDisabled -ne [bool]$flowObserver) {throw 'TARGET_FLOW_REGISTRATION_ACK_MUST_MATCH_PLAN_NO_RUNTIME'}
-$kdObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -in @('etw+kd-target-create','etw+kd-target-retrieve','etw+kd-target-flow','etw+kd-target-removal')
-$stagedHost=$kdObserver -and $plan.policy.workload -in @('create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged','removal-target-201-staged')
-$createTarget=$kdObserver -and $plan.policy.workload -in @('create-target-201','create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged','removal-target-201-staged')
+$kdObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -in @('etw+kd-target-create','etw+kd-target-retrieve','etw+kd-target-flow','etw+kd-target-removal','etw+kd-target-retry')
+$stagedHost=$kdObserver -and $plan.policy.workload -in @('create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged','removal-target-201-staged','retry-target-201-staged')
+$createTarget=$kdObserver -and $plan.policy.workload -in @('create-target-201','create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged','removal-target-201-staged','retry-target-201-staged')
 $fourProbe=$kdObserver -and $plan.policy.workload -in @('create-four-probe','retrieve-four-probe')
 if ($stagedHost) {
     if (-not $DebuggerPointsDisabled -or $DebuggerLoggerEnabled) {throw 'TARGET_STAGED_INITIAL_POINTS_MUST_BE_DISABLED_NO_RUNTIME'}

@@ -1,13 +1,14 @@
 # Следующий наблюдатель: отправка и ассоциация контрольного SYN
 
-Статус: offline design, не runnable профиль. Старые consumed планы не менять.
-Точки2/3 отключены пользователем,4 оставлена отключённой; VM resumed.
+Статус: live-участки сверены, отдельный профиль и план130317-2a77271b подготовлены.
+Run ещё не выполнялся. Старые consumed планы не менять. Точки2/3 отключены
+пользователем,4 оставлена отключённой; VM resumed. Новые2..6 ещё не зарегистрированы.
 
 ## Проверенные статические переходы
 
 Исходник анализа — сохранённый disassembly tcpip.sys SHA256
 `b0683bd7ed0f309e63b4e6e71675d8f04cfb0ea5533c3f5e8a13c6daca3b595a`.
-Ниже RVA; новые live-участки ещё не проверены пользователем.
+Ниже RVA; соответствующие live-участки проверены во вложенииd5c051dd.
 
 - `TcpRetransmitTimeout`51150 вызывает `TcpRtoTimeout`51650, который вызывает
   `TcpUpdateTcbSend`46564. Последний обновляет tracker через `TcpLocateTcbSend`.
@@ -33,9 +34,9 @@
 1. ID2: прежний CREATE+396, один control raw-port d9a4/family2. Сохраняет record
    в t1 и source endpoint в t2; повторный CREATE явно отмечать как неоднозначность.
 2. ID3: `TcpTcbSend+812` (RVA953c2), непосредственно перед fast-send call.
-   Guarded TCB reads: family через TCB+18, local+74, peer+76, source_ep+388.
-   Отбор family2/locald9a4/peerda84. Печатать thread/scope/TCB/NBL/source_ep,
-   отдельно состояние endpoint+30/+34/+1c0 при ненулевом читаемом указателе.
+   Guarded TCB reads: local+74, peer+76, source_ep+388.
+   Отбор locald9a4/peerda84 по зарезервированной паре портов. Печатать
+   thread/scope/TCB/NBL/source_ep; состояние endpoint читает следующий observer.
    Нулевой или другой endpoint не скрывать фильтром t2.
 3. ID4: `WfpTlShimInspectFastLoopbackSendDatagram` entry, RCX=t2, R8=NBL.
    Печатать состояние endpoint и record. Ограничение: другой/нулевой source_ep
@@ -53,7 +54,16 @@
 Два SEND не объявлять retry только по порядку строк: сопоставить native/ETW,
 идентификаторы и окно control; недостающие строки означают неполное покрытие.
 
-## До подготовки Run
+## Выполненная подготовка и границы
+
+Профиль SHA00c87b602b1a91c3b6ff42c600656aa57267882ae6aa8462cd0690e7d069f146.
+Реальный CDB прошёл четыре safe fixture сценария для всех пятиactions;
+13артефактов proof привязаны кплану.103Python tests, PSparser, HostWindow5,
+Cleanup прошли без нагрузки. Новый exact контракт добавлен в универсальный
+launcher; старые policy сохранены. USER host attestation обязательна вRun,
+подготовленный receipt не означает наблюдавшуюся регистрацию или runtimecoverage.
+
+Ниже порядок подготовки, уже выполненный до выдачи новогоRun:
 
 Прочитать live `TcpTcbSend+7b0 L20`, `InetFastSendDatagramsOnPathAf+3f L3`,
 `InetFastSendDatagramsOnPathAf+220 L3`, loopback entry L24 и +94 L7.
@@ -61,7 +71,7 @@
 profile/stage и проверить реальные actions через CDB с безопасными fixture
 ветвями. Интегрировать новый точный контракт в существующий универсальный
 launcher; прежние профили и positive baseline не объявлять проверкой нового.
-Prepare до живой сверки не выполнять. Нагрузку не запускать автоматически.
+Живая сверка завершена доPrepare. Нагрузку не запускать автоматически.
 
 Before Break/be: предупредить о паузе всей VM, Codex и RDP. Recovery для будущего
 набора: отдельные bd2,bd3,bd4,bd5,bd6 и отдельноg даже при ошибке. Activation и

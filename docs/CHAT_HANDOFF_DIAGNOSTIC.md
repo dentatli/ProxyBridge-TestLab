@@ -1,5 +1,47 @@
 # Передача чату диагностики TCP / WinDbg
 
+## RETRY пять точек: live-код сверён, план подготовлен; Run ещё не выполнялся
+
+USER attachmentd5c051dd live SEND953c2/fastsend95fd6,961b4/loopback entry/d7f20
+совпали. Hotpatch: d7f14 movr10,IAT; d7f1b directcall; post d7f20 неизменен.
+USER завершил отдельнымg. Private console pb-kd-retry-live-review-20261019,
+SHA b0fccdfeacd5e295f7267f1bbc4e008596d6275456f99197162fac12858df35a.
+
+Новый профиль pb-kd-target-retry-disabled-candidate-20261019.json SHA
+00c87b602b1a91c3b6ff42c600656aa57267882ae6aa8462cd0690e7d069f146:
+IDs2CREATE (t1record,t2source_ep),3SEND+812 (raw locald9a4/peerda84),
+4loopback entry (RCX=t2,flags/record),5post-associate+a0 (RBX=t2,result_raw),
+6accept+caf (localda84/peerd9a4,status/output_raw). SEND сохраняет нулевой или
+другойendpoint, не фильтрует equalityt2. Текущий SEND selector только reserved
+portpair; family не добавлялась как непроверенное runtimeусловие. Scope
+INSPECT entry на70h выше ASSOC_RETURN; parser проверяетthread/scope/NBL.
+Нет packetpayload/стеков/targetwrites/automaticdebuggercontrol. Tracker reset
+только debuggerregs; guardreads не являются lifetimeproof.
+
+Существующий launcher получил RetryTarget и exact retry-target-201-staged /
+etw+kd-target-retry policy с5IDs. Нагрузка/дедлайны/cleanup не менялись.
+Preparedreceipt не выдаёт команды за observedhostregistration; Run требует
+FlowProfileRegisteredDisabled userattestation. Старыеcapturedprofiles/plans
+не менялись. Тот же positive four112504 — толькоbaseline, не coverage нового.
+Новый retry-report связывает snapshots, сохраняет source mismatch и rawfailed
+output, не объявляет второйSEND retry или отсутствиестроки потерей.
+
+Реальный CDB safe fixtures:20pointbranchchecks (selected/unreadable/nonselected/
+duplicate), всеpassed; private pb-kd-retry-parser-check-20261019-r2,13boundfiles.
+Первый локальныйfixture ошибочно заменял wo внутриdwo; исправлен wordboundary,
+ошибка поймана до hostcommands. Это не ошибка actual action. Dejavu skill
+прочитан; unrelated packaginggate не менялся.103Python tests, PSparser,
+HostWindow5faultcases/Cleanup/diffcheck passed безproductruntime/traffic.
+
+Prepare130317-2a77271b exit0/PREPARED_NOT_RUN, SHA
+51d0f7edaef298b8aa0452ef36b449d2d8e378f4232dd74b948f68a9c2cea754.
+Runtime не запускался. USER получает единый inline комплектregistration2..6d,
+reset t1/t2 и отдельныйg; приошибкерегистрациинеRun. Затем Run сPlanSHA,
+DebuggerPointsDisabled/BoundedLoadReviewed/FlowProfileRegisteredDisabled.
+НаREADY userBreak (wholeVM/Codex/RDPpause), reset t1,be2,be3,be4,be5,be6,
+отдельныйg, затем латинскаяCбезEnterвVM. Recoverybd2..6 поодной, отдельныйg
+дажеприошибке. Не включатьстарыйREMOVE; неrepeatRun. Нетновогоbl/markers/архива.
+
 ## Следующий шаг: live-чтение пяти переходов перед подготовкой нового профиля
 
 USER разрешил расширенный observer. Offline design:

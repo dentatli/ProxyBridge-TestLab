@@ -1,0 +1,19 @@
+bd2
+bd3
+bd4
+bc2
+bc3
+bc4
+bp2 tcpip!AlepCreateRedirectRecord+0x396 ".if ($vvalid(@r14,0x10) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { .if (($vvalid(@rax+0x1e0,0x14) == 1) and (@rax != 0)) { .if (@$t1 == 0) { r @$t1 = @rax; r @$t2 = @rdi; .printf \"PBRT TRACK thread=%p source_ep=%p record=%p context=%p size=%I64x refs=%x\\n\", @$thread, @rdi, @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0); } .else { .printf \"PBRT_DUPLICATE capture=incomplete\\n\"; } } .else { .printf \"PBRT_UNREADABLE event=TRACK capture=incomplete\\n\"; } } } .else { .printf \"PBRT_UNREADABLE event=CREATE_SELECTOR capture=incomplete\\n\"; }; gc;"
+bd2
+bp3 tcpip!TcpTcbSend+0x812 ".if ($vvalid(@rdi+0x74,4) == 1) { .if ((wo(@rdi+0x74) == 0xd9a4) and (wo(@rdi+0x76) == 0xda84)) { .if ($vvalid(@rdi+0x388,8) == 1) { .printf \"PBRT SEND thread=%p scope=%p tcb=%p nbl=%p source_ep=%p local_raw=%x peer_raw=%x\\n\", @$thread, @rsp, @rdi, @r13, poi(@rdi+0x388), wo(@rdi+0x74), wo(@rdi+0x76); } .else { .printf \"PBRT_UNREADABLE event=SEND_ENDPOINT capture=incomplete\\n\"; } } } .else { .printf \"PBRT_UNREADABLE event=SEND_SELECTOR capture=incomplete\\n\"; }; gc;"
+bd3
+bp4 tcpip!WfpTlShimInspectFastLoopbackSendDatagram ".if (@$t2 != 0) { .if (@rcx == @$t2) { .if (($vvalid(@rcx+0x30,8) == 1) and ($vvalid(@rcx+0x1c0,8) == 1)) { .printf \"PBRT INSPECT thread=%p scope=%p source_ep=%p nbl=%p family=%x flags30=%x flags34=%x record=%p\\n\", @$thread, @rsp, @rcx, @r8, @edx, dwo(@rcx+0x30), dwo(@rcx+0x34), poi(@rcx+0x1c0); } .else { .printf \"PBRT_UNREADABLE event=INSPECT capture=incomplete\\n\"; } } }; gc;"
+bd4
+bp5 tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0xa0 ".if (@$t2 != 0) { .if (@rbx == @$t2) { .printf \"PBRT ASSOC_RETURN thread=%p scope=%p source_ep=%p nbl=%p result_raw=%I64x\\n\", @$thread, @rsp, @rbx, @rbp, @rax; } }; gc;"
+bd5
+bp6 tcpip!WfpAleAuthorizeAccept+0xcaf ".if ($vvalid(@rbp-0x7c,4) == 1) { .if ((wo(@rbp-0x7c) == 0xda84) and (wo(@rbp-0x7a) == 0xd9a4)) { .if ($vvalid(@rbp-0x28,8) == 1) { .printf \"PBRT RETRIEVE thread=%p scope=%p ep=%p nbl=%p local_raw=%x peer_raw=%x status=%x output_raw=%p\\n\", @$thread, @rsp, @rdi, @rbx, wo(@rbp-0x7c), wo(@rbp-0x7a), @eax, poi(@rbp-0x28); } .else { .printf \"PBRT_UNREADABLE event=RETRIEVE capture=incomplete\\n\"; } } } .else { .printf \"PBRT_UNREADABLE event=ACCEPT_SELECTOR capture=incomplete\\n\"; }; gc;"
+bd6
+r @$t1 = 0
+r @$t2 = 0
+.printf "PBRT_DISABLED_READY\n"

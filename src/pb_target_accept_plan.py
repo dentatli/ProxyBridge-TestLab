@@ -3,6 +3,7 @@ import argparse
 from pathlib import Path
 from pb_kd_session import read, save, checked, inventory, check_files, validate_assets, boot_identity
 from pb_prepare_kd_baseline import plain, digest
+from pb_target_retry_profile import PROFILE_SHA as RETRY_PROFILE_SHA, validate_parser_proof as validate_retry_parser_proof
 
 ASSETS = '81fc33a6288b324dcb9880735728e0699729c5c804292fb07a2791c9db4f3a24.json'
 ASSETS_SHA = 'f14a2fadc257c3167655264c7c11ab2d5ae2d1561c197164ad4abfddd945e52d'
@@ -38,13 +39,18 @@ def retrieve_policy(target=True):
                 observer='etw+kd-target-retrieve')
 
 
-def flow_policy(removal=False):
+def flow_policy(removal=False, retry=False):
     p = dict(create_policy(True, True), workload='flow-target-201-staged',
              debugger_points=[2, 3, 4], observer='etw+kd-target-flow',
              registration_confirmation='user-run-argument-no-independent-host-proof')
     if removal:
         p.update(workload='removal-target-201-staged', observer='etw+kd-target-removal',
                  debugger_points=[2, 3], inactive_debugger_points=[4])
+    if retry:
+        if removal:
+            raise ValueError('TARGET_FLOW_MODES_EXCLUSIVE')
+        p.update(workload='retry-target-201-staged', observer='etw+kd-target-retry',
+                 debugger_points=[2, 3, 4, 5, 6])
     return p
 
 
@@ -78,21 +84,23 @@ def validate_positive_probe(capture, console, boot):
 
 def validate_registration(profile_path, review_path, review_sha, boot):
     actual_sha = digest(Path(profile_path))
-    if actual_sha in (FLOW_PROFILE_SHA, REMOVAL_PROFILE_SHA, REMOVAL_R2_PROFILE_SHA):
-        removal = actual_sha != FLOW_PROFILE_SHA
-        kind = 'removal' if removal else 'flow'
+    if actual_sha in (FLOW_PROFILE_SHA, REMOVAL_PROFILE_SHA, REMOVAL_R2_PROFILE_SHA, RETRY_PROFILE_SHA):
+        retry = actual_sha == RETRY_PROFILE_SHA
+        removal = actual_sha in (REMOVAL_PROFILE_SHA, REMOVAL_R2_PROFILE_SHA)
+        ids = [2, 3, 4, 5, 6] if retry else [2, 3, 4]
+        kind = 'retry' if retry else ('removal' if removal else 'flow')
         version = 'v2' if actual_sha == REMOVAL_R2_PROFILE_SHA else 'v1'
         profile = read(checked(profile_path, actual_sha))
         receipt = read(checked(review_path, review_sha))
         if (profile['method'] != 'kd-target-'+kind+'-disabled-candidate-20261019-'+version or
-                profile['registered_point_ids'] != [2, 3, 4] or profile['active_point_ids'] != [] or
+                profile['registered_point_ids'] != ids or profile['active_point_ids'] != [] or
                 profile['control_source_port'] != 42201 or profile['automatic_debugger_control']):
             raise ValueError('TARGET_FLOW_PROFILE_INVALID')
         # Prepared commands are not represented as an observed registration review.
         if (receipt['method'] != 'target-flow-prepared-commands-v1' or
                 receipt['source'] != 'prepared-command-awaiting-user-attestation' or
                 receipt['profile_sha256'] != actual_sha or
-                receipt['expected_disabled_ids'] != [2, 3, 4] or
+                receipt['expected_disabled_ids'] != ids or
                 receipt['host_registration_observed'] is not False or
                 boot_identity(receipt['boot']) != boot_identity(boot)):
             raise ValueError('TARGET_FLOW_PREPARED_COMMANDS_OR_BOOT_DIFFERS')
@@ -163,13 +171,14 @@ def validate(plan_path, sha, root):
     plan_path = checked(plan_path, sha)
     p = read(plan_path)
     removal = p.get('policy', {}).get('observer') == 'etw+kd-target-removal'
-    flow = removal or p.get('policy', {}).get('observer') == 'etw+kd-target-flow'
-    kd = p.get('policy', {}).get('debugger_points') == ([2, 3] if removal else ([2, 3, 4] if flow else [2]))
+    retry = p.get('policy', {}).get('observer') == 'etw+kd-target-retry'
+    flow = retry or removal or p.get('policy', {}).get('observer') == 'etw+kd-target-flow'
+    kd = p.get('policy', {}).get('debugger_points') == ([2,3,4,5,6] if retry else ([2, 3] if removal else ([2, 3, 4] if flow else [2])))
     retrieve = p.get('policy', {}).get('observer') == 'etw+kd-target-retrieve'
     staged = p.get('policy', {}).get('workload') == 'create-target-201-staged'
     retrieve_four = p.get('policy', {}).get('workload') == 'retrieve-four-probe'
     target = flow or (retrieve and not retrieve_four) or staged or p.get('policy', {}).get('workload') == 'create-target-201'
-    expected_policy = flow_policy(removal) if flow else (retrieve_policy(not retrieve_four) if retrieve else (create_policy(target, staged) if kd else POLICY))
+    expected_policy = flow_policy(removal, retry) if flow else (retrieve_policy(not retrieve_four) if retrieve else (create_policy(target, staged) if kd else POLICY))
     if (p['method'] != 'target-accept-session-v1' or Path(p['root']) != root or
             Path(p['preparation']) != plan_path.parent or
             plan_path.parent.parent != root / 'artifacts/diagnostics' or p['policy'] != expected_policy):
@@ -184,11 +193,14 @@ def validate(plan_path, sha, root):
     if kd:
         profile = validate_registration(p['debugger_profile'], p['registration_review'], p['registration_review_sha256'], boot)
         if (('retrieve' in profile['method']) != retrieve or
-                ('flow' in profile['method'] or 'removal' in profile['method']) != flow or
-                ('removal' in profile['method']) != removal):
+                any(k in profile['method'] for k in ('flow','removal','retry')) != flow or
+                ('removal' in profile['method']) != removal or ('retry' in profile['method']) != retry):
             raise ValueError('TARGET_OBSERVER_PROFILE_DIFFERS')
         parser_proof = p.get('command_parser_proof')
-        if digest(Path(p['debugger_profile'])) == REMOVAL_R2_PROFILE_SHA:
+        if retry:
+            if not parser_proof or validate_retry_parser_proof(parser_proof['path']) != parser_proof:
+                raise ValueError('TARGET_RETRY_PARSER_PROOF_BINDING_DIFFERS')
+        elif digest(Path(p['debugger_profile'])) == REMOVAL_R2_PROFILE_SHA:
             if not parser_proof or validate_command_parser_proof(parser_proof['path']) != parser_proof:
                 raise ValueError('TARGET_COMMAND_PARSER_PROOF_BINDING_DIFFERS')
         elif parser_proof:
@@ -205,7 +217,7 @@ def validate(plan_path, sha, root):
 
 
 def prepare(root, build, output, debugger_profile=None, registration_review=None,
-            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False, retrieve_target=False, retrieve_probe=False, flow_target=False, removal_target=False, command_parser_proof=None):
+            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False, retrieve_target=False, retrieve_probe=False, flow_target=False, removal_target=False, command_parser_proof=None, retry_target=False):
     output = plain(output)
     if output.parent != root / 'artifacts/diagnostics' or set(output.iterdir()) != {output / 'boot-session.json'}:
         raise ValueError('TARGET_FRESH_PLAN_DIRECTORY_REQUIRED')
@@ -213,9 +225,9 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
     assets_path = root / 'artifacts/diagnostics/pb-kd-shared-assets' / ASSETS
     assets = validate_assets(assets_path, ASSETS_SHA, root)
     bindings = {}
-    if removal_target and flow_target:
+    if sum(map(bool,(removal_target,flow_target,retry_target))) > 1:
         raise ValueError('TARGET_FLOW_MODES_EXCLUSIVE')
-    flow_target = flow_target or removal_target
+    flow_target = flow_target or removal_target or retry_target
     if flow_target and (create_target or retrieve_target or retrieve_probe or not manual_host_window):
         raise ValueError('TARGET_FLOW_REQUIRES_EXCLUSIVE_STAGED_TARGET')
     if retrieve_probe and (retrieve_target or create_target or manual_host_window):
@@ -231,12 +243,16 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
             raise ValueError('TARGET_PROFILE_AND_REGISTRATION_BOTH_REQUIRED')
         profile = validate_registration(debugger_profile, registration_review, digest(registration_review), read(output/'boot-session.json'))
         if (('retrieve' in profile['method']) != (retrieve_target or retrieve_probe) or
-                ('flow' in profile['method'] or 'removal' in profile['method']) != flow_target or
-                ('removal' in profile['method']) != removal_target):
+                any(k in profile['method'] for k in ('flow','removal','retry')) != flow_target or
+                ('removal' in profile['method']) != removal_target or ('retry' in profile['method']) != retry_target):
             raise ValueError('TARGET_OBSERVER_PROFILE_DIFFERS')
         bindings = dict(debugger_profile=str(plain(debugger_profile)), registration_review=str(plain(registration_review)),
                         registration_review_sha256=digest(registration_review))
-    if removal_target:
+    if retry_target:
+        if not debugger_profile or digest(Path(debugger_profile)) != RETRY_PROFILE_SHA or not command_parser_proof:
+            raise ValueError('TARGET_RETRY_AND_REAL_PARSER_PROOF_REQUIRED')
+        bindings['command_parser_proof'] = validate_retry_parser_proof(command_parser_proof)
+    elif removal_target:
         if not debugger_profile or digest(Path(debugger_profile)) != REMOVAL_R2_PROFILE_SHA or not command_parser_proof:
             raise ValueError('TARGET_REMOVAL_R2_AND_REAL_PARSER_PROOF_REQUIRED')
         bindings['command_parser_proof'] = validate_command_parser_proof(command_parser_proof)
@@ -258,12 +274,12 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
     if bindings:
         paths += [Path(bindings['debugger_profile']), Path(bindings['registration_review'])]
     if flow_target:
-        kind = 'removal' if removal_target else 'flow'
+        kind = 'retry' if retry_target else ('removal' if removal_target else 'flow')
         suffix = '-r2' if removal_target else ''
         paths += [root/('scripts/debugger/pb-kd-target-'+kind+'-disabled-20261019'+suffix+'.wdbg')]
     plan = dict(method='target-accept-session-v1', root=str(root), preparation=str(output), build=str(build),
                 assets=str(assets_path), python=assets['python'], core_sha256=CORE,
-                policy=flow_policy(removal_target) if flow_target else (retrieve_policy(not retrieve_probe) if (retrieve_target or retrieve_probe) else (create_policy(create_target, manual_host_window) if bindings else POLICY)), files=inventory(paths), **bindings)
+                policy=flow_policy(removal_target, retry_target) if flow_target else (retrieve_policy(not retrieve_probe) if (retrieve_target or retrieve_probe) else (create_policy(create_target, manual_host_window) if bindings else POLICY)), files=inventory(paths), **bindings)
     boot_identity(read(output / 'boot-session.json'))
     save(output / 'runtime-plan.json', plan)
     validate(output / 'runtime-plan.json', digest(output / 'runtime-plan.json'), root)
@@ -289,10 +305,11 @@ if __name__ == '__main__':
     p.add_argument('--flow-target', action='store_true')
     p.add_argument('--removal-target', action='store_true')
     p.add_argument('--command-parser-proof', type=Path)
+    p.add_argument('--retry-target', action='store_true')
     a = p.parse_args()
     if a.phase == 'prepare':
         target = prepare(plain(a.root), plain(a.build), a.output, a.debugger_profile, a.registration_review,
-                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window, a.retrieve_target, a.retrieve_probe, a.flow_target, a.removal_target, a.command_parser_proof)
+                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window, a.retrieve_target, a.retrieve_probe, a.flow_target, a.removal_target, a.command_parser_proof, a.retry_target)
         print(str(target))
         print(digest(target))
     else:
