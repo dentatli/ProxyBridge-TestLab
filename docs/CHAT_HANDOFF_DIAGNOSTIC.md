@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## CREATE target201 остановлен на prefill; контрольное соединение не запускалось
+
+USER run053636-67765378 plan053427-2b540406 consumed once. Первичная ошибка
+TARGET_FILLERS_NOT_ESTABLISHED (15s deadline), cohort elapsed17837ms/observations[].
+Нет control-launch.json/control query/CREATE. USER показал BEGIN→be2→g, затем
+Break→bd2→END→separateg. Не повторять Run/не просить bl/не refreeze consumed plan.
+CoS offline parse:200 original queries всех filler ports42001..42200,
+все IPV4_CONTEXT_AVAILABLE; control42201 отсутствует. Это не proof готовности
+всех200 до timeout: на failure poll snapshots не сохранялись; gate release
+в finally подтверждён released=1. ETW1553 Succeeded1 для200 unique filler ports
+имеют span17.192914s; loss counters0. В этих tuple нет1214Reason30/1186;
+есть200 Reason10 после последнего1553. Абсолютное выравнивание часов не доказано.
+Fillers CSV0rows/forced stop; receiver200 ErrorNotAllDataTransferred после abort.
+Не трактовать эти последствия остановки как новый10061/исходный10022.
+Run cleanup_errors TARGET_RECEIVER_CONTROLLED_STOP_FAILED, но receiver receipt
+показывает ctrl-break-delivered-process-exited/exit200. Текущий CIM:нет ctsTraffic,
+receiver или CLI; resident_disabled_after=true, serviceRunning. Не переписывать rawFAILED.
+Private review pb-target-create-target-review-20261019-053636/review.json.
+
+Перед Run было4160479232bytes RAM: это не RAM floor. Возможное объяснение —
+overhead активной CREATE point на fillers (printf filter не доказывает отсутствие
+traps). Это гипотеза, не измеренный hit count. Не увеличивать timeout/watchdog
+и не повторять эту же нагрузку вслепую. Next design: разделить prefill без CREATE
+point и наблюдение control; требуется явный host/VM coordination contract с прежним
+30s watchdog и user-controlled host actions, пока не подготовлен/не runnable.
+
 ## Подготовлен CREATE target201: одна прежняя точка2, Run ещё не выполнен
 
 USER продолжил после успешногоfour. Новый explicit workload create-target-201:
