@@ -1,0 +1,7 @@
+$$ Format and constant selector probe only. No breakpoints or execution control.
+.printf "PBTR_PROBE_BEGIN\n"
+.printf "PBTR CREATE thread=%p source=%p local_raw=%I64x ep=%p assigned=%p record=%p context=%p size=%I64x refs=%x\n", 0, 0, 0, 0, 0, 0, 0, 0x20, 1
+.if ((0xd9a4 == 0xd9a4) and (2 == 2)) { .printf "PBTR_SELECTOR_TRUE_OK\n"; } .else { .printf "PBTR_UNEXPECTED_SELECTOR_FALSE\n"; }
+.if ((0xd9a5 == 0xd9a4) and (2 == 2)) { .printf "PBTR_UNEXPECTED_SELECTOR_TRUE\n"; } .else { .printf "PBTR_SELECTOR_FALSE_OK\n"; }
+.if ($vvalid(0,0x10) == 0) { .printf "PBTR_NULL_GUARD_OK\n"; } .else { .printf "PBTR_UNEXPECTED_NULL_VALID\n"; }
+.printf "PBTR_PROBE_END\n"

@@ -1,6 +1,30 @@
 # Одна точка создания записи: проверка выбора контрольного соединения
 
-Статус: DISK_SELECTOR_REVIEWED_LIVE_PENDING. Новый Run/профиль не подготовлен,
+## Получена сверка live-кода
+
+USER attachment f88dd436-35c0-4fc3-9b21-f4d9239a7ebe:68/68 инструкций
+побайтно совпали с matching disk PE. Текущий basefffff80765580000,
+siteCreate+396=fffff807656888b6. Caller symbol подтверждён как
+AleInspectConnectRequestComplete. Ошибка ввода `п` последовала перед правильным
+отдельным `g`; ошибок чтения кода не показано. Это новая адресная выборка,
+не whole image/исполнение R14 selector. Raw console/SHA и проверка сохранены
+в private `pb-target-record-live-review-20261019`; SHAconsole
+41e7091f5a6e0059a926fb8dc4faa2bb8a7b773b42e8b7e5f5d724f0a2cf745f.
+
+Следующий USER шаг — только format/constant/NULL guard probe
+`scripts/debugger/pb-kd-target-create-format-probe-20261019.wdbg`.
+Команды можно копировать из чата, перенос нового архива не требуется.
+Probe не регистрирует точки, не читает record/packet/context и не меняет
+регистры/память VM. Null-vvalid — проверка доступности, без разыменования.
+После Break wholeVM/Codex/RDP pause warning; команды по одной, при ошибке
+пропустить оставшиеся и отдельноg. Expected: synthetic CREATE/size20/refs1,
+SELECTOR_TRUE_OK/SELECTOR_FALSE_OK/NULL_GUARD_OK, без UNEXPECTED/errors.
+Только после ответа готовить отключённую регистрацию, затем новый runtime
+observer contract; не включать точку в старом ETW-only controller.
+
+Ниже исходная дисковая проверка и выполненные read-only команды.
+
+Первоначальный статус: DISK_SELECTOR_REVIEWED_LIVE_PENDING. Новый Run/профиль не подготовлен,
 точки не устанавливались. Цель следующего опыта — положительное наблюдение
 создания private record для control, а не вся история transfer/free сразу.
 

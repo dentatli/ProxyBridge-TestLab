@@ -1,5 +1,22 @@
 # Передача чату диагностики TCP / WinDbg
 
+## CREATE selector live-код совпал; ожидается короткая format/guard probe
+
+USER attachment f88dd436... проверен CoS audit:68/68instr exact,current tcpipbase
+fffff80765580000/site+396 fffff807656888b6,caller AleInspectConnectRequestComplete.
+SHAconsole41e7091f5a6e0059a926fb8dc4faa2bb8a7b773b42e8b7e5f5d724f0a2cf745f,
+private `pb-target-record-live-review-20261019/{console.txt,review.json}`.
+Русская `п` syntaxerror затемcorrectseparateg; target resumed поUSERвыводу.
+Privatecheck.ps1 сначалаPS5 nonASCII-withoutBOM parsefailed/nothingran;
+исправленASCIIpath+GetChildtxt exactlyone, повторsuccess. Исходныйattachmentнеизменён.
+
+New format-only wdbg `pb-kd-target-create-format-probe-20261019.wdbg`:
+9syntheticprintfargs,constanttrue/false selector/NULLvvalid, no bp/be/g/Run.
+NextUSER wholeVMpausewarning beforeBreak, probecommandsbyone, separatelyg
+evenerror, fulloutput. Никакогоновогоblбезизменениярегистрации/новогоархива.
+Послеprobe — disabledregistration и отдельнаяинтеграцияdebuggerobserver,
+нестарыйETW-onlyRun. Новойнагрузки/сборки/driverchangesвэтомходенет.
+
 ## Найден кандидат source-port selector в CREATE_POST; требуется USER live-код
 
 CoS offline review: [план и команды](TARGET_RECORD_SELECTOR_2026-10-19.md).
