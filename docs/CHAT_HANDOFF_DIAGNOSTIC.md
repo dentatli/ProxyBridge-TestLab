@@ -1,5 +1,21 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER разрешил ещё одну ручную staged попытку; свежий план подготовлен
+
+После explicit USER «Давай еще раз попробуем вручную, я буду быстрее» создан
+новый plan055926-aabaa7c9 SHAa3132c45950f27e785724454b7659986d4bba9873f5942838ab3f477676c7d81.
+Prepareexit0/contract/files/positiveprobe/sameboot validated. Source unchanged,
+новые тесты не повторялись. FreeRAM3.89GiB/nativeCLI0/workingtreeclean доdoc update.
+Старые consumed plans не повторять/не refreeze. Fresh Run ещё не выполнялся.
+Host BEGIN допустимо вывести заранее, приpoint2disabled, затемseparateg;
+послеVMREADY остаются толькоUSERBreak→be2→separateg, затемлатинскаяCвVM.
+WholeVM/Codex/RDP pause warning передкаждымBreak/be; приcompletion/error
+USERBreak→bd2→END→separateg. Не включатьpointеслиREADYнепоявился.
+Manual15s/Core30s неизменны. CoS agentне запускает интерактивныйRun.
+Physical host inventory: WinDbgX alias, CDBне найден; Microsoft.WinDbg package
+1.2610.1001.0 содержитamd64/dbgeng.dll. Координаторhostещёне реализован/не проверен;
+не выдаватьmanualretryзаавтоматизацию и не подключатьremote serverбезотдельногошага.
+
 ## Staged target201: prefill готов, подтверждение не принято до deadline
 
 USER run054801-65faecc6 consumed plan054552-cbaf3805 once. Error
