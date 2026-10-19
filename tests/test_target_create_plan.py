@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
-from pb_target_accept_plan import CREATE_PROFILE_SHA, RETRIEVE_PROFILE_SHA, POLICY, create_policy, retrieve_policy, validate_registration, validate_positive_probe
+from pb_target_accept_plan import CREATE_PROFILE_SHA, RETRIEVE_PROFILE_SHA, FLOW_PROFILE_SHA, POLICY, create_policy, retrieve_policy, flow_policy, validate_registration, validate_positive_probe
 
 
 class TargetCreateBinding(unittest.TestCase):
@@ -139,6 +139,30 @@ class TargetCreateBinding(unittest.TestCase):
     def test_create_review_cannot_approve_retrieve_profile(self):
         self.profile=ROOT/'scripts/debugger/pb-kd-target-retrieve-disabled-candidate-20261019.json'
         with self.assertRaises(ValueError): self.validate()
+
+    def flow_fixture(self):
+        self.profile = ROOT/'scripts/debugger/pb-kd-target-flow-disabled-candidate-20261019.json'
+        self.review = dict(method='target-flow-prepared-commands-v1',
+            source='prepared-command-awaiting-user-attestation', profile_sha256=FLOW_PROFILE_SHA,
+            expected_disabled_ids=[2, 3, 4], host_registration_observed=False, boot=self.boot)
+
+    def test_flow_prepared_receipt_does_not_claim_observed_registration(self):
+        self.flow_fixture()
+        self.assertEqual(self.validate()['active_point_ids'], [])
+        self.assertEqual(flow_policy()['debugger_points'], [2, 3, 4])
+        self.assertEqual(flow_policy()['initial_debugger_points'], [])
+        self.assertFalse(self.review['host_registration_observed'])
+
+    def test_flow_receipt_cannot_fabricate_host_observation(self):
+        self.flow_fixture()
+        self.review['host_registration_observed'] = True
+        with self.assertRaises(ValueError): self.validate()
+
+    def test_flow_receipt_wrong_boot_rejected(self):
+        self.flow_fixture()
+        changed = copy.deepcopy(self.boot)
+        changed['identity']['prefetch_boot_id'] += 1
+        with self.assertRaises(ValueError): self.validate(changed)
 
 
 if __name__ == '__main__':

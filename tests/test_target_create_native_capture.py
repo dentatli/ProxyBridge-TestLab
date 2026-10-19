@@ -7,7 +7,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
-from pb_target_accept_plan import create_policy, retrieve_policy
+from pb_target_accept_plan import create_policy, retrieve_policy, flow_policy
 from pb_target_accept_report import evaluate
 from pb_tcp_redirect_context_report import FIELDS
 
@@ -150,6 +150,14 @@ class FourCapture(unittest.TestCase):
         self.staged_fixture()
         self.save('runtime-plan.json',dict(policy=retrieve_policy()))
         self.assertEqual(self.evaluate()['errors'],[])
+
+    def test_flow_registration_ack_is_required(self):
+        self.staged_fixture()
+        self.save('runtime-plan.json', dict(policy=flow_policy()))
+        self.assertIn('FLOW_REGISTRATION_ACK_MISSING', self.evaluate()['errors'])
+        self.save('diagnostic-run.json', dict(status='COLLECTED', cleanup_errors=[],
+            resident_disabled_after=True, debugger_observer=True, flow_registration_acknowledged=True))
+        self.assertEqual(self.evaluate()['errors'], [])
 
 
 if __name__=='__main__':

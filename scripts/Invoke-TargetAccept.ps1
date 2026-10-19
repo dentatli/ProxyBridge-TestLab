@@ -4,7 +4,8 @@ param([ValidateSet('Prepare','Inspect','Run')][string]$Phase='Inspect',
       [string]$BuildDirectory='', [string]$PlanPath='', [string]$PlanSha='',
       [string]$DebuggerProfile='', [string]$RegistrationReview='', [switch]$DebuggerLoggerEnabled,
       [switch]$CreateTarget, [string]$PositiveCapture='', [string]$PositiveConsole='', [switch]$BoundedLoadReviewed,
-      [switch]$ManualHostWindow, [switch]$DebuggerPointsDisabled, [switch]$RetrieveTarget, [switch]$RetrieveProbe)
+      [switch]$ManualHostWindow, [switch]$DebuggerPointsDisabled, [switch]$RetrieveTarget, [switch]$RetrieveProbe,
+      [switch]$FlowTarget, [switch]$FlowProfileRegisteredDisabled)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -33,6 +34,7 @@ if ($Phase -eq 'Prepare') {
     if ($CreateTarget) {$prepareArgs+=@('--create-target')}
     if ($RetrieveTarget) {$prepareArgs+=@('--retrieve-target')}
     if ($RetrieveProbe) {$prepareArgs+=@('--retrieve-probe')}
+    if ($FlowTarget) {$prepareArgs+=@('--flow-target')}
     if ($ManualHostWindow) {$prepareArgs+=@('--manual-host-window')}
     if ($PositiveCapture) {$prepareArgs+=@('--positive-capture',$PositiveCapture)}
     if ($PositiveConsole) {$prepareArgs+=@('--positive-console',$PositiveConsole)}
@@ -54,9 +56,11 @@ $plan=Read-TargetJson $PlanPath
 $bootEvidence=Read-TargetJson (Join-Path $plan.preparation 'boot-session.json')
 Assert-KdBootSessionEvidence -Expected $bootEvidence -Actual (Get-KdBootSessionEvidence)
 if ($Phase -eq 'Inspect') {Write-Output 'TARGET_PLAN_INSPECTED_NO_RUNTIME';return}
-$kdObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -in @('etw+kd-target-create','etw+kd-target-retrieve')
-$stagedHost=$kdObserver -and $plan.policy.workload -in @('create-target-201-staged','retrieve-target-201-staged')
-$createTarget=$kdObserver -and $plan.policy.workload -in @('create-target-201','create-target-201-staged','retrieve-target-201-staged')
+$flowObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -eq 'etw+kd-target-flow'
+if ([bool]$FlowProfileRegisteredDisabled -ne [bool]$flowObserver) {throw 'TARGET_FLOW_REGISTRATION_ACK_MUST_MATCH_PLAN_NO_RUNTIME'}
+$kdObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -in @('etw+kd-target-create','etw+kd-target-retrieve','etw+kd-target-flow')
+$stagedHost=$kdObserver -and $plan.policy.workload -in @('create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged')
+$createTarget=$kdObserver -and $plan.policy.workload -in @('create-target-201','create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged')
 $fourProbe=$kdObserver -and $plan.policy.workload -in @('create-four-probe','retrieve-four-probe')
 if ($stagedHost) {
     if (-not $DebuggerPointsDisabled -or $DebuggerLoggerEnabled) {throw 'TARGET_STAGED_INITIAL_POINTS_MUST_BE_DISABLED_NO_RUNTIME'}
@@ -155,6 +159,7 @@ try {
     $run=[ordered]@{method='target-accept-session-v1';status='RUNNING';started_at_utc=[DateTime]::UtcNow.ToString('o');
         plan_sha256=$PlanSha;error='';cleanup_errors=@();resident_disabled_after=$false;debugger_control=$false;driver_installation=$false;free_memory_before=$available}
     $run['debugger_observer']=[bool]$kdObserver
+    if ($flowObserver) {$run['flow_registration_acknowledged']=$true}
     $run['debugger_console_pending']=[bool]$kdObserver
     Write-TargetJson $run (Join-Path $evidence 'diagnostic-run.json')
     Copy-Item -LiteralPath $PlanPath -Destination (Join-Path $evidence 'runtime-plan.json')
@@ -205,7 +210,7 @@ try {
         ProxyConfigs=@([ordered]@{Id=1;Name='Target accept';Type='SOCKS5';Host='127.0.0.1';Port='54123';Username='';Password='';SendDomainToProxy=$false});
         ProxyRules=@([ordered]@{Name='Target accept';ProcessName='ctsTraffic.exe';TargetHosts='127.0.0.1';TargetPorts='54122';TargetDomains='';Protocol='TCP';Action='PROXY';ProxyConfigId=1;IsEnabled=$true})}) $profile
     $context=[pscustomobject]@{root=$root;directory=$evidence;adapter=$adapter;client=$client;
-        probe_only=[bool]$fourProbe;manual_host_window=[bool]$stagedHost}
+        probe_only=[bool]$fourProbe;manual_host_window=[bool]$stagedHost;flow_observer=[bool]$flowObserver}
     $cohortCommand=Get-Command Invoke-TargetNativeCohort
     $writeCommand=Get-Command Write-TargetJson
     $workload={param($cli)
@@ -268,7 +273,8 @@ try {
         if ($run.cleanup_errors.Count) {$run.status='FAILED'}
         Invoke-TargetCleanupStep {Write-TargetJson $run (Join-Path $evidence 'diagnostic-run.json')}
         Write-Host ('Results: '+$evidence)
-        if ($kdObserver) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2 then separate g. Preserve console from this Run. No repeat Run.'}
+        if ($flowObserver) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2, bd3, bd4, then separate g. Preserve console from this Run. No repeat Run.'}
+        elseif ($kdObserver) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2 then separate g. Preserve console from this Run. No repeat Run.'}
     }
     [Environment]::SetEnvironmentVariable('PB_TESTLAB_ROUTE_CASE',$oldRoute,'Process')
     [Environment]::SetEnvironmentVariable('PB_TESTLAB_TARGET_GATE',$oldGate,'Process')

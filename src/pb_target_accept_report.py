@@ -9,7 +9,7 @@ import xml.etree.ElementTree as ET
 from pb_tcp_connections_report import csv_rows
 from pb_tcp_redirect_context_report import parse_queries
 from pb_etw_redirect_report import evaluate as evaluate_etw, NS, PROVIDER
-from pb_target_accept_plan import create_policy, retrieve_policy
+from pb_target_accept_plan import create_policy, retrieve_policy, flow_policy
 
 
 def correlate(roles, queries, receiver, relay_pid):
@@ -110,11 +110,14 @@ def evaluate(path):
         if observer:
             policy = read(path / 'runtime-plan.json')['policy']
             retrieve = policy.get('observer') == 'etw+kd-target-retrieve'
+            flow = policy.get('observer') == 'etw+kd-target-flow'
             probe = policy.get('workload') in ('create-four-probe','retrieve-four-probe')
-            staged = policy.get('workload') in ('create-target-201-staged','retrieve-target-201-staged')
+            staged = policy.get('workload') in ('create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged')
+            if flow and (run.get('flow_registration_acknowledged') is not True):
+                errors.append('FLOW_REGISTRATION_ACK_MISSING')
             if probe and policy != (retrieve_policy(False) if retrieve else create_policy()):
                 errors.append('CREATE_FOUR_OBSERVER_POLICY_INVALID')
-            elif not probe and policy != (retrieve_policy() if retrieve else create_policy(True, staged)):
+            elif not probe and policy != (flow_policy() if flow else (retrieve_policy() if retrieve else create_policy(True, staged))):
                 errors.append('CREATE_TARGET_OBSERVER_POLICY_INVALID')
         filler_count = 3 if probe else 200
         control_stage = 'control-established' if probe else 'control-synsent'

@@ -73,6 +73,7 @@ function Invoke-TargetNativeCohort {
     Initialize-TargetTcpTable
     $probeOnly=$Context.PSObject.Properties['probe_only'] -and $Context.probe_only
     $manualHost=$Context.PSObject.Properties['manual_host_window'] -and $Context.manual_host_window
+    $flowObserver=$Context.PSObject.Properties['flow_observer'] -and $Context.flow_observer
     if ($manualHost -and $probeOnly) {throw 'TARGET_MANUAL_HOST_REQUIRES_TARGET_201'}
     $fillerCount=if ($probeOnly) {3} else {200}
     $fillerPortEnd=42000+$fillerCount
@@ -140,8 +141,10 @@ function Invoke-TargetNativeCohort {
         $beforeControl={param($fillers)
             # Discard buffered keys: confirmation must follow this ready message.
             while ([Console]::KeyAvailable) {$null=[Console]::ReadKey($true)}
-            Write-Host ('TARGET_PREFILL_READY: 200 connections; host Break, be2, separate g; then press C here. Remaining window ms: '+(15000-$Context.clock.ElapsedMilliseconds))
-            Write-Host 'Break/be can pause the entire VM including Codex/RDP. After completion/error: host bd2, separate g. No repeat Run.'
+            $hostCommands=if ($flowObserver) {'reset t1=0, be2, be3, be4'} else {'be2'}
+            $hostRecovery=if ($flowObserver) {'bd2, bd3, bd4'} else {'bd2'}
+            Write-Host ('TARGET_PREFILL_READY: 200 connections; host Break, '+$hostCommands+', separate g; then press C here. Remaining window ms: '+(15000-$Context.clock.ElapsedMilliseconds))
+            Write-Host ('Break/be can pause the entire VM including Codex/RDP. After completion/error: host '+$hostRecovery+', separate g. No repeat Run.')
             $elapsed={$Context.clock.ElapsedMilliseconds}.GetNewClosure()
             $confirmed={
                 if (-not [Console]::KeyAvailable) {return $false}

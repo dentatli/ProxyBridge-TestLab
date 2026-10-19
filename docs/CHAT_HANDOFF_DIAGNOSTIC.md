@@ -1,5 +1,32 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER одобрил единый комплект FLOW: disabled registration + Run + READY activation
+
+USER попросил убрать отдельную переписку между регистрацией и проверкой и согласился
+с сохранением prefill200 при отключённых точках. Общий launcher теперь поддерживает
+flow-target-201-staged/etw+kd-target-flow, IDs2/3/4, initial[]. Те же ports/200+1/
+512KiB/один query/15s host window/30s core watchdog. Старые планы не менять/не повторять.
+Positive gate использует текущую same-boot успешную retrieve-four112504-9ac96569;
+это baseline proof, а не runtime-проверка новых callback actions.
+
+Новая регистрационная receipt честно source prepared-command-awaiting-user-attestation,
+host_registration_observed=false, expected_disabled_ids2/3/4. Не писать fictitious
+user-chat-paste review. Run требует -FlowProfileRegisteredDisabled и
+-DebuggerPointsDisabled/-BoundedLoadReviewed; flag фиксируется в capture как USER
+attestation, не независимая host проверка. При любой ошибке host регистрации Run
+не выполнять. Stage проверяет code bytes перед заменой2/созданием3/4; сообщение
+PBTF_DISABLED_READY, отдельный g. В runtime plan включён hash самогоstage.
+
+После READY: USER Break (wholeVM/Codex/RDP pause), r t1=0, be2,be3,be4 поодной,
+затем отдельный g; латинская C вVM. После completion/error USERbd2,bd3,bd4,
+отдельный g evenerror. Recovery и READY messages обновлены под3IDs.
+Flow report проверяет точный policy/hash/registrationack и native report, pairing
+callback thread/scope; отсутствие строк не coverage proof. 74Python tests, обаPS
+parser, HostWindow5fault cases и Cleanup fault test прошли безtraffic/runtime.
+Существующий diagnosticCore/driver не менялись, сборки/установки/Run не было.
+Следующее действиеагента: создать honest prepared-command receipt/currentboot,
+свежий flow plan и выдать весь комплект без ожидания отдельного paste регистрации.
+
 ## FLOW candidate: три отключённые точки, регистрация ещё не выполнена
 
 USER live callback entry L5 и+ea L9 совпали с ожидаемой логикой/адресами.

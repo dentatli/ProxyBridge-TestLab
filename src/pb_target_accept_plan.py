@@ -12,6 +12,7 @@ POLICY = dict(fillers=200, filler_ports=[42001, 42200], control_port=42201,
               debugger_points=[], driver_installation=False, driver_lifecycle='resident-disabled')
 CREATE_PROFILE_SHA = '42f1426e0a5c6ba0f98794692598e30ed22c30ae6416c194e66c5c12d2fa5aa5'
 RETRIEVE_PROFILE_SHA = '19490d337a14b149c275d5d801f12ddb7c86290b5357b76b9639c369083be35c'
+FLOW_PROFILE_SHA = '830b34f3526c27f5511f1877e79e01aaa39d8f06e385ad383a05d8fa1fcd1018'
 
 
 def create_policy(target=False, staged=False):
@@ -33,6 +34,12 @@ def retrieve_policy(target=True):
     return dict(create_policy(target, target),
                 workload='retrieve-target-201-staged' if target else 'retrieve-four-probe',
                 observer='etw+kd-target-retrieve')
+
+
+def flow_policy():
+    return dict(create_policy(True, True), workload='flow-target-201-staged',
+                debugger_points=[2, 3, 4], observer='etw+kd-target-flow',
+                registration_confirmation='user-run-argument-no-independent-host-proof')
 
 
 def validate_positive_probe(capture, console, boot):
@@ -65,6 +72,22 @@ def validate_positive_probe(capture, console, boot):
 
 def validate_registration(profile_path, review_path, review_sha, boot):
     actual_sha = digest(Path(profile_path))
+    if actual_sha == FLOW_PROFILE_SHA:
+        profile = read(checked(profile_path, FLOW_PROFILE_SHA))
+        receipt = read(checked(review_path, review_sha))
+        if (profile['method'] != 'kd-target-flow-disabled-candidate-20261019-v1' or
+                profile['registered_point_ids'] != [2, 3, 4] or profile['active_point_ids'] != [] or
+                profile['control_source_port'] != 42201 or profile['automatic_debugger_control']):
+            raise ValueError('TARGET_FLOW_PROFILE_INVALID')
+        # Prepared commands are not represented as an observed registration review.
+        if (receipt['method'] != 'target-flow-prepared-commands-v1' or
+                receipt['source'] != 'prepared-command-awaiting-user-attestation' or
+                receipt['profile_sha256'] != FLOW_PROFILE_SHA or
+                receipt['expected_disabled_ids'] != [2, 3, 4] or
+                receipt['host_registration_observed'] is not False or
+                boot_identity(receipt['boot']) != boot_identity(boot)):
+            raise ValueError('TARGET_FLOW_PREPARED_COMMANDS_OR_BOOT_DIFFERS')
+        return profile
     retrieve = actual_sha == RETRIEVE_PROFILE_SHA
     expected_sha = RETRIEVE_PROFILE_SHA if retrieve else CREATE_PROFILE_SHA
     kind = 'retrieve' if retrieve else 'create'
@@ -109,12 +132,13 @@ def verify_build(root, build):
 def validate(plan_path, sha, root):
     plan_path = checked(plan_path, sha)
     p = read(plan_path)
-    kd = p.get('policy', {}).get('debugger_points') == [2]
+    flow = p.get('policy', {}).get('observer') == 'etw+kd-target-flow'
+    kd = p.get('policy', {}).get('debugger_points') == ([2, 3, 4] if flow else [2])
     retrieve = p.get('policy', {}).get('observer') == 'etw+kd-target-retrieve'
     staged = p.get('policy', {}).get('workload') == 'create-target-201-staged'
     retrieve_four = p.get('policy', {}).get('workload') == 'retrieve-four-probe'
-    target = (retrieve and not retrieve_four) or staged or p.get('policy', {}).get('workload') == 'create-target-201'
-    expected_policy = retrieve_policy(not retrieve_four) if retrieve else (create_policy(target, staged) if kd else POLICY)
+    target = flow or (retrieve and not retrieve_four) or staged or p.get('policy', {}).get('workload') == 'create-target-201'
+    expected_policy = flow_policy() if flow else (retrieve_policy(not retrieve_four) if retrieve else (create_policy(target, staged) if kd else POLICY))
     if (p['method'] != 'target-accept-session-v1' or Path(p['root']) != root or
             Path(p['preparation']) != plan_path.parent or
             plan_path.parent.parent != root / 'artifacts/diagnostics' or p['policy'] != expected_policy):
@@ -128,7 +152,7 @@ def validate(plan_path, sha, root):
     boot_identity(boot)
     if kd:
         profile = validate_registration(p['debugger_profile'], p['registration_review'], p['registration_review_sha256'], boot)
-        if ('retrieve' in profile['method']) != retrieve:
+        if ('retrieve' in profile['method']) != retrieve or ('flow' in profile['method']) != flow:
             raise ValueError('TARGET_OBSERVER_PROFILE_DIFFERS')
     elif any(p.get(k) for k in ('debugger_profile', 'registration_review', 'registration_review_sha256')):
         raise ValueError('TARGET_ETW_PLAN_HAS_DEBUGGER_BINDINGS')
@@ -142,7 +166,7 @@ def validate(plan_path, sha, root):
 
 
 def prepare(root, build, output, debugger_profile=None, registration_review=None,
-            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False, retrieve_target=False, retrieve_probe=False):
+            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False, retrieve_target=False, retrieve_probe=False, flow_target=False):
     output = plain(output)
     if output.parent != root / 'artifacts/diagnostics' or set(output.iterdir()) != {output / 'boot-session.json'}:
         raise ValueError('TARGET_FRESH_PLAN_DIRECTORY_REQUIRED')
@@ -150,23 +174,26 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
     assets_path = root / 'artifacts/diagnostics/pb-kd-shared-assets' / ASSETS
     assets = validate_assets(assets_path, ASSETS_SHA, root)
     bindings = {}
+    if flow_target and (create_target or retrieve_target or retrieve_probe or not manual_host_window):
+        raise ValueError('TARGET_FLOW_REQUIRES_EXCLUSIVE_STAGED_TARGET')
     if retrieve_probe and (retrieve_target or create_target or manual_host_window):
         raise ValueError('TARGET_RETRIEVE_PROBE_EXCLUSIVE')
     if retrieve_probe and not (debugger_profile and registration_review):
         raise ValueError('TARGET_RETRIEVE_PROBE_REGISTRATION_REQUIRED')
     if retrieve_target and (create_target or not manual_host_window):
         raise ValueError('TARGET_RETRIEVE_REQUIRES_EXCLUSIVE_STAGED_TARGET')
-    if manual_host_window and not (create_target or retrieve_target):
+    if manual_host_window and not (create_target or retrieve_target or flow_target):
         raise ValueError('TARGET_STAGED_REQUIRES_201')
     if debugger_profile or registration_review:
         if not debugger_profile or not registration_review:
             raise ValueError('TARGET_PROFILE_AND_REGISTRATION_BOTH_REQUIRED')
         profile = validate_registration(debugger_profile, registration_review, digest(registration_review), read(output/'boot-session.json'))
-        if ('retrieve' in profile['method']) != (retrieve_target or retrieve_probe):
+        if (('retrieve' in profile['method']) != (retrieve_target or retrieve_probe) or
+                ('flow' in profile['method']) != flow_target):
             raise ValueError('TARGET_OBSERVER_PROFILE_DIFFERS')
         bindings = dict(debugger_profile=str(plain(debugger_profile)), registration_review=str(plain(registration_review)),
                         registration_review_sha256=digest(registration_review))
-    if create_target or retrieve_target:
+    if create_target or retrieve_target or flow_target:
         if not bindings or not positive_capture or not positive_console:
             raise ValueError('TARGET_CREATE_TARGET_REQUIRES_PROFILE_AND_POSITIVE_PROBE')
         bindings['positive_probe'] = validate_positive_probe(positive_capture, positive_console, read(output/'boot-session.json'))
@@ -181,9 +208,11 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
     paths += [root / 'bin/tools/windivert-2.2.2/windivertctl.exe', root / 'bin/tools/windivert-2.2.2/WinDivert.dll']
     if bindings:
         paths += [Path(bindings['debugger_profile']), Path(bindings['registration_review'])]
+    if flow_target:
+        paths += [root/'scripts/debugger/pb-kd-target-flow-disabled-20261019.wdbg']
     plan = dict(method='target-accept-session-v1', root=str(root), preparation=str(output), build=str(build),
                 assets=str(assets_path), python=assets['python'], core_sha256=CORE,
-                policy=retrieve_policy(not retrieve_probe) if (retrieve_target or retrieve_probe) else (create_policy(create_target, manual_host_window) if bindings else POLICY), files=inventory(paths), **bindings)
+                policy=flow_policy() if flow_target else (retrieve_policy(not retrieve_probe) if (retrieve_target or retrieve_probe) else (create_policy(create_target, manual_host_window) if bindings else POLICY)), files=inventory(paths), **bindings)
     boot_identity(read(output / 'boot-session.json'))
     save(output / 'runtime-plan.json', plan)
     validate(output / 'runtime-plan.json', digest(output / 'runtime-plan.json'), root)
@@ -206,10 +235,11 @@ if __name__ == '__main__':
     p.add_argument('--manual-host-window', action='store_true')
     p.add_argument('--retrieve-target', action='store_true')
     p.add_argument('--retrieve-probe', action='store_true')
+    p.add_argument('--flow-target', action='store_true')
     a = p.parse_args()
     if a.phase == 'prepare':
         target = prepare(plain(a.root), plain(a.build), a.output, a.debugger_profile, a.registration_review,
-                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window, a.retrieve_target, a.retrieve_probe)
+                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window, a.retrieve_target, a.retrieve_probe, a.flow_target)
         print(str(target))
         print(digest(target))
     else:
