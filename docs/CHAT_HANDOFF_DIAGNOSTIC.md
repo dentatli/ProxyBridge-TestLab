@@ -1,5 +1,30 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Целевой control10022 воспроизведён; raw RunFAILED из-за post-collect schema error
+
+Продолжение USER выполнено черезCoS; [подробный результат](TARGET_ACCEPT_RESULT_2026-10-19.md).
+Boot115/event17081, plan043738-f794b092 SHA d35ac4303d027c6ccc7b5715d56f4d3ce3643207c4c5655aeac3e657fcb08b8d consumed once.
+Run043838-3106828f:200fillers PID14956/ports42001..42200 successful/context32;
+control PID4720/port42201 exactly1query10022/bytes0/nativeerror.
+Fulltuple ETW1214Reason30(SO_PAUSE_ACCEPT SYNdrop)→1186retry→1553;
+loss/header/decoding0,181buffers. CorePID9744 loaded DLL path/SHAverified,
+gate released, all201native/Core correlated; noWinDbg/driverinstall/productfix.
+
+Послеcollect контроллерошибочночитал lifecycle.return.error вместо sink.error;
+raw diagnostic-runFAILED/первыйreportINCOMPLETE сохранены, не исправлены заднимчислом.
+Controller/report schemas исправлены; separateoffline capture-review-r1 доказывает
+control_original_api_failure/target_trigger true, единственныйremainingerrorобщийRunstatus.
+Нагрузку не повторяли. Cleanup_errors[],residentDISABLEaftercompleted/serviceRunning,
+ownETWstopped/exported/CLIgraceful. НезависимогоgEnabledreadbackнет.
+Private summary `pb-target-accept-review-20261019/capture-summary.json`.
+
+Первыйраннийplan043212 obsolete; plan043512 preflightblockedдоclaimпоTIME_WAIT
+570xx ports, нет traffic. Новыйruntime42001..42201 вне dynamic49152..65535;
+старыйbuildreceipt/policyнепереписан. Не Resume/refreeze этипланы.
+Next: review one-record lifetime instrumentation для известногоcontroltuple;
+не новый passive328Run/640, не продуктfix. Четыреobservability этапа не требуют
+одновременныхширокихточек; hostBreak/be остаютсяUSER-controlled.
+
 ## Подготовлен one-shot accept barrier, native runtime интеграция ещё pending
 
 USER согласился на управляемое воспроизведение одного контрольного соединения.

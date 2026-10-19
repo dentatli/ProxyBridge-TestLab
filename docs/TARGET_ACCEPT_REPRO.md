@@ -1,7 +1,41 @@
-# Контрольное соединение при заполненной очереди: подготовка
+# Контрольное соединение при заполненной очереди
 
-Статус: диагностический Core с управляемым барьером собран; runtime-контроллер
-и sealed Run ещё не подключены. Не запускать этот Core вручную вместо рабочего.
+## Runtime-контроллер 19 октября
+
+Добавлены `Invoke-TargetAccept.ps1`, `TargetAcceptNative.psm1`, отдельные plan/report
+Python entry points. Run ограничен200 заполнителями +1control, один original query,
+512KiB, original backlog, только ETW. Без WinDbg/установки/изменения рабочего Core.
+Запуск проверяет SHA всего reused runtime и отдельных diagnostic CLI/Core/SYS,
+source/module/C# inventory, stable boot, legacy/interrupted-run gates, общий mutex/
+lease,2GiB free RAM до claim и до генераторов, occupied TCP ports, одноразовый claim.
+Реально загруженная DLL проверяется по process module path и SHA до генераторов.
+
+Native fillers/control имеют разные PID. IP Helper TCP table подтверждает200
+уникальных established исходных портов, затем control SynSent;100ms hold перед
+release — только управление опытом, не доказательство прихода SYN. Доказательство
+trigger требует ETW1214Reason30→1186→1553 по полному control tuple, без потерь.
+Report не сопоставляет по порядку/ближайшему времени/глобальному TCB pointer.
+Он проверяет ровно один Core query на native tuple, role-specific ctx_pid,
+receiver GUID/данные, gate release, CLI/proxy/receiver/resident cleanup.
+Неполные данные→INCOMPLETE, другой исход→INCONCLUSIVE, не root cause/fix.
+
+Порты runtime:42001..42200 fillers,42201 control. Первоначальный кандидат
+57001..57201 попал в dynamic range49152..65535: preflight обнаружил4 TIME_WAIT
+к127.0.0.1:24285 и отказал ДО claim/ETW/product/traffic. Старые планы не менялись;
+build receipt с первоначальным кандидатом сохранён, новый runtime policy описан
+отдельным fresh plan; не заявляется соответствие старому frozen profile.
+
+Проверки без трафика:8 role correlation cases,5 native callback fault cases,
+cleanup chain при ошибках сохранения/ETW, PS5 parser и read-only TCP table smoke.
+Драйвер после нового boot115 был Stopped; registered path+SHA проверены,
+та же установленная версия запущена, synchronous DISABLE completed/SCMRunning.
+Private evidence: `pb-target-accept-review-20261019/resident-ready.json`.
+Результат собственно опыта записывается отдельно в текущем diagnostic handoff.
+
+## Предыдущая подготовка барьера (история)
+
+На момент предыдущего checkpoint диагностический Core с управляемым барьером
+был собран, runtime ещё pending. Не запускать этот Core вручную вместо рабочего.
 Повтор обычной328-нагрузки не требуется. Продуктовые исходники, старые captures,
 frozen kits и установка драйвера не менялись.
 
