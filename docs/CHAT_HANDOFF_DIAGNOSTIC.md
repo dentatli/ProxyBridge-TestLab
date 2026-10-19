@@ -1,5 +1,28 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Boot116: disabled RETRIEVE registered; fresh four probe preparation in progress
+
+USER rebooted VM/WinDbg. Live tcpip site fffff8005e26567b matched five instructions.
+USER pasted exact pinned bp2/action, bd2, t0 reset, bpcmds with bd2 and separate g.
+No repeated bl needed. Registration review: private directory
+pb-target-retrieve-registration-review-20261019-112048; boot116/event17243,
+start2026-10-19T11:08:31.5Z. Host actions remain user-controlled.
+
+Old positive four is boot115; same-boot gate remains binding. New retrieve-four-probe
+uses the existing three-fillers/one-control native path and same point2. Future
+retrieve201 requires a current-boot positive four: successful native capture, one
+successful retrieve snapshot and one valid record snapshot. No absence/coverage
+proof. Old captures/CREATE policies unchanged. 57 Python tests, PS parser, diffcheck
+passed. Source commit4a191e7 pushed and remote verified. No diagnostic Run performed.
+
+Inventory freeRAM3.71GiB, no native/CLI processes, driver initially Stopped. Verified
+registered driver path and pinned SYS SHA; started existing service, synchronous
+DISABLE completed with service Running (no independent enabled-flag readback).
+No driver installation. Point2 remains disabled. Fresh Prepare in progress:
+pb-target-accept-plan-20261019-112144-a72d2cdf. Do not Run before prepare-result confirms
+success/hash. Before USER Break/be warn whole VM/Codex/RDP can pause. Recovery bd2,
+then separate g even on error. No BEGIN/END required, latest Run user attribution.
+
 ## Следующий шаг: одна отключённая точка RETRIEVE, регистрация пользователем ещё не выполнена
 
 Подготовлены retrieve-target-201-staged, профиль
