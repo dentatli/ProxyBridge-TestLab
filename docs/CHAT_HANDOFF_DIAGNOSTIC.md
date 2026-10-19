@@ -1,5 +1,23 @@
 # Передача чату диагностики TCP / WinDbg
 
+## RETRIEVE four positive; fresh staged201 plan ready, not run
+
+USER run112504-9ac96569 COLLECTED/cleanup_errors[]/resident_disabled_after=true.
+Offline native+console review RETRIEVE_SUCCESS_OBSERVED/errors[]: one control42201,
+API success/32bytes; one RETRIEVE status0/record nonzero; matching RECORD context
+nonzero/size32/refs2. User-associated console excerpt and provenance preserved at
+pb-target-retrieve-four-review-20261019-112504. No complete trap coverage or payload
+validity claim. USER bd2/bl disabled/separate g confirmed. Counter t0 currently1.
+
+Fresh Prepare112635-c469b1ea exit0/PREPARED_NOT_RUN; SHA
+4231e5b69fff7d63d68d5d0eb93d41817659397b0ca3b6cb3e11f1ba566b37e7.
+Policy retrieve-target-201-staged; same boot116, current retrieve-four positive proof.
+No runtime in Prepare. Start Run with point2 disabled and BoundedLoadReviewed.
+After READY: USER Break (whole VM/Codex/RDP pause), reset t0=0, be2, separate g,
+then Latin C without Enter in VM within existing15s window. Do not activate before
+READY. After completion/error: host Break/bd2/separate g even on error. No markers,
+no repeat bl or Run, no other points, no driver lifecycle change. Await user result.
+
 ## Boot116: disabled RETRIEVE registered; fresh four probe preparation in progress
 
 USER rebooted VM/WinDbg. Live tcpip site fffff8005e26567b matched five instructions.
