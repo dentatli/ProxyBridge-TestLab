@@ -29,8 +29,9 @@ def create_policy(target=False, staged=False):
     return policy
 
 
-def retrieve_policy():
-    return dict(create_policy(True, True), workload='retrieve-target-201-staged',
+def retrieve_policy(target=True):
+    return dict(create_policy(target, target),
+                workload='retrieve-target-201-staged' if target else 'retrieve-four-probe',
                 observer='etw+kd-target-retrieve')
 
 
@@ -39,11 +40,20 @@ def validate_positive_probe(capture, console, boot):
     from pb_target_create_report import evaluate
     capture, console = plain(Path(capture)), plain(Path(console))
     prior = read(capture / 'runtime-plan.json')
-    if prior['policy'] != create_policy():
+    retrieve = prior['policy'] == retrieve_policy(False)
+    if not retrieve and prior['policy'] != create_policy():
         raise ValueError('TARGET_POSITIVE_FOUR_POLICY_REQUIRED')
     if boot_identity(read(Path(prior['preparation']) / 'boot-session.json')) != boot_identity(boot):
         raise ValueError('TARGET_POSITIVE_PROBE_BOOT_DIFFERS')
-    checked(prior['debugger_profile'], CREATE_PROFILE_SHA)
+    checked(prior['debugger_profile'], RETRIEVE_PROFILE_SHA if retrieve else CREATE_PROFILE_SHA)
+    if retrieve:
+        from pb_target_retrieve_report import evaluate as retrieve_evaluate
+        result = retrieve_evaluate(capture, console)
+        if (result['status'] != 'RETRIEVE_SUCCESS_OBSERVED' or result['errors'] or
+                len(result['retrieve_events']) != 1 or len(result['record_snapshots']) != 1):
+            raise ValueError('TARGET_POSITIVE_RETRIEVE_REQUIRED')
+        return dict(capture=str(capture), console=str(console),
+                    plan_sha256=result['plan_sha256'], console_sha256=result['console_sha256'])
     result = evaluate(capture, console)
     if (result['status'] != 'CONTROL_CREATE_OBSERVED' or result['errors'] or
             result['unique_control_creation_observed'] is not True or
@@ -102,8 +112,9 @@ def validate(plan_path, sha, root):
     kd = p.get('policy', {}).get('debugger_points') == [2]
     retrieve = p.get('policy', {}).get('observer') == 'etw+kd-target-retrieve'
     staged = p.get('policy', {}).get('workload') == 'create-target-201-staged'
-    target = retrieve or staged or p.get('policy', {}).get('workload') == 'create-target-201'
-    expected_policy = retrieve_policy() if retrieve else (create_policy(target, staged) if kd else POLICY)
+    retrieve_four = p.get('policy', {}).get('workload') == 'retrieve-four-probe'
+    target = (retrieve and not retrieve_four) or staged or p.get('policy', {}).get('workload') == 'create-target-201'
+    expected_policy = retrieve_policy(not retrieve_four) if retrieve else (create_policy(target, staged) if kd else POLICY)
     if (p['method'] != 'target-accept-session-v1' or Path(p['root']) != root or
             Path(p['preparation']) != plan_path.parent or
             plan_path.parent.parent != root / 'artifacts/diagnostics' or p['policy'] != expected_policy):
@@ -131,7 +142,7 @@ def validate(plan_path, sha, root):
 
 
 def prepare(root, build, output, debugger_profile=None, registration_review=None,
-            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False, retrieve_target=False):
+            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False, retrieve_target=False, retrieve_probe=False):
     output = plain(output)
     if output.parent != root / 'artifacts/diagnostics' or set(output.iterdir()) != {output / 'boot-session.json'}:
         raise ValueError('TARGET_FRESH_PLAN_DIRECTORY_REQUIRED')
@@ -139,6 +150,10 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
     assets_path = root / 'artifacts/diagnostics/pb-kd-shared-assets' / ASSETS
     assets = validate_assets(assets_path, ASSETS_SHA, root)
     bindings = {}
+    if retrieve_probe and (retrieve_target or create_target or manual_host_window):
+        raise ValueError('TARGET_RETRIEVE_PROBE_EXCLUSIVE')
+    if retrieve_probe and not (debugger_profile and registration_review):
+        raise ValueError('TARGET_RETRIEVE_PROBE_REGISTRATION_REQUIRED')
     if retrieve_target and (create_target or not manual_host_window):
         raise ValueError('TARGET_RETRIEVE_REQUIRES_EXCLUSIVE_STAGED_TARGET')
     if manual_host_window and not (create_target or retrieve_target):
@@ -147,7 +162,7 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         if not debugger_profile or not registration_review:
             raise ValueError('TARGET_PROFILE_AND_REGISTRATION_BOTH_REQUIRED')
         profile = validate_registration(debugger_profile, registration_review, digest(registration_review), read(output/'boot-session.json'))
-        if ('retrieve' in profile['method']) != retrieve_target:
+        if ('retrieve' in profile['method']) != (retrieve_target or retrieve_probe):
             raise ValueError('TARGET_OBSERVER_PROFILE_DIFFERS')
         bindings = dict(debugger_profile=str(plain(debugger_profile)), registration_review=str(plain(registration_review)),
                         registration_review_sha256=digest(registration_review))
@@ -168,7 +183,7 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         paths += [Path(bindings['debugger_profile']), Path(bindings['registration_review'])]
     plan = dict(method='target-accept-session-v1', root=str(root), preparation=str(output), build=str(build),
                 assets=str(assets_path), python=assets['python'], core_sha256=CORE,
-                policy=retrieve_policy() if retrieve_target else (create_policy(create_target, manual_host_window) if bindings else POLICY), files=inventory(paths), **bindings)
+                policy=retrieve_policy(not retrieve_probe) if (retrieve_target or retrieve_probe) else (create_policy(create_target, manual_host_window) if bindings else POLICY), files=inventory(paths), **bindings)
     boot_identity(read(output / 'boot-session.json'))
     save(output / 'runtime-plan.json', plan)
     validate(output / 'runtime-plan.json', digest(output / 'runtime-plan.json'), root)
@@ -190,10 +205,11 @@ if __name__ == '__main__':
     p.add_argument('--positive-console', type=Path)
     p.add_argument('--manual-host-window', action='store_true')
     p.add_argument('--retrieve-target', action='store_true')
+    p.add_argument('--retrieve-probe', action='store_true')
     a = p.parse_args()
     if a.phase == 'prepare':
         target = prepare(plain(a.root), plain(a.build), a.output, a.debugger_profile, a.registration_review,
-                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window, a.retrieve_target)
+                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window, a.retrieve_target, a.retrieve_probe)
         print(str(target))
         print(digest(target))
     else:

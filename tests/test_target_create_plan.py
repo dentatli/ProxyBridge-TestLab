@@ -86,6 +86,17 @@ class TargetCreateBinding(unittest.TestCase):
         self.assertEqual(create_policy(True)['debugger_points'], [2])
         self.assertEqual(create_policy()['fillers'], 3)
 
+    def test_retrieve_positive_requires_one_success_and_record_snapshot(self):
+        capture, console, _ = self.positive_fixture()
+        profile = ROOT/'scripts/debugger/pb-kd-target-retrieve-disabled-candidate-20261019.json'
+        (capture/'runtime-plan.json').write_text(json.dumps(dict(policy=retrieve_policy(False), preparation=self.temp.name, debugger_profile=str(profile))))
+        result = dict(status='RETRIEVE_SUCCESS_OBSERVED', errors=[], retrieve_events=[{}], record_snapshots=[{}], plan_sha256='a'*64, console_sha256='b'*64)
+        with patch('pb_target_retrieve_report.evaluate', return_value=result):
+            self.assertEqual(validate_positive_probe(capture, console, self.boot)['plan_sha256'], 'a'*64)
+            result['record_snapshots'] = []
+            with self.assertRaisesRegex(ValueError, 'POSITIVE_RETRIEVE_REQUIRED'):
+                validate_positive_probe(capture, console, self.boot)
+
     def test_missing_create_is_not_positive_evidence(self):
         capture, console, result = self.positive_fixture()
         result.update(status='NO_CREATE_EVENT_OBSERVED_COVERAGE_UNPROVEN', create_events=[])

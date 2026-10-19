@@ -78,6 +78,12 @@ class FourCapture(unittest.TestCase):
         self.assertEqual(len(r['matches']),4)
         self.assertFalse(r['target_trigger_observed'])
 
+    def test_retrieve_four_uses_four_native_connections(self):
+        self.save('runtime-plan.json', dict(policy=retrieve_policy(False)))
+        result = self.evaluate()
+        self.assertEqual(result['errors'], [])
+        self.assertEqual(len(result['matches']), 4)
+
     def test_synsent_is_not_four_probe_readiness(self):
         self.cohort['observations'][1]['sockets'][0]['State']=3
         self.save('cohort.json',self.cohort)

@@ -110,9 +110,9 @@ def evaluate(path):
         if observer:
             policy = read(path / 'runtime-plan.json')['policy']
             retrieve = policy.get('observer') == 'etw+kd-target-retrieve'
-            probe = policy.get('workload') == 'create-four-probe'
+            probe = policy.get('workload') in ('create-four-probe','retrieve-four-probe')
             staged = policy.get('workload') in ('create-target-201-staged','retrieve-target-201-staged')
-            if probe and policy != create_policy():
+            if probe and policy != (retrieve_policy(False) if retrieve else create_policy()):
                 errors.append('CREATE_FOUR_OBSERVER_POLICY_INVALID')
             elif not probe and policy != (retrieve_policy() if retrieve else create_policy(True, staged)):
                 errors.append('CREATE_TARGET_OBSERVER_POLICY_INVALID')

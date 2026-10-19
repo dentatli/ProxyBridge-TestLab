@@ -4,7 +4,7 @@ param([ValidateSet('Prepare','Inspect','Run')][string]$Phase='Inspect',
       [string]$BuildDirectory='', [string]$PlanPath='', [string]$PlanSha='',
       [string]$DebuggerProfile='', [string]$RegistrationReview='', [switch]$DebuggerLoggerEnabled,
       [switch]$CreateTarget, [string]$PositiveCapture='', [string]$PositiveConsole='', [switch]$BoundedLoadReviewed,
-      [switch]$ManualHostWindow, [switch]$DebuggerPointsDisabled, [switch]$RetrieveTarget)
+      [switch]$ManualHostWindow, [switch]$DebuggerPointsDisabled, [switch]$RetrieveTarget, [switch]$RetrieveProbe)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -32,6 +32,7 @@ if ($Phase -eq 'Prepare') {
     if ($DebuggerProfile -or $RegistrationReview) {$prepareArgs+=@('--debugger-profile',$DebuggerProfile,'--registration-review',$RegistrationReview)}
     if ($CreateTarget) {$prepareArgs+=@('--create-target')}
     if ($RetrieveTarget) {$prepareArgs+=@('--retrieve-target')}
+    if ($RetrieveProbe) {$prepareArgs+=@('--retrieve-probe')}
     if ($ManualHostWindow) {$prepareArgs+=@('--manual-host-window')}
     if ($PositiveCapture) {$prepareArgs+=@('--positive-capture',$PositiveCapture)}
     if ($PositiveConsole) {$prepareArgs+=@('--positive-console',$PositiveConsole)}
@@ -56,7 +57,7 @@ if ($Phase -eq 'Inspect') {Write-Output 'TARGET_PLAN_INSPECTED_NO_RUNTIME';retur
 $kdObserver=$plan.policy.PSObject.Properties['observer'] -and $plan.policy.observer -in @('etw+kd-target-create','etw+kd-target-retrieve')
 $stagedHost=$kdObserver -and $plan.policy.workload -in @('create-target-201-staged','retrieve-target-201-staged')
 $createTarget=$kdObserver -and $plan.policy.workload -in @('create-target-201','create-target-201-staged','retrieve-target-201-staged')
-$fourProbe=$kdObserver -and $plan.policy.workload -eq 'create-four-probe'
+$fourProbe=$kdObserver -and $plan.policy.workload -in @('create-four-probe','retrieve-four-probe')
 if ($stagedHost) {
     if (-not $DebuggerPointsDisabled -or $DebuggerLoggerEnabled) {throw 'TARGET_STAGED_INITIAL_POINTS_MUST_BE_DISABLED_NO_RUNTIME'}
     if ([Console]::IsInputRedirected -or $Host.Name -ne 'ConsoleHost') {throw 'TARGET_INTERACTIVE_CONSOLE_REQUIRED_NO_RUNTIME'}

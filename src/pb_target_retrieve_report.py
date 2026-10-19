@@ -86,7 +86,7 @@ def correlate(console, native):
 def evaluate(capture, console_path):
     read = lambda p: json.loads(p.read_text(encoding='utf-8-sig'))
     plan, run = read(capture / 'runtime-plan.json'), read(capture / 'diagnostic-run.json')
-    if plan['policy'] != retrieve_policy() or run.get('debugger_observer') is not True:
+    if plan['policy'] not in (retrieve_policy(), retrieve_policy(False)) or run.get('debugger_observer') is not True:
         raise ValueError('RETRIEVE_OBSERVER_CONTRACT_REQUIRED')
     sha = hashlib.sha256((capture / 'runtime-plan.json').read_bytes()).hexdigest()
     if sha != run['plan_sha256'].lower():
