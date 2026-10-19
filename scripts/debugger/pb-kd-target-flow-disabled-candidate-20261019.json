@@ -1,0 +1,43 @@
+{
+  "method": "kd-target-flow-disabled-candidate-20261019-v1",
+  "status": "DISABLED_REGISTRATION_ONLY_NO_RUN_PROFILE",
+  "registered_point_ids": [
+    2,
+    3,
+    4
+  ],
+  "active_point_ids": [],
+  "proposed_active_point_ids": [
+    2,
+    3,
+    4
+  ],
+  "control_source_port": 42201,
+  "tracked_record_pseudoregister": "t1",
+  "debugger_frame_size": "0x58",
+  "points": [
+    {
+      "id": 2,
+      "target": "tcpip!AlepCreateRedirectRecord+0x396",
+      "action": ".if ($vvalid(@r14,0x10) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { .if (($vvalid(@rax+0x1e0,0x14) == 1) and (@rax != 0)) { .if (@$t1 == 0) { r @$t1 = @rax; .printf \"PBTF TRACK thread=%p source=%p ep=%p record=%p context=%p size=%I64x refs=%x\\n\", @$thread, @r14, @rdi, @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0); } .else { .printf \"PBTF_DUPLICATE record=%p tracked=%p capture=incomplete\\n\", @rax, @$t1; } } .else { .printf \"PBTF_UNREADABLE event=TRACK capture=incomplete\\n\"; } } } .else { .printf \"PBTF_UNREADABLE event=SELECTOR capture=incomplete\\n\"; }; gc;"
+    },
+    {
+      "id": 3,
+      "target": "tcpip!TlShimNblEventNotifyFn",
+      "action": ".if (@$t1 != 0) { .if ($vvalid(@rsp+0x28,0x10) == 1) { .if ((poi(@rsp+0x28) == @$t1) and (poi(@rsp+0x30) == 5)) { .printf \"PBTF ENTER thread=%p scope=%p event=%x nbl=%p new_nbl=%p layer=%x record=%p tag=%I64x\\n\", @$thread, @rsp, @ecx, @rdx, @r8, (@r9 & 0xffff), poi(@rsp+0x28), poi(@rsp+0x30); } } .else { .printf \"PBTF_UNREADABLE event=ENTER_STACK capture=incomplete\\n\"; } }; gc;"
+    },
+    {
+      "id": 4,
+      "target": "tcpip!TlShimNblEventNotifyFn+0x34",
+      "action": ".if (@$t1 != 0) { .if ($vvalid(@rsp+0x80,0x10) == 1) { .if ((poi(@rsp+0x80) == @$t1) and (poi(@rsp+0x88) == 5)) { .printf \"PBTF EXIT thread=%p scope=%p record=%p tag=%I64x status=%x\\n\", @$thread, @rsp+0x58, poi(@rsp+0x80), poi(@rsp+0x88), @edi; } } .else { .printf \"PBTF_UNREADABLE event=EXIT_STACK capture=incomplete\\n\"; } }; gc;"
+    }
+  ],
+  "automatic_debugger_control": false,
+  "load_allowed": false,
+  "limitations": [
+    "Software traps may slow unrelated VM traffic even when logger selector is false.",
+    "Callback return is combined processing status, not a separate association status.",
+    "Initial NBL association is not observed; missing callback is not absence proof.",
+    "No changed profile conforms to an older frozen kit; Run integration remains pending."
+  ]
+}

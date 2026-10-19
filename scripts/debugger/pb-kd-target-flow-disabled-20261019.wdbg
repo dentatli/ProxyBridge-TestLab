@@ -1,0 +1,11 @@
+$$ Disabled-only candidate; current session has only the known disabled RETRIEVE ID2.
+$$ No activation, workload, or outer g. Reset t1 only while all three points are disabled.
+bc2
+bp2 tcpip!AlepCreateRedirectRecord+0x396 ".if ($vvalid(@r14,0x10) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { .if (($vvalid(@rax+0x1e0,0x14) == 1) and (@rax != 0)) { .if (@$t1 == 0) { r @$t1 = @rax; .printf \"PBTF TRACK thread=%p source=%p ep=%p record=%p context=%p size=%I64x refs=%x\\n\", @$thread, @r14, @rdi, @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0); } .else { .printf \"PBTF_DUPLICATE record=%p tracked=%p capture=incomplete\\n\", @rax, @$t1; } } .else { .printf \"PBTF_UNREADABLE event=TRACK capture=incomplete\\n\"; } } } .else { .printf \"PBTF_UNREADABLE event=SELECTOR capture=incomplete\\n\"; }; gc;"
+bd2
+bp3 tcpip!TlShimNblEventNotifyFn ".if (@$t1 != 0) { .if ($vvalid(@rsp+0x28,0x10) == 1) { .if ((poi(@rsp+0x28) == @$t1) and (poi(@rsp+0x30) == 5)) { .printf \"PBTF ENTER thread=%p scope=%p event=%x nbl=%p new_nbl=%p layer=%x record=%p tag=%I64x\\n\", @$thread, @rsp, @ecx, @rdx, @r8, (@r9 & 0xffff), poi(@rsp+0x28), poi(@rsp+0x30); } } .else { .printf \"PBTF_UNREADABLE event=ENTER_STACK capture=incomplete\\n\"; } }; gc;"
+bd3
+bp4 tcpip!TlShimNblEventNotifyFn+0x34 ".if (@$t1 != 0) { .if ($vvalid(@rsp+0x80,0x10) == 1) { .if ((poi(@rsp+0x80) == @$t1) and (poi(@rsp+0x88) == 5)) { .printf \"PBTF EXIT thread=%p scope=%p record=%p tag=%I64x status=%x\\n\", @$thread, @rsp+0x58, poi(@rsp+0x80), poi(@rsp+0x88), @edi; } } .else { .printf \"PBTF_UNREADABLE event=EXIT_STACK capture=incomplete\\n\"; } }; gc;"
+bd4
+r @$t1 = 0
+.bpcmds

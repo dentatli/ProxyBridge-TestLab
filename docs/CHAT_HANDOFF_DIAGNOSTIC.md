@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## FLOW candidate: три отключённые точки, регистрация ещё не выполнена
+
+USER live callback entry L5 и+ea L9 совпали с ожидаемой логикой/адресами.
+Live hotpatch call отличается от disk FF15/NOP: mov r10,[IAT], direct call;
+return остаётся callback+107. Не объявлять byte-for-byte совпадение этого call.
+Новый candidate `scripts/debugger/pb-kd-target-flow-disabled-candidate-20261019.json`
+SHA830b34f3526c27f5511f1877e79e01aaa39d8f06e385ad383a05d8fa1fcd1018.
+Точки2 CREATE+396 запоминает control42201 record в debugger t1; 3 callback entry,
+4 callback+34 common exit. Только t1-selected record/tag5. Entry args context/tag
+изrsp+28/+30; exit изrsp+80/+88; frame58, scopeexit=rsp+58. Entry/exit pair по
+thread/scope и порядку, повторный TRACK/непарные строки отвергаются. Не читать
+record после callbacks: освобождение ещё возможно; только pointer equality.
+Возврат EDI на+34 — combined callback status, не отдельный Associate status.
+Initial association не покрыта; отсутствие callbacks не proof. Software traps
+могут замедлять VM даже при ложном logger selector. Реальный refcount/lifetime
+и ownership не доказаны. CREATE тут selector одной записи, не повтор старой пробы.
+
+Stage `.wdbg` disabled-only, counter t1 reset, безbe/outerg/Run. Текущий ID2 всёещё
+старый RETRIEVE disabled. Новых runtime plans нет, старые captures/планы сохранены.
+66Python tests/quote roundtrip/current PE sites/diffcheck passed. Runtime parser
+новых actions ещё не выполнен. После USER disabled registration/g проверить
+вывод и подготовить интеграцию FLOW в общий launcher с отдельным новым контрактом;
+не запускать FLOW через старый retrieve plan или считать старый frozen kit подходящим.
+Host Break/be USER-controlled, wholeVM/Codex/RDP warning; recovery bd2,bd3,bd4,
+затем отдельный g evenerror. Пока только регистрация, не активация/нагрузка.
+
 ## Offline NBL transfer review: callback снимает старую привязку и ассоциирует новую
 
 Читать [разбор переноса NBL](REDIRECT_NBL_TRANSFER_REVIEW_2026-10-19.md).
