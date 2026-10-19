@@ -1,5 +1,21 @@
 # Передача чату диагностики TCP / WinDbg
 
+## FLOW комплект готов, Run ещё не выполнялся
+
+Свежий Prepare115555-09401ddd exit0/PREPARED_NOT_RUN, planSHA
+ed8710f4de7fc9c7cdb7aeda2488b3d8d9892b0f16216aff22e7fcc7ab43bdb2.
+Current pinned FLOW profile SHA после нормализации LF:
+f6f5fe5140bad4653e44c90f77b60e7458f04039ac878581247506e03e7f2de2.
+Старый830b rawCRLF SHA был до нормализации; нового Run с ним не было. Source
+584dc74 pushed/remoteverified. Registration stage прочитан/сверен, 1.8KB команда
+с code guard; success PBTF_DISABLED_READY. Текущая host регистрация ещё старая2d.
+USER получает все команды сразу: registration→отдельныйg→Run с явным
+FlowProfileRegisteredDisabled; на READY reset t1/be2/be3/be4→отдельныйg→CвVM.
+Если registrationerror/mismatch — Run не выполнять. После completion/error
+bd2/bd3/bd4→отдельныйg. ПередкаждымBreak/be предупреждение wholeVM/Codex/RDP.
+Ответ ожидается с общимPS/consoleпослеодногопрогона; отдельныйpasteрегистрации
+дляпродолжениянеобязателен. Старыепланы/kit/capturesнеизменны. Trafficнебыло.
+
 ## USER одобрил единый комплект FLOW: disabled registration + Run + READY activation
 
 USER попросил убрать отдельную переписку между регистрацией и проверкой и согласился
