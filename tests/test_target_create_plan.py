@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
-from pb_target_accept_plan import CREATE_PROFILE_SHA, RETRIEVE_PROFILE_SHA, FLOW_PROFILE_SHA, REMOVAL_PROFILE_SHA, POLICY, create_policy, retrieve_policy, flow_policy, validate_registration, validate_positive_probe
+from pb_target_accept_plan import CREATE_PROFILE_SHA, RETRIEVE_PROFILE_SHA, FLOW_PROFILE_SHA, REMOVAL_PROFILE_SHA, REMOVAL_R2_PROFILE_SHA, POLICY, create_policy, retrieve_policy, flow_policy, validate_registration, validate_positive_probe
 
 
 class TargetCreateBinding(unittest.TestCase):
@@ -178,6 +178,12 @@ class TargetCreateBinding(unittest.TestCase):
         self.flow_fixture()
         self.profile = ROOT/'scripts/debugger/pb-kd-target-removal-disabled-candidate-20261019.json'
         with self.assertRaises(ValueError): self.validate()
+
+    def test_parser_corrected_profile_has_separate_binding(self):
+        self.flow_fixture()
+        self.profile = ROOT/'scripts/debugger/pb-kd-target-removal-disabled-candidate-20261019-r2.json'
+        self.review['profile_sha256'] = REMOVAL_R2_PROFILE_SHA
+        self.assertTrue(self.validate()['method'].endswith('-v2'))
 
 
 if __name__ == '__main__':

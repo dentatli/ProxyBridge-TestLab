@@ -4,7 +4,7 @@ import hashlib
 import json
 from pathlib import Path
 import re
-from pb_target_retrieve_report import parse
+from pb_target_retrieve_report import parse, DEBUGGER_ERROR
 from pb_target_flow_console import TRACK
 from pb_target_accept_plan import flow_policy
 from pb_target_accept_report import evaluate as native_evaluate
@@ -15,16 +15,16 @@ FRAME = re.compile(r'^\s*(?:[0-9a-fA-F]{1,2}\s+)?[0-9a-fA-F`]{8,17}\s+[0-9a-fA-F
 
 
 def correlate(console):
-    errors, tracks, removals = [], [], []
+    errors, tracks, removals, snapshots = [], [], [], []
     current, in_stack = None, False
-    result = dict(status='INCOMPLETE', errors=errors, tracks=tracks, removals=removals,
+    result = dict(status='INCOMPLETE', errors=errors, tracks=tracks, removals=removals, remove_snapshots=snapshots,
         trap_coverage_verified=False, root_cause_proven=False, record_lifetime_complete=False)
     for line in console.splitlines():
         if line.startswith(('PBTF_UNREADABLE', 'PBTF_DUPLICATE', 'PBRM_UNREADABLE')):
             errors.append('DEBUGGER_CAPTURE_INCOMPLETE')
         if line.startswith(('PBTF ENTER ', 'PBTF EXIT ')):
             errors.append('WRONG_CALLBACK_LOGGER')
-        if re.search(r'(?i)(syntax error|memory access error|unable to resolve|couldn.t resolve|80000004)', line):
+        if DEBUGGER_ERROR.search(line):
             errors.append('DEBUGGER_ERROR')
         try:
             if line.startswith('PBTF TRACK '):
@@ -33,13 +33,15 @@ def correlate(console):
                 if len(tracks) != 1 or not all(item.values()) or item['size'] != 32:
                     raise ValueError('TRACK_INVALID_OR_REPEATED')
             elif line.startswith('PBRM REMOVE '):
-                if current is not None:
-                    raise ValueError('STACK_NOT_COMPLETED')
                 item = parse(line, 'PBRM REMOVE ', REMOVE)
                 if (len(tracks) != 1 or item['record'] != tracks[0]['record'] or
                         not all(item[k] for k in ('thread', 'scope', 'nbl')) or item['refs'] > 0xffffffff):
                     raise ValueError('REMOVAL_UNBOUND')
+                snapshots.append(item)
+                if current is not None:
+                    errors.append('STACK_NOT_COMPLETED')
                 current = dict(snapshot=item, stack_lines=[], frames=[])
+                in_stack = False
             elif line.startswith(('PBRM STACK_BEGIN ', 'PBRM STACK_END ')):
                 begin = line.startswith('PBRM STACK_BEGIN ')
                 marker = parse(line, 'PBRM STACK_BEGIN ' if begin else 'PBRM STACK_END ', MARKER)
@@ -66,6 +68,7 @@ def correlate(console):
             errors.append(str(exc))
     if current is not None:
         errors.append('STACK_END_MISSING')
+    result['observed_precall_refs'] = [s['refs'] for s in snapshots]
     if errors:
         return result
     if not tracks:

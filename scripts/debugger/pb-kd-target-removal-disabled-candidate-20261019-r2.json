@@ -1,0 +1,39 @@
+{
+  "method": "kd-target-removal-disabled-candidate-20261019-v2",
+  "status": "DISABLED_REGISTRATION_ONLY_NO_RUNTIME_CLAIM",
+  "registered_point_ids": [
+    2,
+    3,
+    4
+  ],
+  "active_point_ids": [],
+  "proposed_active_point_ids": [
+    2,
+    3
+  ],
+  "required_inactive_point_ids": [
+    4
+  ],
+  "control_source_port": 42201,
+  "points": [
+    {
+      "id": 2,
+      "target": "tcpip!AlepCreateRedirectRecord+0x396",
+      "action": ".if ($vvalid(@r14,0x10) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { .if (($vvalid(@rax+0x1e0,0x14) == 1) and (@rax != 0)) { .if (@$t1 == 0) { r @$t1 = @rax; .printf \"PBTF TRACK thread=%p source=%p ep=%p record=%p context=%p size=%I64x refs=%x\\n\", @$thread, @r14, @rdi, @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0); } .else { .printf \"PBTF_DUPLICATE record=%p tracked=%p capture=incomplete\\n\", @rax, @$t1; } } .else { .printf \"PBTF_UNREADABLE event=TRACK capture=incomplete\\n\"; } } } .else { .printf \"PBTF_UNREADABLE event=SELECTOR capture=incomplete\\n\"; }; gc;"
+    },
+    {
+      "id": 3,
+      "target": "tcpip!TlShimNblEventNotifyFn",
+      "action": ".if (@$t1 != 0) { .if (@ecx == 5) { .if ($vvalid(@rsp+0x28,0x10) == 1) { .if ((poi(@rsp+0x28) == @$t1) and (poi(@rsp+0x30) == 5)) { .if ($vvalid(@$t1+0x1e0,0x14) == 1) { .printf \"PBRM REMOVE thread=%p scope=%p nbl=%p record=%p refs=%x context=%p size=%I64x\\n\", @$thread, @rsp, @rdx, @$t1, dwo(@$t1+0x1f0), poi(@$t1+0x1e0), poi(@$t1+0x1e8); } .else { .printf \"PBRM_UNREADABLE event=RECORD capture=incomplete\\n\"; }; .printf \"PBRM STACK_BEGIN thread=%p scope=%p record=%p\\n\", @$thread, @rsp, @$t1; k 10; .printf \"PBRM STACK_END thread=%p scope=%p record=%p\\n\", @$thread, @rsp, @$t1; } } .else { .printf \"PBRM_UNREADABLE event=STACK_ARGS capture=incomplete\\n\"; } } }; gc;"
+    }
+  ],
+  "automatic_debugger_control": false,
+  "load_allowed": false,
+  "limitations": [
+    "Reads pre-callback refcount only; no atomic post-decrement/free proof.",
+    "Pointer equality and valid memory do not exclude object reuse.",
+    "k 10 requests at most 16 frames; unwind can be partial.",
+    "Initial NBL association and accepted-side query are not observed."
+  ],
+  "parser_validation_required": "CDB actual command parser, safe substituted fixture, valid and unreadable branches"
+}

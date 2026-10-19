@@ -1,6 +1,6 @@
 """Pair positive callback snapshots for one tracked record; never claim full coverage."""
 import re
-from pb_target_retrieve_report import parse
+from pb_target_retrieve_report import parse, DEBUGGER_ERROR
 
 TRACK = 'thread source ep record context size refs'.split()
 ENTER = 'thread scope event nbl new_nbl layer record tag'.split()
@@ -15,7 +15,7 @@ def correlate(console):
     for line in console.splitlines():
         if line.startswith(('PBTF_UNREADABLE', 'PBTF_DUPLICATE')):
             errors.append('DEBUGGER_CAPTURE_INCOMPLETE')
-        if re.search(r'(?i)(syntax error|memory access error|unable to resolve|couldn.t resolve|80000004)', line):
+        if DEBUGGER_ERROR.search(line):
             errors.append('DEBUGGER_ERROR')
         try:
             if line.startswith('PBTF TRACK '):

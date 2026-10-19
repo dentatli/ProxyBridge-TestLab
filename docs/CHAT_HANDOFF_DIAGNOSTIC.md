@@ -1,5 +1,44 @@
 # Передача чату диагностики TCP / WinDbg
 
+## REMOVAL R1 остановки вызваны ошибкой action; R2 реально проверен CDB и подготовлен
+
+USER run121519-2ef58ccd TARGET_FAILURE_REPRODUCED/errors[]; две самостоятельные
+остановки на callbackentry объясняются Extra character error в нашем action,
+не новым kernelexception. Перед следующей .printf после внутреннего .else не
+было ';'. REMOVE успел напечататься, STACK_BEGIN/k/STACK_END/gc не исполнялись;
+USER дважды отдельно g, затемbd2/bd3/g. Все точки сейчас disabled, VM resumed.
+Raw attachmentc5e1c9ae сохранён private pb-target-removal-r1-target-review-20261019-121519.
+Partial report INCOMPLETE:DEBUGGER_ERROR/STACK_NOT_COMPLETED/STACK_END_MISSING;
+observed_precall_refs=[3,2], context nonzero/size32. На этих снимках это не refs1;
+не заявлять подтверждённое free или отсутствие более позднего освобождения.
+
+Использован SKILL dejavu по native path C:/Users/LabAdmin/.codex/skills/dejavu/SKILL.md
+(CoS /skills mapping был пустым, это не глобальное отсутствиеskill). Протокол:
+не повторять failingaction; изменить подход. Existing project gate относится
+к старому packagingvalidator, не к этой grammarerror; не создавались фиктивные
+gates/counts, не менялась correction несвязанногоgate. dejavuCLI не найден.
+
+Новый pb_kd_command_parser_check.py запускает CDB локально с безопасными
+подстановками вместо kernelmemory/conditions на cmd.exe /d /c exit0, real k10,
+gc заменён на test fence. Нет kernelconnection/traffic/productruntime. Настоящий
+SDK CDB повторил исходную Extra character error; R2 readable/unreadable ветви
+прошли, дошли до stackbegin/end и конечногоfence. Это проверка command grammar,
+не новых kerneldatareads или runtimecoverage. Private parser-check folder
+pb-kd-removal-parser-check-20261019-r2 содержит10sealedfiles inclJSON/fixtures/stdout/stderr.
+Новые Prepare требуют отдельный R2profile и real-parser proof, сверяют regressfail
+и обе успешные ветви; runtime binds эти10files. R1profile/stage/capture сохранены,
+не refreeze/repeat. Общая обработка ошибок теперь явно ловит Extra character error.
+
+R2profile SHA9594e63cb2723f07ba8731ca2289224c395a8f3f85966c0c3e4e9a86367d0c9c,
+methodv2. Новый stage с ';' после внутреннегоelse, success PBRM_R2_DISABLED_READY.
+Сохраняетpoint2, меняет3,4остаётсяdisabled. 94Python tests/PSparser/diffcheck passed;
+actualCDB3cases passed. Свежий Prepare122428-835df4ca exit0/PREPARED_NOT_RUN, SHA
+941948b7f1feb8cb5a57e25b4acbdb875640ce259f1399a19ddaea409eefc567. NoRun.
+USER получает единый комплектregistration/g/Run, затемнаREADYreset t1/be2/be3/g/C;
+recoverybd2/bd3/separateg evenerror. BeforeBreak/be warn wholeVM/Codex/RDPpause.
+При ошибке регистрации или самостоятельной остановкеaction не повторять Run;
+отключить2/3 и отдельныйg, прислатьвесьconsole. Цель — stack инициаторов двухevent5.
+
 ## REMOVAL stack/refcount комплект готов; активировать только2/3 послеREADY
 
 USER согласился продолжать. Новый pinned profile removal-disabled-candidate SHA

@@ -5,7 +5,8 @@ param([ValidateSet('Prepare','Inspect','Run')][string]$Phase='Inspect',
       [string]$DebuggerProfile='', [string]$RegistrationReview='', [switch]$DebuggerLoggerEnabled,
       [switch]$CreateTarget, [string]$PositiveCapture='', [string]$PositiveConsole='', [switch]$BoundedLoadReviewed,
       [switch]$ManualHostWindow, [switch]$DebuggerPointsDisabled, [switch]$RetrieveTarget, [switch]$RetrieveProbe,
-      [switch]$FlowTarget, [switch]$FlowProfileRegisteredDisabled, [switch]$RemovalTarget)
+      [switch]$FlowTarget, [switch]$FlowProfileRegisteredDisabled, [switch]$RemovalTarget,
+      [string]$CommandParserProof='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -36,6 +37,7 @@ if ($Phase -eq 'Prepare') {
     if ($RetrieveProbe) {$prepareArgs+=@('--retrieve-probe')}
     if ($FlowTarget) {$prepareArgs+=@('--flow-target')}
     if ($RemovalTarget) {$prepareArgs+=@('--removal-target')}
+    if ($CommandParserProof) {$prepareArgs+=@('--command-parser-proof',$CommandParserProof)}
     if ($ManualHostWindow) {$prepareArgs+=@('--manual-host-window')}
     if ($PositiveCapture) {$prepareArgs+=@('--positive-capture',$PositiveCapture)}
     if ($PositiveConsole) {$prepareArgs+=@('--positive-console',$PositiveConsole)}

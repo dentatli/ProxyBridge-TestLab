@@ -36,6 +36,12 @@ class RemovalReport(unittest.TestCase):
         self.assertEqual(correlate(TRACK)['status'], 'REMOVAL_NOT_OBSERVED_COVERAGE_UNPROVEN')
     def test_old_callback_logger_rejected(self):
         self.assertIn('WRONG_CALLBACK_LOGGER', correlate(TRACK+'PBTF ENTER ignored\n')['errors'])
+    def test_extra_character_error_keeps_partial_refs_without_success_verdict(self):
+        r = correlate(TRACK+REMOVE.replace('refs=2', 'refs=3')+'^ Extra character error in command\n'+REMOVE+'^ Extra character error in command\n')
+        self.assertEqual(r['status'], 'INCOMPLETE')
+        self.assertIn('DEBUGGER_ERROR', r['errors'])
+        self.assertEqual(r['observed_precall_refs'], [3, 2])
+        self.assertEqual(r['removals'], [])
 
 
 if __name__ == '__main__':

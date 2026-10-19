@@ -9,6 +9,7 @@ from pb_target_accept_plan import retrieve_policy
 
 RETRIEVE = 'hit ep nbl local_raw peer_raw status record'.split()
 RECORD = 'hit record context size refs'.split()
+DEBUGGER_ERROR = re.compile(r'(?i)(syntax error|extra character error|memory access error|couldn.t resolve|unable to resolve|80000004)')
 
 
 def parse(line, prefix, fields):
@@ -40,7 +41,7 @@ def correlate(console, native):
     for line in console.splitlines():
         if line.startswith('PBTA_UNREADABLE'):
             errors.append('DEBUGGER_METADATA_INCOMPLETE')
-        if re.search(r'(?i)(syntax error|memory access error|couldn.t resolve|unable to resolve|80000004)', line):
+        if DEBUGGER_ERROR.search(line):
             errors.append('DEBUGGER_ERROR')
         try:
             if line.startswith('PBTA RETRIEVE '):
