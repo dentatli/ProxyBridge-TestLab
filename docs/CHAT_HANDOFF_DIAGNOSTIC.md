@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Bounded flag setter live проверен; следующий runtime требует перезагрузки VM
+
+USER прислал RecvTcpDatagram entry и+15f: RBXизincomingRCX, bit20test2366a,
+setter23670+190 lockor[rbx+30],200000h совпали. Livecall2363f идёт через
+nt!KscpCfgDispatchUserCallTargetEsSmep, не disk guarddispatch; setterнеизменен.
+USER завершил отдельнымg; 2..6остаютсяoff по предыдущемуconsole.
+
+Созданы отдельные disabledcandidate JSON/stage pb-kd-target-flag-disabled-20261019
+и candidate JSON сsuffix-candidate. Не runnable/не признаныстарымfrozenkit.
+Stage guardedпоCREATE,8bytessetter,ACCEPT; толькоbd/bc/bp/bd/reset t1..5,
+noenable/outerg. IDs5/6не включаются. Actions теже, чтоactualCDBr4; два offline
+roundtrip/noenable tests прошли. СтарыйRetryTarget остаётсяretired.
+Регистрацию/Prepare/Run пока пользователю не выдавать.
+
+Провереныactualstatefiles прошлого130643Run: completed_at есть, statusRUNNING
+вrun/cohort; errorпустой/cleanup_errors[], native_processes_stoppedtrue,
+CLIgraceful/poststoptrue, resident_disabled_aftertrue. Процессы с именами
+ProxyBridge_CLI/ctsTraffic/logman/tracerpt текущимGet-Process не найдены; это не
+proof полногоkernelcleanup. Старые файлы не исправлялись.
+Существующий scripts/Invoke-TargetAccept.ps1:107 Assert-TargetHistory выдаёт
+TARGET_INTERRUPTED_DIAGNOSTIC_REQUIRES_REBOOT до новогоruntime наэтомboot.
+Это реальный bindingstop, не новый inferredpermission. Его не обходить и не
+выдаватьложныйCOLLECTED. Следующий шаг — USERперезагрузкаVM, затемсвежаяboot
+identity/positivebaseline/plan согласно gates; oldpreparations неResume.
+Перезагрузка/Break/enable не выполнялись автоматически. CoS снова работает.
+
 ## Bounded flag candidate: три одноразовых снимка, новыеRun/Prepare не выполнялись
 
 USER хочет более богатыйзахват без повторенияstall и переподключилCoS. CoS

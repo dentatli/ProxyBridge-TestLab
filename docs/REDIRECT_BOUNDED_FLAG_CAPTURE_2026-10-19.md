@@ -4,6 +4,12 @@
 Старый пяти-точечный профиль retired, его повтор запрещён. Точки2..6 по
 последнему console пользователя отключены, отдельныйg выполнен.
 
+Live-сверка завершена: USER показал entry и+15f, setter+190 неизменен;
+вызов перед ним liveидёт через nt!KscpCfgDispatchUserCallTargetEsSmep. Сохранены
+отдельные candidateJSON и disabledstage вscripts/debugger; stageпроверяет8bytes
+setter иCREATE/ACCEPT доизмененияточек, отключает5/6, не включаетничего.
+Два roundtrip/no-enable tests passed. Не является runnableпрофилемстарогоlauncher.
+
 ## Новые статические сведения
 
 В сохранённом tcpip.sys (SHA b0683bd7ed0f309e63b4e6e71675d8f04cfb0ea5533c3f5e8a13c6daca3b595a)
@@ -53,12 +59,16 @@ nonselected point остаётсяenabled до лимита. Думмиbreakpoin
 Private proof: pb-target-flag-candidate-parser-20261019-r4. Это commandproof,
 не runtimeстоимость/корректностьновыхliveсмещений. Kernel/product/traffic не было.
 
-Следующее user-controlled liveчтение: RecvTcpDatagram entry L18 и +15f L18.
+Выполненное user-controlled liveчтение: RecvTcpDatagram entry L18 и +15f L18.
 После чтения отдельноg. ПередBreak предупредить о паузе всейVM/Codex/RDP.
-До liveсверки не регистрировать candidate. Recoveryбудущегонабора bd2/bd3/bd4
+До новогоразрешённогоплана не регистрировать candidate. Recoveryбудущегонабора bd2/bd3/bd4
 и отдельноg; 5/6не включать. Не использовать старый пяти-точечныйRun.
 
 Дополнительный runtime blocker: прошлые diagnostic-run/cohort всё ещёRUNNING,
 несмотря на сохранённые cleanupснимки. Их не переписывать вCOLLECTED; до нового
 Run требуется отдельная проверка завершения/допустимости по существующему gate.
 Новый candidate не реализует обход этого gate и не является разрешениемRun.
+Проверка: предыдущиеrun/cohort всёещёRUNNING; процессыCLI/ctsTraffic/logman/
+tracerpt не найдены, но это не снимает existinggate. Assert-TargetHistory,
+Invoke-TargetAccept.ps1:107 требует TARGET_INTERRUPTED_DIAGNOSTIC_REQUIRES_REBOOT.
+Нужно USERперезагрузитьVM передследующимruntime; старыеstate не переписывать.

@@ -17,8 +17,9 @@ def candidate():
     setter='.if (@$t2 != 0) { .if (@rbx == @$t2) { bd3; .if (($vvalid(@rbx+0x30,8) == 1) and ($vvalid(@rbx+0x1c0,8) == 1)) { .printf "PBFG SET_PRE thread=%p ep=%p flags30=%x flags34=%x record=%p classify_raw=%x arg12_raw=%x arg13_raw=%x arg15_raw=%x\\n", @$thread, @rbx, dwo(@rbx+0x30), dwo(@rbx+0x34), poi(@rbx+0x1c0), @edi, @r12d, @r13d, @r15d; } .else { bd2; bd4; .printf "PBFG_UNREADABLE event=SET_PRE capture=incomplete\\n"; }; .printf "PBFG STACK_BEGIN\\n"; k 8; .printf "PBFG STACK_END\\n"; } }'
     accept='.if ($vvalid(@rbp-0x7c,4) == 1) { .if ((wo(@rbp-0x7c) == 0xda84) and (wo(@rbp-0x7a) == 0xd9a4)) { bd2; bd3; bd4; .if ($vvalid(@rbp-0x28,8) == 1) { .printf "PBFG RETRIEVE ep=%p nbl=%p status=%x output_raw=%p\\n", @rdi, @rbx, @eax, poi(@rbp-0x28); } .else { .printf "PBFG_UNREADABLE event=RETRIEVE capture=incomplete\\n"; } } }'
     targets=['tcpip!AlepCreateRedirectRecord+0x396','tcpip!WfpTlShimInspectRecvTcpDatagram+0x190','tcpip!WfpAleAuthorizeAccept+0xcaf']
-    return dict(method='bounded-flag-observer-candidate-v1',status='DESIGN_ONLY_LIVE_SETTER_UNVERIFIED',
+    return dict(method='bounded-flag-observer-candidate-v1',status='DISABLED_CANDIDATE_CODE_REVIEWED_NOT_RUNNABLE',
         load_allowed=False,automatic_enable=False,automatic_disable=True,
+        registered_point_ids=[2,3,4,5,6],active_point_ids=[],
         proposed_active_point_ids=[2,3,4],required_inactive_point_ids=[5,6],
         raw_hit_limit_per_point=16,max_total_raw_hits=48,max_selected_snapshots_per_point=1,
         stack_count_max=1,stack_frames_max=8,
@@ -28,6 +29,19 @@ def candidate():
             'No unselected-memory warning output before tuple or endpoint identification.',
             'One setter snapshot does not prove a transition or identify every writer.',
             'No new workload authorized by this candidate; previous incomplete run remains unresolved.'])
+
+
+def registration_stage():
+    p=candidate()
+    lines=['bd'+str(i) for i in range(2,7)]+['bc2','bc3','bc4']
+    for point in p['points']:
+        escaped=point['action'].replace('\\','\\\\').replace('"','\\"')
+        lines+=['bp'+str(point['id'])+' '+point['target']+' "'+escaped+'"','bd'+str(point['id'])]
+    lines+=['r @$t'+str(i)+' = 0' for i in range(1,6)]
+    lines+=['.printf "PBFG_DISABLED_READY\\n"']
+    # Pin instruction bytes, but do not treat them as a boot/registration proof.
+    guard='(wo(tcpip!AlepCreateRedirectRecord+0x396) == 0x65eb) and (dwo(tcpip!WfpTlShimInspectRecvTcpDatagram+0x190) == 0x304b81f0) and (dwo(tcpip!WfpTlShimInspectRecvTcpDatagram+0x194) == 0x00200000) and (wo(tcpip!WfpAleAuthorizeAccept+0xcaf) == 0xc085)'
+    return '.if ('+guard+') { '+'; '.join(lines)+'; } .else { .printf "PBFG_CODE_MISMATCH_NO_CHANGE\\n"; }\n'
 
 
 def fixture(action, kind):
