@@ -12,7 +12,7 @@ POLICY = dict(fillers=200, filler_ports=[42001, 42200], control_port=42201,
               debugger_points=[], driver_installation=False, driver_lifecycle='resident-disabled')
 CREATE_PROFILE_SHA = '42f1426e0a5c6ba0f98794692598e30ed22c30ae6416c194e66c5c12d2fa5aa5'
 RETRIEVE_PROFILE_SHA = '19490d337a14b149c275d5d801f12ddb7c86290b5357b76b9639c369083be35c'
-FLOW_PROFILE_SHA = '830b34f3526c27f5511f1877e79e01aaa39d8f06e385ad383a05d8fa1fcd1018'
+FLOW_PROFILE_SHA = 'f6f5fe5140bad4653e44c90f77b60e7458f04039ac878581247506e03e7f2de2'
 
 
 def create_policy(target=False, staged=False):
