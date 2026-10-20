@@ -1,6 +1,34 @@
 # Передача чату диагностики TCP / WinDbg
 
-## FlagProbe065643 успешен; FlagTarget065820 подготовлен, не запускался
+## FlagTarget070133: исходный10022 повторён; setter исчерпал лимит, снимков нет
+
+Run20261020-070133-afbe9ed6 COLLECTED, cohortCOLLECTED, cleanup_errors[],
+native_processes_stoppedtrue, CLIgraceful/poststoptrue, resident_disabled_aftertrue.
+Контроль127.0.0.1:42201 дал API10022/bytes0. USERconsole: послеbe2/be3/be4/g
+только PBFG_LIMIT point=3 capture=incomplete; затем manualbd2/bd3/bd4/g.
+Strict flagreportINCOMPLETE/BOUNDED_CAPTURE_INCOMPLETE, TRACK0/SET_PRE0/RETRIEVE0;
+native_errors[]. Privateexcerpt/provenance/report: pb-flag-target-review-20261020-070133.
+План065820 из следующего исторического раздела уже использован; не повторять.
+
+Лимит16 считает rawhits доendpointselector: фоновый receive может исчерпать его
+до выбранного CREATE. Не увеличивать cap и не убирать его. Подготовлен отдельный
+НЕ runnable proposal src/pb_target_flag_armed_candidate.py: первоначально2/4,
+3disabled; только выбранный успешныйCREATE запоминаетrecord/ep, сбрасываетt4,
+выполняетbe3. Остальныеactions/caps/one-shot/самоотключение сохранены.
+Launcher/старыеfrozenprofiles не изменены и этотproposal не принимают.
+
+Offline SDK CDB4cases selected/nonselected/unreadable/limit прошли с реальными
+dummybreakpoints: толькоselected включает3, остальные оставляютdisabled;
+сбросcounter изапомненныеidentity проверены. Proof pb-flag-create-arm-parser-20261020-r1.
+Нетkernelconnection/producttraffic/Run; это не runtimecost илиcoverageproof.
+ПослеCREATE глобальныйreceive всё ещё может исчерпать прежнийcap.
+
+STOP: be3 внутриCREATE требует явного исключения пользователя из AGENTS.md:
+«These actions remain user-controlled on the physical host» для breakpointenable.
+До ответа не интегрироватьautostaging вruntime и не выдаватьRun с ним.
+Последнее состояниеhost:2/3/4disabled,gвыполнен; лишнийbl не нужен.
+
+## История: FlagProbe065643 успешен; FlagTarget065820 был подготовлен
 
 USER короткийконтроль Run065643-4f819598: TRACK1/RETRIEVE1, status0,
 output_raw совпалсCREATErecord, size32/refs1. Native replay: все4успешны,
