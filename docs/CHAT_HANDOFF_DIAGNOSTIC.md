@@ -1,5 +1,52 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Подготовлен selected endpoint read-watch для SEND gate; новая загрузка118
+
+USER разрешил подготовить три точки CREATE/SEND-decision/ACCEPT. Осмотр:
+boot118, Kernel-General12 record17583, start2026-10-20T12:42:13.5Z;
+tcpipSHA b0683bd7… прежний, ProxyBridgeDrv Stopped, freeRAM~3.7GiB.
+Не использовать адреса/positive probe boot117 для допуска к новой нагрузке.
+Новый target ещё НЕ подготовлен: сначала four healthy probe того же нового
+профиля на boot118; sameboot-positive gate сохранён и отдельно протестирован.
+
+Вместо глобальной горячей send-точки выбран ba3 r4(sourceEP+30): она ловит
+только reads/writes выбранного объекта. В post-read RIP=FastLoopbackSend+30
+после mov eax,[rcx+30] сохранённый EAX непосредственно определяет следующий
+bt eax,15h/jb, не используется предположение о текущем флаге в памяти.
+Проверяются RCX/RBX=selectedEP, familyR14w=2 и live endpoint+1c0=record.
+В SEND_HEADER читаются только20байт SYN из первого NB текущего NBL/RBP,
+лишь из уже mapped MDL; поддержаны rawTCP или unfragmentedIPv4/TCP loopback.
+Порты42201→34010/flagsSYN проверяются; unmapped/split/wrongtuple дают incomplete.
+
+CREATE2 после выбора отключается, ставит адресную3 и включает ACCEPT4.
+Read3 снимается при первом observed skip (bit21=1); ACCEPT4 снимает все.
+CapsCREATE16/selected-memory64/ACCEPT64,total144; максимум4SEND snapshots,
+никаких общих SEND breakpoints/стеков. Лимит64 нужен для reads+writes, это
+отдельный новый профиль, прежние caps/frozen kits не менялись.
+Профиль pb-kd-selected-endpoint-send-gate-profile-20261020.json SHA
+22febf6a90774473a9618f655c38ab5c854b6ee627cbcaaaa3e4aefe459eb3ba.
+Первоначально2/4disabled,3absent, hostenableТОЛЬКО2. Recovery bd2,
+условныйbc3черезt8, bd4, отдельныйg. Не применять старый packet/write stage.
+
+RealCDB proof pb-endpoint-send-gate-proof-20261020-r4 все8passed/exit0:
+healthy/retryrawTCP/retryIPv4/rawlimit/unmapped/splitheader/wrongtuple/identity.
+Реальная model-CPU ветка: healthyassociate1/skip0, retryassociate1/skip1,
+чужойобъектнеучитывается, selectednon-gate read/write учитываются, послеskip
+readwatch selfclear (последнийgate raw4), cap64 без неподтверждённого ACCEPT.
+Kernelthread→TID/vvalid→true/gateRIP→fixtureaddress явно отмечены; kernelcoverage
+не заявляется. 138 targettests passed. Reporter не объявляет retry по одной
+skip-записи и не приравнивает указатель NBL к доказанному полному lifetime.
+
+Неуспешные isolated proofs-r1/r2/r3 сохранены: r1 combined setup+CREATE4108bytes
+превысил CDB line4096; r2 setupfilepath был неэкранирован; r3 guard-блокам
+нужен разделитель ';' перед следующим .if. Исправлены отдельным setupfile,
+quoted(path), guard terminators; до kernel ни одна ошибка не доходила.
+Dejavu skill прочитан; никаких gates не создавалось/не ослаблялось.
+
+Сначала получить на физическом хосте новый symbol/live-code/NDIS+MDL-layout
+вывод. До него не stage/be/Run. Текущий WinDbg connection/points после reboot
+не подтверждены. Prepare healthy запущен, product/traffic/Break/enable не было.
+
 ## Run084117 разобран: RST+ACK непосредственно устанавливает bit21
 
 Пользователь восстановил лимит и разрешил офлайн-разбор последнего Run.

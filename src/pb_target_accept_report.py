@@ -120,8 +120,10 @@ def evaluate(path):
                 errors.append('FLOW_REGISTRATION_ACK_MISSING')
             if flag:
                 from pb_target_flag_binding import policy as flag_policy
-                watch='packet' if policy.get('endpoint_packet_header') is True else policy.get('endpoint_data_watch') is True
-                if policy!=flag_policy(not probe,policy.get('automatic_debugger_enable_after_create')==[3],policy.get('raw_hit_limits_per_point')=={'2':16,'3':16,'4':64},policy.get('healthy_setter_probe') is True,watch):errors.append('FLAG_OBSERVER_POLICY_INVALID')
+                watch='send' if policy.get('endpoint_send_gate') is True else 'packet' if policy.get('endpoint_packet_header') is True else policy.get('endpoint_data_watch') is True
+                armed=policy.get('automatic_debugger_enable_after_create') in ([3],[3,4])
+                accept64=policy.get('raw_hit_limits_per_point')==({'2':16,'3':64,'4':64} if watch=='send' else {'2':16,'3':16,'4':64})
+                if policy!=flag_policy(not probe,armed,accept64,policy.get('healthy_setter_probe') is True,watch):errors.append('FLAG_OBSERVER_POLICY_INVALID')
             elif probe and policy != (retrieve_policy(False) if retrieve else create_policy()):
                 errors.append('CREATE_FOUR_OBSERVER_POLICY_INVALID')
             elif not probe and policy != (flow_policy(removal, retry) if flow else (retrieve_policy() if retrieve else create_policy(True, staged))):

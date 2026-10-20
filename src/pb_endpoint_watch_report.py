@@ -63,6 +63,9 @@ def evaluate(capture,console):
     from pb_target_accept_report import evaluate as native_evaluate
     capture=Path(capture);console=Path(console)
     p=read(capture/'runtime-plan.json');run=read(capture/'diagnostic-run.json')
+    if p['policy'].get('endpoint_send_gate') is True:
+        from pb_endpoint_send_gate import evaluate as send_evaluate
+        return send_evaluate(capture,console)
     probe=p['policy'].get('workload')=='flag-four-probe'
     packet=p['policy'].get('endpoint_packet_header') is True
     if packet:
