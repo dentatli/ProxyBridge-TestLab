@@ -1,6 +1,34 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Run071515: выбранный setter пойман; ACCEPT cap16 исчерпан, готовится accept64
+## Run072249: hostwindow истёк, контроль не запускался; USER подозревает неверную клавишу
+
+Run072249-d83652b5 FAILED/TARGET_COHORT_INCOMPLETE:TARGET_HOST_WINDOW_EXPIRED_NO_CONTROL.
+Нетcontrol-launch.json/host-confirmed, native10022 этимRunНЕподтверждён. USER:
+«Я похоже не ту букву нажал для старта». Это согласуетсяснеполученнойC, но
+нажатаяклавишанезаписана. Нельзяприписыватьистечениеокнатолько64debuggerhits.
+USERconsole толькоPBFG_LIMITpoint4/incomplete, TRACK0/SET_PRE0/RETRIEVE0.
+Предложениеподнять16→64 неустранилофоновыесрабатывания; дальшеcapнеповышать
+безрешенияактивации. СтарыйRunнеповторять/неResume, новогоPrepare/Runнет.
+
+Исходныеcleanupошибки: TARGET_RECEIVER_CONTROLLED_STOP_FAILED и
+TARGET_NATIVE_FORCED_STOP/native_processes_stoppedfalse. CLIgraceful/poststoptrue,
+resident-disable-after: PBDRV_IOCTL_DISABLE completedtrue, serviceRunning,
+independentenabledflagreadbackfalse. Follow-upCIM: PID14520receiver/14808proxy/
+11632fillers отсутствуют; ctsTraffic/ProxyBridge_CLI нет; listeners34010/54122/54123нет.
+Этофактическийпоследующийосмотр, исходныеошибкинепереписаны.
+Private review pb-flag-target-review-20261020-072249: excerpt/provenance/flagreport/
+cleanup-followup. Limitactionсамотключает2/3/4 иgc; manualrecoveryнеприслан,
+неутверждатьеё. Break/enable/stepагентомневыполнялись.
+
+OfflineкодRVA235e5 задаётEDI=1 ДОопциональноговызовачерезслот231e40;
+еслислотnull,235f8переходитна2364f. Поэтому classify_raw1 изпрошлогоSET_PRE
+НЕдоказывает,чтовызовcallbackбыл ивернул1. НелабелитькакNTSTATUS/permit/block.
+RVA5be77= WfpAleAuthorizeConnect+113 записываетbit20 приRDI0; этоодинизнескольких
+writers, неустановленныйисточникbit20этогоконтроля. Послеsetter23695 зовёт
+TlShimInspectTcpTransportReceiveFast. Prewriteданные071515сохранены; rootcause
+преждевременнонезаявлять. Исправленияпродукта/flagsвядренепроводить.
+
+## История Run071515: выбранный setter пойман; ACCEPT cap16 исчерпан
 
 Новый Prepare072056-59dba4de exit0/PREPARED_NOT_RUN, SHA
 93d687fef8d1ed49c35e8b98d0297fafe986ce9e67c8f481cb625c392daf0a9e.
