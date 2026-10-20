@@ -6,6 +6,7 @@ from pb_prepare_kd_baseline import plain, digest
 from pb_target_retry_profile import PROFILE_SHA as RETRY_PROFILE_SHA, validate_parser_proof as validate_retry_parser_proof
 from pb_target_flag_binding import PROFILE_SHA as FLAG_PROFILE_SHA, policy as flag_policy, registration as flag_registration, parser_proof as flag_parser_proof, STAGE as FLAG_STAGE
 from pb_target_flag_binding import ARMED_PROFILE_SHA as FLAG_ARMED_PROFILE_SHA, ARMED_STAGE as FLAG_ARMED_STAGE
+from pb_target_flag_binding import ACCEPT64_PROFILE_SHA as FLAG_ACCEPT64_PROFILE_SHA, ACCEPT64_STAGE as FLAG_ACCEPT64_STAGE
 
 ASSETS = '81fc33a6288b324dcb9880735728e0699729c5c804292fb07a2791c9db4f3a24.json'
 ASSETS_SHA = 'f14a2fadc257c3167655264c7c11ab2d5ae2d1561c197164ad4abfddd945e52d'
@@ -95,7 +96,7 @@ def validate_positive_probe(capture, console, boot):
 
 def validate_registration(profile_path, review_path, review_sha, boot):
     actual_sha = digest(Path(profile_path))
-    if actual_sha in (FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA):
+    if actual_sha in (FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA,FLAG_ACCEPT64_PROFILE_SHA):
         return flag_registration(profile_path,review_path,review_sha,boot)
     if actual_sha in (FLOW_PROFILE_SHA, REMOVAL_PROFILE_SHA, REMOVAL_R2_PROFILE_SHA, RETRY_PROFILE_SHA):
         retry = actual_sha == RETRY_PROFILE_SHA
@@ -186,6 +187,7 @@ def validate(plan_path, sha, root):
     flag=p.get('policy',{}).get('observer')=='etw+kd-target-flag'
     flag_four=flag and p['policy'].get('workload')=='flag-four-probe'
     flag_armed=flag and p['policy'].get('automatic_debugger_enable_after_create')==[3]
+    flag_accept64=flag and p['policy'].get('raw_hit_limits_per_point')=={'2':16,'3':16,'4':64}
     removal = p.get('policy', {}).get('observer') == 'etw+kd-target-removal'
     retry = p.get('policy', {}).get('observer') == 'etw+kd-target-retry'
     flow = retry or removal or p.get('policy', {}).get('observer') == 'etw+kd-target-flow'
@@ -194,7 +196,7 @@ def validate(plan_path, sha, root):
     staged = p.get('policy', {}).get('workload') == 'create-target-201-staged'
     retrieve_four = p.get('policy', {}).get('workload') == 'retrieve-four-probe'
     target = (flag and not flag_four) or flow or (retrieve and not retrieve_four) or staged or p.get('policy', {}).get('workload') == 'create-target-201'
-    expected_policy = flag_policy(not flag_four,flag_armed) if flag else (flow_policy(removal, retry) if flow else (retrieve_policy(not retrieve_four) if retrieve else (create_policy(target, staged) if kd else POLICY)))
+    expected_policy = flag_policy(not flag_four,flag_armed,flag_accept64) if flag else (flow_policy(removal, retry) if flow else (retrieve_policy(not retrieve_four) if retrieve else (create_policy(target, staged) if kd else POLICY)))
     if (p['method'] != 'target-accept-session-v1' or Path(p['root']) != root or
             Path(p['preparation']) != plan_path.parent or
             plan_path.parent.parent != root / 'artifacts/diagnostics' or p['policy'] != expected_policy):
@@ -208,17 +210,17 @@ def validate(plan_path, sha, root):
     boot_identity(boot)
     if kd:
         profile = validate_registration(p['debugger_profile'], p['registration_review'], p['registration_review_sha256'], boot)
-        if (digest(Path(p['debugger_profile'])) in (FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA))!=flag:
+        if (digest(Path(p['debugger_profile'])) in (FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA,FLAG_ACCEPT64_PROFILE_SHA))!=flag:
             raise ValueError('FLAG_OBSERVER_PROFILE_DIFFERS')
         if flag:
-            if digest(Path(p['debugger_profile']))!=(FLAG_ARMED_PROFILE_SHA if flag_armed else FLAG_PROFILE_SHA):raise ValueError('FLAG_PROFILE_DIFFERS')
+            if digest(Path(p['debugger_profile']))!=(FLAG_ACCEPT64_PROFILE_SHA if flag_accept64 else FLAG_ARMED_PROFILE_SHA if flag_armed else FLAG_PROFILE_SHA):raise ValueError('FLAG_PROFILE_DIFFERS')
         elif (('retrieve' in profile['method']) != retrieve or
                 any(k in profile['method'] for k in ('flow','removal','retry')) != flow or
                 ('removal' in profile['method']) != removal or ('retry' in profile['method']) != retry):
             raise ValueError('TARGET_OBSERVER_PROFILE_DIFFERS')
         parser_proof = p.get('command_parser_proof')
         if flag:
-            if not parser_proof or flag_parser_proof(parser_proof['path'],flag_armed)!=parser_proof:
+            if not parser_proof or flag_parser_proof(parser_proof['path'],flag_armed,flag_accept64)!=parser_proof:
                 raise ValueError('FLAG_PARSER_PROOF_BINDING_DIFFERS')
         elif retry:
             if not parser_proof or validate_retry_parser_proof(parser_proof['path']) != parser_proof:
@@ -240,13 +242,15 @@ def validate(plan_path, sha, root):
 
 
 def prepare(root, build, output, debugger_profile=None, registration_review=None,
-            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False, retrieve_target=False, retrieve_probe=False, flow_target=False, removal_target=False, command_parser_proof=None, retry_target=False, flag_target=False, flag_probe=False, flag_create_armed=False):
+            create_target=False, positive_capture=None, positive_console=None, manual_host_window=False, retrieve_target=False, retrieve_probe=False, flow_target=False, removal_target=False, command_parser_proof=None, retry_target=False, flag_target=False, flag_probe=False, flag_create_armed=False,flag_accept64=False):
     # Preserve the profile and consumed captures for offline evaluation, but
     # prohibit new runs of the hot five-point observer after the VM stall.
     if retry_target:
         raise ValueError('TARGET_RETRY_PROFILE_RETIRED_HOT_TRACE_NO_RUNTIME')
     if flag_create_armed and (not flag_target or flag_probe):
         raise ValueError('FLAG_CREATE_ARMED_REQUIRES_TARGET')
+    if flag_accept64 and not flag_create_armed:
+        raise ValueError('FLAG_ACCEPT64_REQUIRES_CREATE_ARMED')
     flag=flag_target or flag_probe
     if flag and (sum(map(bool,(flag_target,flag_probe)))!=1 or any((create_target,retrieve_target,retrieve_probe,flow_target,removal_target,retry_target)) or manual_host_window!=flag_target):
         raise ValueError('FLAG_REQUIRES_EXCLUSIVE_MODE')
@@ -276,10 +280,10 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         if not debugger_profile or not registration_review:
             raise ValueError('TARGET_PROFILE_AND_REGISTRATION_BOTH_REQUIRED')
         profile = validate_registration(debugger_profile, registration_review, digest(registration_review), read(output/'boot-session.json'))
-        if (digest(Path(debugger_profile)) in (FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA))!=flag:
+        if (digest(Path(debugger_profile)) in (FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA,FLAG_ACCEPT64_PROFILE_SHA))!=flag:
             raise ValueError('FLAG_OBSERVER_PROFILE_DIFFERS')
         if flag:
-            if digest(Path(debugger_profile))!=(FLAG_ARMED_PROFILE_SHA if flag_create_armed else FLAG_PROFILE_SHA):raise ValueError('FLAG_PROFILE_DIFFERS')
+            if digest(Path(debugger_profile))!=(FLAG_ACCEPT64_PROFILE_SHA if flag_accept64 else FLAG_ARMED_PROFILE_SHA if flag_create_armed else FLAG_PROFILE_SHA):raise ValueError('FLAG_PROFILE_DIFFERS')
         elif (('retrieve' in profile['method']) != (retrieve_target or retrieve_probe) or
                 any(k in profile['method'] for k in ('flow','removal','retry')) != flow_target or
                 ('removal' in profile['method']) != removal_target or ('retry' in profile['method']) != retry_target):
@@ -287,7 +291,7 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         bindings = dict(debugger_profile=str(plain(debugger_profile)), registration_review=str(plain(registration_review)),
                         registration_review_sha256=digest(registration_review))
     if flag:
-        bindings['command_parser_proof']=flag_parser_proof(command_parser_proof,flag_create_armed)
+        bindings['command_parser_proof']=flag_parser_proof(command_parser_proof,flag_create_armed,flag_accept64)
     elif retry_target:
         if not debugger_profile or digest(Path(debugger_profile)) != RETRY_PROFILE_SHA or not command_parser_proof:
             raise ValueError('TARGET_RETRY_AND_REAL_PARSER_PROOF_REQUIRED')
@@ -317,10 +321,10 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         kind = 'retry' if retry_target else ('removal' if removal_target else 'flow')
         suffix = '-r2' if removal_target else ''
         paths += [root/('scripts/debugger/pb-kd-target-'+kind+'-disabled-20261019'+suffix+'.wdbg')]
-    if flag:paths += [root/(FLAG_ARMED_STAGE if flag_create_armed else FLAG_STAGE)]
+    if flag:paths += [root/(FLAG_ACCEPT64_STAGE if flag_accept64 else FLAG_ARMED_STAGE if flag_create_armed else FLAG_STAGE)]
     plan = dict(method='target-accept-session-v1', root=str(root), preparation=str(output), build=str(build),
                 assets=str(assets_path), python=assets['python'], core_sha256=CORE,
-                policy=flag_policy(flag_target,flag_create_armed) if flag else (flow_policy(removal_target, retry_target) if flow_target else (retrieve_policy(not retrieve_probe) if (retrieve_target or retrieve_probe) else (create_policy(create_target, manual_host_window) if bindings else POLICY))), files=inventory(paths), **bindings)
+                policy=flag_policy(flag_target,flag_create_armed,flag_accept64) if flag else (flow_policy(removal_target, retry_target) if flow_target else (retrieve_policy(not retrieve_probe) if (retrieve_target or retrieve_probe) else (create_policy(create_target, manual_host_window) if bindings else POLICY))), files=inventory(paths), **bindings)
     boot_identity(read(output / 'boot-session.json'))
     save(output / 'runtime-plan.json', plan)
     validate(output / 'runtime-plan.json', digest(output / 'runtime-plan.json'), root)
@@ -350,10 +354,11 @@ if __name__ == '__main__':
     p.add_argument('--flag-target', action='store_true')
     p.add_argument('--flag-probe', action='store_true')
     p.add_argument('--flag-create-armed', action='store_true')
+    p.add_argument('--flag-accept64', action='store_true')
     a = p.parse_args()
     if a.phase == 'prepare':
         target = prepare(plain(a.root), plain(a.build), a.output, a.debugger_profile, a.registration_review,
-                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window, a.retrieve_target, a.retrieve_probe, a.flow_target, a.removal_target, a.command_parser_proof, a.retry_target, a.flag_target, a.flag_probe, a.flag_create_armed)
+                         a.create_target, a.positive_capture, a.positive_console, a.manual_host_window, a.retrieve_target, a.retrieve_probe, a.flow_target, a.removal_target, a.command_parser_proof, a.retry_target, a.flag_target, a.flag_probe, a.flag_create_armed,a.flag_accept64)
         print(str(target))
         print(digest(target))
     else:

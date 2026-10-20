@@ -1,6 +1,30 @@
 # Передача чату диагностики TCP / WinDbg
 
-## USER разрешил включение setter3 из выбранногоCREATE; новый режим готовится
+## Run071515: выбранный setter пойман; ACCEPT cap16 исчерпан, готовится accept64
+
+Run071515-235400ff nativeTARGET_FAILURE_REPRODUCED/errors[], control42201 API10022/bytes0.
+Session/cohortCOLLECTED, cleanup_errors[], native_stoppedtrue, CLIgraceful/poststoptrue,
+resident_disabled_aftertrue. USER TRACKsourceEPffffa702fb573010/recordffffa702fc086da0,
+SET_PRE с темижеEP/record, flags30=01101641 (bit20true,bit21false), flags34=2080,
+classify_raw1, args12=d9a4/13=da84/15=2. Stack8: RecvTcpDatagram+190 →
+InetInspectReceiveTcpDatagram → TcpTcbReceive → TcpMatchReceive → TcpReceive →
+IppLbIndicatePackets → IppLbTransmitStackCallout → KxSwitchKernelStackCallout.
+Это конкретныйpre-writepath, неpostwriteproof и неокончательнаяrootcause.
+Затем PBFG_LIMITpoint4; strictflagreportINCOMPLETE/counts1/1/0/nativeerrors[].
+Private pb-flag-target-review-20261020-071515 содержитuserexcerpt/provenance/report.
+Manualrecoveryвexcerpt нет; limitactionсамотключает2/3/4 иgc. Лишнийblне нужен.
+
+USER считаетлимиты слишкомжёсткими. ИзменяетсяТОЛЬКОcap4 с16до64;2/3 остаются16,
+max96rawhits, selectedoneshots/k8 прежние. Новый immutableprofile
+pb-kd-target-flag-create-armed-accept64-profile-20261020.json SHA
+748d942dd4252dfc79c7461f44cabeebcbeb0151db171d0a964c93eb41317687.
+FlagTarget+FlagCreateArmed+FlagAccept64; толькоupdate4,2/3неперерегистрировать.
+Initialhostenable2/4,CREATEautoenable3 по уже полученномуисключению; autoenable4нет.
+Proofaccept64-r1:4armcases+12allactions+actualCDBboundary16/63active,64alloffpassed;
+31filesbound,119targettests/PSparserpassed. НиRun,ниproducttrafficагентнезапускал.
+Старыйplan071250 consumed, старыеfrozenprofiles не менять/неResume/неповторять.
+
+## История: USER разрешил включение setter3 из выбранногоCREATE
 
 Prepare071250-75cc02df exit0/PREPARED_NOT_RUN; SHA
 b5e14a0b9afeb06defd32d852ab498a37c6c909f53ccbed815c6cb227e2f3b25.

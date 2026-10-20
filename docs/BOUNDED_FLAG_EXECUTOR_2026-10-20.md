@@ -1,5 +1,18 @@
 # Исполнитель ограниченного захвата флага
 
+## После Run071515: cap ACCEPT64
+
+TRACK+SET_PRE впервые пойманы наодномEP/record; flags30before01101641,
+bit20установлен/bit21сброшен; stackвreceiveTCPloopback. Это prewrite,
+а не наблюдённыйрезультатзаписи. Nativecontrol10022 повторён, cleanupCOLLECTED/OK.
+ACCEPT4 исчерпалrawcap16: финальногоRETRIEVEнет, reportINCOMPLETE с сохранением
+двухположительныхснимков. Private review071515.
+Новыйпрофильaccept64оставляет2/3cap16,4cap64,max96,one-shot иk8.
+FlagAccept64требуетFlagCreateArmed+FlagTarget; отдельныеSHA/profile/proof/stage,
+старыепрофилисохранены. Updateтолько4; наREADYhostbe2/be4/g какпрежде.
+119targettests/PSparser иCDBbounds16/63/64passed,31proof filesbound.
+Лимитбольше не доказывает runtimecost/достаточностьокна; повторногоRunещёнет.
+
 ## Обновление после cap Run070133
 
 Контроль снова API10022/bytes0, nativeCOLLECTED/cleanupOK, но только

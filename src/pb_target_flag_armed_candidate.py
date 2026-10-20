@@ -8,7 +8,7 @@ import subprocess
 from pb_target_flag_candidate import candidate as previous_candidate, fixture, check as check_actions
 
 
-def candidate():
+def candidate(accept64=False):
     p = previous_candidate()
     p.update(method='create-armed-flag-candidate-v1', load_allowed=False,
              status='PROPOSAL_REQUIRES_EXPLICIT_HOST_ENABLE_EXCEPTION',
@@ -21,6 +21,10 @@ def candidate():
     if action.count(old) != 1:
         raise ValueError('CREATE_ACTION_CHANGED_REVIEW_REQUIRED')
     p['points'][0]['action'] = action.replace(old, new)
+    if accept64:
+        p.update(raw_hit_limits_per_point={'2':16,'3':16,'4':64},max_total_raw_hits=96)
+        del p['raw_hit_limit_per_point']
+        p['points'][2]['action']=p['points'][2]['action'].replace('@$t5 >= 0x10','@$t5 >= 0x40')
     p['limitations'] += [
         'Not accepted by the runtime launcher or any existing frozen plan.',
         'Host user must explicitly authorize be3 inside the selected CREATE action.',
@@ -29,9 +33,9 @@ def candidate():
     return p
 
 
-def check(output):
+def check(output,accept64=False):
     output.mkdir(parents=True, exist_ok=False)
-    p = candidate()
+    p = candidate(accept64)
     (output/'candidate.json').write_text(json.dumps(p, indent=2)+'\n', encoding='utf-8', newline='\n')
     debugger = Path(r'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe')
     symbols = output/'empty-symbols'
@@ -67,6 +71,25 @@ def check(output):
     full = check_actions(output/'all-actions', p)
     result['all_actions_proof'] = 'all-actions/parser-check.json'
     result['passed'] = all(case['passed'] for case in result['cases']) and full['passed']
+    if accept64:
+        commands=['bp2 @$ip+0x20 "gc"','bp3 @$ip+0x30 "gc"','bp4 @$ip+0x40 "gc"']
+        for count in (16,63,64):
+            commands += ['r @$t5 = '+hex(count-1),fixture(p['points'][2]['action'],'nonselected'),
+                         '.printf "BOUNDARY_'+str(count)+'_BEGIN\\n"','.bpcmds',
+                         '.printf "BOUNDARY_'+str(count)+'_END\\n"']
+        path=output/'accept64-boundary.wdbg'
+        path.write_text('\n'.join(commands+['q'])+'\n',encoding='ascii',newline='\n')
+        c=subprocess.run([str(debugger),'-sins','-y',str(symbols),'-cf',str(path),
+                          r'C:\Windows\System32\cmd.exe','/d','/c','exit','0'],capture_output=True,timeout=20,creationflags=0x08000000)
+        (output/'accept64-boundary.stdout.txt').write_bytes(c.stdout)
+        (output/'accept64-boundary.stderr.txt').write_bytes(c.stderr)
+        text=(c.stdout+c.stderr).decode('utf-8',errors='replace')
+        lines=[line.strip() for line in text.splitlines()];checks=[]
+        for count in (16,63,64):
+            state=lines[lines.index('BOUNDARY_'+str(count)+'_BEGIN')+1:lines.index('BOUNDARY_'+str(count)+'_END')]
+            checks.append(all(any(re.fullmatch(r'bd\s+'+str(i)+r';',line) for line in state)==(count==64) for i in (2,3,4)))
+        result['accept64_boundary_checks']=checks
+        result['passed'] = result['passed'] and c.returncode==0 and checks==[True]*3 and not re.search(r'(?i)(syntax error|extra character error|couldn.t resolve)',text)
     (output/'parser-check.json').write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
     return result
 
@@ -74,7 +97,8 @@ def check(output):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
+    parser.add_argument('--accept64', action='store_true')
     args = parser.parse_args()
-    result = check(args.output)
+    result = check(args.output,args.accept64)
     print(json.dumps(result))
     raise SystemExit(not result['passed'])

@@ -67,7 +67,7 @@ def check(output, profile=None):
             n=pt['id'];counter='$t'+str(n+1)
             commands += ['bp'+str(n)+' @$ip+0x'+str(n)+'0 "gc"',
                 'r @$t1 = 0; r @$t2 = '+('0' if kind=='nonselected' else '0x1000'),
-                'r @'+counter+' = '+('0xf' if kind=='limit' else '0'),
+                'r @'+counter+' = '+(hex(p.get('raw_hit_limits_per_point',{}).get(str(n),16)-1) if kind=='limit' else '0'),
                 '.printf "PBFG_ID_'+str(n)+'\\n"',fixture(pt['action'],kind),
                 '.printf "PBFG_ID_END_'+str(n)+'\\n"',
                 '.printf "PBFG_STATE_BEGIN_'+str(n)+'\\n"','.bpcmds',

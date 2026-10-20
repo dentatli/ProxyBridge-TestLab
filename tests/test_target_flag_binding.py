@@ -127,6 +127,7 @@ class FlagBindings(unittest.TestCase):
         def check():
             path.write_text(json.dumps(r));fp.write_text(json.dumps(full));return parser_proof(path,True)
         self.assertEqual(len(check()['files']),28)
+        with self.assertRaisesRegex(ValueError,'PARSER_PROFILE_DIFFERS'):parser_proof(path,True,True)
         r['cases'][1]['disabled']['3']=False
         with self.assertRaisesRegex(ValueError,'PROOF_INVALID'):check()
         r['cases'][1]['disabled']['3']=True;full['cases'][0]['disable_checks'][2]=False
@@ -142,6 +143,20 @@ class FlagBindings(unittest.TestCase):
             result=evaluate(self.path,console)
         self.assertEqual(result['status'],'INCOMPLETE')
         self.assertIn('BOUNDED_CAPTURE_INCOMPLETE',result['errors'])
+
+    def test_accept64_changes_only_accept_cap_and_requires_armed_mode(self):
+        p=policy(True,True,True)
+        self.assertEqual(p['raw_hit_limits_per_point'],{'2':16,'3':16,'4':64})
+        self.assertEqual(p['max_total_raw_hits'],96)
+        self.assertNotIn('raw_hit_limit_per_point',p)
+        self.assertEqual(p['host_enable_debugger_points'],[2,4])
+        with self.assertRaisesRegex(ValueError,'REQUIRES_CREATE_ARMED'):policy(True,False,True)
+        with self.assertRaisesRegex(ValueError,'REQUIRES_CREATE_ARMED'):
+            prepare(ROOT,ROOT,self.path,flag_accept64=True)
+        old=json.loads((ROOT/'scripts/debugger/pb-kd-target-flag-create-armed-profile-20261020.json').read_text())
+        new=json.loads((ROOT/'scripts/debugger/pb-kd-target-flag-create-armed-accept64-profile-20261020.json').read_text())
+        self.assertEqual(old['points'][:2],new['points'][:2])
+        self.assertEqual(old['points'][2]['action'].replace('@$t5 >= 0x10','@$t5 >= 0x40'),new['points'][2]['action'])
 
 
 if __name__=='__main__':unittest.main()
