@@ -1,5 +1,25 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run134304: третье SEND со skip, но control10061/noquery; нужен итог t5
+
+USER дошёл READY/hostconfirmation/controlSYNsent. Session/cohortCOLLECTED,
+cleanup_errors[], native_processes_stoppedtrue, CLIgraceful/unforced/poststoptrue,
+residentdisabledaftertrue. Native controlCSV10061, Local/Remote/GUID пустые;
+200CTXDIAG только fillers, control42201 query НЕТ. Поэтому native10022 в этом
+Run НЕ воспроизведён; reportINCOMPLETE с ENDPOINT_UNOWNED/PORT_SET_DIFFERS верен.
+Не ослаблять tuplegate/не приравнивать10061к10022/не начинать отдельный10061разбор.
+Вcohort сохранён owned controlPID14916/127.0.0.1:42201→34010/stateSYNsent.
+
+PBSD TRACK/ARMED затем unexpected80000004firstchance в EndpointUpdate+19,
+USER g; SENDraw19/1c flags01101641 на одномNBL, SENDraw2a flags01301641 на
+другомNBL, тотжеEP/record/sequence. Затем PBSD_LIMITpoint4, ACCEPTнет.
+Stop80000004 возможный observereffect, но его причина/влияние на10061 не доказаны.
+Private pb-send-gate-review-20261020-134304/user-console сохраняет exception/g.
+Строка LIMIT не печатает текущий t5/cap; по ней нельзя отличить старый64 от256.
+Нужен только hostreadonly .printf t3/t4/t5/t6/t8 и g, wholeVMwarningпередBreak.
+Не просить повторныйbl/не запускать новыйRun/не увеличиватьcapещёраз безсчётчика.
+Профиль/источники с прошлогоcommitне менялись, agentruntime/debuggercontrolнебыло.
+
 ## Run133747 не дошёл до READY: TCP-table resize race и маскирующая ошибка отчётчика
 
 USER точку НЕ включал, READY не было. Первичный diagnostic-run.error:
