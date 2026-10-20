@@ -2,6 +2,15 @@
 
 ## USER разрешил включение setter3 из выбранногоCREATE; новый режим готовится
 
+Prepare071250-75cc02df exit0/PREPARED_NOT_RUN; SHA
+b5e14a0b9afeb06defd32d852ab498a37c6c909f53ccbed815c6cb227e2f3b25.
+Inspect послеcommit118d3b8 прошёл TARGET_PLAN_INSPECTED_NO_RUNTIME, sameboot117.
+Receipt pb-flag-create-armed-registration-20261020-r1 — prepared-only, неhostproof.
+USER получает полный комплект: hostupdate2disabled/reset/g; VMRun с
+DebuggerPointsDisabled/BoundedLoadReviewed/FlowProfileRegisteredDisabled;
+наREADY hostbe2/be4/g, затемVM C; recoverybd2/bd3/bd4/g.
+Регистрация новогоaction наhost пока не подтверждена, Run не выполнялся.
+
 USER: «Не понял в чем проблема. Разрешаю». Это явное исключение дляbe3
 внутри выбранногоCREATE; Break/step и первоначальныеbe2/be4 остаются наhost.
 Новый профиль pb-kd-target-flag-create-armed-profile-20261020.json SHA
