@@ -1,5 +1,22 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Готов новый план v3; host init и Run pending
+
+artifacts/diagnostics/pb-target-accept-plan-20261020-194409-df26a357/runtime-plan.json
+SHA 528AA1E722CF4868BC7350C8EDA51F496BE3828A08C25EC2FEF4643E4B58585D.
+Prepare PREPARED_NOT_RUN/exit0/productfalse/trafficfalse; registration private
+pb-retry-v3-registration-20261021-r1. Published helper скачан и SHA61714879...
+проверен из pinned source f743d8d30ef66e3c2038627de28989319e44fbbc.
+Host registration/init ещё не observed. USER download v3; host Break wholeVM/
+Codex/RDP warning; old v2 pbRetryStop/owned3&4 cleanup/unloadv2/loadv3,
+dt ndis!_NET_BUFFER MdlChain DataOffset ->20/28hex, bc2/bc4/короткий!pbrcreate
+bp2/bd2/pbRetryInitKernel ->CONFIGmodel0/POLICYversion6/true; отдельныйg.
+При несовпаденииdt/init неRun. Новый VM Run сDebuggerPointsDisabled/
+FlowProfileRegisteredDisabled/BoundedLoadReviewed; READY ->hostBreak/be2/g,
+латинскаяC вVM. Послеerror/completion hostBreak/bd2/pbRetryStop/owned3&4cleanup/g.
+КаждыйBreak/enable предупреждатьwholeVM. Bl повторятьне нужно. Run не повторять.
+Нужен весь PBR вывод CONFIG/POLICY/BUFFER/SELECTED/STATE/FINAL иnative result.
+
 ## Observer v3: pre-identity selected snapshot, без ослабления MATCH
 
 Новый scripts/debugger/pb_retry_epochs_v3.js SHA
