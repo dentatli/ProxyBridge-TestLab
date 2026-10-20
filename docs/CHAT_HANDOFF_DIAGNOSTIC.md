@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Следующий шаг: выбранный NBL до штатного извлечения; пока только live-code review
+
+USER разрешил продолжить, затем попросил избегать блокировок контента.
+Не обходить ограничения; задача остаётся read-only диагностикой своего стенда.
+Разъяснено: «офлайн» означало сохранённые данные без новогоRun, дальше так
+не называть. Userruntime/Break/enable/step агентом не выполнялись.
+
+Разбор tcpip helper целиком подтвердил skip→эпилог: обходятся key5/key4/key9
+внутриэтогоhelper. Acceptkey5 consume1/storeEP+1c0onlystatus0 подтверждены.
+PEimports fwpkRVA4f148→NETIO!WfpNblInfoGet; последнийчитает NBL+e0 &~3.
+GenerichelperRVA3760 возвращает info+10 после null/MmBadPointer. Key5 идёт
+черезсписок: key+10/value8/inactiveb8/link80. ПрямойcallRetrieveизKD не применять.
+Pinnedcurrentdisk NETIOsha a1b75966…2518ab/fwpk fae91d16…001066; liveнепроверен.
+Private pb-retry-receive-offline-review-20261020: selecteddisassembly, importmap,
+NETIOWfpget disassembly/candidate-review.json сbytepins/кадрами.
+Candidate NETIOdepth38/retrieve68: returnoffset38/a8, callerRBP98/RDIb8;
+эти frameoffsets не выданы как готовыеactions, нужнаliveсверка.
+
+План docs/TCP_CONTEXT_RETRY_NBL_CAPTURE_PLAN_2026-10-20.md: read-only снимок
+key5 на SENDskip, затем возможная замена адресной3 на тотжеNBL+e0 и отбор
+WfpgetизRetrieve/Accept. No globalACCEPT. Нетновогопрофиля/proof/plan/Run;
+необещатьстоимость/maxhits до проверки. Нетreceivehit=INCOMPLETE, неabsence.
+СледующийUSER толькоBreakwarnwholeVM/Codex/RDP, reloadNETIO/fwpk, uWfpgetL6,
+ufwpk+3760L12,uRetrieve+248L9,uRetrieve+2ddL6,отдельныйgдажеприошибке.
+Не проситьbl, не включатьточки и не повторятьстарыйRun. Затемreviewиузкийcandidate.
+
 ## Run150607: SEND skip + native10022 подтверждены без глобальной ACCEPT
 
 USER Run150607-18e07be2. Strict evaluate SEND_SKIP_AND_NATIVE_QUERY_FAILURE_OBSERVED,
