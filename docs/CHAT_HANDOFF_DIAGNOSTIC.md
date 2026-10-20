@@ -1,5 +1,24 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run084117 разобран: RST+ACK непосредственно устанавливает bit21
+
+Пользователь восстановил лимит и разрешил офлайн-разбор последнего Run.
+watchreport ENDPOINT_FLAG_TRANSITION_OBSERVED/errors[]/native_errors[];
+native TARGET_FAILURE_REPRODUCED, controlPID15052/query201/10022/bytes0.
+TCPheader20 валиден: flags14=RST+ACK, SYNнет, порты34010→42201, seq0,
+ack2356919607/window0. В том же hardware WRITE5 флаг01101641→01301641,
+RecvTcpDatagram+198/stack8, sourceEP всё ещё ссылается на прежний record.
+ETWloss0, exacttuple два SYNdrop30/RSTreason2/clientdiscard10/retry1/2,
+затем connect/accept. Session/cohortCOLLECTED,cleanup_errors[],CLIgraceful/
+unforced/poststoptrue,residentdisabledaftertrue — сохранённое, не текущее состояние.
+Private review pb-endpoint-packet-watch-review-20261020-084117 сохранён.
+Подробный вывод: docs/TCP_CONTEXT_RST_TRANSITION_2026-10-20.md.
+Static send helper bit21 действительно обходит associate; исполнение этой ветки
+конкретным retryNBL не наблюдалось. Нет clockalignment WinDbg↔ETW, номерRST и
+точное положение WRITE относительно retry/query не заявлять. HealthySYNACK
+НЕ снимался. Полный rootcause/виновник Windows vs driver ещё не доказаны.
+Не повторять Run/не Resume, новых планов и запусков при этом разборе не было.
+
 ## Run082729: адресная запись подтверждена при 10022; готовится один TCP header
 
 USER Run082729-0715e4df: TRACK/ARMED и пять WRITE, та же последовательность flags,
