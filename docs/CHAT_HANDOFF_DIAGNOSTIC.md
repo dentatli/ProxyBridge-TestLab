@@ -1,6 +1,32 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Следующий шаг: выбранный NBL до штатного извлечения; пока только live-code review
+## Следующий шаг: загрузить JS helper на физическом хосте без включения точек
+
+USER live-disassembly NETIO/fwpkclnt подтверждает выбранные смещения. Вызов
+через импорт на диске заменён в памяти на mov r10/direct call той же длины;
+причина преобразования независимо не проверялась, полного byte-match нет.
+Добавлены scripts/debugger/pb_nbl_context.js и src/pb_nbl_context_fixture.py.
+JS SHA256 A596999C104CBB049DFA73FA7602DD047A30BD5B0248A05E23C5AD5A46576236.
+Private proof pb-nbl-js-proof-20261020-r7/proof-suite.json: все 21 случая passed,
+реальные CDB/JsProvider, память/CPU stack/data-watch и замена watch из callback.
+Это модель в отдельном user-mode процессе; kernel/product/traffic coverage нет.
+Проверены present/absent/added/removed, high pointers, inactive, null/bad info,
+неправильный tag, кольцо8/cycle/ring9, отсутствующий config, внешний clear,
+unreadable/read-limit, другой caller, смена packet identity и wrong tuple.
+
+Helper читает память, не вызывает функции ядра и не пишет память продукта.
+При будущей интеграции SENDskip снимает source watch3 и ставит адресную r8
+на выбранный NBL+e0; cap16 чтений, max8 узлов, проверка tuple/sequence/frames.
+Нет подходящего receive = INCOMPLETE. Не объявлять absence по ошибке/лимиту.
+pbNblInitKernel проверяет pins и model=0, но не включает/не меняет точки.
+Следующий stop: USER копирует helper на host C:\PB-KD-Scripts, проверяет SHA,
+Breakwarn wholeVM/Codex/RDP; .scriptload, dx @$scriptContents.pbNblInitKernel(),
+затем отдельный g даже при ошибке. Не просить bl, не включать точки/Run.
+После готовности host: интеграция SEND action, новый профиль/report/plan;
+сейчас они НЕ подготовлены. Не использовать старые планы или frozen kits.
+Передавать source JS вне замороженного symbol kit и вне Desktop.
+
+## Предыдущая контрольная точка: live-code review
 
 USER разрешил продолжить, затем попросил избегать блокировок контента.
 Не обходить ограничения; задача остаётся read-only диагностикой своего стенда.
@@ -12,7 +38,7 @@ USER разрешил продолжить, затем попросил избе
 PEimports fwpkRVA4f148→NETIO!WfpNblInfoGet; последнийчитает NBL+e0 &~3.
 GenerichelperRVA3760 возвращает info+10 после null/MmBadPointer. Key5 идёт
 черезсписок: key+10/value8/inactiveb8/link80. ПрямойcallRetrieveизKD не применять.
-Pinnedcurrentdisk NETIOsha a1b75966…2518ab/fwpk fae91d16…001066; liveнепроверен.
+Pinnedcurrentdisk NETIOsha a1b75966…2518ab/fwpk fae91d16…001066; live на этой стадии ещё не был проверен.
 Private pb-retry-receive-offline-review-20261020: selecteddisassembly, importmap,
 NETIOWfpget disassembly/candidate-review.json сbytepins/кадрами.
 Candidate NETIOdepth38/retrieve68: returnoffset38/a8, callerRBP98/RDIb8;
