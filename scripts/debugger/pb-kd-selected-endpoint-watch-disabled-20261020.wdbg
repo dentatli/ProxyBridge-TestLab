@@ -1,0 +1,17 @@
+bd2
+bc3
+bd4
+bc2
+bc4
+bp2 tcpip!AlepCreateRedirectRecord+0x396 "r @$t3 = @$t3 + 1; .if (@$t3 >= 0x10) { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBW_LIMIT point=2 capture=incomplete\\n\"; } .else { .if ($vvalid(@r14,0x10) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { bd2; .if (($vvalid(@rdi+0x30,4) == 1) and ($vvalid(@rdi+0x1c0,8) == 1) and ($vvalid(@rax+0x1e0,0x14) == 1) and (@rax != 0) and ((@rdi & 3) == 0)) { r @$t1 = @rax; r @$t2 = @rdi; r @$t6 = dwo(@rdi+0x30); r @$t4 = 0; .printf \"PBW TRACK ep=%p record=%p context=%p size=%I64x refs=%x flags30=%x\\n\", @rdi, @rax, poi(@rax+0x1e0), poi(@rax+0x1e8), dwo(@rax+0x1f0), @$t6; r @$t8 = 1; ba3 w4 (@$t2+0x30) \"r @$t4 = @$t4 + 1; .if (($vvalid(@$t2+0x30,4) == 1) and ($vvalid(@$t2+0x1c0,8) == 1)) { .if (poi(@$t2+0x1c0) == @$t1) { r @$t7 = dwo(@$t2+0x30); .printf \\\"PBW WRITE hit=%I64x thread=%p ep=%p record=%p old=%x new=%x ip=%p\\\\n\\\", @$t4, @$thread, @$t2, @$t1, @$t6, @$t7, @rip; .if (((@$t6 & 0x200000) == 0) and ((@$t7 & 0x200000) != 0)) { .if (@$t8 != 0) { bc3; r @$t8 = 0; }; .printf \\\"PBW TRANSITION_BEGIN\\\\n\\\"; k 8; .printf \\\"PBW TRANSITION_END\\\\n\\\"; } .else { .if (@$t4 >= 0x10) { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \\\"PBW_LIMIT point=3 capture=incomplete\\\\n\\\"; } }; r @$t6 = @$t7; } .else { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \\\"PBW_IDENTITY_CHANGED capture=incomplete\\\\n\\\"; } } .else { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \\\"PBW_UNREADABLE event=WRITE capture=incomplete\\\\n\\\"; }; gc;\"; .printf \"PBW ARMED address=%p\\n\", @$t2+0x30; } .else { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBW_UNREADABLE event=TRACK capture=incomplete\\n\"; } } } }; gc;"
+bd2
+bp4 tcpip!WfpAleAuthorizeAccept+0xcaf "r @$t5 = @$t5 + 1; .if (@$t5 >= 0x40) { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBW_LIMIT point=4 capture=incomplete\\n\"; } .else { .if ($vvalid(@rbp-0x7c,4) == 1) { .if ((wo(@rbp-0x7c) == 0xda84) and (wo(@rbp-0x7a) == 0xd9a4)) { bd4; .if ($vvalid(@rbp-0x28,8) == 1) { .printf \"PBW RETRIEVE ep=%p nbl=%p status=%x output_raw=%p\\n\", @rdi, @rbx, @eax, poi(@rbp-0x28); } .else { .printf \"PBW_UNREADABLE event=RETRIEVE capture=incomplete\\n\"; } } } }; gc;"
+bd4
+r @$t1 = 0
+r @$t2 = 0
+r @$t3 = 0
+r @$t4 = 0
+r @$t5 = 0
+r @$t6 = 0
+r @$t7 = 0
+r @$t8 = 0

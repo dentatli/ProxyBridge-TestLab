@@ -14,11 +14,18 @@ HEALTHY_PROFILE_SHA='5487823dc3ffd10ce8fbf089de15932d33ee6329035dc09b69963c48c7f
 HEALTHY_STAGE='scripts/debugger/pb-kd-target-flag-healthy-setter-update-20261020.wdbg'
 
 
-def profile_sha(create_armed=False,accept64=False,healthy=False):
+def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch:
+        from pb_endpoint_watch_profile import PROFILE_SHA as watch_sha
+        return watch_sha
     return HEALTHY_PROFILE_SHA if healthy else ACCEPT64_PROFILE_SHA if accept64 else ARMED_PROFILE_SHA if create_armed else PROFILE_SHA
 
 
-def policy(target=True, create_armed=False,accept64=False,healthy=False):
+def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch:
+        if not (create_armed and accept64) or healthy!=(not target):raise ValueError('ENDPOINT_WATCH_POLICY_INVALID')
+        from pb_endpoint_watch_profile import policy as watch_policy
+        return watch_policy(target)
     from pb_target_accept_plan import create_policy
     p=dict(create_policy(target,target),observer='etw+kd-target-flag',
         workload='flag-target-201-staged' if target else 'flag-four-probe',
@@ -43,6 +50,8 @@ def policy(target=True, create_armed=False,accept64=False,healthy=False):
 
 
 def registration(profile_path,receipt_path,receipt_sha,boot):
+    from pb_endpoint_watch_profile import PROFILE_SHA as watch_sha,registration as watch_registration
+    if digest(Path(profile_path))==watch_sha:return watch_registration(profile_path,receipt_path,receipt_sha,boot)
     healthy=digest(Path(profile_path))==HEALTHY_PROFILE_SHA
     accept64=healthy or digest(Path(profile_path))==ACCEPT64_PROFILE_SHA
     armed=accept64 or digest(Path(profile_path))==ARMED_PROFILE_SHA
@@ -63,7 +72,10 @@ def registration(profile_path,receipt_path,receipt_sha,boot):
     return p
 
 
-def parser_proof(path,create_armed=False,accept64=False,healthy=False):
+def parser_proof(path,create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch:
+        from pb_endpoint_watch_profile import parser_proof as watch_proof
+        return watch_proof(path)
     if healthy and not (create_armed and accept64):raise ValueError('FLAG_HEALTHY_REQUIRES_ARMED_FOUR')
     if accept64 and not create_armed:raise ValueError('FLAG_ACCEPT64_REQUIRES_CREATE_ARMED')
     if create_armed:return armed_parser_proof(path,accept64,healthy)

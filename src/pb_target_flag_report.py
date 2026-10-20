@@ -55,6 +55,9 @@ def evaluate(capture,console):
     from pb_target_accept_report import evaluate as native_evaluate
     read=lambda p:json.loads(p.read_text(encoding='utf-8-sig'))
     p,run=read(capture/'runtime-plan.json'),read(capture/'diagnostic-run.json')
+    if p['policy'].get('endpoint_data_watch') is True:
+        from pb_endpoint_watch_report import evaluate as watch_evaluate
+        return watch_evaluate(capture,console)
     probe=p['policy'].get('workload')=='flag-four-probe'
     armed=p['policy'].get('automatic_debugger_enable_after_create')==[3]
     accept64=p['policy'].get('raw_hit_limits_per_point')=={'2':16,'3':16,'4':64}

@@ -6,7 +6,7 @@ param([ValidateSet('Prepare','Inspect','Run')][string]$Phase='Inspect',
       [switch]$CreateTarget, [string]$PositiveCapture='', [string]$PositiveConsole='', [switch]$BoundedLoadReviewed,
       [switch]$ManualHostWindow, [switch]$DebuggerPointsDisabled, [switch]$RetrieveTarget, [switch]$RetrieveProbe,
       [switch]$FlowTarget, [switch]$FlowProfileRegisteredDisabled, [switch]$RemovalTarget,
-      [string]$CommandParserProof='', [switch]$RetryTarget, [switch]$FlagTarget, [switch]$FlagProbe, [switch]$FlagCreateArmed, [switch]$FlagAccept64, [switch]$FlagHealthyProbe)
+      [string]$CommandParserProof='', [switch]$RetryTarget, [switch]$FlagTarget, [switch]$FlagProbe, [switch]$FlagCreateArmed, [switch]$FlagAccept64, [switch]$FlagHealthyProbe, [switch]$EndpointWatch)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -43,6 +43,7 @@ if ($Phase -eq 'Prepare') {
     if ($FlagCreateArmed) {$prepareArgs+=@('--flag-create-armed')}
     if ($FlagAccept64) {$prepareArgs+=@('--flag-accept64')}
     if ($FlagHealthyProbe) {$prepareArgs+=@('--flag-healthy-probe')}
+    if ($EndpointWatch) {$prepareArgs+=@('--endpoint-watch')}
     if ($CommandParserProof) {$prepareArgs+=@('--command-parser-proof',$CommandParserProof)}
     if ($ManualHostWindow) {$prepareArgs+=@('--manual-host-window')}
     if ($PositiveCapture) {$prepareArgs+=@('--positive-capture',$PositiveCapture)}

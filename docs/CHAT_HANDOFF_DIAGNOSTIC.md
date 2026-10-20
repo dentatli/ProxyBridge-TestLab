@@ -1,5 +1,58 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Selected endpoint data watch: новый механизм проверен отдельно, готовится4-control
+
+Prepare075646-9964f95b exit0/PREPARED_NOT_RUN SHA
+0b85ddc00df5b89e4137e1c6e3c8d5d66c267658eb50f9688607c51be65f327f.
+Receiptpb-selected-endpoint-watch-registration-20261020-r1 prepared-only,
+proofpb-endpoint-watch-proof-20261020-r4/proof-suite.json. Boot117прежний,
+RAM4183612KiB/driverRunning. USERполучаетзамену2/4,clear3,reset1..8/be2/be4/g;
+VMRunLoggerEnabled+FlowProfileRegisteredDisabledсэтимновымпланом,безC.
+Recoverybd2/условныйbc3c t8reset/bd4/g. Hostregistrationновогопрофиляещёнет,
+новыйRunне запускался. Широкиеточки3не включать, старыеRunне повторять.
+
+USER послеобъясненияадресногозахвата: «Окей, делай что нужно. Мне нужен результат.
+Мы должны выяснить истинную причину поведения трафика», затем«Продолжай».
+Авторизацияприменяется к подготовленномунаблюдениюконкретногоendpoint: CREATE2
+устанавливаетba3w4 наsourceEP+30; agentне делаетBreak/step/enableнаhost.
+Хостпользовательрегистрирует2/4,3initialabsent,activate2/4/g. Неоставлятьстарую
+глобальнуюRecvTcpDatagramточку3. Теперьdatawatchне ловитчужиеendpoint.
+
+Новыйпрофильpb-kd-selected-endpoint-watch-profile-20261020.json SHA
+3ec1f5f5fbc50c7265e10c14735879f3076237d8ed3d438f467e2dcec7629624.
+Первоначально2/4disabled,3absent. CREATEсохраняетEP/record/flags30 иarmba3;
+t8отслеживаетналичиеслота3. WRITEпечатаетold/new/RIPпослезаписи, проверяет
+recordidentity;16writesONLYэтогоEP максимум. Припереходеbit21 0→1bc3/k8;
+приcap/identitychange/unreadableвсёотключаетсяислот3очищается. ACCEPT4healthy
+толькоbd4, чтобыраннийRETRIEVEнеубралwatch. CREATEcap16/ACCEPTcap64 сохраняются,
+max96; неувеличиватьихавтоматически. Lifetime/sourceTCPcausationне доказаны.
+Recoveryнаhostbd2; .if (@$t8 !=0){bc3;r @$t8=0;}; bd4; отдельныйg.
+
+OfficialMicrosoftbaдокументацияподтвердилаw4/alignment/всепроцессоры:
+https://learn.microsoft.com/en-us/windows-hardware/drivers/debuggercmds/ba--break-on-access-
+SyntheticSDKCDBrealwrites proof-r4: transition1exactwrite(new1301641), чужаязапись
+непоймана/следующаясвояпослеbc3непоймана; cap16 из17своихwrites; identitychange
+снимаетwatch. Всёpassed,17proof filesbound. Kernelconnection/producttrafficfalse;
+vvalidguards вfixtureзамененыtrue, @$threadна@$tid — kernelcoverageэтимнеобъявлять.
+Ранниеfixture-r1/r2syntaxfailureсохранены, исправленыbytes.fromhex+compileprecheck;
+r3transitionpassed, r4полнаяsuite. Кядруничегоизэтихfixtureнеподключено.
+
+122existingtargettestspassed,6новыхendpointtestspassed,PSparserOK. Новыетесты
+отвергаютневерныеEP/record/flagssequence/stack/cap, nativeуспехнепереписывает
+incompletewatch. Reporterpb_endpoint_watch_report,dispatchчерезflagreport;
+post_writeobserved ≠ rootcauseproven. Native4-controlпланEndpointWatch+FlagHealthyProbe,
+безC/15sокна. Профилистарыхkitsнеизменены. Новойнагрузкиещёнет.
+
+## Последний healthy setter Run073540: успехAPI, SET_PREнепойман из-заglobalcap3
+
+Run073540-54cf5957 COLLECTED/cohortCOLLECTED,cleanup_errors[],residentdisabledaftertrue,
+native_stoppedtrue/CLIpoststoptrue. USERTRACKEPffffa702f74f66e0/recordffffa702f7966b30,
+RETRIEVEstatus0/outputsameRecord; затемPBFG_LIMITpoint3. StrictreportINCOMPLETE,
+counts1/0/1/nativeerrors[]. ЭтоНЕдоказательствоотсутствияустановкифлага.
+Privatepb-flag-healthy-review-20261020-073540:excerpt/provenance/flagreport.
+СтарыйRunнеповторять/неResume; всёглобальноотключеноlimitactiongc, manualrecovery
+неприслан—неутверждатьего. Новогопрофилянаhostещёнет.
+
 ## Healthy setter control: готовится короткий контроль тем же setter
 
 Prepare073347-ab151076 exit0/PREPARED_NOT_RUN, SHA
