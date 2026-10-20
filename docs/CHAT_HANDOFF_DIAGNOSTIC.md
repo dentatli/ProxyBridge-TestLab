@@ -1,5 +1,23 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Готов новый план v2; Run не запускался
+
+artifacts/diagnostics/pb-target-accept-plan-20261020-192219-5ae2708c/runtime-plan.json
+SHA 66F343FEB166E29A4CC872EDE107DD0D438C37A98A690C9FBD6DB57CFFA6AA06.
+Prepare PREPARED_NOT_RUN/exit0/productfalse/trafficfalse, registration private
+pb-retry-v2-registration-20261021-r1, host registration/init pending.
+Pinned source170bd19125d8ce0d49a93342729ed1b1c59229d6; опубликованный helper
+скачан и SHA078ca7fc... проверен. Read-only process query не нашёл оставшихся
+ctsTraffic/ctsTrafficReceiver/ProxyBridge_CLI. Это не независимый kernel flag readback.
+Следующий USER шаг: download helper v2 наhost, Break (wholeVM/Codex/RDP pause),
+old pbRetryStop, cleanup owned3/4, unload pb_retry_epochs.js, load v2,
+bc2/bc4, bp2 tcpip!AlepCreateRedirectRecord+0x396 "!pbrcreate @r14, @rdi, @rax; gc;",
+bd2, pbRetryInitKernel -> CONFIGmodel0/POLICYversion5/true, g отдельно.
+VM Run этого нового plan с DebuggerPointsDisabled/FlowProfileRegisteredDisabled/
+BoundedLoadReviewed. При READY hostBreak/be2/g, затем латинская C вVM.
+Послеerror/completion hostBreak/bd2/pbRetryStop/owned3-t8/owned4-t9 cleanup/g.
+ПредупреждатьwholeVM передBreak/enable. Повторbl не нужен; Run не повторять.
+
 ## Исправлен observer v2: NON_SYN skip, SELECTOR, тихие callbacks
 
 Новый helper scripts/debugger/pb_retry_epochs_v2.js SHA
