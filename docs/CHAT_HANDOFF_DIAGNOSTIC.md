@@ -1,5 +1,45 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER Run192940: native failure valid, selected receive reached mutable-MDL guard
+
+artifacts/diagnostics/pb-target-accept-run-20261020-192940-328e41f1.
+Native TARGET_FAILURE_REPRODUCED/errors[]; diagnostic/cohort COLLECTED,
+cleanup_errors[], native_processes_stopped=true, synchronous resident disable true.
+CLI graceful/poststop true, interception_cleanup_verified=false: не утверждать
+независимую проверку kernel enabled flag. Control PID4840, query201/socket4840
+(совпадение чисел PID/socket не означает одну сущность), relay6772,
+peer42201/local34010, API-1/10022/0bytes/required32. Native match уникален.
+
+USER console: TRACK sourcec93dab90/recordc8ff6010/contextbf5efe10.
+Epoch1/2 NBLc889ac30: key5 absent -> present/value trackedrecord.
+Epoch3..8 NBLc93e9510, flags1301641, key5 absent наSEND, seqc3ab13ee
+одинаков сepoch1/2. Одинаковый адрес не гарантирует непрерывный lifetime.
+READ_LIMIT64 наepoch2/4/6; не игнорировать эти gaps. Epoch8 дошёл доSELECTOR:
+frameffffda07a3691320/acceptedEPc1a18010/localda84/peerd9a4, обе caller
+проверки/key5/consume1 прошли. NBc93e9690 прежний, CurrentMdl c93e9768 ->0.
+STORAGE_CHANGED закрылаepoch8 до STATE receive. Послеэтого4NON_SYN flags10
+пропущены правильно. FINAL creates1/source_reads80hex=128/sends8/readscdhex=205/
+pairs0/error1 SOURCE_LIMIT. Лимит source достигнут уже после выбранного receive;
+общий512 не достигнут. CONFIG/POLICY нет вприсланномфрагменте, не синтезировать.
+
+Важная correction: CurrentMdl — изменяемый cursor первого используемогоMDL,
+не стабильный идентификатор storage. MS NET_BUFFER docs и advance API:
+https://learn.microsoft.com/en-us/windows-hardware/drivers/network/net-buffer-structure
+https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/nblapi/nf-nblapi-ndisadvancenetbufferdatastart
+Advance меняет used data; наreceive MDLchain может сохраняться. Гипотеза
+потреблённого TCPheader/нулевойDataLength объясняетCurrentMdl0, но здесь
+MdlChain/DataOffset/DataLength не захвачены, поэтому НЕ доказана.
+Нельзя называть это corruption/free/reuse или контекстным дефектомdriver.
+
+Следующее исправление observer: ограниченный диагностический snapshot
+целевого receive до спорного CurrentMdl equality: WFP raw/root/key5 и
+NB MdlChain/DataOffset/DataLength/CurrentMdlOffset плюс сохранённый header.
+Разделять flow-selected snapshot и доказанную physical-packet identity;
+не превращать cursor change автоматически в MATCH, не удалять guards молча.
+Лимиты пока не поднимать: нужныйreceive уже достигнут. УстранениеUIspam
+не доказывает отсутствие observer timing effect. Source/native cause не доказана.
+Агент только прочитал evidence/docs; новых Run/Break/build/test/driverchanges нет.
+
 ## Готов новый план v2; Run не запускался
 
 artifacts/diagnostics/pb-target-accept-plan-20261020-192219-5ae2708c/runtime-plan.json
