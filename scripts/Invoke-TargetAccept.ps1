@@ -183,7 +183,8 @@ try {
     $capture=New-RedirectEtwCapture (Join-Path $evidence 'etw');Start-RedirectEtwCapture $capture
     $client=Join-Path $root 'bin/tools/ctstraffic-2.0.3.9/ctsTraffic.exe'
     $server=Join-Path $root 'bin/tools/ctstraffic-2.0.3.9/ctsTrafficReceiver.exe'
-    $serverLimit=if ($fourProbe) {4} else {201}
+    $singleProbe=$plan.policy.PSObject.Properties['single_probe'] -and $plan.policy.single_probe
+    $serverLimit=if ($singleProbe) {1} elseif ($fourProbe) {4} else {201}
     $serverPlan=[pscustomobject]@{executable=$server;arguments=@('-listen:127.0.0.1',('-serverexitlimit:'+$serverLimit),
         '-protocol:tcp','-pattern:push','-transfer:524288','-ratelimit:65536','-verify:data','-port:54122',
         '-buffer:65536','-consoleverbosity:1','-statusupdate:250',('-connectionfilename:'+(Join-Path $evidence 'receiver.csv')));
@@ -220,7 +221,7 @@ try {
         ProxyConfigs=@([ordered]@{Id=1;Name='Target accept';Type='SOCKS5';Host='127.0.0.1';Port='54123';Username='';Password='';SendDomainToProxy=$false});
         ProxyRules=@([ordered]@{Name='Target accept';ProcessName='ctsTraffic.exe';TargetHosts='127.0.0.1';TargetPorts='54122';TargetDomains='';Protocol='TCP';Action='PROXY';ProxyConfigId=1;IsEnabled=$true})}) $profile
     $context=[pscustomobject]@{root=$root;directory=$evidence;adapter=$adapter;client=$client;
-        probe_only=[bool]$fourProbe;manual_host_window=[bool]$stagedHost;flow_observer=[bool]$flowObserver;debugger_point_ids=@($plan.policy.debugger_points)}
+        single_probe=[bool]$singleProbe;probe_only=[bool]$fourProbe;manual_host_window=[bool]$stagedHost;flow_observer=[bool]$flowObserver;debugger_point_ids=@($plan.policy.debugger_points)}
     if ($plan.policy.PSObject.Properties['host_enable_debugger_points']) {
         $context | Add-Member -NotePropertyName host_enable_debugger_points -NotePropertyValue @($plan.policy.host_enable_debugger_points)
     }
@@ -286,7 +287,8 @@ try {
         if ($run.cleanup_errors.Count) {$run.status='FAILED'}
         Invoke-TargetCleanupStep {Write-TargetJson $run (Join-Path $evidence 'diagnostic-run.json')}
         Write-Host ('Results: '+$evidence)
-        if ($plan.policy.PSObject.Properties['endpoint_retry_epochs'] -and $plan.policy.endpoint_retry_epochs) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2, then dx @$scriptContents.pbRetryStop(), then .if (@$t8 != 0) { bc3; r @$t8 = 0; }, then .if (@$t9 != 0) { bc4; r @$t9 = 0; }, then separate g. Preserve console from this Run. No repeat Run.'}
+        if ($plan.policy.PSObject.Properties['endpoint_accept_pair'] -and $plan.policy.endpoint_accept_pair) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2, bd3, dx @$scriptContents.pbaStop(), then separate g. Preserve PBA CONFIG/PRE/POST/FINAL. No repeat Run.'}
+        elseif ($plan.policy.PSObject.Properties['endpoint_retry_epochs'] -and $plan.policy.endpoint_retry_epochs) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2, then dx @$scriptContents.pbRetryStop(), then .if (@$t8 != 0) { bc3; r @$t8 = 0; }, then .if (@$t9 != 0) { bc4; r @$t9 = 0; }, then separate g. Preserve console from this Run. No repeat Run.'}
         elseif ($plan.policy.PSObject.Properties['endpoint_nbl_context'] -and $plan.policy.endpoint_nbl_context) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2, then dx @$scriptContents.pbNblStop(), then .if (@$t8 != 0) { bc3; r @$t8 = 0; }, then bd4, then separate g. Preserve console from this Run. No repeat Run.'}
         elseif ($plan.policy.PSObject.Properties['endpoint_data_watch'] -and $plan.policy.endpoint_data_watch) {Write-Host 'Host recovery: Break pauses the entire VM including Codex/RDP. bd2, then .if (@$t8 != 0) { bc3; r @$t8 = 0; }, then bd4, then separate g. Preserve console from this Run. No repeat Run.'}
         elseif ($flowObserver) {Write-Host ('Host recovery: Break pauses the entire VM including Codex/RDP. '+(($plan.policy.debugger_points | ForEach-Object {'bd'+$_}) -join ', ')+', then separate g. Preserve console from this Run. No repeat Run.')}

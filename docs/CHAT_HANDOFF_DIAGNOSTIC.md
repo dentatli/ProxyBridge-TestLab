@@ -1,5 +1,44 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER согласовал две измеряемые пробы: healthy one, затем target201
+
+Схема меняется после timeout/sendcaps: новый pb_accept_pair.js и profile
+pb-kd-accept-pair-profile-20261021.json. Два временных software call-site bp:
+2 WfpAleAuthorizeAccept+caa (до Retrieve),3 +caf (после). Не data watch3/4.
+Фильтр tuple34010/42201 и vvalid исполняется MASM до JS; JS только на выбранной
+паре. Каждая точка имеет rawcap256 (всего512), post отключает обе. Это НЕ два
+trap на всюVM: посторонние accepts всё ещё дают software traps, но без JSwalk
+и dump/log. Не повтор старого hot NBL/Get/flag observer. CDB200postоронних
+pre/post прошли. Смена механизма согласована USER запросом короткой пары.
+
+Helper SHA f6b159e7ed3b5251932ab2371eb15f73d98c32be4ffe6a6e213d738d4aea140e;
+profileSHA839029a01ba1bb53e98c145900e9fee770c9ce508d4be32f0ad6c8a0d881fb3b.
+pbaInitKernel проверяет E8 на+caa, вычисленный destination именно fwpkclnt
+FwpsNetBufferListRetrieveContext0, и известные bytes+caf. Пока real kernel
+pin не выполнен USER, preoffset остаётся candidate. Если pinfalse, НЕТ Run;
+нужен существующий host disassembly, нельзя обходить pin/угадывать offset.
+pbaRegister создаёт2/3 disabled; pbaStop отключает2/3 и пишетFINAL.
+PRE читает bounded8nodes WFP info/key5/value до consume; POST status/record/
+context/size. Pair связывает tid/scope/frame/acceptedEP/NBL. Никакой зависимости
+от CurrentMdl, нет sourceEP/packet lifetime proof, нетrootcauseclaim.
+
+Новый policy subtype endpoint_accept_pair. Healthy имеет single_probe=true,
+0fillers/одинcontrol42201/serverexitlimit1, прежнийflag-four-probe workload tag
+с exact новым policy. Нет fake fillerprocess: вcohort empty sockets/pid0,
+native reporter пропускаетне существующие filler launch/csv толькодля exact
+single policy; чужие/лишниеqueries и policytamper отвергаются. Target остаётся
+200fillers+одинcontrol послеREADY/C. Driver остаётсяresidentRunning, только
+штатный enable/disableIOCTL вlifecycle; agent не выполняетRun/driverinstall.
+Новый targetplan готовить только после реального healthy1 API0/bytes32 плюс
+PBA pre/post console model0; новый positive evaluator это проверяет.
+
+Private pb-accept-pair-proof-20261021-r1:5/5 actual CDB (healthy/failure/
+200fillers/rawlimit/identity mismatch), synthetic model1 безkernel/traffic.
+Parser по темже5логам +подменаtid, explicit model header replacement, bound27.
+4 focused Python native-report tests passed;15 mocked nativefault cases passed,
+включаяsingle launch/no fillerprocess/cleanupfaults. Product/network не запускались.
+Source/APIкоманды runtimeснаружи user-controlled. Готовитсяhealthy-only freshplan.
+
 ## USER Run194747: send-observation cap и native timeout, selected snapshot не получен
 
 artifacts/diagnostics/pb-target-accept-run-20261020-194747-71c2d0a8.

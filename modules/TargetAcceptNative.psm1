@@ -83,7 +83,9 @@ function Invoke-TargetNativeCohort {
     $manualHost=$Context.PSObject.Properties['manual_host_window'] -and $Context.manual_host_window
     $flowObserver=$Context.PSObject.Properties['flow_observer'] -and $Context.flow_observer
     if ($manualHost -and $probeOnly) {throw 'TARGET_MANUAL_HOST_REQUIRES_TARGET_201'}
-    $fillerCount=if ($probeOnly) {3} else {200}
+    $singleProbe=$Context.PSObject.Properties['single_probe'] -and $Context.single_probe
+    if ($singleProbe -and (-not $probeOnly -or $manualHost)) {throw 'TARGET_SINGLE_PROBE_MODE_INVALID'}
+    $fillerCount=if ($singleProbe) {0} elseif ($probeOnly) {3} else {200}
     $fillerPortEnd=42000+$fillerCount
     $Context | Add-Member -NotePropertyName children -NotePropertyValue ([Collections.Generic.List[object]]::new())
     $Context | Add-Member -NotePropertyName clock -NotePropertyValue ([Diagnostics.Stopwatch]::StartNew())
@@ -94,12 +96,13 @@ function Invoke-TargetNativeCohort {
         '-port:54122','-buffer:65536','-consoleverbosity:1','-statusupdate:250','-target:127.0.0.1',
         '-iterations:1','-throttleconnections:32','-conn:ConnectEx','-shutdown:rude')
     $startCommand=Get-Command Start-TargetNative
-    $startFillers={& $startCommand $Context 'fillers' ($common+@(('-connections:'+$fillerCount),('-LocalPort:[42001,'+$fillerPortEnd+']'),('-connectionfilename:'+(Join-Path $Context.directory 'fillers.csv'))))}.GetNewClosure()
+    $startFillers={if ($singleProbe) {return $null}; & $startCommand $Context 'fillers' ($common+@(('-connections:'+$fillerCount),('-LocalPort:[42001,'+$fillerPortEnd+']'),('-connectionfilename:'+(Join-Path $Context.directory 'fillers.csv'))))}.GetNewClosure()
     $startControl={
         if ($manualHost -and $Context.clock.ElapsedMilliseconds -ge 15000) {throw 'TARGET_HOST_WINDOW_EXPIRED_NO_CONTROL'}
         & $startCommand $Context 'control' ($common+@('-connections:1','-LocalPort:42201',('-connectionfilename:'+(Join-Path $Context.directory 'control.csv'))))
     }.GetNewClosure()
     $waitFillers={param($child)
+        if ($singleProbe) {$Context.record.observations+=@([ordered]@{stage='fillers-established';qpc=[Diagnostics.Stopwatch]::GetTimestamp();pid=0;sockets=@()});return}
         do {
             $rows=@([PBTargetTcpTable]::Read() | Where-Object {$_.Pid -eq $child.pid -and $_.State -eq 5 -and
                 $_.LocalAddress -eq '127.0.0.1' -and $_.LocalPort -ge 42001 -and $_.LocalPort -le $fillerPortEnd -and
@@ -137,6 +140,7 @@ function Invoke-TargetNativeCohort {
     }.GetNewClosure()
     $collect={param($fillers,$control)
         foreach ($child in @($fillers,$control)) {
+            if ($null -eq $child) {continue}
             $remaining=[int][Math]::Max(1,60000-$Context.clock.ElapsedMilliseconds)
             if (-not $child.session.WaitForExit($remaining)) {throw 'TARGET_NATIVE_TIMEOUT'}
         }

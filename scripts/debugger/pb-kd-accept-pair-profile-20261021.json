@@ -1,0 +1,48 @@
+{
+  "method": "kd-accept-pair-20261021-v1",
+  "registered_point_ids": [
+    2,
+    3
+  ],
+  "active_point_ids": [],
+  "dynamic_point_ids": [],
+  "host_enable_point_ids": [
+    2,
+    3
+  ],
+  "script": "scripts/debugger/pb_accept_pair.js",
+  "script_sha256": "f6b159e7ed3b5251932ab2371eb15f73d98c32be4ffe6a6e213d738d4aea140e",
+  "model_required": 0,
+  "initialization": "pbaInitKernel",
+  "raw_hit_limits_per_point": {
+    "2": 256,
+    "3": 256
+  },
+  "max_total_raw_hits": 512,
+  "selected_pairs": 1,
+  "points": [
+    {
+      "id": 2,
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcaa",
+      "action": "r @$t0 = @$t0 + 1; .if (@$t0 >= 0x100) { bd2; bd3; .printf \"PBA INCOMPLETE reason=RAW_LIMIT\\n\"; } .else { .if ($vvalid(@rbp-0x7c,4) == 1) { .if ((wo(@rbp-0x7c) == 0xda84) and (wo(@rbp-0x7a) == 0xd9a4)) { !pbapre @rcx, @rbp, @rdi, @rsp; } } .else { bd2; bd3; .printf \"PBA INCOMPLETE reason=SELECTOR_UNREADABLE\\n\"; } }; gc;"
+    },
+    {
+      "id": 3,
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcaf",
+      "action": "r @$t1 = @$t1 + 1; .if (@$t1 >= 0x100) { bd2; bd3; .printf \"PBA INCOMPLETE reason=RAW_LIMIT\\n\"; } .else { .if ($vvalid(@rbp-0x7c,4) == 1) { .if ((wo(@rbp-0x7c) == 0xda84) and (wo(@rbp-0x7a) == 0xd9a4)) { !pbapost @rbx, @rbp, @rdi, @rsp, @eax; } } .else { bd2; bd3; .printf \"PBA INCOMPLETE reason=SELECTOR_UNREADABLE\\n\"; } }; gc;"
+    }
+  ],
+  "automatic_enable": false,
+  "automatic_disable": true,
+  "registration": "pbaRegister",
+  "recovery": [
+    "bd2",
+    "bd3",
+    "dx @$scriptContents.pbaStop()",
+    "g"
+  ],
+  "limits": [
+    "Software breakpoints still see other accepts; MASM filters before JavaScript.",
+    "Only one selected pre/post pair is captured; no source endpoint or physical packet lifetime claim."
+  ]
+}

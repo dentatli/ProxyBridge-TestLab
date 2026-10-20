@@ -10,10 +10,12 @@ $module=Import-Module (Join-Path $root 'modules/TargetAcceptNative.psm1') -Force
     function script:Invoke-TargetAcceptSequence {
         param($Gate,$StartFillers,$WaitFillers,$StartControl,$WaitControlSyn,$Hold,$Collect,$Cleanup)
         $f=$null;$c=$null
-        try {$f=& $StartFillers;$c=& $StartControl;& $Collect $f $c}
+        try {$f=& $StartFillers;if ($null -eq $f) {& $WaitFillers $f};$c=& $StartControl;& $Collect $f $c}
         finally {& $Cleanup $f $c}
     }
-    foreach ($probeOnly in @($false,$true)) {
+    foreach ($mode in @('target','four','single')) {
+    $probeOnly=$mode -ne 'target'
+    $singleProbe=$mode -eq 'single'
     foreach ($script:fault in @('none','path','wait','save','dispose')) {
         $script:launches=[Collections.Generic.List[object]]::new()
         $script:disposed=0
@@ -31,13 +33,17 @@ $module=Import-Module (Join-Path $root 'modules/TargetAcceptNative.psm1') -Force
             GetProcessResult={param($child);[pscustomobject]@{pid=$child.pid;exit_code=0}}
             DisposeProcess={param($child);$script:disposed++;if ($script:fault -eq 'dispose') {throw 'fixture-dispose-failed'}}
         }
-        $context=[pscustomobject]@{client='C:\fake\ctsTraffic.exe';directory='C:\fixture';adapter=$adapter;probe_only=$probeOnly}
+        $context=[pscustomobject]@{client='C:\fake\ctsTraffic.exe';directory='C:\fixture';adapter=$adapter;probe_only=$probeOnly;single_probe=$singleProbe}
         $failed=$false
         try {Invoke-TargetNativeCohort -Context $context -Gate ([pscustomobject]@{})} catch {$failed=$true}
         if ($failed -ne ($script:fault -ne 'none')) {throw ('FAULT_VERDICT_DIFFERS_'+$script:fault)}
-        $expected=$(if ($script:fault -eq 'path') {1} else {2})
+        $expected=$(if ($script:fault -eq 'path' -or $singleProbe) {1} else {2})
         if ($script:disposed -ne $expected) {throw ('PARTIAL_CHILD_OWNERSHIP_LOST_'+$script:fault)}
         if ($script:fault -eq 'none') {
+            if ($singleProbe) {
+                if ($script:launches.Count -ne 1 -or '-connections:1' -notin $script:launches[0].arguments -or '-LocalPort:42201' -notin $script:launches[0].arguments -or $context.record.fillers -ne 0 -or $context.record.observations[0].sockets.Count -ne 0) {throw 'SINGLE_PROBE_NOT_SINGLE'}
+                continue
+            }
             $expectedCount=if ($probeOnly) {3} else {200}
             $expectedRange=if ($probeOnly) {'-LocalPort:[42001,42003]'} else {'-LocalPort:[42001,42200]'}
             if ($expectedRange -notin $script:launches[0].arguments -or
@@ -48,4 +54,4 @@ $module=Import-Module (Join-Path $root 'modules/TargetAcceptNative.psm1') -Force
     }
     }
 }
-Write-Output 'TARGET_NATIVE_FAULTS_10_PASSED_NO_PROCESSES_OR_TRAFFIC'
+Write-Output 'TARGET_NATIVE_FAULTS_15_PASSED_NO_PROCESSES_OR_TRAFFIC'
