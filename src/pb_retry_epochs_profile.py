@@ -4,14 +4,14 @@ import json
 from pathlib import Path
 from pb_retry_epochs_fixture import SCRIPT,SCRIPT_SHA,CASES,FIXTURE
 
-PROFILE='scripts/debugger/pb-kd-per-send-nbl-profile-20261021.json'
-STAGE='scripts/debugger/pb-kd-per-send-nbl-update-20261021.wdbg'
-PROFILE_SHA='80c9fdeecce305ca59e3f518ab089600be2eca86f326b7585c8eae37a475d505'
-ACTION='dx @$scriptContents.pbRetryCreate(@r14,@rdi,@rax); gc;'
+PROFILE='scripts/debugger/pb-kd-per-send-nbl-profile-20261021-v2.json'
+STAGE='scripts/debugger/pb-kd-per-send-nbl-update-20261021-v2.wdbg'
+PROFILE_SHA='81aeaf42dc29e155564a66b4c012d5d6a19bf8a0e07d002bf44936063345e24c'
+ACTION='!pbrcreate @r14, @rdi, @rax; gc;'
 
 
 def profile():
-    return dict(method='kd-per-send-nbl-20261021-v1',registered_point_ids=[2],dynamic_point_ids=[3,4],active_point_ids=[],
+    return dict(method='kd-per-send-nbl-20261021-v2',registered_point_ids=[2],dynamic_point_ids=[3,4],active_point_ids=[],
         host_enable_point_ids=[2],script=SCRIPT,script_sha256=SCRIPT_SHA,initialization='pbRetryInitKernel',model_required=0,
         raw_hit_limits_per_point={'2':16,'3':128,'4':512},max_total_raw_hits=656,max_send_observations=8,per_send_read_limit=64,
         points=[dict(id=2,target='tcpip!AlepCreateRedirectRecord+0x396',action=ACTION)],

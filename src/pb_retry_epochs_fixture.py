@@ -1,4 +1,4 @@
-"""Five real CDB scenarios for per-SEND watch switching and cleanup. No traffic."""
+"""Seven real CDB scenarios for per-SEND watch switching and cleanup. No traffic."""
 import hashlib
 import json
 from pathlib import Path
@@ -7,9 +7,9 @@ import subprocess
 import sys
 from pb_endpoint_watch_candidate import quoted
 
-SCRIPT='scripts/debugger/pb_retry_epochs.js'
-SCRIPT_SHA='a6e598185a630a45b7b4ecff44f00813902f9962b661ac9393ea95fbac075fcd'
-CASES=('normal','replaced','reused_storage','budget','stopped')
+SCRIPT='scripts/debugger/pb_retry_epochs_v2.js'
+SCRIPT_SHA='078ca7fc7bf41986e99e9d2f2cbd7c3deac0c55d92004c0062c6a50ddc44a274'
+CASES=('normal','replaced','reused_storage','budget','stopped','non_syn','selector_mismatch')
 FIXTURE=r'''import ctypes,struct,json
 k=ctypes.WinDLL('kernel32',use_last_error=True)
 k.VirtualAlloc.argtypes=[ctypes.c_void_p,ctypes.c_size_t,ctypes.c_ulong,ctypes.c_ulong]
@@ -53,7 +53,12 @@ if case=='budget':
 elif case=='stopped':code+=send(packets[0])
 else:
  code+=send(packets[0])
- if case=='normal':code+=recv(packets[0])
+ if case in ('normal','non_syn'):code+=recv(packets[0])
+ if case=='non_syn':
+  code+=mov('49 ba',packets[2]+0x300+13)+bytes.fromhex('41 c6 02 10')+send(packets[2])
+ if case=='selector_mismatch':
+  code+=mov('49 ba',frame-0x7a)+bytes.fromhex('66 41 c7 02 a5 d9')+recv(packets[0])
+  code+=mov('49 ba',frame-0x7a)+bytes.fromhex('66 41 c7 02 a4 d9')
  if case=='reused_storage':
   code+=mov('49 ba',packets[0]+8)+mov('48 b8',packets[2]+0x100)+bytes.fromhex('49 89 02')+recv(packets[0])
  code+=mov('48 b9',ep)+bytes.fromhex('81 49 30 00 00 20 00')+send(packets[1])
@@ -76,7 +81,7 @@ def check(output):
     for case in CASES:
         child=output/case;child.mkdir();(child/'symbols').mkdir()
         (child/'target.py').write_text(FIXTURE.replace('CASE',repr(case)),encoding='ascii')
-        setup=['bp2 (@rsi+0x1800) "dx @$scriptContents.pbRetryCreate(@r14,@rdi,@rax); gc;"','bd2',
+        setup=['bp2 (@rsi+0x1800) "!pbrcreate @r14, @rdi, @rax; gc;"','bd2',
             'bp5 (@rsi+0x5000) "dx @$scriptContents.pbRetryStop(); .printf \\"PBR_FIXTURE_CLEAN source=%x packet=%x\\\\n\\", @$t8,@$t9; gc;"',
             'r @$t8 = 0','r @$t9 = 0',
             'dx @$scriptContents.pbRetryInitModel(@rsi+0x200d, *(unsigned __int64*)(@rsi+0x30000), *(unsigned __int64*)(@rsi+0x30008), 0xbad0, @rsi+0x1003)',
@@ -90,11 +95,14 @@ def check(output):
         recv=[l for l in lines if l.startswith('PBR RECEIVE ')];sends=[l for l in lines if l.startswith('PBR SEND ')]
         final=[l for l in lines if l.startswith('PBR FINAL ')];bad=[l for l in lines if l.startswith('PBR INCOMPLETE ')]
         ok=len(final)==1 and 'PBR_FIXTURE_CLEAN source=0 packet=0' in text
-        if case=='normal':ok=ok and len(recv)==2 and len(sends)==2 and not bad
+        if case in ('normal','non_syn'):ok=ok and len(recv)==2 and len(sends)==2 and not bad
+        elif case=='selector_mismatch':ok=ok and len(recv)==1 and 'epoch=2 ' in recv[0] and any('peer_raw=d9a5' in l for l in lines) and any('reason=OTHER_TUPLE ' in l for l in lines) and not bad
         elif case=='replaced':ok=ok and len(recv)==1 and 'epoch=2 ' in recv[0] and any('reason=REPLACED ' in l for l in lines) and not bad
         elif case=='reused_storage':ok=ok and len(recv)==1 and 'epoch=2 ' in recv[0] and any('reason=PACKET_STORAGE_CHANGED ' in l for l in lines) and not bad
         elif case=='budget':ok=ok and len(sends)==8 and not recv and any('reason=TOTAL_LIMIT' in l for l in bad) and ' reads=200 ' in final[0]
         else:ok=ok and not recv and any('reason=STOPPED ' in l for l in lines) and not bad
+        if case=='non_syn':ok=ok and any('SKIP reason=NON_SYN ' in l for l in lines)
+        ok=ok and not re.search(r'(?m)^@\$(?:scriptContents\.pbRetry(?:Source|Read)|pbr(?:source|read))\(',text)
         passed=bool(ok) and r.returncode==0 and 'PBR_FIXTURE_DONE ' in text and not re.search(r'(?im)^.*(?:Error:|Syntax error|Extra character error|Traceback|Single step exception).*$',text)
         cases.append(dict(case=case,passed=passed,exit_code=r.returncode,observations=lines))
         if not passed:break

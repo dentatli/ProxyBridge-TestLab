@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Исправлен observer v2: NON_SYN skip, SELECTOR, тихие callbacks
+
+Новый helper scripts/debugger/pb_retry_epochs_v2.js SHA
+078ca7fc7bf41986e99e9d2f2cbd7c3deac0c55d92004c0062c6a50ddc44a274.
+Новые profile/stage с suffix20261021-v2; profile SHA
+81aeaf42dc29e155564a66b4c012d5d6a19bf8a0e07d002bf44936063345e24c.
+POLICY version5, лимиты прежние. Старая JS/profile/stage сохранены.
+Parser SYN разделён: ports и header length остаются обязательными; пакет
+целевой пары без SYN логируется SKIP NON_SYN (max4) и не завершает source watch.
+Перед receive guard печатаются SELECTOR frame/ep/local_raw/peer_raw, reporter
+проверяет их согласованность с RECEIVE/OTHER_TUPLE. Stack offsets не менялись;
+их независимое kernel подтверждение пока не получено. Identity не ослаблена.
+Dynamic3/4 используют /w JS condition с false-return: PBR logs сохраняются,
+нет dx false и alias echo на каждом обращении. Create2: !pbrcreate @r14, @rdi, @rax; gc;
+однократный alias echo допустим. Recovery по-прежнему pbRetryStop.
+
+Private pb-retry-v2-proof-20261021-r2:7/7 actual CDB scenarios passed,
+включая NON_SYN и selector mismatch; callbacks тихие, оба watch очищаются.
+Parser проверен на тех же7 выводах +2 искажённых selector/flags, без повторного
+запуска CDB; explicit synthetic model header replacement, не kernel coverage.
+r1 также прошёл7, но alias echo оставался на каждом hit; поэтому изменён на/w
+и обоснованно повторён узкий набор. Старые142/157 suites не запускались.
+Нагрузки/host debugger/driver changes агентом не было. Готовится новый plan,
+старые frozen plans не Resume/refreeze. Уменьшен UI output, не обещать устранение
+timeout: hardware traps и debugger overhead сохраняются.
+
 ## Разобран USER Run191144: timeout, полезные SEND snapshots, receive join отсутствует
 
 Run pb-target-accept-run-20261020-191144-312c005a, план51CE9949... .

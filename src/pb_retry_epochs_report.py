@@ -10,6 +10,7 @@ def correlate(text):
     r=dict(status='INCOMPLETE',errors=[],config=None,policy=None,track=None,epochs=[],final=None,
         root_cause_proven=False,accepted_endpoint_socket_join_verified=False,trap_coverage_verified=False)
     samples=0
+    skips=0
     for line in text.splitlines():
         try:
             if DEBUGGER_ERROR.search(line) or re.search(r'(?i)(Error:|Exception thrown)',line):raise ValueError('DEBUGGER_ERROR')
@@ -23,7 +24,7 @@ def correlate(text):
                 r['config']=c
             elif line.startswith('PBR POLICY '):
                 p=parse(line,'PBR POLICY ','source_limit packet_limit total_limit send_limit version'.split())
-                if not r['config'] or r['policy'] or p!=dict(source_limit=128,packet_limit=64,total_limit=512,send_limit=8,version=4):raise ValueError('POLICY_INVALID')
+                if not r['config'] or r['policy'] or p!=dict(source_limit=128,packet_limit=64,total_limit=512,send_limit=8,version=5):raise ValueError('POLICY_INVALID')
                 r['policy']=p
             elif line.startswith('PBR TRACK '):
                 t=parse(line,'PBR TRACK ','ep record context size'.split())
@@ -33,7 +34,7 @@ def correlate(text):
                 s=parse(line,'PBR SEND ','epoch nbl flags nb mdl header seq_raw'.split())
                 if not r['track'] or (e and not e['end']) or s['epoch']!=len(r['epochs'])+1 or s['epoch']>8 or not all(s[k] for k in ('nbl','nb','mdl','header')):raise ValueError('SEND_ORDER_INVALID')
                 if e and s['seq_raw']!=e['send']['seq_raw']:raise ValueError('SEQUENCE_CHANGED')
-                r['epochs'].append(dict(send=s,send_state=None,receive=None,receive_state=None,end=None))
+                r['epochs'].append(dict(send=s,send_state=None,selector=None,receive=None,receive_state=None,end=None))
             elif line.startswith('PBR STATE '):
                 m=re.fullmatch(r'PBR STATE stage=(send|receive) (.*) key5=(present|absent) (.*)',line)
                 if not m or not e or e['end']:raise ValueError('STATE_ORDER_INVALID')
@@ -46,12 +47,21 @@ def correlate(text):
             elif line.startswith('PBR RECEIVE '):
                 v=parse(line,'PBR RECEIVE ','epoch ep nbl raw'.split())
                 if not e or not e['send_state'] or e['receive'] or e['end'] or v['epoch']!=e['send']['epoch'] or v['nbl']!=e['send']['nbl'] or not v['ep'] or not 1<=v['raw']<=64:raise ValueError('RECEIVE_INVALID')
+                if not e['selector'] or e['selector']['ep']!=v['ep'] or e['selector']['local_raw']!=0xda84 or e['selector']['peer_raw']!=0xd9a4:raise ValueError('RECEIVE_SELECTOR_INVALID')
                 e['receive']=v
+            elif line.startswith('PBR SELECTOR '):
+                v=parse(line,'PBR SELECTOR ','epoch frame ep local_raw peer_raw'.split())
+                if not e or e['end'] or e['selector'] or v['epoch']!=e['send']['epoch'] or not v['frame'] or not 0<=v['local_raw']<=65535 or not 0<=v['peer_raw']<=65535:raise ValueError('SELECTOR_INVALID')
+                e['selector']=v
+            elif line.startswith('PBR SKIP '):
+                v=parse(line,'PBR SKIP reason=NON_SYN ','nbl flags'.split());skips+=1
+                if not r['track'] or skips>4 or not v['nbl'] or not 0<=v['flags']<=255 or v['flags']&0x17==2:raise ValueError('NON_SYN_SKIP_INVALID')
             elif line.startswith('PBR END '):
                 m=re.fullmatch(r'PBR END epoch=(\S+) reason=([A-Z_]+) reads=(\S+)',line)
                 if not m or not e or e['end'] or int(m[1],16)!=e['send']['epoch'] or not e['send_state'] or not 0<=int(m[3],16)<=64:raise ValueError('END_INVALID')
                 end=dict(reason=m[2],reads=int(m[3],16))
                 if end['reason']=='MATCH' and (not e['receive_state'] or end['reads']!=e['receive']['raw']):raise ValueError('MATCH_INCOMPLETE')
+                if end['reason']=='OTHER_TUPLE' and (not e['selector'] or (e['selector']['local_raw']==0xda84 and e['selector']['peer_raw']==0xd9a4 and e['selector']['ep'])):raise ValueError('OTHER_TUPLE_UNEXPLAINED')
                 e['end']=end
             elif line.startswith('PBR REJECT '):
                 m=re.fullmatch(r'PBR REJECT epoch=(\S+) reason=([A-Z_]+) ip=(\S+)',line);samples+=1
