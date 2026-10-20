@@ -2,6 +2,21 @@
 
 ## Подготовлен отдельный NBL64 helper с ограниченной диагностикой reject
 
+Fresh plan pb-target-accept-plan-20261020-181920-818a5a39/runtime-plan.json,
+SHA 2F12EB52658BDB17E009EA44A2255C55F2FB23559A59B06D0E85C56F4DCFDE22:
+PREPARED_NOT_RUN/exit0/product_startedfalse/traffic_generatedfalse, sameboot118.
+Registration pb-nbl64-registration-20261020-r1/prepared-commands.json:
+старые actions зарегистрированы USER, новый helper64 init пока pending,
+host_registration_observedfalse. USER обязан получить CONFIGmodel0/POLICY40/true
+после замены helper, иначе Run не запускать. Старый180714 не повторять.
+Positive source calibration131915 переоценена, старые freeze не менялись.
+Build reused19-r2; нового build/install/driver lifecycle не выполнялось.
+Проверен реальный download опубликованного helper64 через HTTPS и SHA exact.
+URI закреплён на commit bb02028215ba3a81d99fa4c9cac05e849e004cac.
+На host достаточно вставить PowerShell Invoke-WebRequest+Get-FileHash, затем
+WinDbg recovery/unload old/load new/init/reset/g. Не заставлять переносить файл.
+После READY только be2/g и латинская C в VM; окно15sec, init заранее.
+
 USER разрешил следующую подготовку. Новый scripts/debugger/pb_nbl_context64.js
 SHA 90c64083137e2609d3788721544e950884fd8c6e801410bce37ddd3976924173.
 Старый JS/profile/stage и captures не менялись. Profile64 SHA

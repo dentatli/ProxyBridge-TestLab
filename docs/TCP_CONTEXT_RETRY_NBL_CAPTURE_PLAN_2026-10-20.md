@@ -1,5 +1,37 @@
 # Следующая проба: состояние контекста выбранного повторного SYN
 
+## Готов отдельный вариант NBL64
+
+USER разрешил cap64 плюс bounded reject diagnostics. Новый helper
+`scripts/debugger/pb_nbl_context64.js`, SHA
+`90c64083137e2609d3788721544e950884fd8c6e801410bce37ddd3976924173`.
+Старый helper/profile/captures остаются неизменными. Registered actions2/3
+побайтово совпадают с прежними; длинную регистрацию повторять не нужно.
+Новый profile `pb-kd-selected-nbl64-context-profile-20261020.json` SHA
+`fdfebfccb1f24d0a7e79e2618010b1e1ca7628c33e7b44dda5c02db1ba4374c5`.
+Cap16 CREATE +64 source +64 NBL=144; ни global ACCEPT, ни нагрузки сверх
+прежних200 fillers +1 control нет. Max4 REJECT samples и одна SUMMARY,
+шесть mutually exclusive reject counters, тот же строгий receive selector.
+POLICY read_limit40/sample4/version2: значения в hex, 40 означает64.
+
+27 helper CDB cases и7 integrated CDB cases passed. Проверены поздний match21,
+match64 и cap64, bounded output и все6 причин reject. 142 target и12 report
+unittest passed. Combined proof inventory175 файлов. Модель не является
+kernel coverage. Новый reporter требует POLICY/SUMMARY и непротиворечивые
+counts/sample order, иначе INCOMPLETE; rootcause остаётся false.
+
+Fresh plan `pb-target-accept-plan-20261020-181920-818a5a39/runtime-plan.json`,
+SHA `2F12EB52658BDB17E009EA44A2255C55F2FB23559A59B06D0E85C56F4DCFDE22`,
+PREPARED_NOT_RUN/exit0/productfalse/trafficfalse, boot118. Build19-r2 reused.
+Host helper64 initialization пока pending. Source calibration131915 того же
+boot переоценена, старые подготовки не refreeze/Resume.
+Опубликованный helper скачан и проверен по SHA; pinned source commit
+`bb02028215ba3a81d99fa4c9cac05e849e004cac`. USER получает команды PowerShell
+download+hash, затем WinDbg oldStop/unloadOld/loadNew/init/reset/g. До вывода
+CONFIG model0/POLICY40/true Run не запускать. Host actions USER-only; warning
+wholeVM/Codex/RDP перед Break/enable. После PREFILL_READY только be2/g и C
+в VM. Никакой диагностический Run агентом не выполнялся.
+
 ## Результат Run180714
 
 На выбранном retry NBL при SENDskip получено info_raw=1, masked info=0,
