@@ -2,6 +2,13 @@
 
 ## Run071515: выбранный setter пойман; ACCEPT cap16 исчерпан, готовится accept64
 
+Новый Prepare072056-59dba4de exit0/PREPARED_NOT_RUN, SHA
+93d687fef8d1ed49c35e8b98d0297fafe986ce9e67c8f481cb625c392daf0a9e.
+Receipt pb-flag-create-armed-accept64-registration-20261020-r1 prepared-only,
+новыйproof pb-flag-create-arm-accept64-parser-20261020-r1. USERещёнеподтвердил
+hostupdate4. Runещёнет; initialalloff, activationнаREADYbe2/be4/g, потомVM C.
+Весьнаборотключатьbd2/bd3/bd4/gпослезавершения/ошибки, неrepeatRun.
+
 Run071515-235400ff nativeTARGET_FAILURE_REPRODUCED/errors[], control42201 API10022/bytes0.
 Session/cohortCOLLECTED, cleanup_errors[], native_stoppedtrue, CLIgraceful/poststoptrue,
 resident_disabled_aftertrue. USER TRACKsourceEPffffa702fb573010/recordffffa702fc086da0,
