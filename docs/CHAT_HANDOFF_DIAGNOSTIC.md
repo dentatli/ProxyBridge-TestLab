@@ -1,5 +1,41 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Разобран USER Run191144: timeout, полезные SEND snapshots, receive join отсутствует
+
+Run pb-target-accept-run-20261020-191144-312c005a, план51CE9949... .
+Console private pb-per-send-review-20261020-191144/user-console.txt SHA
+BC700769E29F06E94996E863A35A147FF40989C17CF0F835E24E970A08E4B4BE.
+TRACK sourcec50c82c0/recordc6195260/contextb717ec10. Epoch1/2 один NBLc6a5bbd0:
+key5 absent на1, present на2 с value=trackedrecord. Epoch3/4 новый NBLc60d9070,
+epoch5/6 ещё новый NBLbb5ae790; seq_raw2e2e3cdd неизменен, flags1301641,
+key5 absent на всех четырёх снимках. Это helper observations, не6retransmits.
+END epoch2 OTHER_TUPLE reads40hex, epoch4 OTHER_TUPLE reads1ahex;
+epoch6 PACKET_STORAGE_CHANGED reads6: NB прежний, CurrentMdl стал0.
+Далее source observer остановился PACKET_TUPLE. Это объединённая проверка
+ports/headerlen/SYNflags; не доказано именно изменение ports (возможен ACK).
+FINAL creates1/source_reads54hex=84/sends6/reads67hex=103/pairs0/error1.
+Ни общий512, ни source128 cap не достигнуты; увеличивать caps бессмысленно.
+OTHER_TUPLE не доказывает другую сеть/порчу NBL: actual frame ports не печатаются,
+stack offsets пока не проверены независимым kernel capture. RECEIVE нет.
+
+diagnostic-run FAILED: TARGET_COHORT_INCOMPLETE:TARGET_NATIVE_TIMEOUT;
+cleanup TARGET_RECEIVER_CONTROLLED_STOP_FAILED. cohort native forced stop,
+native_processes_stopped=false. CLI завершился gracefully, но interception cleanup
+не verified; synchronous resident disable completed=true, driver Running,
+independent enabled readback отсутствует. Нельзя объявлять общий cleanup успешным.
+CLI CTXDIAG seq201/socket2068/relay16048: peer42201/local34010, API-1/10022,
+bytes0/required32; эта отдельная API observation есть даже при INCOMPLETE report.
+control.csv толькоheader; полная native cohort/data completion невалидна.
+ETW control сообщает drop SO_PAUSE_ACCEPT и retransmits, уже известный trigger.
+Большие интервалы receiver output совместимы с debugger overhead/VM pauses,
+но причина timeout не доказана. Нет основания объявлять driver виновным.
+
+Перед новым Run нужен исправленный observer: меньше dx false output,
+различать обычный non-SYN и ошибку packet parser; добавить actual selector
+значения для OTHER_TUPLE и проверить stack frame против независимого kernel
+состояния. Не ослаблять identity guard, не поднимать лимиты, не повторять этот Run.
+Agent сохранил/прочитал evidence; нагрузки/Break/service/process stop не выполнял.
+
 ## Подготовлен per-SEND план; USER просит экономить проверки/токены
 
 Fresh plan: artifacts/diagnostics/pb-target-accept-plan-20261020-190649-0a0dd85d/runtime-plan.json.
