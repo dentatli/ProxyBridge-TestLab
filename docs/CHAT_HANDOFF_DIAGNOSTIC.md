@@ -1,5 +1,29 @@
 # Передача чату диагностики TCP / WinDbg
 
+## SEND gate healthy131915 подтверждён; target132314 подготовлен без Run
+
+USER Run131915-ce510e60: PBSD TRACK/ARMED, два SEND_GATE с raw1a/1d,
+flags_reg01101641 (bit21=0), два SYN header flags02 с sequence2499560310,
+тот же NBL pointer; ACCEPT status0/output_raw=TRACKrecord, reads1e/sends2.
+Строгий evaluate: SEND_GATE_HEALTHY_CONTROL_OBSERVED/errors[]/native_errors[].
+Native controlPID9600/query4/APIreturn0/32bytes. Session/cohort COLLECTED,
+cleanup_errors[], CLIgraceful/unforced/poststopverified. Disable IOCTL completed,
+serviceRunning/drivernotunloaded, independent enabledflag readbackfalse.
+Private pb-send-gate-review-20261020-131915: user-console.txt/send-report.json.
+Источник — USER latest-run excerpt, не independent host console capture.
+Два одинаковых SYN snapshots не доказывают сетевую retransmission: возможно
+повторное прохождение helper. Clear bit доказывает eligibility, не completed
+association; успешный ACCEPT той же записи наблюдался отдельно. Rootcausefalse.
+
+Fresh target132314-b66a4df5 PREPARED_NOT_RUN/exit0, SHA
+6146d05c87d195cd572ec3407a277a2a910c8347a3ed17373b52dd3be7257a97.
+Тот же profile22febf6a, sameboot118 healthy gate, прежний frozenbuild/proofr4;
+200fillers+1control/ManualHostWindow15s. Productstartedfalse/trafficgeneratedfalse.
+Точки не перерегистрировать; до VMRun disabled2/4 и conditional clear3/t8.
+На READY USERhost reset t1..t8/be2/отдельныйg, затем латинскаяC вVMбезEnter.
+Предупредить wholeVM/Codex/RDPpause, recovery bd2/conditionalbc3/t8/bd4/g.
+Новый Run/Break/enable агентом не выполнялся. Не повторять healthyRun.
+
 ## Host code/layout boot118 подтверждены; resident подготовлен, следующий шаг four probe
 
 USER прислал полный readonly block: MASM, bl пуст, CREATE+396 eb65,
