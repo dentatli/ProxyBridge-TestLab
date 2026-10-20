@@ -1,6 +1,23 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Подготовлен per-SEND candidate; USER просит экономить проверки/токены
+## Подготовлен per-SEND план; USER просит экономить проверки/токены
+
+Fresh plan: artifacts/diagnostics/pb-target-accept-plan-20261020-190649-0a0dd85d/runtime-plan.json.
+SHA 51CE9949FBCBC926B60DFB978AF5940F2DEFC6ADF08E38E16767903FFB8440CF.
+Prepare: PREPARED_NOT_RUN, exit0, product_started=false, traffic_generated=false.
+Один Inspect: TARGET_PLAN_INSPECTED_NO_RUNTIME, exit0; boot118.
+Registration review: pb-per-send-registration-20261021-r1/prepared-commands.json;
+host_registration_observed=false, host_initialization_pending=true.
+Helper опубликован в b172e85f7ff0969a81458c6361b1205c51d09378;
+реальная загрузка raw GitHub и SHA проверены (REMOTE_HELPER_SHA_OK).
+Следующее действие USER: скачать этот pinned helper в C:\PB-KD-Scripts,
+остановить старый pbNblStop, убрать owned3, bd4, unload pb_nbl_context512.js,
+load pb_retry_epochs.js; bc2/bc4, зарегистрировать короткий bp2 ниже, bd2,
+pbRetryInitKernel. Нужны CONFIG model0, POLICY version4, true; без них Run нельзя.
+При READY только be2/g, затем латинская C в VM. После завершения/error:
+bd2; dx @$scriptContents.pbRetryStop(); очистить оставшиеся owned3/t8 и4/t9;
+g отдельной строкой. Перед Break/enable предупредить whole VM/Codex/RDP.
+Повторный bl не нужен. Новый Run агентом не запускался и остаётся USER-controlled.
 
 USER согласился на смену NBL по каждой новой SEND observation, затем попросил
 не обвешивать решения сотнями проверок. Принято: только проверки текущего
