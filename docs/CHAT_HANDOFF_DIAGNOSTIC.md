@@ -1,5 +1,30 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Host code/layout boot118 подтверждены; resident подготовлен, следующий шаг four probe
+
+USER прислал полный readonly block: MASM, bl пуст, CREATE+396 eb65,
+FastLoopbackSend+2d mov eax,[rcx+30]/+30 bt eax,15h/+34 jb+14f,
+ACCEPT+caf test eax/eax и store[EP+1c0] на success. Все bytes/offsets совпали.
+NDIS symbols подтвердили NBL.FirstNB8, NB.CurrentMdl8/offset10/DataLength18,
+NT MDL.Flags0a/MappedSystemVa18/ByteCount28. В конце USER выполнил g.
+Не просить повторный bl/перерегистрацию старых точек: их нет после reboot.
+
+Agent проверил servicePath/diskSHA3cd79cfc…/отсутствие productprocesses/boot118,
+запустил уже установленный ProxyBridgeDrv из Stopped→Running, выполнил
+синхронный Disable IOCTL. Independent gEnabled readback НЕ выполнялся.
+Readinesssnapshot current_driver_preparation_allowedtrue, loadedquerycomplete,
+selecteddriverloadedtrue/knowncount1, Windivert NO_HANDLES_OBSERVED/count0.
+Private pb-send-gate-host-review-20261020-boot118: host-code-layout-review,
+resident-disable-preflight/interception/loadeddrivers. Source host proof user-provided,
+не independent wholeconsole capture. Установка/traffic/Break/enable агентом не было.
+
+USER следующий комплект: bp2/bd2 и bp4/bd4 точные actions профиля22febf6a…,
+reset t1..t8, be2, отдельныйg. CREATE включает динамическуюr4 watch3/ACCEPT4.
+VM healthy Run нового плана130859-fa994834 SHA4c2a4fcc… с
+DebuggerLoggerEnabled+FlowProfileRegisteredDisabled; без C/BoundedLoadReviewed.
+Только4connections; не201 до успешного samebootpositive. Recovery bd2,
+условныйbc3черезt8, bd4, отдельныйg даже при ошибке. Нужны новыйconsole иVMoutput.
+
 ## Подготовлен selected endpoint read-watch для SEND gate; новая загрузка118
 
 USER разрешил подготовить три точки CREATE/SEND-decision/ACCEPT. Осмотр:
