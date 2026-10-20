@@ -1,5 +1,23 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER разрешил включение setter3 из выбранногоCREATE; новый режим готовится
+
+USER: «Не понял в чем проблема. Разрешаю». Это явное исключение дляbe3
+внутри выбранногоCREATE; Break/step и первоначальныеbe2/be4 остаются наhost.
+Новый профиль pb-kd-target-flag-create-armed-profile-20261020.json SHA
+ca1ecd5c335b6864259bb92a9d94dfeda0fc8bf2f655ff273cd59616cbb3f237.
+Prepare FlagTarget+FlagCreateArmed привязывает только новый профиль иновый
+parserproof, policyhostenable[2,4]/autoenableaftercreate[3]; старыеpolicyсохранены.
+Update-stage меняет только2, оставляетсуществующие3/4disabled, resets t1..5.
+НаREADY USERbe2/be4/g,3не включать вручную. Прежниеcap16/max48/one-shot/k8,
+recoverybd2/bd3/bd4/g. Старыйprofile/Run070133 не повторять и не refreeze.
+
+Proof20261020-r2:4CREATEarm-statecases и4×3all-actioncases passed; привязаны28files.
+114existingtargettests passed; затем11flagbindingtests passed (4новых), PSparserOK,
+HostWindow5faultcasespassed безтрафика. Kernelcoverage/runtimecost новогоarm ещё
+не проверены; фоновыйreceive послеCREATE всё ещё может съестьcap. DriverRunning,
+boot117прежний, freeRAM3960652KiB. НовыйRun ещёне запускался.
+
 ## FlagTarget070133: исходный10022 повторён; setter исчерпал лимит, снимков нет
 
 Run20261020-070133-afbe9ed6 COLLECTED, cohortCOLLECTED, cleanup_errors[],
@@ -23,9 +41,9 @@ dummybreakpoints: толькоselected включает3, остальные о�
 Нетkernelconnection/producttraffic/Run; это не runtimecost илиcoverageproof.
 ПослеCREATE глобальныйreceive всё ещё может исчерпать прежнийcap.
 
-STOP: be3 внутриCREATE требует явного исключения пользователя из AGENTS.md:
+ИсторическийSTOP, снят ответомUSER выше: be3 внутриCREATE требовал явного исключения из AGENTS.md:
 «These actions remain user-controlled on the physical host» для breakpointenable.
-До ответа не интегрироватьautostaging вruntime и не выдаватьRun с ним.
+Исключение получено только для выбранногоCREATE, не для произвольногоenable/Break.
 Последнее состояниеhost:2/3/4disabled,gвыполнен; лишнийbl не нужен.
 
 ## История: FlagProbe065643 успешен; FlagTarget065820 был подготовлен

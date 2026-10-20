@@ -8,9 +8,9 @@ import unittest
 from unittest.mock import patch
 ROOT=Path(__file__).resolve().parents[1]
 sys.path.insert(0,str(ROOT/'src'))
-from pb_target_flag_binding import policy,registration,PROFILE_SHA,parser_proof
+from pb_target_flag_binding import policy,registration,PROFILE_SHA,parser_proof,ARMED_PROFILE_SHA
 from pb_target_flag_report import correlate,evaluate
-from pb_target_accept_plan import validate_positive_probe
+from pb_target_accept_plan import validate_positive_probe,prepare
 
 TRACK='PBFG TRACK ep=10 record=20 context=30 size=20 refs=1\n'
 ACCEPT='PBFG RETRIEVE ep=40 nbl=50 status=0 output_raw=20\n'
@@ -86,6 +86,62 @@ class FlagBindings(unittest.TestCase):
         p.write_text(json.dumps(r));self.assertEqual(len(parser_proof(p)['files']),14)
         r['cases'][3]['disable_checks'][0]=False;p.write_text(json.dumps(r))
         with self.assertRaisesRegex(ValueError,'PROOF_INVALID'):parser_proof(p)
+
+    def test_armed_policy_requires_target_and_preserves_caps(self):
+        p=policy(True,True)
+        self.assertEqual(p['host_enable_debugger_points'],[2,4])
+        self.assertEqual(p['automatic_debugger_enable_after_create'],[3])
+        self.assertEqual(p['raw_hit_limit_per_point'],16)
+        self.assertEqual(p['max_total_raw_hits'],48)
+        with self.assertRaisesRegex(ValueError,'REQUIRES_TARGET'):policy(False,True)
+        with self.assertRaisesRegex(ValueError,'REQUIRES_TARGET'):
+            prepare(ROOT,ROOT,self.path,flag_create_armed=True)
+
+    def test_armed_registration_rejects_old_receipt(self):
+        profile=ROOT/'scripts/debugger/pb-kd-target-flag-create-armed-profile-20261020.json'
+        r=dict(method='target-flow-prepared-commands-v1',source='prepared-command-awaiting-user-attestation',profile_sha256=PROFILE_SHA,
+            expected_disabled_ids=[2,3,4],host_registration_observed=False,boot=self.boot)
+        path=self.path/'receipt.json'
+        def check():
+            path.write_text(json.dumps(r));return registration(profile,path,hashlib.sha256(path.read_bytes()).hexdigest(),self.boot)
+        with self.assertRaisesRegex(ValueError,'REGISTRATION'):check()
+        r['profile_sha256']=ARMED_PROFILE_SHA
+        self.assertTrue(check()['automatic_enable'])
+
+    def test_armed_proof_rejects_early_enable_and_unchecked_actions(self):
+        names=['selected','nonselected','unreadable','limit']
+        states=[{'2':True,'3':False,'4':False},{'2':False,'3':True,'4':False},
+                {'2':True,'3':True,'4':True},{'2':True,'3':True,'4':True}]
+        r=dict(method='cdb-create-armed-flag-candidate-v1',kernel_connection=False,product_started=False,
+            traffic_generated=False,runtime_authorized=False,passed=True,all_actions_proof='all-actions/parser-check.json',
+            cases=[dict(name=n,passed=True,values_verified=True,disabled=s) for n,s in zip(names,states)])
+        full=dict(method='cdb-safe-bounded-flag-candidate-v1',kernel_connection=False,product_started=False,
+            traffic_generated=False,passed=True,cases=[dict(name=n,passed=True,checks=[True]*3,disable_checks=[True]*3,exit_code=0) for n in names])
+        child=self.path/'all-actions';child.mkdir()
+        profile=(ROOT/'scripts/debugger/pb-kd-target-flag-create-armed-profile-20261020.json').read_bytes()
+        for parent in (self.path,child):
+            (parent/'candidate.json').write_bytes(profile)
+            for n in names:
+                for s in ('.wdbg','.stdout.txt','.stderr.txt'):(parent/(n+s)).write_text('fixture')
+        path=self.path/'parser-check.json';fp=child/'parser-check.json'
+        def check():
+            path.write_text(json.dumps(r));fp.write_text(json.dumps(full));return parser_proof(path,True)
+        self.assertEqual(len(check()['files']),28)
+        r['cases'][1]['disabled']['3']=False
+        with self.assertRaisesRegex(ValueError,'PROOF_INVALID'):check()
+        r['cases'][1]['disabled']['3']=True;full['cases'][0]['disable_checks'][2]=False
+        with self.assertRaisesRegex(ValueError,'ALL_ACTIONS_PROOF'):check()
+
+    def test_armed_evaluation_keeps_cap_failure_incomplete(self):
+        plan=self.path/'runtime-plan.json';plan.write_text(json.dumps(dict(policy=policy(True,True))))
+        sha=hashlib.sha256(plan.read_bytes()).hexdigest()
+        (self.path/'diagnostic-run.json').write_text(json.dumps(dict(debugger_observer=True,flow_registration_acknowledged=True,plan_sha256=sha)))
+        console=self.path/'console.txt';console.write_text(TRACK+'PBFG_LIMIT point=3 capture=incomplete\n')
+        native=dict(status='TARGET_FAILURE_REPRODUCED',errors=[],matches=[dict(role='control',peer='127.0.0.1:42201',original_api_failure=True)])
+        with patch('pb_target_accept_report.evaluate',return_value=native):
+            result=evaluate(self.path,console)
+        self.assertEqual(result['status'],'INCOMPLETE')
+        self.assertIn('BOUNDED_CAPTURE_INCOMPLETE',result['errors'])
 
 
 if __name__=='__main__':unittest.main()

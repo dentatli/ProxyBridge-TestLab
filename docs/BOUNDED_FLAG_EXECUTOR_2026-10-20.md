@@ -1,5 +1,19 @@
 # Исполнитель ограниченного захвата флага
 
+## Обновление после cap Run070133
+
+Контроль снова API10022/bytes0, nativeCOLLECTED/cleanupOK, но только
+PBFG_LIMITpoint3 безTRACK/SET_PRE/RETRIEVE: kernelcaptureINCOMPLETE.
+USER явно разрешилbe3 изselectedCREATE. Новый FlagCreateArmed вместесFlagTarget
+использует отдельныйпрофиль create-armed-20261020, первоначальныеhostenable2/4,
+autoenable3 послеTRACK/resetcounter. Update-stage меняеттолько2;3/4 прежние.
+Старыепрофили/планы сохранены. Одинhostcodeblockсgпоследнейотдельнойстрокой.
+Ресурсы,нагрузка,cap16/max48,one-shot,k8 иcleanupgates прежние. ПослеCREATE
+глобальныеhits3 всё ещё могут исчерпатьcap; отсутствиеснимка не опровергаетwriter.
+НовыйCDBproof r2 проверил реальныйenabledstate3 во всех4ветках ивсе12actions;
+binding замораживает28files иотклоняетсмешениестарогоreceipt/profile/policy.
+НовогоkernelRun/проверкиruntimecost пока нет. НикакойagentBreak/step.
+
 Boot117 подтверждён Kernel-General12 record17422, start2026-10-20T06:17:50.5Z.
 Старый прерванныйRun оставлен без изменений, его rebootgate теперь относится
 к предыдущемуboot. USER подключилWinDbg, blпуст, код CREATE/SETTER/ACCEPT сверён,

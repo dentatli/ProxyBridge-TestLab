@@ -5,7 +5,7 @@ from pathlib import Path
 import re
 import subprocess
 
-from pb_target_flag_candidate import candidate as previous_candidate, fixture
+from pb_target_flag_candidate import candidate as previous_candidate, fixture, check as check_actions
 
 
 def candidate():
@@ -36,7 +36,7 @@ def check(output):
     debugger = Path(r'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe')
     symbols = output/'empty-symbols'
     symbols.mkdir()
-    result = dict(kernel_connection=False, product_started=False, traffic_generated=False,
+    result = dict(method='cdb-create-armed-flag-candidate-v1', kernel_connection=False, product_started=False, traffic_generated=False,
                   runtime_authorized=False, cases=[])
     for kind in ('selected', 'nonselected', 'unreadable', 'limit'):
         commands = ['bp2 @$ip+0x20 "gc"', 'bp3 @$ip+0x30 "gc"', 'bp4 @$ip+0x40 "gc"',
@@ -64,7 +64,9 @@ def check(output):
         passed = (c.returncode == 0 and disabled == expected and values and
                   not re.search(r'(?i)(syntax error|extra character error|couldn.t resolve)', text))
         result['cases'].append(dict(name=kind, passed=passed, disabled=disabled, values_verified=values))
-    result['passed'] = all(case['passed'] for case in result['cases'])
+    full = check_actions(output/'all-actions', p)
+    result['all_actions_proof'] = 'all-actions/parser-check.json'
+    result['passed'] = all(case['passed'] for case in result['cases']) and full['passed']
     (output/'parser-check.json').write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
     return result
 

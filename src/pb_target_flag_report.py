@@ -56,8 +56,9 @@ def evaluate(capture,console):
     read=lambda p:json.loads(p.read_text(encoding='utf-8-sig'))
     p,run=read(capture/'runtime-plan.json'),read(capture/'diagnostic-run.json')
     probe=p['policy']==policy(False)
+    armed=p['policy'].get('automatic_debugger_enable_after_create')==[3]
     sha=hashlib.sha256((capture/'runtime-plan.json').read_bytes()).hexdigest()
-    if (p['policy']!=policy(not probe) or run.get('debugger_observer') is not True or
+    if (p['policy']!=policy(not probe,armed) or run.get('debugger_observer') is not True or
         run.get('flow_registration_acknowledged') is not True or sha!=run['plan_sha256'].lower()):raise ValueError('FLAG_CAPTURE_BINDING_INVALID')
     raw=console.read_bytes();r=correlate(raw.decode('utf-8-sig'));native=native_evaluate(capture)
     r.update(plan_sha256=sha,console_sha256=hashlib.sha256(raw).hexdigest(),native_status=native['status'],

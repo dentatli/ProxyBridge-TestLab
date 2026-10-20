@@ -54,8 +54,9 @@ def fixture(action, kind):
     return action[:-3]+'.printf "PBFG_PARSER_END\\n";'
 
 
-def check(output):
-    p=candidate();output.mkdir(parents=True,exist_ok=False)
+def check(output, profile=None):
+    p=candidate() if profile is None else profile
+    output.mkdir(parents=True,exist_ok=False)
     raw=json.dumps(p,indent=2)+'\n';(output/'candidate.json').write_text(raw,encoding='utf-8',newline='\n')
     result=dict(method='cdb-safe-bounded-flag-candidate-v1',kernel_connection=False,product_started=False,traffic_generated=False,cases=[])
     debugger=Path(r'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe')

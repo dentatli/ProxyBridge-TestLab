@@ -6,7 +6,7 @@ param([ValidateSet('Prepare','Inspect','Run')][string]$Phase='Inspect',
       [switch]$CreateTarget, [string]$PositiveCapture='', [string]$PositiveConsole='', [switch]$BoundedLoadReviewed,
       [switch]$ManualHostWindow, [switch]$DebuggerPointsDisabled, [switch]$RetrieveTarget, [switch]$RetrieveProbe,
       [switch]$FlowTarget, [switch]$FlowProfileRegisteredDisabled, [switch]$RemovalTarget,
-      [string]$CommandParserProof='', [switch]$RetryTarget, [switch]$FlagTarget, [switch]$FlagProbe)
+      [string]$CommandParserProof='', [switch]$RetryTarget, [switch]$FlagTarget, [switch]$FlagProbe, [switch]$FlagCreateArmed)
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -40,6 +40,7 @@ if ($Phase -eq 'Prepare') {
     if ($RetryTarget) {$prepareArgs+=@('--retry-target')}
     if ($FlagTarget) {$prepareArgs+=@('--flag-target')}
     if ($FlagProbe) {$prepareArgs+=@('--flag-probe')}
+    if ($FlagCreateArmed) {$prepareArgs+=@('--flag-create-armed')}
     if ($CommandParserProof) {$prepareArgs+=@('--command-parser-proof',$CommandParserProof)}
     if ($ManualHostWindow) {$prepareArgs+=@('--manual-host-window')}
     if ($PositiveCapture) {$prepareArgs+=@('--positive-capture',$PositiveCapture)}
@@ -217,6 +218,9 @@ try {
         ProxyRules=@([ordered]@{Name='Target accept';ProcessName='ctsTraffic.exe';TargetHosts='127.0.0.1';TargetPorts='54122';TargetDomains='';Protocol='TCP';Action='PROXY';ProxyConfigId=1;IsEnabled=$true})}) $profile
     $context=[pscustomobject]@{root=$root;directory=$evidence;adapter=$adapter;client=$client;
         probe_only=[bool]$fourProbe;manual_host_window=[bool]$stagedHost;flow_observer=[bool]$flowObserver;debugger_point_ids=@($plan.policy.debugger_points)}
+    if ($plan.policy.PSObject.Properties['host_enable_debugger_points']) {
+        $context | Add-Member -NotePropertyName host_enable_debugger_points -NotePropertyValue @($plan.policy.host_enable_debugger_points)
+    }
     $cohortCommand=Get-Command Invoke-TargetNativeCohort
     $writeCommand=Get-Command Write-TargetJson
     $workload={param($cli)

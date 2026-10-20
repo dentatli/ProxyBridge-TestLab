@@ -120,7 +120,7 @@ def evaluate(path):
                 errors.append('FLOW_REGISTRATION_ACK_MISSING')
             if flag:
                 from pb_target_flag_binding import policy as flag_policy
-                if policy!=flag_policy(not probe):errors.append('FLAG_OBSERVER_POLICY_INVALID')
+                if policy!=flag_policy(not probe,policy.get('automatic_debugger_enable_after_create')==[3]):errors.append('FLAG_OBSERVER_POLICY_INVALID')
             elif probe and policy != (retrieve_policy(False) if retrieve else create_policy()):
                 errors.append('CREATE_FOUR_OBSERVER_POLICY_INVALID')
             elif not probe and policy != (flow_policy(removal, retry) if flow else (retrieve_policy() if retrieve else create_policy(True, staged))):
