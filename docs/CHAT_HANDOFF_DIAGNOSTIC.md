@@ -1,6 +1,36 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Следующий шаг: загрузить JS helper на физическом хосте без включения точек
+## Следующий шаг: зарегистрировать отключённый selected-NBL профиль на хосте
+
+USER выполнил .scriptload и pbNblInitKernel(): CONFIG model=0, true, g.
+Helper готов в текущей сессии; загрузка и code pins проверены самим WinDbg.
+Добавлены src/pb_selected_nbl_profile.py и pb_selected_nbl_fixture.py,
+scripts/debugger/pb-kd-selected-nbl-context-{profile,update}-20261020.{json,wdbg}.
+Profile SHA 88403355b93398e39a9068305c720e90ad84dc9f54c67f918b49abbe731b3398.
+Stage SHA fabb7ee5b1f080be65ddd08cf201a7c7dc45d744e409cd62c0d79c63b039dd2c.
+Helper SHA прежний A596999C…576236. Профиль остаётся кандидатом, plan bindings,
+reporter и новый runtime plan ещё НЕ добавлены; старый Run не использовать.
+Следующее действие USER — скопировать stage на host C:\PB-KD-Scripts,
+проверить SHA, после wholeVM/Codex/RDP warning сделать Break, $$>< stage,
+отдельная .bpcmds и отдельный g даже при ошибке. Не просить bl/не включать.
+На следующем шаге связать профиль, script SHA и proof с новым планом и отчётом.
+
+Private pb-selected-nbl-integration-proof-20261020-r5: 7/7 passed с реальными
+CDB bp2 и data-watch callback; source+CREATE actions имеют заменённые $vvalid,
+thread и gate-symbol только для user-mode fixture. Kernel/traffic не запускались.
+Проверены absent/present/removed, packet change, NBL read limit, переход source
+raw64 и bad header. t19 защищает новую NBL watch от финального source-limit
+в том же callback; после header failure arm не вызывается. Cap16 CREATE +
+64 source +16 NBL =96; при RECEIVE_DONE watch3 снимается, нет global ACCEPT.
+r1/r2 прошли direct CREATE action; r3/r4/debug не поймали искусственную bp,
+поставленную около текущей int3; r5 использует отдельный вызываемый stub CREATE
+и проверяет настоящее срабатывание bp2. Не считать ранние пробы runtime-proof.
+Recovery будущего Run: bd2; отдельный dx @$scriptContents.pbNblStop(); затем
+старый conditional t8/bc3; bd4; отдельный g. InitKernel перед новым Run сбрасывает
+состояние helper, но запрещён при armed watch. Runtime receive отсутствует —
+INCOMPLETE; ни освобождение record, ни виновник этим ещё не доказаны.
+
+## Предыдущая контрольная точка: загрузка helper
 
 USER live-disassembly NETIO/fwpkclnt подтверждает выбранные смещения. Вызов
 через импорт на диске заменён в памяти на mov r10/direct call той же длины;

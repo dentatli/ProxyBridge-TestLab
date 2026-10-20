@@ -1,9 +1,9 @@
 # Следующая проба: состояние контекста выбранного повторного SYN
 
 Статус: выбранные live-смещения NETIO/fwpkclnt подтверждены пользователем.
-JS helper подготовлен и проверен в CDB на модели; профиль и новый Run ещё
-не подготовлены. Следующий шаг — только загрузка helper на физическом хосте
-и вызов `pbNblInitKernel()` без включения точек.
+Загрузка helper и `pbNblInitKernel()` прошли на физическом хосте: model=0/true.
+Отключённый профиль подготовлен и проверен в CDB. Следующий шаг — регистрация
+этого профиля без включения точек. Runtime plan и reporter ещё не подготовлены.
 
 ## Что установлено по коду
 
@@ -99,9 +99,35 @@ CDB/JsProvider, CPU-кадрами, адресной watch и заменой wat
 лимит, другой caller, изменившийся packet и неверный tuple. Это не kernel
 coverage, не продуктовый тест и не доказательство причины сбоя.
 
-Следующий шаг USER: сохранить helper вне Desktop и замороженного symbol kit,
-проверить SHA, после предупреждения о паузе всей VM выполнить `.scriptload`,
-`dx @$scriptContents.pbNblInitKernel()` и отдельный `g` даже при ошибке.
-Ожидаются CONFIG model=0 и true. Не включать точки и не запускать Run.
-Далее нужны интеграция, новый профиль/report/plan и отдельная калибровка.
-Kernel стоимость и фактическая полнота нового наблюдения пока не измерены.
+USER загрузил helper и получил CONFIG model=0/true, затем выполнил g.
+Это проверяет совместимость JS и code pins в текущей сессии, но не kernel
+срабатывание новой watch. Kernel стоимость и полнота пока не измерены.
+
+## Профиль регистрации
+
+Генератор `src/pb_selected_nbl_profile.py` создаёт новый профиль и stage,
+не меняя старые frozen kits. Profile SHA:
+`88403355b93398e39a9068305c720e90ad84dc9f54c67f918b49abbe731b3398`.
+Stage `scripts/debugger/pb-kd-selected-nbl-context-update-20261020.wdbg` SHA:
+`fabb7ee5b1f080be65ddd08cf201a7c7dc45d744e409cd62c0d79c63b039dd2c`.
+Stage отключает 4, заменяет 2, оставляет 2 отключённой; динамическая 3 до Run
+отсутствует. Новые actions используют прежний SEND observer, но на skip вместо
+простого снятия вызывают `pbNblArm`. На невалидном заголовке arm не вызывается.
+Служебный t19 предотвращает снятие новой watch, если передача пришлась точно
+на source raw64. Общий предел 16 CREATE +64 source +16 NBL =96 срабатываний.
+
+`src/pb_selected_nbl_fixture.py`: 7/7 passed, private proof
+`pb-selected-nbl-integration-proof-20261020-r5/proof-suite.json`. Проверяется
+настоящая регистрация bp2 и её callback, source watch и замена на NBL watch,
+включая границу raw64, bad header, смену packet identity и NBL limit.
+Замены $vvalid/thread/gate адреса ограничены user-mode fixture; kernel/traffic
+coverage нет. Ранние r3/r4/debug с bp около текущей int3 не сработали;
+финальная fixture вызывает отдельный CREATE stub. Helper не изменялся.
+
+Следующий шаг USER: скопировать stage вне Desktop/frozen symbol kit, проверить
+SHA, после wholeVM warning выполнить Break, `$$><` stage, `.bpcmds`, отдельный
+`g` даже при ошибке. Точки не включать, старые планы не запускать. Затем нужны
+новые plan bindings, проверка proof, reporter и свежий runtime plan.
+При будущем recovery сначала `bd2`, `dx @$scriptContents.pbNblStop()`, затем
+conditional t8/bc3, `bd4` и отдельный `g`. Инициализация перед новым Run
+допускается только после снятия активной watch.
