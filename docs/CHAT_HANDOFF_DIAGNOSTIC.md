@@ -1,6 +1,40 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Следующий шаг: зарегистрировать отключённый selected-NBL профиль на хосте
+## Следующий шаг: один USER Run selected-NBL с новым планом
+
+USER прислал .bpcmds: новая2 на AlepCreateRedirectRecord+396, новый вызов
+pbNblArm/t19 guard совпадают; bd2 и bd4, dynamic3 отсутствует. Не просить bl.
+USER неудобно переносить stage: дальше выдавать команды прямо для вставки,
+а не заставлять копировать/запускать wdbg-файлы. Helper JS уже загружен.
+Добавлены nbl variant в flag binding/plan/native report, строгая проверка
+двух CDB proof suites и script SHA; pb_selected_nbl_report.py сопоставляет
+SENDskip, два NBL STATE и RECEIVE key5/consume1 с исходным native10022 query.
+CONFIG model0 обязателен, отсутствие события/лимит/ошибка/другой tuple или
+identity = INCOMPLETE. Rootcause/kernel-ACCEPT-status остаются false.
+Native generic reporter не выдаёт kernel verdict; отдельный NBL evaluate
+выполнять только после получения console этого Run.
+
+142 прежних target unittest +7 новых report tests passed, без продукта/traffic.
+Proof parser связал145 файлов: helper21 cases +integrated7, frozen bytes.
+Fresh plan pb-target-accept-plan-20261020-180357-3ce75acb/runtime-plan.json
+SHA 233A90C003903284CAFE2E49E2F5935C5E1C4A451815E20471EE1EBBB4A774E5.
+PREPARED_NOT_RUN/exit0/product_startedfalse/traffic_generatedfalse; boot118.
+Build reused pb-target-accept-preparation-20261019-r2, новый build не делался.
+Positive source control Run131915 того же boot переоценён, не refreeze/Resume.
+Registration pb-nbl-registration-20261020-r1/prepared-commands.json имеет
+host_registration_observedfalse (USER attestation, независимогоhostproofнет).
+Resident service Running; не переключать/не менять installation.
+
+Перед Run USER делает host init, сбрасывает t1/t3/t8, g при disabled2/4.
+WholeVM/Codex/RDP warning перед каждым Break/enable/step. Затем VM Run:
+-DebuggerPointsDisabled -FlowProfileRegisteredDisabled -BoundedLoadReviewed;
+DebuggerLoggerEnabled не добавлять к staged Run. Только при PREFILL_READY host
+Break/be2/отдельныйg, затем C в VM. Окно15sec, helper init делать заранее.
+После completion/error host bd2, dx pbNblStop(), conditionalt8/bc3, bd4,
+отдельныйg. Прислать CONFIG и весь PBN/PBSD вывод этого Run; Run не повторять.
+Агент не запускал диагностическую нагрузку и не управлял debugger host.
+
+## Предыдущая контрольная точка: регистрация профиля
 
 USER выполнил .scriptload и pbNblInitKernel(): CONFIG model=0, true, g.
 Helper готов в текущей сессии; загрузка и code pins проверены самим WinDbg.

@@ -2,8 +2,9 @@
 
 Статус: выбранные live-смещения NETIO/fwpkclnt подтверждены пользователем.
 Загрузка helper и `pbNblInitKernel()` прошли на физическом хосте: model=0/true.
-Отключённый профиль подготовлен и проверен в CDB. Следующий шаг — регистрация
-этого профиля без включения точек. Runtime plan и reporter ещё не подготовлены.
+Отключённый профиль подготовлен и проверен в CDB; USER подтвердил новую
+регистрацию через .bpcmds. Новый runtime plan и reporter подготовлены.
+Следующий шаг — один USER Run; агент нагрузку не запускал.
 
 ## Что установлено по коду
 
@@ -131,3 +132,26 @@ SHA, после wholeVM warning выполнить Break, `$$><` stage, `.bpcmds
 При будущем recovery сначала `bd2`, `dx @$scriptContents.pbNblStop()`, затем
 conditional t8/bc3, `bd4` и отдельный `g`. Инициализация перед новым Run
 допускается только после снятия активной watch.
+
+## Свежий план после регистрации
+
+План `pb-target-accept-plan-20261020-180357-3ce75acb/runtime-plan.json`, SHA
+`233A90C003903284CAFE2E49E2F5935C5E1C4A451815E20471EE1EBBB4A774E5`:
+PREPARED_NOT_RUN, exit0, product_started=false, traffic_generated=false.
+Новый вариант policy связан с profile/helper SHA, обеими CDB suites и boot118.
+Существующий здоровый source control131915 проверен на том же boot; его
+профиль не выдаётся за новый и не перезамораживается. Регистрация USER остаётся
+attestation без независимого host-proof. Повторный bl не требуется.
+
+Новый `pb_selected_nbl_report.evaluate(capture, console)` требует один CONFIG
+model0, SENDskip с повторным SYN, два STATE одного NBL, RECEIVE key5/consume1,
+DONE и полный native10022 join. Порядок/identity/лимиты/нечитаемость/cleanup
+не позволяют повысить неполный захват до verdict. Статус полного наблюдения
+`SELECTED_NBL_CONTEXT_AND_NATIVE_FAILURE_OBSERVED`; он не доказывает виновника
+и не измеряет результат штатного Retrieve. Generic native reporter сохраняет
+pending debugger verdict. 142 прежних +7 новых unittest passed.
+
+USER предпочитает прямую вставку команд. Перед Run заранее инициализировать
+helper и обнулить t1/t3/t8 при отключённых точках, затем g. При PREFILL_READY
+нужны только Break/be2/отдельныйg и C в VM в пределах15sec. Recovery выше.
+Перед Break/enable предупреждать о паузе всей VM/Codex/RDP. Не повторять Run.

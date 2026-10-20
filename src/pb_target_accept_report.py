@@ -121,6 +121,7 @@ def evaluate(path):
             if flag:
                 from pb_target_flag_binding import policy as flag_policy
                 watch=('sendnative' if policy.get('endpoint_send_native_query') is True else 'send256' if policy.get('endpoint_send_accept_limit')==256 else 'send') if policy.get('endpoint_send_gate') is True else 'packet' if policy.get('endpoint_packet_header') is True else policy.get('endpoint_data_watch') is True
+                if policy.get('endpoint_nbl_context') is True:watch='nbl'
                 armed=policy.get('automatic_debugger_enable_after_create') in ([3],[3,4])
                 accept64=policy.get('endpoint_send_native_query') is True or policy.get('raw_hit_limits_per_point')==({'2':16,'3':64,'4':policy.get('endpoint_send_accept_limit',64)} if watch in ('send','send256') else {'2':16,'3':16,'4':64})
                 if policy!=flag_policy(not probe,armed,accept64,policy.get('healthy_setter_probe') is True,watch):errors.append('FLAG_OBSERVER_POLICY_INVALID')
