@@ -8,7 +8,7 @@ from pb_target_retrieve_report import parse,DEBUGGER_ERROR
 
 def correlate(text):
     r=dict(status='INCOMPLETE',errors=[],track=None,armed=None,writes=[],retrieve=None,frames=[],
-           post_write_observed=False,transition_observed=False,root_cause_proven=False,trap_coverage_verified=False)
+           post_write_observed=False,transition_observed=False,root_cause_proven=False,trap_coverage_verified=False,packet_header=None)
     in_stack=False;done=False;stack_lines=0
     for line in text.splitlines():
         try:
@@ -42,10 +42,16 @@ def correlate(text):
                 if r['transition_observed']:raise ValueError('WATCH_WRITE_AFTER_ONE_SHOT')
                 r['writes'].append(w);r['post_write_observed']=True
                 if not w['old']&0x200000 and w['new']&0x200000:r['transition_observed']=True
+            elif line.startswith('PBW RECEIVE_HEADER '):
+                h=parse(line,'PBW RECEIVE_HEADER ','ep record nbl header src_raw dst_raw flags h0 h1 h2'.split())
+                if r['packet_header'] or not r['transition_observed'] or (h['ep'],h['record'])!=(r['track']['ep'],r['track']['record']):raise ValueError('WATCH_PACKET_IDENTITY_OR_ORDER_INVALID')
+                raw=h['h0'].to_bytes(8,'little')+h['h1'].to_bytes(8,'little')+h['h2'].to_bytes(4,'little')
+                if (h['src_raw'],h['dst_raw'])!=(0xda84,0xd9a4) or raw[:4]!=bytes.fromhex('84daa4d9') or h['flags']!=raw[13] or raw[12]>>4<5 or not h['nbl'] or not h['header']:raise ValueError('WATCH_PACKET_HEADER_INVALID')
+                r['packet_header']=h
             elif line.startswith('PBW RETRIEVE '):
                 if r['retrieve'] or not r['track']:raise ValueError('WATCH_RETRIEVE_INVALID')
                 r['retrieve']=parse(line,'PBW RETRIEVE ','ep nbl status output_raw'.split())
-        except ValueError as exc:r['errors'].append(str(exc))
+        except (ValueError,OverflowError) as exc:r['errors'].append(str(exc))
     if in_stack or (r['transition_observed'] and not done):r['errors'].append('WATCH_STACK_MISSING')
     if not r['errors']:
         r['status']='ENDPOINT_FLAG_TRANSITION_OBSERVED' if r['transition_observed'] else 'ENDPOINT_WATCH_COVERAGE_UNPROVEN'
@@ -58,6 +64,9 @@ def evaluate(capture,console):
     capture=Path(capture);console=Path(console)
     p=read(capture/'runtime-plan.json');run=read(capture/'diagnostic-run.json')
     probe=p['policy'].get('workload')=='flag-four-probe'
+    packet=p['policy'].get('endpoint_packet_header') is True
+    if packet:
+        from pb_endpoint_packet_watch import policy
     sha=hashlib.sha256((capture/'runtime-plan.json').read_bytes()).hexdigest()
     if (p['policy']!=policy(not probe) or run.get('debugger_observer') is not True or
         run.get('flow_registration_acknowledged') is not True or run['plan_sha256'].lower()!=sha):raise ValueError('ENDPOINT_WATCH_CAPTURE_BINDING_INVALID')
@@ -65,6 +74,7 @@ def evaluate(capture,console):
     r.update(native_status=native['status'],native_errors=native['errors'],plan_sha256=sha,
              console_sha256=hashlib.sha256(raw).hexdigest(),automatic_capture_scope_verified=False)
     controls=[m for m in native['matches'] if m['role']=='control']
+    if packet and not r['packet_header']:r['errors'].append('ENDPOINT_PACKET_HEADER_MISSING')
     if native['errors'] or len(controls)!=1 or controls[0]['peer']!='127.0.0.1:42201':r['errors'].append('NATIVE_CONTROL_INCOMPLETE')
     if probe:
         a=r['retrieve'];t=r['track']

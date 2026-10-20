@@ -20,6 +20,20 @@ STACK='PBW TRANSITION_BEGIN\n00 ffff000000001000 ffff000000002000 tcpip!WfpTlShi
 
 
 class EndpointWatch(unittest.TestCase):
+    def test_packet_header_fields_are_bound_to_observed_transition(self):
+        h='PBW RECEIVE_HEADER ep=1000 record=2000 nbl=7000 header=8000 src_raw=da84 dst_raw=d9a4 flags=14 h0=7b000000d9a4da84 h1=41450c8010000 h2=0\n'
+        self.assertEqual(correlate(TRACK+ARM+WRITE+h+STACK)['packet_header']['flags'],0x14)
+        for bad in (h.replace('flags=14','flags=12'),h.replace('ep=1000','ep=9000'),h+h,h.replace('h2=0','h2=100000000')):
+            with self.subTest(header=bad):self.assertEqual(correlate(TRACK+ARM+WRITE+bad+STACK)['status'],'INCOMPLETE')
+        self.assertEqual(correlate(TRACK+ARM+h+WRITE+STACK)['status'],'INCOMPLETE')
+
+    def test_packet_policy_cannot_expand_trap_or_load_budget(self):
+        from pb_endpoint_packet_watch import policy as packet_policy,parser_proof
+        p=packet_policy(True)
+        self.assertEqual({k:v for k,v in p.items() if k not in ('endpoint_packet_header','packet_header_bytes','packet_header_count_max')},policy(True))
+        self.assertEqual(p['packet_header_bytes'],20);self.assertEqual(p['packet_header_count_max'],1)
+        with self.assertRaisesRegex(ValueError,'TARGET_ONLY'):packet_policy(False)
+
     def test_transition_proves_observed_write_not_causation(self):
         r=correlate(TRACK+ARM+ACCEPT+WRITE+STACK)
         self.assertEqual(r['status'],'ENDPOINT_FLAG_TRANSITION_OBSERVED')

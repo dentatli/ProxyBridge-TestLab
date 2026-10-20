@@ -1,5 +1,49 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run082729: адресная запись подтверждена при 10022; готовится один TCP header
+
+USER Run082729-0715e4df: TRACK/ARMED и пять WRITE, та же последовательность flags,
+что у healthy080831; переход 01101641→01301641 в RecvTcpDatagram+198, stack8.
+Strictwatchreport ENDPOINT_FLAG_TRANSITION_OBSERVED, errors[]/native_errors[],
+native TARGET_FAILURE_REPRODUCED: control PID10652, query201, WSA10022/bytes0.
+Session/cohort COLLECTED, cleanup_errors[], residentdisabledaftertrue.
+ETW EventsLost/LogBuffersLost/RealTimeBuffersLost=0. Exactcontroltuple42201↔34010:
+два SYNdrop30, sentRSTreason2, clientdiscardreason10, RexmitCount1/2, затем
+успешные TCP connect/accept. Private pb-endpoint-watch-review-20261020-082729:
+user excerpt/provenance/watch-report/control-tuple-events. Rootcausefalse,
+clockalignment WinDbg↔ETW отсутствует: нельзя приписать WRITE конкретному RST.
+Динамическая watch3 сама bc3 при переходе; manual recovery пользователь не прислал.
+
+НЕ исследовать заново причину паузы: historical fullTrace153714/Run153716 Oct07
+уже прочёл AFD backlog200/Pause200–201/Unpause160 и все96 failures внутри pause.
+analysis.md tcp-wfp-full-load-review-20261007-153714. Это прежний установленный
+триггер, не новое открытие Oct20 и не доказательство private record loss.
+
+Новый packet-watch добавляет только 20-byte TCP header в существующий transition
+handler, без дополнительных traps/нагрузки. Профиль/stage отдельно, frozen old
+не изменены. SHA cd4eeec74667d42d0065027514375a702a41b8bcb89269df4272b8a07c98b378.
+RSI+50=header выведен из pinned tcpipSHA b0683bd7… (actual совпал):
+TcpTcbReceive+142 получает control=[RDI], читает [control+50]+0c как TCP data offset;
+передаёт control как arg7 InetInspectReceiveTcpDatagram, тот как arg6 WfpRecv,
+где он сохраняется в RSI. Snapshot допускается только RIP=Recv+198/RBX=selectedEP,
+валидные control/header20, порты source34010→dest42201, TCP header length>=20.
+Читаются только TCP header, не payload; одна строка PBW RECEIVE_HEADER, max1.
+Неверная ветка/память/порты → incomplete. RST+ACK flags14, SYN+ACK12; это ещё
+не kernel capture и не доказательство retry context loss.
+
+Isolated realCDB proof pb-endpoint-packet-watch-proof-20261020-r1:
+RST+ACK и SYN+ACK различены, wrongtuple отвергнут; unrelated/nextselectedwrite
+после selfclear не создают второго WRITE. Все3 passed, exit0. Kernelthread→TID,
+vvalid→true и writer-symbol guard→true явно отмечены, kernelcoveragefalse.
+131 targettests passed. Reporter проверяет identity/order/raw20/flags/ports,
+отсутствующий header в packet policy не допускает полного результата.
+Новый профиль заменяет только CREATE2, прежний ACCEPT4 оставляет disabled;
+watch3 динамический, hostenable2, max32, прежние200+1 и15s/CбезEnter.
+Prepare083749-a8d3df5e PREPARED_NOT_RUN/exit0, SHA
+6cec7167f29fc833b6faeb9b132bb8da9a65a9d5c82095b9029468843dea7d5f.
+Receipt pb-selected-endpoint-packet-watch-registration-20261020-r1 prepared-only,
+host update2 ещё не наблюдался. Никаких новых Run/Break/enable/step агент не делал.
+
 ## Healthy080831 подтверждён; ETW071515 нашла paused-listener SYN/RST, target подготовлен
 
 Prepare082026-4cb10828: PREPARED_NOT_RUN, exit_code=0, SHA

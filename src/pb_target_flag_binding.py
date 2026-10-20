@@ -15,6 +15,9 @@ HEALTHY_STAGE='scripts/debugger/pb-kd-target-flag-healthy-setter-update-20261020
 
 
 def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch=='packet':
+        from pb_endpoint_packet_watch import PROFILE_SHA as packet_sha
+        return packet_sha
     if endpoint_watch:
         from pb_endpoint_watch_profile import PROFILE_SHA as watch_sha
         return watch_sha
@@ -24,6 +27,9 @@ def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=F
 def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
     if endpoint_watch:
         if not (create_armed and accept64) or healthy!=(not target):raise ValueError('ENDPOINT_WATCH_POLICY_INVALID')
+        if endpoint_watch=='packet':
+            from pb_endpoint_packet_watch import policy as packet_policy
+            return packet_policy(target)
         from pb_endpoint_watch_profile import policy as watch_policy
         return watch_policy(target)
     from pb_target_accept_plan import create_policy
@@ -50,6 +56,8 @@ def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint
 
 
 def registration(profile_path,receipt_path,receipt_sha,boot):
+    from pb_endpoint_packet_watch import PROFILE_SHA as packet_sha,registration as packet_registration
+    if digest(Path(profile_path))==packet_sha:return packet_registration(profile_path,receipt_path,receipt_sha,boot)
     from pb_endpoint_watch_profile import PROFILE_SHA as watch_sha,registration as watch_registration
     if digest(Path(profile_path))==watch_sha:return watch_registration(profile_path,receipt_path,receipt_sha,boot)
     healthy=digest(Path(profile_path))==HEALTHY_PROFILE_SHA
@@ -73,6 +81,9 @@ def registration(profile_path,receipt_path,receipt_sha,boot):
 
 
 def parser_proof(path,create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch=='packet':
+        from pb_endpoint_packet_watch import parser_proof as packet_proof
+        return packet_proof(path)
     if endpoint_watch:
         from pb_endpoint_watch_profile import parser_proof as watch_proof
         return watch_proof(path)
