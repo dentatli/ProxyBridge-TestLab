@@ -1,5 +1,21 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Healthy-one r2 plan готов послефикса gate order
+
+artifacts/diagnostics/pb-target-accept-plan-20261020-201907-f072464a/runtime-plan.json
+SHA CD5EA983B33CE0E3FA31F72C675F4369E9696BF1A57CC671BC6422B916217393.
+PREPARED_NOT_RUN/exit0/productfalse/trafficfalse. Registration
+pb-accept-pair-registration-20261021-r2; helper/profile/proof прежние, helper
+bytes взяты из ранеепроверенного r1 download, не новыйfetch/CDBrun.
+Source gate-order fix96052dd9b7bcaf1b5bf6e8ad6a999b084b23f96e pushed/remoteverified.
+USER WinDbg session не менялась: Break warningwholeVM/Codex/RDP, затем
+dx @$scriptContents.pbaInitKernel(); be2; be3; g (каждаястрока отдельно).
+Не нужноdownload/register/bl заново. Приiniterror неVMRun; g выполнитьвсегда.
+VM Run новогоr2plan сDebuggerLoggerEnabled/FlowProfileRegisteredDisabled,
+одинcontrol, безC. Послеerror/completion Break warningwholeVM, bd2/bd3/
+pbaStop/g. НужныCONFIGmodel0/PRE/POST/FINAL плюсnative result. No repeat Run.
+Targetphase по-прежнемупосле реальногоhealthy success +PBApositive binding.
+
 ## Исправлен deadlock одиночной healthy пробы; debugger helper не менялся
 
 USER Run pb-target-accept-run-20261020-201510-a16dc553 FAILED:
