@@ -1,4 +1,4 @@
-"""Seven real CDB scenarios for per-SEND watch switching and cleanup. No traffic."""
+"""Nine real CDB scenarios for per-SEND watch switching and cleanup. No traffic."""
 import hashlib
 import json
 from pathlib import Path
@@ -7,9 +7,9 @@ import subprocess
 import sys
 from pb_endpoint_watch_candidate import quoted
 
-SCRIPT='scripts/debugger/pb_retry_epochs_v2.js'
-SCRIPT_SHA='078ca7fc7bf41986e99e9d2f2cbd7c3deac0c55d92004c0062c6a50ddc44a274'
-CASES=('normal','replaced','reused_storage','budget','stopped','non_syn','selector_mismatch')
+SCRIPT='scripts/debugger/pb_retry_epochs_v3.js'
+SCRIPT_SHA='6171487904ad9a317487531bd98a184f4f3e37cdf156d7ae78e7e6ce92ff2cd6'
+CASES=('normal','replaced','reused_storage','budget','stopped','non_syn','selector_mismatch','cursor_advanced','header_changed')
 FIXTURE=r'''import ctypes,struct,json
 k=ctypes.WinDLL('kernel32',use_last_error=True)
 k.VirtualAlloc.argtypes=[ctypes.c_void_p,ctypes.c_size_t,ctypes.c_ulong,ctypes.c_ulong]
@@ -26,7 +26,7 @@ d(selector,0xd9a40002);w(frame-0x7c,0xda84);w(frame-0x7a,0xd9a4)
 packets=[]
 for i in range(8):
  n=b+0x10000+i*0x1000;nb=n+0x100;mdl=n+0x200;data=n+0x300;info=n+0x600;node=n+0x700
- q(n+8,nb);q(nb+8,mdl);d(nb+0x10,0);d(nb+0x18,20)
+ q(n+8,nb);q(nb+8,mdl);d(nb+0x10,0);d(nb+0x18,20);q(nb+0x20,mdl);d(nb+0x28,0)
  w(mdl+0xa,1);q(mdl+0x18,data);d(mdl+0x28,20)
  ctypes.memmove(data,struct.pack('!HHIIBBHHH',42201,34010,123,0,0x50,2,1024,0,0),20)
  d(info,0x6e706657);q(info+0x10,node);q(node+8,rec);q(node+0x10,5);q(node+0x80,node+0x80)
@@ -59,6 +59,12 @@ else:
  if case=='selector_mismatch':
   code+=mov('49 ba',frame-0x7a)+bytes.fromhex('66 41 c7 02 a5 d9')+recv(packets[0])
   code+=mov('49 ba',frame-0x7a)+bytes.fromhex('66 41 c7 02 a4 d9')
+ if case=='cursor_advanced':
+  code+=mov('49 ba',packets[0]+0x100+8)+bytes.fromhex('49 c7 02 00 00 00 00')
+  code+=mov('49 ba',packets[0]+0x100+0x18)+bytes.fromhex('41 c7 02 00 00 00 00')
+  code+=mov('49 ba',packets[0]+0x100+0x28)+bytes.fromhex('41 c7 02 14 00 00 00')+recv(packets[0])
+ if case=='header_changed':
+  code+=mov('49 ba',packets[0]+0x300+4)+bytes.fromhex('41 c7 02 ef be ad de')+recv(packets[0])
  if case=='reused_storage':
   code+=mov('49 ba',packets[0]+8)+mov('48 b8',packets[2]+0x100)+bytes.fromhex('49 89 02')+recv(packets[0])
  code+=mov('48 b9',ep)+bytes.fromhex('81 49 30 00 00 20 00')+send(packets[1])
@@ -99,6 +105,8 @@ def check(output):
         elif case=='selector_mismatch':ok=ok and len(recv)==1 and 'epoch=2 ' in recv[0] and any('peer_raw=d9a5' in l for l in lines) and any('reason=OTHER_TUPLE ' in l for l in lines) and not bad
         elif case=='replaced':ok=ok and len(recv)==1 and 'epoch=2 ' in recv[0] and any('reason=REPLACED ' in l for l in lines) and not bad
         elif case=='reused_storage':ok=ok and len(recv)==1 and 'epoch=2 ' in recv[0] and any('reason=PACKET_STORAGE_CHANGED ' in l for l in lines) and not bad
+        elif case=='cursor_advanced':ok=ok and len(recv)==1 and 'epoch=2 ' in recv[0] and any('reason=PACKET_STORAGE_CHANGED ' in l for l in lines) and any('BUFFER stage=selected epoch=1 ' in l and 'current_mdl=0 ' in l and 'length=0 ' in l and 'nb28_raw=14 ' in l and 'header_match=1' in l for l in lines) and any('STATE stage=selected epoch=1 ' in l and 'key5=present' in l for l in lines) and not bad
+        elif case=='header_changed':ok=ok and len(recv)==1 and 'epoch=2 ' in recv[0] and any('reason=PACKET_IDENTITY_CHANGED ' in l for l in lines) and any('BUFFER stage=selected epoch=1 ' in l and 'header_match=0' in l for l in lines) and not bad
         elif case=='budget':ok=ok and len(sends)==8 and not recv and any('reason=TOTAL_LIMIT' in l for l in bad) and ' reads=200 ' in final[0]
         else:ok=ok and not recv and any('reason=STOPPED ' in l for l in lines) and not bad
         if case=='non_syn':ok=ok and any('SKIP reason=NON_SYN ' in l for l in lines)

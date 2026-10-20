@@ -1,5 +1,33 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Observer v3: pre-identity selected snapshot, без ослабления MATCH
+
+Новый scripts/debugger/pb_retry_epochs_v3.js SHA
+6171487904ad9a317487531bd98a184f4f3e37cdf156d7ae78e7e6ce92ff2cd6.
+Profile/stage suffix20261021-v3, profileSHA
+2b96749edd71a04b7c2d638c611c720af592b39e29f0db55b8e36fe42ae4502e.
+POLICY version6, raw caps прежние. Старые JS/profile/stage не изменены.
+После verified callerchain/key5/consume/targetports, ДО CurrentMdl equality,
+пишутся SELECTED, STATE stage=selected, BUFFER stage=selected. НаSEND тоже
+BUFFER baseline: current_mdl/current_offset/length/nb20_raw/nb28_raw,
+saved_header/header_readable/header_match. NB+20/+28 ожидаются MdlChain/DataOffset;
+USER host dt ndis!_NET_BUFFER MdlChain DataOffset должен подтвердить20/28hex
+перед новымRun. До подтверждения интерпретировать только как raw fields.
+Selected snapshot не доказывает physical packet lifetime/accepted socket join.
+Старые strict guards и MATCH критерии сохранены; cursor0 всё ещёзакрываетepoch,
+но теперь context/state snapshot не теряется. Error/gaps не превращаются вsuccess.
+Reporter отдельно хранит selected_state/selected_buffer/count, валидирует их
+порядок/selector/headerflags. Selected без verified RECEIVE не даётcomplete.
+Max8selected и8receive STATE (policy4:16), buffer max16; raw hits не добавлены.
+
+Private pb-retry-v3-proof-20261021-r1:9/9 actual CDB cases passed, включая
+cursor_advanced (CurrentMdl0/length0/DataOffset20, прежнийchain/header/context
+видны доreject) и header_changed (snapshot есть, MATCH отвергнут).
+Parser проверен на тех же9 выводах +3 искажённых/неполных консолях, не CDB rerun;
+explicit synthetic model header replacement, неkernelcoverage. Bound47files.
+Не запускались product/traffic/hostdebugger/полные старые suites.
+Готовится fresh plan v3; не Resume/refreeze предыдущий.
+
 ## USER Run192940: native failure valid, selected receive reached mutable-MDL guard
 
 artifacts/diagnostics/pb-target-accept-run-20261020-192940-328e41f1.

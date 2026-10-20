@@ -4,22 +4,24 @@ import json
 from pathlib import Path
 from pb_retry_epochs_fixture import SCRIPT,SCRIPT_SHA,CASES,FIXTURE
 
-PROFILE='scripts/debugger/pb-kd-per-send-nbl-profile-20261021-v2.json'
-STAGE='scripts/debugger/pb-kd-per-send-nbl-update-20261021-v2.wdbg'
-PROFILE_SHA='81aeaf42dc29e155564a66b4c012d5d6a19bf8a0e07d002bf44936063345e24c'
+PROFILE='scripts/debugger/pb-kd-per-send-nbl-profile-20261021-v3.json'
+STAGE='scripts/debugger/pb-kd-per-send-nbl-update-20261021-v3.wdbg'
+PROFILE_SHA='2b96749edd71a04b7c2d638c611c720af592b39e29f0db55b8e36fe42ae4502e'
 ACTION='!pbrcreate @r14, @rdi, @rax; gc;'
 
 
 def profile():
-    return dict(method='kd-per-send-nbl-20261021-v2',registered_point_ids=[2],dynamic_point_ids=[3,4],active_point_ids=[],
+    return dict(method='kd-per-send-nbl-20261021-v3',registered_point_ids=[2],dynamic_point_ids=[3,4],active_point_ids=[],
         host_enable_point_ids=[2],script=SCRIPT,script_sha256=SCRIPT_SHA,initialization='pbRetryInitKernel',model_required=0,
         raw_hit_limits_per_point={'2':16,'3':128,'4':512},max_total_raw_hits=656,max_send_observations=8,per_send_read_limit=64,
+        pre_identity_context_snapshot=True,buffer_raw_offsets=[8,16,24,32,40],
         points=[dict(id=2,target='tcpip!AlepCreateRedirectRecord+0x396',action=ACTION)],
         automatic_disable=True,automatic_enable=True,recovery=['bd2','dx @$scriptContents.pbRetryStop()','g'],
         limits=['Epoch is one helper SEND observation, not a network retransmission number.',
                 'Receive storage and packet identity remain mandatory; no global ACCEPT point.',
                 'A replaced or expired epoch is a gap, not proof of context absence.',
-                'Last observed SEND must have a verified receive snapshot; no kernel endpoint/socket join is claimed.'])
+                'Last observed SEND must have a verified receive snapshot; no kernel endpoint/socket join is claimed.',
+                'Selected-flow snapshots precede packet guards and never prove physical-packet identity.'])
 
 
 def policy(target=True):
@@ -31,7 +33,8 @@ def policy(target=True):
         automatic_debugger_enable_after_send=[4],raw_hit_limits_per_point={'2':16,'3':128,'4':512},max_total_raw_hits=656,
         max_send_observations=8,per_send_read_limit=64,nbl_watch_size=8,list_node_limit=8,
         watch_field='selected-source-endpoint+0x30-and-replaceable-per-send-nbl+0xe0',
-        selected_snapshot_limits_per_point={'2':1,'3':8,'4':8},packet_header_count_max=8)
+        selected_snapshot_limits_per_point={'2':1,'3':8,'4':16},packet_header_count_max=8,
+        pre_identity_context_snapshot=True,buffer_snapshot_count_max=16,buffer_raw_offsets=[8,16,24,32,40])
     return p
 
 
