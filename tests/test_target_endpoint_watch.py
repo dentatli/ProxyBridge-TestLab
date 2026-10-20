@@ -48,6 +48,12 @@ class EndpointWatch(unittest.TestCase):
         self.assertNotIn('host_deadline_ms',p)
         with self.assertRaisesRegex(ValueError,'REQUIRES_FLAG_MODE'):prepare(ROOT,ROOT,ROOT,endpoint_watch=True)
 
+    def test_loaded_watch_does_not_enable_global_accept(self):
+        p=policy(True)
+        self.assertEqual(p['debugger_points'],[2,3]);self.assertEqual(p['host_enable_debugger_points'],[2])
+        self.assertEqual(p['inactive_debugger_points'],[4]);self.assertEqual(p['max_total_raw_hits'],32)
+        self.assertEqual(p['fillers'],200);self.assertEqual(p['control_connections'],1)
+
     def test_registration_requires_absent_dynamic_slot(self):
         with tempfile.TemporaryDirectory() as temp:
             p=Path(temp)/'receipt.json';boot=dict(method='kernel-general-12-and-prefetch-bootid-v1',cryptographic_boot_identity=False,

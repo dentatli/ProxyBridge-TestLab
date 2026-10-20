@@ -1,5 +1,56 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Healthy080831 подтверждён; ETW071515 нашла paused-listener SYN/RST, target подготовлен
+
+Prepare082026-4cb10828: PREPARED_NOT_RUN, exit_code=0, SHA
+6b03bbf77f35ea6c2bda36a654d223b0e0f8c5af594d32de495a662fc5fe350e.
+Сохранённые prepare-result/prepare-output подтверждены. Новый Run не запускался.
+План: host_enable=[2], dynamic=[3], inactive=[4], max_total_raw_hits=32,
+200 fillers + 1 control, same boot117. После фиксации исходников нужен Inspect.
+CoS write_stdin75897 отказал EXEC_CALLER_UNIDENTIFIED; не повторять этот вызов
+без восстановления identity. Первый shell listing не показал файлы из-за вывода;
+ошибочное сообщение об остановке подготовки исправлено после чтения результата.
+
+USER Run080831-836f3e53: WATCH TRACK/ARMED,5writes,RETRIEVEstatus0/outputsameRecord,
+реальныйпереход01101641→01301641 ПОСЛЕhealthyRETRIEVE. RIPfffff8061bdf3678 =
+RecvTcpDatagram+198,stack8совпалспрежнимreceivepath. Strictwatchreport
+ENDPOINT_WATCH_NATIVE_SUCCESS_OBSERVED/errors[]/nativeerrors[],post_writeobservedtrue,
+transitiontrue; rootcause/trapcoveragefalse. Session/cohortCOLLECTED,cleanup_errors[],
+residentdisabledaftertrue/native_stoppedtrue/CLIpoststoptrue. Private
+pb-endpoint-watch-review-20261020-080831:userexcerpt/provenance/watchreport.
+Этоопровергаетгипотезу«самоустановлениеbit21являетсяошибкой»; writerнормален
+иуhealthy. Предшествующийbit20healthyпойманвWfpAleAuthorizeConnect+11b(nextIP5be7f).
+
+БезновогоRun разобраныужеимеющиесяETWhealthy080831 иfailure071515-235400ff.
+Loss-gatesобеихтрассerrors[]. Строгоtuple127.0.0.1:42201↔34010,clientTCBвграницах
+1002init→1044close,нулевойTCBНЕjoinkey; pointerreuseвнеинтервалаисключён.
+HealthyPID10080: query0/32bytes,1186нет,1214Reason30нет,1479Reason2нет.
+FailurePID5260: query10022/0bytes,1186RexmitCount1/2; два1214Reason30 и1479Reason2.
+Get-WinEvent.FormatDescriptionнаэтойETL/текущемTCPIPproviderрасшифровал:
+Reason30 «Listener dropped SYN because SO_PAUSE_ACCEPT was set»;
+Reason2 «Listener was paused»(sentRST); client1214Reason10 «Received RST (subreason 0)».
+Этоустановленныйраннийтриггер, НЕдоказанноекем/почемувключениепаузы иНЕполная
+причинапотериконтекста. Query→ETWclockalignmentнеустановлен;невыводитьизнихточные
+задержкиилибит21наконкретномRSTбезследующегоадресногозахвата.
+JSONevidenceetw-control-comparison иdecoded-events/control-rst-receive сохранены
+вprivatehealthyreview. ПерваяпопыткаETWjoinвывелалишнееиз-за0x0 иTCBreuse:
+исправленоKEYspecific/nonzero+lifetimeinterval,неиспользоватьстарыйширокийjoin.
+
+CurrentfrozenCoreoriginalрежим:Invoke-TargetAccept.ps1ставитPB_TESTLAB_ROUTE_CASE=original;
+pb_relay_tcp.cстр47listenSOMAXCONN,firstacceptдиагностическийgateстр155–159.
+SO_PAUSE_ACCEPTвпроверенныхисходникахявнонеустанавливается;отсутствиеgrepне
+доказываетотсутствиеAFD/kernel/другогопути. НеобъявлятьэтоошибкойProxyBridgeDrv
+илификситьbacklogвпродуктебезпроверкимеханизма. Поведение10061нерасследуем,
+pausedlistenerRSTсохранитькакпобочнуюзацепку,безсамостоятельноговывода.
+
+СледующийEndpointWatch target:тежепрофиль/команды иproof, толькоCREATE2initialactive,
+динамическаяdatawatch3;4ПОЛНОСТЬЮinactive,hostenable[2],max32hits. Ненужный
+глобальныйACCEPTубран:10022записываетсянативно. Workloadпрежний200+1/hostwindow15s,
+наREADYтолькоbe2/g,затемлатинскаяCбезEnter. Recoverybd2/условныйbc3(t8)/bd4/g.
+Нерегистрироватьзаново2/4,ненужныbl/bpcmds. Samebootpositive080831использовать
+какreadonlyevidence;newfreshplan,неResume/неповторстарогоRun.
+7endpointtests/PSparserpassed;саминовыйRun/Break/enable/stepневызывали.
+
 ## Selected endpoint data watch: новый механизм проверен отдельно, готовится4-control
 
 Prepare075646-9964f95b exit0/PREPARED_NOT_RUN SHA

@@ -18,6 +18,10 @@ def policy(target=False):
              automatic_enable_authorization='user-selected-endpoint-observation-20261020')
     del p['selected_snapshots_per_point']
     p['selected_snapshot_limits_per_point']={'2':1,'3':16,'4':1}
+    if target:
+        # The failing API query is recorded natively; a global ACCEPT trap is unnecessary.
+        p.update(debugger_points=[2,3],host_enable_debugger_points=[2],inactive_debugger_points=[4],max_total_raw_hits=32)
+        p['selected_snapshot_limits_per_point']['4']=0
     return p
 
 

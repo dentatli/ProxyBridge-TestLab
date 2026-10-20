@@ -205,7 +205,7 @@ def validate(plan_path, sha, root):
     removal = p.get('policy', {}).get('observer') == 'etw+kd-target-removal'
     retry = p.get('policy', {}).get('observer') == 'etw+kd-target-retry'
     flow = retry or removal or p.get('policy', {}).get('observer') == 'etw+kd-target-flow'
-    kd = p.get('policy', {}).get('debugger_points') == (([2,4] if flag_four and not flag_armed else [2,3,4]) if flag else ([2,3,4,5,6] if retry else ([2, 3] if removal else ([2, 3, 4] if flow else [2]))))
+    kd = p.get('policy', {}).get('debugger_points') == (([2,3] if flag_watch and not flag_four else [2,4] if flag_four and not flag_armed else [2,3,4]) if flag else ([2,3,4,5,6] if retry else ([2, 3] if removal else ([2, 3, 4] if flow else [2]))))
     retrieve = p.get('policy', {}).get('observer') == 'etw+kd-target-retrieve'
     staged = p.get('policy', {}).get('workload') == 'create-target-201-staged'
     retrieve_four = p.get('policy', {}).get('workload') == 'retrieve-four-probe'
