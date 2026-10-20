@@ -1,6 +1,40 @@
 # Передача чату диагностики TCP / WinDbg
 
-## USER разрешил512; подготовлен отдельный caller-first helper
+## Run184136: cap512 не достигнут; остановка по смене packet storage
+
+USER Run pb-target-accept-run-20261020-184136-77cd08c4. Attachment сохранён
+private pb-nbl512-review-20261020-184136/user-console.txt SHA
+270636c76f2a543b080ce68b8d41e55f19a3fdee7bfc912763441522dfb6bfc4.
+Native TARGET_FAILURE_REPRODUCED/errors[]: controlPID13644/query201/socket5948/
+relay10000/API-1/10022/0bytes/required32, peer42201/local34010/readerrors0.
+COLLECTED/cleanup[]/residentdisabledtrue, ETWloss0. Native TimeSlice341.388
+не использовать как throughput/capacity evidence; observer меняет тайминги.
+
+SOURCE EPc5879770/recordc4bbf2a0/contextc626e820, SEND1/2 NBLc84e8b70
+flags01101641, SEND3raw2b NBLbfdec030 flags01301641. STATE send снова
+info_raw1/info0/root0/key5absent. SUMMARY total1a2=418, ipfe=254,
+retrieve88=136, accept1b=27, key/consume/object0, samples4.
+254+136+27=417 отклонённых обращений. На418 совпали IP/NBLaddress/key/consume
+и обе return-chain проверки, затем pbNblCheckIdentity выбросил
+PACKET_STORAGE_CHANGED: NB pointer либо MDL pointer отличается от SEND snapshot.
+Снимкаreceive/RECEIVE/DONE нет. Проверка целевых ports выполнялась ПОСЛЕ
+storageguard и не достигнута: нельзя утверждать, что418 был именно control.
+Доказано расхождение storage, не доказан free/reuse NBL и не порча памяти
+драйвером. Возможны reuse/перестройка буферов, время изменения не зафиксировано.
+Old Get callers вsamples: fwpk+51ea/+5288 иtcpip offset поret082e46af;
+не присваивать им имена функций без symbol/disassembly review.
+
+Это не READ_LIMIT:418<512. Дальнейшее повышение cap не исправляет identity.
+Строгий report INCOMPLETE, дополнительно CONFIG/POLICY отсутствуют вфрагменте;
+файлы nbl-report/native-summary сохранены без синтеза заголовков.
+Следующий candidate должен учитывать новый NBL каждого повторного SYN/
+epoch и не держать один raw address через все retries. Отдельный source
+watch плюс заменяемый per-SYN NBL watch — вариант для review, не готовый
+профиль и не разрешение на немедленный Run. Нужны новые proof/plan, не Resume.
+Agent не включал точки/не повторялRun/не менял helper илиdriver. Guards не
+ослаблять: сменаstorage остаётся основанием неполного physical-packet join.
+
+## Предыдущая контрольная точка: USER разрешил512
 
 Fresh plan512 pb-target-accept-plan-20261020-183157-a89c2062/runtime-plan.json
 SHA C3C9DE234C72B5331BD994790FC2B13BB7403EF97322CA58E6FD596D71D2900C:
