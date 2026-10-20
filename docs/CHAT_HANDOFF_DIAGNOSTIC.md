@@ -1,5 +1,36 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER Run194747: send-observation cap и native timeout, selected snapshot не получен
+
+artifacts/diagnostics/pb-target-accept-run-20261020-194747-71c2d0a8.
+Native report INCOMPLETE, control_matches[], CTXDIAG peer42201 вCLI отсутствует.
+diagnostic FAILED TARGET_COHORT_INCOMPLETE:TARGET_NATIVE_TIMEOUT; cohort
+cleanup TARGET_NATIVE_FORCED_STOP/native_processes_stopped=false; receiver
+controlled-stop failed. Resident synchronous disable true, CLI graceful/poststop
+true, interception_cleanup_verified=false. Не утверждать full cleanup/10022
+reproduction по этому Run. TARGETGATE released=1, то есть C была принята.
+
+USER console: TRACK sourcec7f20ca0/recordc72dc010/contextb71866b0.
+seqc5ac1bff неизменен; epoch1/2 одинNBLc5211030, key5 absent->present trackedrecord.
+Epoch3/4 NBLc79c0c00,5/6 c6cd9620,7/8 c62107f0, flags1301641/key5absent.
+BUFFER SEND везде CurrentMdl==nb20_raw, offsets nb28_raw/current_offset=e4,
+length20hex=32, header_readable/match1. ЭтоSEND, НЕ receive cursor evidence.
+READ_LIMIT64 наepoch2/4; epoch6 REPLACED reads5; epoch8 STOPPED reads32hex=50.
+FINAL source_reads58hex=88/sends8/readsbehex=190/pairs0/error1 TOTAL_LIMIT.
+Source gate проверяет r.sends<8 && r.reads<512: при190reads причинаTOTAL_LIMIT
+точно send cap, наследующем helperSEND после8. STOPPED — внутренняяpbRetryFail
+cleanup, не доказательство преждевременного ручногоUSERstop.
+Ни SELECTOR, ни SELECTED/STATE selected/BUFFER selected нет. Ни один новый
+вывод о CurrentMdl0/полученииконтекста отсюда невозможен. CONFIG/POLICY/dt
+не присланы; не синтезировать их. Истинная product rootcause остаётсяне доказана.
+
+Следующий подход должен уменьшить observer overhead и не тратить epoch на
+дубли helperSEND одногоNBL без продвижения. Простое увеличениелимитов не
+решает native timeout; не повторять этотRun/не Resume/refreeze егоplan.
+Перед новымRun разобраться с точечными snapshot/критериемповтора иtimeout,
+сохранить ограниченность/идентичность и raw observations против hypotheses.
+Агент прочитал артефакты; новых Run/Break/build/tests/driverchanges не делал.
+
 ## Готов новый план v3; host init и Run pending
 
 artifacts/diagnostics/pb-target-accept-plan-20261020-194409-df26a357/runtime-plan.json
