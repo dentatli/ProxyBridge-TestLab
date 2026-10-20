@@ -2,6 +2,22 @@
 
 ## USER разрешил512; подготовлен отдельный caller-first helper
 
+Fresh plan512 pb-target-accept-plan-20261020-183157-a89c2062/runtime-plan.json
+SHA C3C9DE234C72B5331BD994790FC2B13BB7403EF97322CA58E6FD596D71D2900C:
+PREPARED_NOT_RUN/exit0/productfalse/trafficfalse, sameboot118. Registration
+pb-nbl512-registration-20261020-r1/prepared-commands.json: host_helper512_init
+pending, host_registration_observedfalse, registered actions прежние.
+Build19-r2 reused, sourcepositive131915 перепроверен. Без нового build/install.
+Проверен реальный HTTPS download helper512 из source commit
+ca87747c56eefb72b47fc9bd835dd227de1527e7 и SHA совпал. USER получает host
+PowerShell download+hash, затем old64Stop/unload64/load512/init/reset t1/t3/t8/g.
+До CONFIGmodel0/POLICYread_limit200-version3/true новый Run не запускать.
+После PREFILL_READY host Break/be2/g и латинскаяC вVM, окно15sec. Recovery
+bd2/dxStop/conditionalt8-bc3/bd4/g. Перед каждымBreak/enable предупредить
+wholeVM/Codex/RDP; g отдельнойстрокойдажеприошибке. Не проситьbl/bpcmds.
+Прислать CONFIG/POLICY вместе с этимRun, dxfalse строки можно пропустить;
+внешний samplefile сохранять какесть, заголовки не синтезировать.
+
 Run182237-009f5b16: USER attachment сохранён private pb-nbl64-review-20261020-182237/
 user-console.txt SHA517edc85e1eb30f7afcbd1e7871f73e6a91ea8775728c86cc8389a278882d351.
 Native TARGET_FAILURE_REPRODUCED/errors[]: controlPID14420/query201/socket6068/

@@ -1,5 +1,38 @@
 # Следующая проба: состояние контекста выбранного повторного SYN
 
+## Следующая подготовка: USER разрешил NBL512
+
+Run182237 снова показал SEND info_raw1/masked0/key5absent, а receive остался
+непойманным до cap64. SUMMARY total40/ip26/key1a (hex):64/38/26. Старый KEY
+означал RSI!=5 до проверки caller chain, а не доказательство26 других WFP
+ключей. Native query201/controlPID14420 вернул10022/0bytes, cleanup[] и ETWloss0.
+Фрагмент без CONFIG/POLICY, fullreportINCOMPLETE сохранён без добавления строк.
+Private review `pb-nbl64-review-20261020-182237/`, исходный attachment SHA
+`517edc85e1eb30f7afcbd1e7871f73e6a91ea8775728c86cc8389a278882d351`.
+ETW показывает SYNdrops30/retries1/2/3; нет clockalignment к конкретномуNBL.
+
+По явному разрешению USER подготовлен отдельный `pb_nbl_context512.js`, SHA
+`f78b4ac191a85b30d0a7ce1e25868d77485c572b5f73bd6eeacde4782e4b6c74`.
+Теперь caller return chain проверяется перед интерпретацией RSI/RBP. Остальные
+guards/listcap8/tuple и packet checks сохранены. Max512 NBL reads,4samples,
+oneSUMMARY; max16CREATE+64source+512NBL=592. Registered actions прежние, без
+новой глобальной точки и увеличения нагрузки. POLICY read_limit200/version3.
+Profile512 SHA `12a6e813b3513d9e4d923c8952df0bc94433794550cb1031960c71fa234d9ece`.
+28 helper +7 integrated CDB cases passed;142 target +15 report tests passed.
+Combined proof180files. Kernel срабатывание512 пока не проверено.
+
+Fresh plan `pb-target-accept-plan-20261020-183157-a89c2062/runtime-plan.json`,
+SHA `C3C9DE234C72B5331BD994790FC2B13BB7403EF97322CA58E6FD596D71D2900C`,
+PREPARED_NOT_RUN/exit0/productfalse/trafficfalse, boot118, build19-r2 reused.
+Helper512 init на host pending, независимый hostproof не заявлен. Проверен
+реальный download и SHA опубликованного файла из pinned source commit
+`ca87747c56eefb72b47fc9bd835dd227de1527e7`. USER получает прямые команды
+download/hash и unload64/load512/init/reset/g. Только после model0/POLICY200/
+true допустим свежийRun. При READY толькоbe2/g и C; recovery прежний сdxStop.
+Break/enable остаются USER-only с предупреждениемwholeVM/Codex/RDP.
+CONFIG/POLICY нужно приложить к этому Run, dxfalse строки можно не копировать.
+СтарыеRun/profile/helper16/64 не изменены, повтор не выполнялся.
+
 ## Готов отдельный вариант NBL64
 
 USER разрешил cap64 плюс bounded reject diagnostics. Новый helper
