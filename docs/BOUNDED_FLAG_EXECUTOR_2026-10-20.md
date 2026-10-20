@@ -53,3 +53,19 @@ SHA9d78a5905f19630de411a451f5df5406e3707c5e4808603a8eeb8a3b4890008e.
 ПередактивациейUSER зарегистрирует2/3/4disabled иresettrackers. Послеbe2/be4/g
 запускаетVMRunсDebuggerLoggerEnabled/FlowProfileRegisteredDisabled;3неактивна.
 НовыйRun самимагентом не запускался, native/debuggercoverage покаотсутствует.
+
+## Результат контрольного прогона и следующий план
+
+Run065643-4f819598: все4соединенияуспешны, run/cohortCOLLECTED, cleanuperrors[],
+CLIgraceful/poststoptrue, residentdisabledaftertrue. USER TRACK+RETRIEVEstatus0
+совпалипоrecord; Flagreport FLAG_PROBE_SUCCESS_OBSERVED/errors[]. Setter3была
+неактивна — положительныйконтрольнеявляетсяcoverageэтойточки. Privateevidence
+pb-flag-four-review-20261020-065643; пользовательсвязалстрокисlatestRun,
+independentconsoleboundaryнеподтверждалась. Повторконтроляне нужен.
+
+FlagTargetPrepare065820-5f641b23 exit0/PREPARED_NOT_RUN,
+SHAb69f99466387aa31f864161c25f5b956f9b645f3ade0a38c3bc12bf78d6b5e1a.
+Тежеactions/драйвер/нагрузка200+1; связаныbaselineboot117/proof14files.
+Новаярегистрацияне нужна: передRun USERbd2/3/4, reset t1..5 иg; наREADY
+включает2/3/4 иg, затемCвVM. Нельзя включатьдоREADY илиоставлятьстарыеcounters.
+ПослеRunилиошибкиbd2/3/4/g; Runнеповторять. Автоматическаяактивацияотсутствует.

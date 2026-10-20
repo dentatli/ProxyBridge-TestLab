@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## FlagProbe065643 успешен; FlagTarget065820 подготовлен, не запускался
+
+USER короткийконтроль Run065643-4f819598: TRACK1/RETRIEVE1, status0,
+output_raw совпалсCREATErecord, size32/refs1. Native replay: все4успешны,
+run/cohortCOLLECTED, cleanup_errors[], native_processes_stoppedtrue,
+CLIgraceful/poststoptrue, resident_disabled_aftertrue. Flagreport
+FLAG_PROBE_SUCCESS_OBSERVED/errors[]/native_errors[]. Private
+pb-flag-four-review-20261020-065643 содержит user-associated2loggerlines,
+provenance иflag-report; нетindependenthostcaptureboundary/recoveryconsole.
+Точка3былаinactive, еёruntimecoverage этимнепроверена. Старыйprobeнеповторять.
+
+Новый FlagTargetPrepare065820-5f641b23 exit0/PREPARED_NOT_RUN,
+SHAb69f99466387aa31f864161c25f5b956f9b645f3ade0a38c3bc12bf78d6b5e1a.
+Связаныexactprofile/CDBproof14files/sameboot117positiveprobe. Драйверresident
+Running, фактическогоновогоRun/producttraffic нет. Source/profile/stage не
+менялисьпослеbaseline, лишниеtests не повторялись. Неrefreeze/Resumeoldplans.
+
+USERполучаеткомплектбезповторнойрегистрации/bl: BreakсwholeVM/Codex/RDPwarning,
+bd2/bd3/bd4/reset t1..5/g в одномблоке, затемVMRun с
+DebuggerPointsDisabled/BoundedLoadReviewed/FlowProfileRegisteredDisabled.
+ТольконаTARGET_PREFILL_READY: hostBreak,reset t1=0,be2,be3,be4,g однимблоком,
+затемлатинскаяCбезEnterвVM в15sокне. Самоотключениепоselected/limit16, максимум
+48rawhits, одинk8. Послеcompletion/error bd2/bd3/bd4/g дажеошибка. НеrepeatRun.
+Состояниеoffвыводитсяизпротестированногоselectedacceptaction; доRun bdявно
+повторяетсядлябезопасногосброса. Не заявлять user-pastedmanualrecovery, егоне было.
+
 ## Boot117: bounded flag executor готовится; сначала короткийконтроль2/4
 
 USER новыйWinDbgconnection, blпуст, CREATE/SETTER/ACCEPTпроверены; tcpipbase
