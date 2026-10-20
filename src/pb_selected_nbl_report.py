@@ -7,7 +7,7 @@ from pb_target_retrieve_report import parse
 from pb_selected_nbl_profile import policy,PROFILE_SHA
 
 
-def correlate(text):
+def correlate(text,read_limit=16):
     r=send_correlate(text,True)
     r.update(config=None,send_state=None,receive=None,receive_state=None,done=None,
         kernel_accept_status_observed=False,root_cause_proven=False)
@@ -35,11 +35,11 @@ def correlate(text):
                 r[stage+'_state']=v;step+=1
             elif line.startswith('PBN ARMED '):
                 a=parse(line,'PBN ARMED ','nbl address limit'.split())
-                if step!=1 or a['nbl']!=r['send_state']['nbl'] or a['address']!=a['nbl']+0xe0 or a['limit']!=16:raise ValueError('NBL_ARM_INVALID')
+                if step!=1 or a['nbl']!=r['send_state']['nbl'] or a['address']!=a['nbl']+0xe0 or a['limit']!=read_limit:raise ValueError('NBL_ARM_INVALID')
                 step=2
             elif line.startswith('PBN RECEIVE '):
                 v=parse(line,'PBN RECEIVE ','nbl ep raw key consume'.split())
-                if step!=2 or r['receive'] or v['nbl']!=r['send_state']['nbl'] or not v['ep'] or not 1<=v['raw']<=16 or (v['key'],v['consume'])!=(5,1):raise ValueError('NBL_RECEIVE_INVALID')
+                if step!=2 or r['receive'] or v['nbl']!=r['send_state']['nbl'] or not v['ep'] or not 1<=v['raw']<=read_limit or (v['key'],v['consume'])!=(5,1):raise ValueError('NBL_RECEIVE_INVALID')
                 r['receive']=v
             elif line.startswith('PBN DONE '):
                 d=parse(line,'PBN DONE ',['nbl'])
@@ -61,10 +61,20 @@ def evaluate(capture,console):
     from pb_target_accept_report import evaluate as native_evaluate
     capture,console=Path(capture),Path(console)
     p=read(capture/'runtime-plan.json');run=read(capture/'diagnostic-run.json')
+    nbl64=p['policy'].get('endpoint_nbl64_context') is True
+    expected_sha=PROFILE_SHA;expected_policy=policy()
+    if nbl64:
+        from pb_selected_nbl64_profile import PROFILE_SHA as expected_sha,policy as policy64
+        expected_policy=policy64()
     sha=hashlib.sha256((capture/'runtime-plan.json').read_bytes()).hexdigest()
-    checked(p['debugger_profile'],PROFILE_SHA)
-    if p['policy']!=policy() or run.get('debugger_observer') is not True or run.get('flow_registration_acknowledged') is not True or run.get('plan_sha256','').lower()!=sha:raise ValueError('NBL_CAPTURE_BINDING_INVALID')
-    raw=console.read_bytes();r=correlate(raw.decode('utf-8-sig'));n=native_evaluate(capture)
+    checked(p['debugger_profile'],expected_sha)
+    if p['policy']!=expected_policy or run.get('debugger_observer') is not True or run.get('flow_registration_acknowledged') is not True or run.get('plan_sha256','').lower()!=sha:raise ValueError('NBL_CAPTURE_BINDING_INVALID')
+    raw=console.read_bytes()
+    if nbl64:
+        from pb_selected_nbl64_report import correlate as correlate64
+        r=correlate64(raw.decode('utf-8-sig'))
+    else:r=correlate(raw.decode('utf-8-sig'))
+    n=native_evaluate(capture)
     controls=[c for c in n['matches'] if c['role']=='control']
     r.update(plan_sha256=sha,console_sha256=hashlib.sha256(raw).hexdigest(),native_status=n['status'],native_errors=n['errors'],automatic_capture_scope_verified=False)
     if n['errors'] or len(controls)!=1 or controls[0]['peer']!='127.0.0.1:42201' or not controls[0]['original_api_failure']:r['errors'].append('NBL_NATIVE_FAILURE_JOIN_INCOMPLETE')

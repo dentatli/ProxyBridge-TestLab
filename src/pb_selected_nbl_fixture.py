@@ -13,7 +13,7 @@ from pb_selected_nbl_profile import create_action,profile,PROFILE,SCRIPT,SCRIPT_
 CASES=('absent','present','removed','packet_changed','read_limit','source_read_boundary','bad_header')
 
 
-def source(case):
+def source(case,read_limit=16):
     s=FIXTURE.replace('CASE',repr(case))
     s=s.replace("mov=lambda op,v:","put32(b+0x5000,0xd9a40002);put32(ep+0x30,0x1101641)\nput64(record+0x1e0,b+0x4e00);put64(record+0x1e8,32);put32(record+0x1f0,1)\nmov=lambda op,v:")
     s=s.replace("code+=bytes.fromhex('cc')", "ctypes.memmove(b+0x1800,bytes.fromhex('90 c3'),2)\ncode+=mov('49 be',b+0x5000)+bytes.fromhex('cc')+mov('49 bb',b+0x1800)+bytes.fromhex('41 ff d3')")
@@ -27,19 +27,20 @@ code+=bytes.fromhex('81 49 30 00 00 20 00')+call(b+0x1000)"""
         s=s.replace("code+=bytes.fromhex('81 49 30 00 00 20 00')+call(b+0x1000)",
             "code+=bytes.fromhex('81 49 30 00 00 20 00')+bytes.fromhex('8b 41 30')*61+call(b+0x1000)")
     if case=='bad_header':s=s.replace('42201,34010,123','42202,34010,123')
+    if read_limit!=16:s=s.replace("bytes.fromhex('48 8b 81 e0 00 00 00')*16", "bytes.fromhex('48 8b 81 e0 00 00 00')*"+str(read_limit))
     return s
 
 
-def check(output):
+def check(output,script_relative=SCRIPT,script_sha=SCRIPT_SHA,profile_relative=PROFILE,expected_profile=None,read_limit=16):
     root=Path(__file__).resolve().parents[1];output=Path(output).resolve()
     output.mkdir(parents=True,exist_ok=False)
-    script=root/SCRIPT;raw=(root/PROFILE).read_bytes()
-    if hashlib.sha256(script.read_bytes()).hexdigest()!=SCRIPT_SHA or json.loads(raw)!=profile():raise ValueError('NBL_CANDIDATE_CHANGED')
+    script=root/script_relative;raw=(root/profile_relative).read_bytes()
+    if hashlib.sha256(script.read_bytes()).hexdigest()!=script_sha or json.loads(raw)!=(profile() if expected_profile is None else expected_profile):raise ValueError('NBL_CANDIDATE_CHANGED')
     (output/'candidate.json').write_bytes(raw)
     sdk=Path('C:/Program Files (x86)/Windows Kits/10/Debuggers/x64');cases=[]
     for case in CASES:
         child=output/case;child.mkdir();(child/'symbols').mkdir()
-        (child/'target.py').write_text(source(case),encoding='ascii')
+        (child/'target.py').write_text(source(case,read_limit),encoding='ascii')
         setup=['r @$t0 = @rsi+0x1003','bp2 (@rsi+0x1100) "gc"','bd2','bp4 (@rsi+0x1200) "gc"','bd4',
             'r @$t1 = 0','r @$t3 = 0','r @$t8 = 0',
             'dx @$scriptContents.pbNblInitModel(@rsi+0x200d, *(unsigned __int64*)(@rsi+0x18000), *(unsigned __int64*)(@rsi+0x18008), 0xbad0)',
@@ -61,7 +62,7 @@ def check(output):
         passed=bool(ok) and r.returncode==0 and 'PBN_FIXTURE_DONE ' in text and not re.search(r'(?im)^.*(?:Error:|Syntax error|Extra character error|Traceback|Single step exception).*$',text)
         cases.append(dict(case=case,passed=passed,exit_code=r.returncode,observations=lines))
         if not passed:break
-    result=dict(method='selected-nbl-integrated-cdb-proof-v1',script_sha256=SCRIPT_SHA,profile_sha256=hashlib.sha256(raw).hexdigest(),
+    result=dict(method='selected-nbl-integrated-cdb-proof-v1',script_sha256=script_sha,profile_sha256=hashlib.sha256(raw).hexdigest(),
         passed=len(cases)==len(CASES) and all(c['passed'] for c in cases),cases=cases,
         kernel_connection=False,product_started=False,traffic_generated=False,
         guard_expressions_replaced_with_true=True,kernel_thread_replaced_with_tid=True,gate_symbol_replaced_with_fixture_address=True)

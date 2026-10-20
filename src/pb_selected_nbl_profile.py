@@ -83,32 +83,34 @@ def registration(profile_path,receipt_path,receipt_sha,boot):
     return p
 
 
-def parser_proof(path):
+def parser_proof(path,profile_sha=PROFILE_SHA,script_relative=SCRIPT,script_sha=SCRIPT_SHA,
+                 helper_method='selected-nbl-js-cdb-proof-v1',helper_case_names=None,source_limit=16):
     from pb_kd_session import read,checked,inventory
     from pb_prepare_kd_baseline import plain,digest
     from pb_selected_nbl_fixture import CASES,source
     from pb_nbl_context_fixture import CASES as helper_cases
     from pb_endpoint_send_gate_fixture import transform
     path=plain(Path(path));r=read(path)
+    if helper_case_names is not None:helper_cases=helper_case_names
     if (r.get('method')!='selected-nbl-integrated-cdb-proof-v1' or r.get('passed') is not True or
-        r.get('profile_sha256')!=PROFILE_SHA or r.get('script_sha256')!=SCRIPT_SHA or
+        r.get('profile_sha256')!=profile_sha or r.get('script_sha256')!=script_sha or
         any(r.get(k) is not False for k in ('kernel_connection','product_started','traffic_generated')) or
         any(r.get(k) is not True for k in ('guard_expressions_replaced_with_true','kernel_thread_replaced_with_tid','gate_symbol_replaced_with_fixture_address')) or
         [c['case'] for c in r['cases']]!=list(CASES) or any(c.get('passed') is not True or c.get('exit_code')!=0 for c in r['cases'])):
         raise ValueError('NBL_INTEGRATION_PROOF_INVALID')
-    root=Path(__file__).resolve().parents[1];checked(root/SCRIPT,SCRIPT_SHA)
-    checked(path.parent/'candidate.json',PROFILE_SHA)
+    root=Path(__file__).resolve().parents[1];checked(root/script_relative,script_sha)
+    checked(path.parent/'candidate.json',profile_sha)
     binding=path.parent/'helper-proof-binding.json';b=read(binding)
     helper=checked(b['path'],b['sha256']);h=read(helper)
-    if (h.get('method')!='selected-nbl-js-cdb-proof-v1' or h.get('passed') is not True or h.get('script_sha256')!=SCRIPT_SHA or
+    if (h.get('method')!=helper_method or h.get('passed') is not True or h.get('script_sha256')!=script_sha or
         any(h.get(k) is not False for k in ('kernel_connection','product_started','traffic_generated')) or
-        any(h.get(k) is not True for k in ('real_cpu_stack_frames','real_memory_watch','real_watch_replacement_from_callback','real_js_provider')) or
+        any(h.get(k) is not True for k in (('real_cpu_stack_frames','real_memory_watch','real_js_provider') if source_limit==64 else ('real_cpu_stack_frames','real_memory_watch','real_watch_replacement_from_callback','real_js_provider'))) or
         [c['case'] for c in h['cases']]!=list(helper_cases) or any(c.get('passed') is not True or c.get('exit_code')!=0 for c in h['cases'])):
         raise ValueError('NBL_HELPER_PROOF_INVALID')
-    files=[path,path.parent/'candidate.json',binding,helper,root/SCRIPT]
+    files=[path,path.parent/'candidate.json',binding,helper,root/script_relative]
     for case in CASES:
         child=path.parent/case
-        if (child/'target.py').read_text()!=source(case):raise ValueError('NBL_PROOF_FIXTURE_DIFFERS')
+        if (child/'target.py').read_text()!=source(case,source_limit):raise ValueError('NBL_PROOF_FIXTURE_DIFFERS')
         expected='bp2 (@rsi+0x1800) '+quoted(transform(create_action()))
         if (child/'setup.wdbg').read_text().splitlines()[-4:]!=[expected,'bd2','be2','g']:raise ValueError('NBL_PROOF_ACTION_DIFFERS')
         files += [child/n for n in ('target.py','setup.wdbg','proof.wdbg','stdout.txt','stderr.txt')]

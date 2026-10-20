@@ -1,5 +1,38 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Подготовлен отдельный NBL64 helper с ограниченной диагностикой reject
+
+USER разрешил следующую подготовку. Новый scripts/debugger/pb_nbl_context64.js
+SHA 90c64083137e2609d3788721544e950884fd8c6e801410bce37ddd3976924173.
+Старый JS/profile/stage и captures не менялись. Profile64 SHA
+fdfebfccb1f24d0a7e79e2618010b1e1ca7628c33e7b44dda5c02db1ba4374c5,
+scripts/debugger/pb-kd-selected-nbl64-context-profile-20261020.json.
+Все registered actions2/3 точно прежние, stage прежний, новую длинную bp
+команду на host не вводить. Меняется только загруженный JS: cap64 NBL reads,
+max4 уникальных REJECT sample +одна SUMMARY, reject countsIP/OBJECT/KEY/
+CONSUME/RETRIEVE_CALLER/ACCEPT_CALLER. Отбор, tuple, frame pins, packet checks
+и listcap8 не ослаблены. Новый CONFIG затем POLICY read_limit40/sample4/version2.
+Source64 +CREATE16 +NBL64=144, одна адресная watch3, никакой global ACCEPT.
+
+Private pb-nbl64-js-proof-20261020-r1:27/27 passed; кроме прежних21 cases,
+late receive21, boundary64, key/consume/retrieve/object reject. READ_LIMIT
+проверен на64, samples<=4/summary<=1. pb-nbl64-integration-proof-20261020-r1:
+7/7 passed, реальные CREATE/source/NBL callbacks, source raw64 handover.
+Combined parser_proof связал175 файлов, metadata не выданы за kernel coverage.
+142 target tests +12 selected-NBL report tests passed. Generic reporter и
+plan поддерживают nbl64 отдельно; старый nbl остаётся с лимитом16.
+Все значения логов в hex. False из callback не NTSTATUS. NBL64 report требует
+POLICY, SUMMARY, непротиворечивые counts и sample sequence, плюс прежние joins.
+Никакого нового продукта/трафика/host Break/enable агентом не запускалось.
+
+Далее свежий plan и USER загрузка helper64. USER предпочитает прямую вставку,
+поэтому дать host PowerShell download из точного commit+SHA, без ручного
+переноса. Сначала host recovery старого helper (bd2/dxStop/conditionalt8/bd4),
+затем .scriptunload старого пути/.scriptload нового, dxInitKernel, reset t1/t3/t8,
+отдельныйg. Только при CONFIGmodel0/POLICY40/true допустим новый USER Run.
+Перед каждым Break/enable warning всяVM/Codex/RDP. Не просить bl/bpcmds,
+так как registered actions не изменились. Шаблон recovery прежний.
+
 ## Run180714: key5 отсутствует на SEND; receive не пойман до cap16
 
 USER Run pb-target-accept-run-20261020-180714-091c4d12 завершён.

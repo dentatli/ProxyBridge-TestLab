@@ -15,6 +15,9 @@ HEALTHY_STAGE='scripts/debugger/pb-kd-target-flag-healthy-setter-update-20261020
 
 
 def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch=='nbl64':
+        from pb_selected_nbl64_profile import PROFILE_SHA as nbl_sha
+        return nbl_sha
     if endpoint_watch=='nbl':
         from pb_selected_nbl_profile import PROFILE_SHA as nbl_sha
         return nbl_sha
@@ -33,6 +36,9 @@ def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=F
 def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
     if endpoint_watch:
         if not (create_armed and accept64) or healthy!=(not target):raise ValueError('ENDPOINT_WATCH_POLICY_INVALID')
+        if endpoint_watch=='nbl64':
+            from pb_selected_nbl64_profile import policy as nbl_policy
+            return nbl_policy(target)
         if endpoint_watch=='nbl':
             from pb_selected_nbl_profile import policy as nbl_policy
             return nbl_policy(target)
@@ -68,6 +74,8 @@ def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint
 
 
 def registration(profile_path,receipt_path,receipt_sha,boot):
+    from pb_selected_nbl64_profile import PROFILE_SHA as nbl64_sha,registration as nbl64_registration
+    if digest(Path(profile_path))==nbl64_sha:return nbl64_registration(profile_path,receipt_path,receipt_sha,boot)
     from pb_selected_nbl_profile import PROFILE_SHA as nbl_sha,registration as nbl_registration
     if digest(Path(profile_path))==nbl_sha:return nbl_registration(profile_path,receipt_path,receipt_sha,boot)
     from pb_endpoint_send_gate import PROFILE_SHA as send_sha,ACCEPT256_SHA,NATIVE_SHA,registration as send_registration
@@ -97,6 +105,9 @@ def registration(profile_path,receipt_path,receipt_sha,boot):
 
 
 def parser_proof(path,create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch=='nbl64':
+        from pb_selected_nbl64_profile import parser_proof as nbl_proof
+        return nbl_proof(path)
     if endpoint_watch=='nbl':
         from pb_selected_nbl_profile import parser_proof as nbl_proof
         return nbl_proof(path)
