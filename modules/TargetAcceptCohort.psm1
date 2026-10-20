@@ -24,16 +24,25 @@ function Invoke-TargetAcceptSequence {
           [Parameter(Mandatory)][scriptblock]$WaitFillers,[Parameter(Mandatory)][scriptblock]$StartControl,
           [Parameter(Mandatory)][scriptblock]$WaitControlSyn,[Parameter(Mandatory)][scriptblock]$Hold,
           [Parameter(Mandatory)][scriptblock]$Collect,[Parameter(Mandatory)][scriptblock]$Cleanup,
-          [scriptblock]$BeforeControl=$null)
+          [scriptblock]$BeforeControl=$null,[switch]$SingleProbe)
     if ($Gate.used) {throw 'TARGET_GATE_ALREADY_USED'}
     $Gate.used=$true
     $fillers=$null;$control=$null
     try {
         $fillers=& $StartFillers
+        # The relay signals ready only after a connection wakes its accept loop.
+        # With no fillers, the single control must provide that wake-up first.
+        if ($SingleProbe) {
+            if ($null -ne $fillers -or $BeforeControl) {throw 'TARGET_SINGLE_SEQUENCE_INVALID'}
+            & $WaitFillers $null
+            $control=& $StartControl
+        }
         if (-not $Gate.ready.WaitOne(5000)) {throw 'TARGET_CORE_GATE_NOT_READY'}
-        & $WaitFillers $fillers
-        if ($BeforeControl) {& $BeforeControl $fillers}
-        $control=& $StartControl
+        if (-not $SingleProbe) {
+            & $WaitFillers $fillers
+            if ($BeforeControl) {& $BeforeControl $fillers}
+            $control=& $StartControl
+        }
         & $WaitControlSyn $control
         & $Hold
         if (-not $Gate.release.Set()) {throw 'TARGET_RELEASE_FAILED'}

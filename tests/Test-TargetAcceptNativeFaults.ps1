@@ -8,7 +8,7 @@ $module=Import-Module (Join-Path $root 'modules/TargetAcceptNative.psm1') -Force
         if ($script:fault -eq 'save' -and $Path -like '*-process.json') {throw 'fixture-save-failed'}
     }
     function script:Invoke-TargetAcceptSequence {
-        param($Gate,$StartFillers,$WaitFillers,$StartControl,$WaitControlSyn,$Hold,$Collect,$Cleanup)
+        param($Gate,$StartFillers,$WaitFillers,$StartControl,$WaitControlSyn,$Hold,$Collect,$Cleanup,[switch]$SingleProbe)
         $f=$null;$c=$null
         try {$f=& $StartFillers;if ($null -eq $f) {& $WaitFillers $f};$c=& $StartControl;& $Collect $f $c}
         finally {& $Cleanup $f $c}

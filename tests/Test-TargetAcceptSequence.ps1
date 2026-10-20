@@ -29,3 +29,30 @@ foreach ($failAt in @('none','start-fillers','ready','fillers','start-control','
     $checks++
 }
 Write-Output ('TARGET_SEQUENCE_FAKE_9_PASSED: '+$checks)
+foreach ($readyFailure in @($false,$true)) {
+    $trace=[Collections.Generic.List[string]]::new()
+    $ready=[pscustomobject]@{trace=$trace;fail=$readyFailure}
+    $ready | Add-Member ScriptMethod WaitOne {
+        param($milliseconds)
+        $this.trace.Add('ready')
+        # Model the real relay dependency: no ready before a client exists.
+        return (-not $this.fail) -and $this.trace.Contains('start-control')
+    }
+    $release=[pscustomobject]@{trace=$trace}
+    $release | Add-Member ScriptMethod Set {$this.trace.Add('release');return $true}
+    $gate=[pscustomobject]@{used=$false;ready=$ready;release=$release}
+    $startFillers={$trace.Add('start-fillers');return $null}.GetNewClosure()
+    $waitFillers={param($fillers);if ($null -ne $fillers) {throw 'SINGLE_HAS_FILLERS'};$trace.Add('fillers')}.GetNewClosure()
+    $startControl={$trace.Add('start-control');return 'control'}.GetNewClosure()
+    $waitSyn={param($control);if ($control -ne 'control') {throw 'CONTROL_LOST'};$trace.Add('syn')}.GetNewClosure()
+    $hold={$trace.Add('hold')}.GetNewClosure()
+    $collect={param($fillers,$control);if ($null -ne $fillers -or $control -ne 'control') {throw 'SINGLE_COLLECT_OWNERSHIP'};$trace.Add('collect')}.GetNewClosure()
+    $cleanup={param($fillers,$control);if ($null -ne $fillers -or $control -ne 'control') {throw 'SINGLE_CLEANUP_OWNERSHIP'};$trace.Add('cleanup')}.GetNewClosure()
+    $failed=$false
+    try {Invoke-TargetAcceptSequence -Gate $gate -StartFillers $startFillers -WaitFillers $waitFillers -StartControl $startControl -WaitControlSyn $waitSyn -Hold $hold -Collect $collect -Cleanup $cleanup -SingleProbe}
+    catch {$failed=$true;if ($_.Exception.Message -ne 'TARGET_CORE_GATE_NOT_READY') {throw}}
+    if ($failed -ne $readyFailure) {throw 'SINGLE_READY_DEPENDENCY_FAILED'}
+    $expected=if ($readyFailure) {'start-fillers,fillers,start-control,ready,release,cleanup'} else {'start-fillers,fillers,start-control,ready,syn,hold,release,collect,release,cleanup'}
+    if (($trace -join ',') -ne $expected) {throw ('SINGLE_ORDER_DIFFERS: '+($trace -join ','))}
+}
+Write-Output 'TARGET_SINGLE_SEQUENCE_2_PASSED_NO_PROCESSES_OR_TRAFFIC'

@@ -196,6 +196,7 @@ function Invoke-TargetNativeCohort {
         $sequenceArgs=@{Gate=$Gate;StartFillers=$startFillers;WaitFillers=$waitFillers;StartControl=$startControl;
             WaitControlSyn=$waitSyn;Hold=$hold;Collect=$collect;Cleanup=$cleanup}
         if ($beforeControl) {$sequenceArgs.BeforeControl=$beforeControl}
+        if ($singleProbe) {$sequenceArgs.SingleProbe=$true}
         Invoke-TargetAcceptSequence @sequenceArgs
     } catch {$record.status='INCOMPLETE';$record.error=$_.Exception.Message}
     finally {

@@ -1,5 +1,27 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Исправлен deadlock одиночной healthy пробы; debugger helper не менялся
+
+USER Run pb-target-accept-run-20261020-201510-a16dc553 FAILED:
+TARGET_COHORT_INCOMPLETE:TARGET_CORE_GATE_NOT_READY. cohort observations[],
+нет control-launch.json/нетTARGETGATEready; PBA FINALpre0/post0/error0.
+Native cleanup_errors[], native_processes_stopped=true, CLI graceful/poststop
+true, resident synchronous disabletrue. Это ошибка orchestration, неdriver10022.
+Причина: relay pb_relay_tcp.c155..157 вызываетgate лишьпослепервогоincoming;
+single mode удалилfillers, но оставил WaitGate перед StartControl -> deadlock.
+
+Исправлен Invoke-TargetAcceptSequence -SingleProbe: emptyfillers observation,
+StartControl ПЕРЕД WaitGate.ready, затем WaitEstablished/hold/release/collect.
+Startupcontrol сохраняетсядляcleanup даже приreadytimeout. Target200 истарый
+fourprobe порядок не менялись. Flag передаётся изNative contextsingle.
+2 новых mocked sequence checks прямо моделируют зависимость ready отпоявления
+control (успех/readyerror); старые9sequence +15nativefault checks такжеpassed.
+Всеchecks<1s, безprocess/network/product. CDB/parser/helper НЕ перезапускались:
+их исходники/действия/профиль/хэши не менялись. Фикс не повышаетtimeout/caps.
+Старыйconsumedplan неResume/refreeze. Готовитсяfreshhealthyplan; USER должен
+сбросить pbaInitKernel ивключитьсуществующие2/3. Download/re-registration/bl
+повторятьне требуется, еслиhost session/helperне менялись. Agent неRun/Break.
+
 ## Healthy-one plan готов; сначала USER проверяет real call pin и одну пробу
 
 artifacts/diagnostics/pb-target-accept-plan-20261020-201106-648fd932/runtime-plan.json
