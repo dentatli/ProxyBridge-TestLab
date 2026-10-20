@@ -45,7 +45,12 @@ Dejavu skill прочитан; никаких gates не создавалось/
 
 Сначала получить на физическом хосте новый symbol/live-code/NDIS+MDL-layout
 вывод. До него не stage/be/Run. Текущий WinDbg connection/points после reboot
-не подтверждены. Prepare healthy запущен, product/traffic/Break/enable не было.
+не подтверждены. Prepare healthy130859-fa994834: PREPARED_NOT_RUN/exit0, SHA
+4c2a4fccc9da663a884857facb1888fb3192acc561804c9dea313a4239b45b75.
+Registration pb-selected-endpoint-send-gate-registration-20261020-r1 prepared-only;
+proof-r4. Plan fillers3/control1/initial2/auto3+4/r4/max144; stage maxline3556<4096.
+После commit d3a5bda Inspect прошёл TARGET_PLAN_VALIDATED/INSPECTED_NO_RUNTIME.
+Hostregistration неизвестна. Product/traffic/Break/enable не было.
 
 ## Run084117 разобран: RST+ACK непосредственно устанавливает bit21
 
