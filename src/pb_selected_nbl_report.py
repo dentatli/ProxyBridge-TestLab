@@ -62,15 +62,22 @@ def evaluate(capture,console):
     capture,console=Path(capture),Path(console)
     p=read(capture/'runtime-plan.json');run=read(capture/'diagnostic-run.json')
     nbl64=p['policy'].get('endpoint_nbl64_context') is True
+    nbl512=p['policy'].get('endpoint_nbl512_context') is True
     expected_sha=PROFILE_SHA;expected_policy=policy()
     if nbl64:
         from pb_selected_nbl64_profile import PROFILE_SHA as expected_sha,policy as policy64
         expected_policy=policy64()
+    if nbl512:
+        from pb_selected_nbl512_profile import PROFILE_SHA as expected_sha,policy as policy512
+        expected_policy=policy512()
     sha=hashlib.sha256((capture/'runtime-plan.json').read_bytes()).hexdigest()
     checked(p['debugger_profile'],expected_sha)
     if p['policy']!=expected_policy or run.get('debugger_observer') is not True or run.get('flow_registration_acknowledged') is not True or run.get('plan_sha256','').lower()!=sha:raise ValueError('NBL_CAPTURE_BINDING_INVALID')
     raw=console.read_bytes()
-    if nbl64:
+    if nbl512:
+        from pb_selected_nbl64_report import correlate as correlate512
+        r=correlate512(raw.decode('utf-8-sig'),512,3)
+    elif nbl64:
         from pb_selected_nbl64_report import correlate as correlate64
         r=correlate64(raw.decode('utf-8-sig'))
     else:r=correlate(raw.decode('utf-8-sig'))

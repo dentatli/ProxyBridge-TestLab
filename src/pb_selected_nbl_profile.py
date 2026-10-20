@@ -104,7 +104,7 @@ def parser_proof(path,profile_sha=PROFILE_SHA,script_relative=SCRIPT,script_sha=
     helper=checked(b['path'],b['sha256']);h=read(helper)
     if (h.get('method')!=helper_method or h.get('passed') is not True or h.get('script_sha256')!=script_sha or
         any(h.get(k) is not False for k in ('kernel_connection','product_started','traffic_generated')) or
-        any(h.get(k) is not True for k in (('real_cpu_stack_frames','real_memory_watch','real_js_provider') if source_limit==64 else ('real_cpu_stack_frames','real_memory_watch','real_watch_replacement_from_callback','real_js_provider'))) or
+        any(h.get(k) is not True for k in (('real_cpu_stack_frames','real_memory_watch','real_js_provider') if source_limit in (64,512) else ('real_cpu_stack_frames','real_memory_watch','real_watch_replacement_from_callback','real_js_provider'))) or
         [c['case'] for c in h['cases']]!=list(helper_cases) or any(c.get('passed') is not True or c.get('exit_code')!=0 for c in h['cases'])):
         raise ValueError('NBL_HELPER_PROOF_INVALID')
     files=[path,path.parent/'candidate.json',binding,helper,root/script_relative]

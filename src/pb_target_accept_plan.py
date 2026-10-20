@@ -13,6 +13,7 @@ from pb_endpoint_packet_watch import PROFILE_SHA as FLAG_PACKET_PROFILE_SHA, STA
 from pb_endpoint_send_gate import PROFILE_SHA as FLAG_SEND_PROFILE_SHA, STAGE as FLAG_SEND_STAGE, ACCEPT256_SHA as FLAG_SEND256_PROFILE_SHA, ACCEPT256_STAGE as FLAG_SEND256_STAGE, NATIVE_SHA as FLAG_SEND_NATIVE_SHA, NATIVE_STAGE as FLAG_SEND_NATIVE_STAGE
 from pb_selected_nbl_profile import PROFILE_SHA as FLAG_NBL_SHA, STAGE as FLAG_NBL_STAGE, SCRIPT as FLAG_NBL_SCRIPT
 from pb_selected_nbl64_profile import PROFILE_SHA as FLAG_NBL64_SHA, SCRIPT as FLAG_NBL64_SCRIPT
+from pb_selected_nbl512_profile import PROFILE_SHA as FLAG_NBL512_SHA, SCRIPT as FLAG_NBL512_SCRIPT
 
 ASSETS = '81fc33a6288b324dcb9880735728e0699729c5c804292fb07a2791c9db4f3a24.json'
 ASSETS_SHA = 'f14a2fadc257c3167655264c7c11ab2d5ae2d1561c197164ad4abfddd945e52d'
@@ -121,7 +122,7 @@ def validate_positive_probe(capture, console, boot):
 
 def validate_registration(profile_path, review_path, review_sha, boot):
     actual_sha = digest(Path(profile_path))
-    if actual_sha in (FLAG_NBL64_SHA,FLAG_NBL_SHA,FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA,FLAG_ACCEPT64_PROFILE_SHA,FLAG_HEALTHY_PROFILE_SHA,FLAG_WATCH_PROFILE_SHA,FLAG_PACKET_PROFILE_SHA,FLAG_SEND_PROFILE_SHA,FLAG_SEND256_PROFILE_SHA,FLAG_SEND_NATIVE_SHA):
+    if actual_sha in (FLAG_NBL512_SHA,FLAG_NBL64_SHA,FLAG_NBL_SHA,FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA,FLAG_ACCEPT64_PROFILE_SHA,FLAG_HEALTHY_PROFILE_SHA,FLAG_WATCH_PROFILE_SHA,FLAG_PACKET_PROFILE_SHA,FLAG_SEND_PROFILE_SHA,FLAG_SEND256_PROFILE_SHA,FLAG_SEND_NATIVE_SHA):
         return flag_registration(profile_path,review_path,review_sha,boot)
     if actual_sha in (FLOW_PROFILE_SHA, REMOVAL_PROFILE_SHA, REMOVAL_R2_PROFILE_SHA, RETRY_PROFILE_SHA):
         retry = actual_sha == RETRY_PROFILE_SHA
@@ -219,6 +220,7 @@ def validate(plan_path, sha, root):
     if flag_watch and p['policy'].get('endpoint_send_gate') is True:flag_watch='sendnative' if p['policy'].get('endpoint_send_native_query') is True else 'send256' if p['policy'].get('endpoint_send_accept_limit')==256 else 'send'
     if flag_watch and p['policy'].get('endpoint_nbl_context') is True:flag_watch='nbl'
     if flag_watch and p['policy'].get('endpoint_nbl64_context') is True:flag_watch='nbl64'
+    if flag_watch and p['policy'].get('endpoint_nbl512_context') is True:flag_watch='nbl512'
     removal = p.get('policy', {}).get('observer') == 'etw+kd-target-removal'
     retry = p.get('policy', {}).get('observer') == 'etw+kd-target-retry'
     flow = retry or removal or p.get('policy', {}).get('observer') == 'etw+kd-target-flow'
@@ -241,7 +243,7 @@ def validate(plan_path, sha, root):
     boot_identity(boot)
     if kd:
         profile = validate_registration(p['debugger_profile'], p['registration_review'], p['registration_review_sha256'], boot)
-        if (digest(Path(p['debugger_profile'])) in (FLAG_NBL64_SHA,FLAG_NBL_SHA,FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA,FLAG_ACCEPT64_PROFILE_SHA,FLAG_HEALTHY_PROFILE_SHA,FLAG_WATCH_PROFILE_SHA,FLAG_PACKET_PROFILE_SHA,FLAG_SEND_PROFILE_SHA,FLAG_SEND256_PROFILE_SHA,FLAG_SEND_NATIVE_SHA))!=flag:
+        if (digest(Path(p['debugger_profile'])) in (FLAG_NBL512_SHA,FLAG_NBL64_SHA,FLAG_NBL_SHA,FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA,FLAG_ACCEPT64_PROFILE_SHA,FLAG_HEALTHY_PROFILE_SHA,FLAG_WATCH_PROFILE_SHA,FLAG_PACKET_PROFILE_SHA,FLAG_SEND_PROFILE_SHA,FLAG_SEND256_PROFILE_SHA,FLAG_SEND_NATIVE_SHA))!=flag:
             raise ValueError('FLAG_OBSERVER_PROFILE_DIFFERS')
         if flag:
             if digest(Path(p['debugger_profile']))!=flag_profile_sha(flag_armed,flag_accept64,flag_healthy,flag_watch):raise ValueError('FLAG_PROFILE_DIFFERS')
@@ -288,6 +290,7 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
     if endpoint_watch and debugger_profile and digest(Path(debugger_profile))in (FLAG_SEND_PROFILE_SHA,FLAG_SEND256_PROFILE_SHA,FLAG_SEND_NATIVE_SHA):endpoint_watch='sendnative' if digest(Path(debugger_profile))==FLAG_SEND_NATIVE_SHA else 'send256' if digest(Path(debugger_profile))==FLAG_SEND256_PROFILE_SHA else 'send'
     if endpoint_watch and debugger_profile and digest(Path(debugger_profile))==FLAG_NBL_SHA:endpoint_watch='nbl'
     if endpoint_watch and debugger_profile and digest(Path(debugger_profile))==FLAG_NBL64_SHA:endpoint_watch='nbl64'
+    if endpoint_watch and debugger_profile and digest(Path(debugger_profile))==FLAG_NBL512_SHA:endpoint_watch='nbl512'
     if flag_create_armed and not flag_healthy_probe and (not flag_target or flag_probe):
         raise ValueError('FLAG_CREATE_ARMED_REQUIRES_TARGET')
     if flag_accept64 and not flag_create_armed:
@@ -321,7 +324,7 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         if not debugger_profile or not registration_review:
             raise ValueError('TARGET_PROFILE_AND_REGISTRATION_BOTH_REQUIRED')
         profile = validate_registration(debugger_profile, registration_review, digest(registration_review), read(output/'boot-session.json'))
-        if (digest(Path(debugger_profile)) in (FLAG_NBL64_SHA,FLAG_NBL_SHA,FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA,FLAG_ACCEPT64_PROFILE_SHA,FLAG_HEALTHY_PROFILE_SHA,FLAG_WATCH_PROFILE_SHA,FLAG_PACKET_PROFILE_SHA,FLAG_SEND_PROFILE_SHA,FLAG_SEND256_PROFILE_SHA,FLAG_SEND_NATIVE_SHA))!=flag:
+        if (digest(Path(debugger_profile)) in (FLAG_NBL512_SHA,FLAG_NBL64_SHA,FLAG_NBL_SHA,FLAG_PROFILE_SHA,FLAG_ARMED_PROFILE_SHA,FLAG_ACCEPT64_PROFILE_SHA,FLAG_HEALTHY_PROFILE_SHA,FLAG_WATCH_PROFILE_SHA,FLAG_PACKET_PROFILE_SHA,FLAG_SEND_PROFILE_SHA,FLAG_SEND256_PROFILE_SHA,FLAG_SEND_NATIVE_SHA))!=flag:
             raise ValueError('FLAG_OBSERVER_PROFILE_DIFFERS')
         if flag:
             if digest(Path(debugger_profile))!=flag_profile_sha(flag_create_armed,flag_accept64,flag_healthy_probe,endpoint_watch):raise ValueError('FLAG_PROFILE_DIFFERS')
@@ -362,9 +365,10 @@ def prepare(root, build, output, debugger_profile=None, registration_review=None
         kind = 'retry' if retry_target else ('removal' if removal_target else 'flow')
         suffix = '-r2' if removal_target else ''
         paths += [root/('scripts/debugger/pb-kd-target-'+kind+'-disabled-20261019'+suffix+'.wdbg')]
-    if flag:paths += [root/(FLAG_NBL_STAGE if endpoint_watch in ('nbl','nbl64') else FLAG_SEND_NATIVE_STAGE if endpoint_watch=='sendnative' else FLAG_SEND256_STAGE if endpoint_watch=='send256' else FLAG_SEND_STAGE if endpoint_watch=='send' else FLAG_PACKET_STAGE if endpoint_watch=='packet' else FLAG_WATCH_STAGE if endpoint_watch else FLAG_HEALTHY_STAGE if flag_healthy_probe else FLAG_ACCEPT64_STAGE if flag_accept64 else FLAG_ARMED_STAGE if flag_create_armed else FLAG_STAGE)]
+    if flag:paths += [root/(FLAG_NBL_STAGE if endpoint_watch in ('nbl','nbl64','nbl512') else FLAG_SEND_NATIVE_STAGE if endpoint_watch=='sendnative' else FLAG_SEND256_STAGE if endpoint_watch=='send256' else FLAG_SEND_STAGE if endpoint_watch=='send' else FLAG_PACKET_STAGE if endpoint_watch=='packet' else FLAG_WATCH_STAGE if endpoint_watch else FLAG_HEALTHY_STAGE if flag_healthy_probe else FLAG_ACCEPT64_STAGE if flag_accept64 else FLAG_ARMED_STAGE if flag_create_armed else FLAG_STAGE)]
     if endpoint_watch=='nbl':paths += [root/FLAG_NBL_SCRIPT]
     if endpoint_watch=='nbl64':paths += [root/FLAG_NBL64_SCRIPT]
+    if endpoint_watch=='nbl512':paths += [root/FLAG_NBL512_SCRIPT]
     plan = dict(method='target-accept-session-v1', root=str(root), preparation=str(output), build=str(build),
                 assets=str(assets_path), python=assets['python'], core_sha256=CORE,
                 policy=flag_policy(flag_target,flag_create_armed,flag_accept64,flag_healthy_probe,endpoint_watch) if flag else (flow_policy(removal_target, retry_target) if flow_target else (retrieve_policy(not retrieve_probe) if (retrieve_target or retrieve_probe) else (create_policy(create_target, manual_host_window) if bindings else POLICY))), files=inventory(paths), **bindings)

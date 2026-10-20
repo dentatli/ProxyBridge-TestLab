@@ -1,6 +1,40 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Подготовлен отдельный NBL64 helper с ограниченной диагностикой reject
+## USER разрешил512; подготовлен отдельный caller-first helper
+
+Run182237-009f5b16: USER attachment сохранён private pb-nbl64-review-20261020-182237/
+user-console.txt SHA517edc85e1eb30f7afcbd1e7871f73e6a91ea8775728c86cc8389a278882d351.
+Native TARGET_FAILURE_REPRODUCED/errors[]: controlPID14420/query201/socket6068/
+relay12020/API-1/10022/0bytes/required32, endpointreaderrors0. COLLECTED,
+cleanup[]/residentdisabledtrue, ETWloss0. ETWcontrol SYNdrop reason30 трижды,
+RexmitCount1/2/3; без clockalignment не привязывать выбранный NBL к номеру retry.
+USER SOURCE recordc69ce010/contextc626ed30; SEND3 NBLbefe4540 flags01301641,
+STATE send info_raw1/info0/key5absent повторён. SUMMARY total40hex=64,
+ip26hex=38/key1ahex=26, остальные0, samples4, READ_LIMIT. RECEIVE не получен.
+KEY обозначал только RSI!=5, поскольку предыдущий helper проверял его до
+caller chain; вне Retrieve этот регистр не является WFP key. Не объявлять
+26 других WFP keys или сломанный driver по этой метке. CONFIG/POLICY в
+фрагменте отсутствуют; strictreport INCOMPLETE с дополнительными missing/order
+errors сохранён какесть, не синтезировать заголовки. Hypothesis другой SYN/
+drop/clone/отсутствие Retrieve не доказана. Agent Run не повторял.
+
+USER явно разрешил512 и ожидание. Новый JS scripts/debugger/pb_nbl_context512.js
+SHA f78b4ac191a85b30d0a7ce1e25868d77485c572b5f73bd6eeacde4782e4b6c74.
+NBLcap512, max4 samples/oneSUMMARY; сначала проверка return chain, затем
+RSI/RBP как key/consume. Прочие guards/tuple/framepins/listcap8 прежние.
+POLICY read_limit200/sample4/version3, hex200=512. Registered actions2/3
+не меняются; sourcecap64/CREATE16 прежние, totalmax592; global ACCEPT нет.
+Profile512 SHA12a6e813b3513d9e4d923c8952df0bc94433794550cb1031960c71fa234d9ece.
+28 helper CDB cases passed (включая512boundary/512limit/caller-before-key),
+7 integrated CDB cases passed, combined proof180files. 142 target +15 NBL
+report tests passed. Исправлена только ошибка synthetic test, заменявшая и
+CONFIG и sample вместо одного sample; повторять CDB после этого не требовалось.
+Старые helper16/64/profile/captures не менялись, source fixtures parameterized.
+Готовится свежий plan512; host helper init пока pending. Download+SHA с pinned
+commit на host и old64Stop/unload64/load512/init/reset/g, без ручного переноса.
+Ни debuggerhost, ни продуктовая нагрузка агентом не запускались.
+
+## Предыдущая контрольная точка: NBL64
 
 Fresh plan pb-target-accept-plan-20261020-181920-818a5a39/runtime-plan.json,
 SHA 2F12EB52658BDB17E009EA44A2255C55F2FB23559A59B06D0E85C56F4DCFDE22:
