@@ -1,5 +1,28 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Healthy-one plan готов; сначала USER проверяет real call pin и одну пробу
+
+artifacts/diagnostics/pb-target-accept-plan-20261020-201106-648fd932/runtime-plan.json
+SHA 14026A64342945FF8F696DF01C389710D2D46D2C182C925EB4F1367615EA20B7.
+Prepare PREPARED_NOT_RUN/exit0/productfalse/trafficfalse; actual download helper
+из ee5387e26a4f751bf15b670973c7aa524dc6b6ed SHA f6b159e7... проверен.
+Registration pb-accept-pair-registration-20261021-r1, disabled2/3 absent4,
+host_registration_observed=false, hostinitpending. Plan policy single_probe=true,
+fillers0, targetcontrol1, oldprofiletagflag-four-probe лишьlegacy workload label.
+Это не четырёхсоединительнаяпроба; actual arguments/serverexitlimit1 подтверждены.
+
+USER hostPowerShell download pb_accept_pair.js. HostBreak предупреждать wholeVM/
+Codex/RDP. Old v3 pbRetryStop, owned3/t8+4/t9 cleanup, unloadv3/loadpba,
+pbaInitKernel и pbaRegister ->true, gотдельно. Приpinerror неRun, нужен
+u tcpip!WfpAleAuthorizeAccept+0xc80 L18 существующегоkernel наhost.
+Только послеCONFIGmodel0+двухtrue USER Break/be2/be3/g. VM Runhealthy с
+DebuggerLoggerEnabled/FlowProfileRegisteredDisabled; безBoundedLoadReviewed,
+безC и200fillers. Послеcompletion/error Break/bd2/bd3/pbaStop/g.
+НуженPBA CONFIG/PRE/POST/FINAL иnative output. Run не повторять.
+Targetplan не подготовлен намеренно: positive gate требует этого новогоhealthy
+native API0/bytes32 +actualPBAmodel0 pre/post. Не заменять старымснимком.
+Agent не делалRun/Break/driverchanges. Всеизменениязакоммичены/pushed.
+
 ## USER согласовал две измеряемые пробы: healthy one, затем target201
 
 Схема меняется после timeout/sendcaps: новый pb_accept_pair.js и profile
