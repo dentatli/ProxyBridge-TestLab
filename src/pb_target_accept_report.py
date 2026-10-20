@@ -112,12 +112,16 @@ def evaluate(path):
             retrieve = policy.get('observer') == 'etw+kd-target-retrieve'
             removal = policy.get('observer') == 'etw+kd-target-removal'
             retry = policy.get('observer') == 'etw+kd-target-retry'
-            flow = retry or removal or policy.get('observer') == 'etw+kd-target-flow'
-            probe = policy.get('workload') in ('create-four-probe','retrieve-four-probe')
-            staged = policy.get('workload') in ('create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged','removal-target-201-staged','retry-target-201-staged')
+            flag=policy.get('observer')=='etw+kd-target-flag'
+            flow = flag or retry or removal or policy.get('observer') == 'etw+kd-target-flow'
+            probe = policy.get('workload') in ('create-four-probe','retrieve-four-probe','flag-four-probe')
+            staged = policy.get('workload') in ('create-target-201-staged','retrieve-target-201-staged','flow-target-201-staged','removal-target-201-staged','retry-target-201-staged','flag-target-201-staged')
             if flow and (run.get('flow_registration_acknowledged') is not True):
                 errors.append('FLOW_REGISTRATION_ACK_MISSING')
-            if probe and policy != (retrieve_policy(False) if retrieve else create_policy()):
+            if flag:
+                from pb_target_flag_binding import policy as flag_policy
+                if policy!=flag_policy(not probe):errors.append('FLAG_OBSERVER_POLICY_INVALID')
+            elif probe and policy != (retrieve_policy(False) if retrieve else create_policy()):
                 errors.append('CREATE_FOUR_OBSERVER_POLICY_INVALID')
             elif not probe and policy != (flow_policy(removal, retry) if flow else (retrieve_policy() if retrieve else create_policy(True, staged))):
                 errors.append('CREATE_TARGET_OBSERVER_POLICY_INVALID')

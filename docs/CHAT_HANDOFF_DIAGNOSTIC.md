@@ -1,5 +1,33 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Boot117: bounded flag executor готовится; сначала короткийконтроль2/4
+
+USER новыйWinDbgconnection, blпуст, CREATE/SETTER/ACCEPTпроверены; tcpipbase
+fffff806`1bdd0000, setter1bdf3670, gвыполнен. Boot117/record17422/start
+2026-10-20T06:17:50.5Z проверены CoS. USERпредпочитаетодинcodeblockсgпоследней
+отдельнойстрокой; это принято, команды не объединятьчерезsemicolonсouterg.
+
+Новые runtimeprofile/freshstage20261020, SHA c1fb07110f92188237fa3a32436e30cd31fa2fd7ba8590d442241d1fca1da75a.
+Профильregistered2/3/4, actionsизстарогоcappedcandidate. Старыеfrozenfiles
+сохранены. ОбщийlauncherFlagProbe (4connections active2/4,inactive3,no stack)
+иFlagTarget (200+1staged active2/3/4); тежеlimits16/global32или48, auto-disable.
+Boundedtarget требуетsamebootpositiveFlagProbe илиподходящийexistingpositive,
+новыйpositiveboot117поканеполучен. Нельзяreuseвчерашнийbaselineкакsameboot.
+Подготовленныйreceipt безhostproof; USERRunackFlowProfileRegisteredDisabled.
+Полныеподробности docs/BOUNDED_FLAG_EXECUTOR_2026-10-20.md.
+
+114tests/PSparser/HostWindow5/Cleanuppassed; CDB4casesactualbdpass, proof20261020-r1
+14files связаны. Flagreport отделяетprewrite/наблюдениеотrootcause; probeтребует
+TRACK+ACCEPTsuccesssameRecord, no setter, nativecomplete. Cap/нечитаемое=incomplete.
+DriverбылStopped; pinnedSYS/servicepathпроверены, Start-Serviceодинраз,
+Running+disableIOCTLподтверждены. Readbackenabledflagfalse — не заявлятьбольше.
+Нагрузки/traffic/новогоRun нет. PrepareFlagProbe065042-61585189 exit0/PREPARED_NOT_RUN,
+SHA9d78a5905f19630de411a451f5df5406e3707c5e4808603a8eeb8a3b4890008e.
+Всеhostpointsпо-прежнемуотсутствуютпоследнемуbl. USERполучаетединыйкомплект:
+сначалаbp2/3/4сbd/reset/g; затемbe2/be4/g (wholeVM/Codex/RDPpausewarning),
+VMRunDebuggerLoggerEnabled+FlowProfileRegisteredDisabled.3оставитьdisabled.
+Послеcompletion/errorbd2/bd3/bd4/g однимблоком, неrepeatRun, полныйconsole.
+
 ## Bounded flag setter live проверен; следующий runtime требует перезагрузки VM
 
 USER прислал RecvTcpDatagram entry и+15f: RBXизincomingRCX, bit20test2366a,
