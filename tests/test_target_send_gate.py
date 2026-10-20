@@ -22,6 +22,20 @@ ACCEPT='PBSD ACCEPT ep=9000 nbl=7000 local_raw=da84 peer_raw=d9a4 status=c000022
 
 
 class SendGate(unittest.TestCase):
+    def test_accept256_changes_only_accept_cap_and_retains_old_profile(self):
+        from pb_endpoint_send_gate import ACCEPT256_PROFILE,ACCEPT256_SHA,accept_action
+        old,new=profile(),profile(256)
+        self.assertEqual(new['points'][:2],old['points'][:2])
+        self.assertEqual(new['points'][2]['action'],old['points'][2]['action'].replace('>= 0x40','>= 0x100'))
+        self.assertEqual(hashlib.sha256((ROOT/ACCEPT256_PROFILE).read_bytes()).hexdigest(),ACCEPT256_SHA)
+        self.assertEqual(json.loads((ROOT/ACCEPT256_PROFILE).read_text()),new)
+        self.assertEqual(profile_sha(True,True,False,'send256'),ACCEPT256_SHA)
+        for target in (True,False):
+            self.assertEqual(policy(target,256),flag_policy(target,True,True,not target,'send256'))
+            self.assertEqual(policy(target,256)['max_total_raw_hits'],336)
+        for fn in (profile,accept_action):
+            with self.assertRaises(ValueError):fn(512)
+
     def test_retry_chain_observes_skip_and_miss_without_claiming_root_cause(self):
         r=correlate(TRACK+ARM+GATE+HEADER+SECOND+HEADER2+ACCEPT)
         self.assertEqual(r['status'],'SEND_SKIP_AND_ACCEPT_MISS_OBSERVED')

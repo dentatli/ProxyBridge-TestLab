@@ -1,5 +1,36 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run132825: SEND skip наблюдался; USER разрешил расширить только ACCEPT cap
+
+USER Run132825-03c909ed/native TARGET_FAILURE_REPRODUCED/errors[]:
+control query201/API10022/bytes0, relayPID4580. PBSD первые два SEND raw1a/1d
+flags01101641/NBLc05ca670; третий raw2b flags01301641/NBLbef937d0.
+Все три SYN flags02/sequence2647564872, sourceEPc528e9f0/recordc10e6050 прежние.
+Следующий bt eax,15h/jb поэтому выбирает обход associate на третьем SEND.
+ACCEPT отсутствует: PBSD_LIMIT point4. Report INCOMPLETE/errors capture+missing,
+skip_observed/repeated_syn_observed true; rootcause/trapcoveragefalse. Private
+pb-send-gate-review-20261020-132825 user-console/send-report. Сам указатель нового
+NBL не доказывает lifetime, первые два helper snapshots не считать retransmit.
+USER: «Может увеличишь лимит и попробуем еще раз?» — разрешён новый bounded Run.
+
+Отдельный accept256 profile SHA8f9664e299516de057336b30923adf4e0cd01393f5f2beafe4ab6b281a0bd924:
+только action4 >=40→>=100hex, точки2/3 byteexact, старый profile/stage неизменны.
+Caps16/64/256,total336; на256-м rawACCEPT stop, 255-й ещё обрабатывается.
+Не добавлены точки/stack/payload. Isolated CDB11/11passed: healthy/retry/guards,
+200nonselected ACCEPT затем selected;254+selected processed;255+selected capped.
+139targettests passed. Старые positive/parser artifacts проверены readonly;
+sameboot118 healthy131915 остаётся калибровкой прежних2/3/ACCEPTreads, увеличение
+лишь cap отдельно проверено CDB; НЕ утверждать kernelhealthy новогоprofile.
+
+Fresh target133439-1c1cd018 PREPARED_NOT_RUN/exit0, SHA
+21feeacbcd9beae22ad548a5c6a92b36b8d34562ee5bd1dc4822437dc612a388.
+Новые registration pb-send-gate-accept256-registration-20261020-r1 и isolatedproof
+pb-send-gate-accept256-proof-20261020-r1; прежние frozenbuild/healthy untouched.
+USERhost заменить только4 (bc4/bp4new/bd4/g), не reload2/3 и не проситьbl.
+ДоRun2/4disabled,3absent. VMstagedRun200+1, наREADY reset1..8/be2/g иCбезEnter.
+WholeVM/Codex/RDP warning передBreak/enable; recoverybd2/conditionalbc3/t8/bd4/g.
+Hostupdate нового4 ещё не наблюдался. Agent Run/Break/enable не выполнял.
+
 ## SEND gate healthy131915 подтверждён; target132314 подготовлен без Run
 
 USER Run131915-ce510e60: PBSD TRACK/ARMED, два SEND_GATE с raw1a/1d,

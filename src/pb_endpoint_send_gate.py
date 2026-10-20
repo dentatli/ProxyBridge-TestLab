@@ -11,6 +11,9 @@ from pb_endpoint_watch_candidate import quoted,CLEAR,STOP
 PROFILE='scripts/debugger/pb-kd-selected-endpoint-send-gate-profile-20261020.json'
 STAGE='scripts/debugger/pb-kd-selected-endpoint-send-gate-disabled-20261020.wdbg'
 PROFILE_SHA='22febf6a90774473a9618f655c38ab5c854b6ee627cbcaaaa3e4aefe459eb3ba'
+ACCEPT256_PROFILE='scripts/debugger/pb-kd-selected-endpoint-send-gate-accept256-profile-20261020.json'
+ACCEPT256_STAGE='scripts/debugger/pb-kd-selected-endpoint-send-gate-accept256-update-20261020.wdbg'
+ACCEPT256_SHA='8f9664e299516de057336b30923adf4e0cd01393f5f2beafe4ab6b281a0bd924'
 GATE='tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0x30'
 
 
@@ -69,19 +72,21 @@ def create_action():
         ' .printf "PBSD_LIMIT point=2 capture=incomplete\\n"; } .else { '+body+' }; gc;')
 
 
-def accept_action():
+def accept_action(accept_limit=64):
+    if accept_limit not in (64,256):raise ValueError('SEND_ACCEPT_LIMIT_UNSUPPORTED')
     bad=STOP+' .printf "PBSD_UNREADABLE event=ACCEPT capture=incomplete\\n";'
     emit=(STOP+' .printf "PBSD ACCEPT ep=%p nbl=%p local_raw=%x peer_raw=%x status=%x output_raw=%p reads=%I64x sends=%I64x\\n", '
         '@rdi, @rbx, wo(@rbp-0x7c), wo(@rbp-0x7a), @eax, poi(@rbp-0x28), @$t4, @$t6;')
     body=guard('$vvalid(@rbp-0x28,8) == 1',emit,bad)
     body=guard('(wo(@rbp-0x7c) == 0xda84) and (wo(@rbp-0x7a) == 0xd9a4)',body,'')
     body=guard('$vvalid(@rbp-0x7c,4) == 1',body,bad)
-    return ('r @$t5 = @$t5 + 1; .if (@$t5 >= 0x40) { '+STOP+
+    return ('r @$t5 = @$t5 + 1; .if (@$t5 >= '+hex(accept_limit)+') { '+STOP+
         ' .printf "PBSD_LIMIT point=4 capture=incomplete\\n"; } .else { '+body+' }; gc;')
 
 
-def profile():
-    return dict(method='kd-selected-endpoint-send-gate-20261020-v1',registered_point_ids=[2,4],dynamic_point_ids=[3],active_point_ids=[],
+def profile(accept_limit=64):
+    if accept_limit not in (64,256):raise ValueError('SEND_ACCEPT_LIMIT_UNSUPPORTED')
+    p=dict(method='kd-selected-endpoint-send-gate-20261020-v1',registered_point_ids=[2,4],dynamic_point_ids=[3],active_point_ids=[],
         host_enable_point_ids=[2],automatic_enable_point_ids=[4],watch_access='r',watch_size=4,raw_hit_limits_per_point={'2':16,'3':64,'4':64},
         max_total_raw_hits=144,points=[dict(id=i,target=t,action=a) for i,t,a in (
             (2,'tcpip!AlepCreateRedirectRecord+0x396',create_action()),(3,'dynamic-selected-endpoint+0x30',read_action()),
@@ -90,9 +95,15 @@ def profile():
             'A clear bit only proves eligibility for the association path, not completed association.',
             'SYN header capture supports one contiguous already mapped MDL, raw TCP or unfragmented IPv4/TCP.',
             'No complete NBL lifetime or Windows-versus-driver fault attribution.'])
+    if accept_limit!=64:
+        p['method']='kd-selected-endpoint-send-gate-accept256-20261020-v1'
+        p['raw_hit_limits_per_point']['4']=accept_limit;p['max_total_raw_hits']=80+accept_limit
+        p['points'][2]['action']=accept_action(accept_limit)
+    return p
 
 
-def policy(target=True):
+def policy(target=True,accept_limit=64):
+    if accept_limit not in (64,256):raise ValueError('SEND_ACCEPT_LIMIT_UNSUPPORTED')
     from pb_endpoint_watch_profile import policy as base
     p=base(target)
     p.update(endpoint_send_gate=True,debugger_points=[2,3,4],initial_debugger_points=[] if target else [2],
@@ -100,14 +111,20 @@ def policy(target=True):
         automatic_debugger_install_after_create=[3],watch_access='r',raw_hit_limits_per_point={'2':16,'3':64,'4':64},
         max_total_raw_hits=144,selected_snapshot_limits_per_point={'2':1,'3':4,'4':1},stack_count_max=0,
         packet_header_bytes=20,packet_header_count_max=4)
+    if accept_limit!=64:
+        p['endpoint_send_accept_limit']=accept_limit
+        p['raw_hit_limits_per_point']['4']=accept_limit;p['max_total_raw_hits']=80+accept_limit
     return p
 
 
 def registration(profile_path,receipt_path,receipt_sha,boot):
     from pb_kd_session import read,checked,boot_identity
-    p=read(checked(profile_path,PROFILE_SHA));r=read(checked(receipt_path,receipt_sha))
-    if p!=profile() or (r['method']!='target-flow-prepared-commands-v1' or r['source']!='prepared-command-awaiting-user-attestation' or
-        r['profile_sha256']!=PROFILE_SHA or r['expected_disabled_ids']!=[2,4] or r['expected_absent_ids']!=[3] or
+    sha=hashlib.sha256(Path(profile_path).read_bytes()).hexdigest()
+    limit=256 if sha==ACCEPT256_SHA else 64
+    expected=ACCEPT256_SHA if limit==256 else PROFILE_SHA
+    p=read(checked(profile_path,expected));r=read(checked(receipt_path,receipt_sha))
+    if p!=profile(limit) or (r['method']!='target-flow-prepared-commands-v1' or r['source']!='prepared-command-awaiting-user-attestation' or
+        r['profile_sha256']!=expected or r['expected_disabled_ids']!=[2,4] or r['expected_absent_ids']!=[3] or
         r['host_registration_observed'] is not False or boot_identity(r['boot'])!=boot_identity(boot)):
         raise ValueError('SEND_GATE_REGISTRATION_DIFFERS')
     return p
@@ -160,7 +177,7 @@ def evaluate(capture,console):
     from pb_target_accept_report import evaluate as native_evaluate
     capture,console=Path(capture),Path(console);p=read(capture/'runtime-plan.json');run=read(capture/'diagnostic-run.json')
     probe=p['policy'].get('workload')=='flag-four-probe';sha=hashlib.sha256((capture/'runtime-plan.json').read_bytes()).hexdigest()
-    if p['policy']!=policy(not probe) or run.get('debugger_observer') is not True or run.get('flow_registration_acknowledged') is not True or run['plan_sha256'].lower()!=sha:raise ValueError('SEND_CAPTURE_BINDING_INVALID')
+    if p['policy']!=policy(not probe,p['policy'].get('endpoint_send_accept_limit',64)) or run.get('debugger_observer') is not True or run.get('flow_registration_acknowledged') is not True or run['plan_sha256'].lower()!=sha:raise ValueError('SEND_CAPTURE_BINDING_INVALID')
     raw=console.read_bytes();r=correlate(raw.decode('utf-8-sig'));n=native_evaluate(capture)
     c=[m for m in n['matches'] if m['role']=='control']
     r.update(native_status=n['status'],native_errors=n['errors'],plan_sha256=sha,console_sha256=hashlib.sha256(raw).hexdigest(),automatic_capture_scope_verified=False)
