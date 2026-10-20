@@ -1,0 +1,44 @@
+{
+  "method": "kd-selected-endpoint-send-native-20261020-v1",
+  "registered_point_ids": [
+    2,
+    4
+  ],
+  "dynamic_point_ids": [
+    3
+  ],
+  "active_point_ids": [],
+  "host_enable_point_ids": [
+    2
+  ],
+  "automatic_enable_point_ids": [],
+  "watch_access": "r",
+  "watch_size": 4,
+  "raw_hit_limits_per_point": {
+    "2": 16,
+    "3": 64
+  },
+  "max_total_raw_hits": 80,
+  "points": [
+    {
+      "id": 2,
+      "target": "tcpip!AlepCreateRedirectRecord+0x396",
+      "action": "r @$t3 = @$t3 + 1; .if (@$t3 >= 0x10) { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBSD_LIMIT point=2 capture=incomplete\\n\"; } .else { .if ($vvalid(@r14,4) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { .if (($vvalid(@rdi+0x30,4) == 1) and ($vvalid(@rdi+0x1c0,8) == 1) and ($vvalid(@rax+0x1e0,0x14) == 1) and (@rax != 0) and ((@rdi & 3) == 0)) { bd2; r @$t1 = @rax; r @$t2 = @rdi; r @$t4 = 0; r @$t6 = 0; .printf \"PBSD TRACK ep=%p record=%p context=%p size=%I64x refs=%x flags30=%x\\n\", @$t2, @$t1, poi(@$t1+0x1e0), poi(@$t1+0x1e8), dwo(@$t1+0x1f0), dwo(@$t2+0x30); r @$t8 = 1; ba3 r4 (@$t2+0x30) \"r @$t4 = @$t4 + 1; .if ((@rip == tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0x30) and (@rcx == @$t2) and (@rbx == @$t2)) { .if (($vvalid(@$t2+0x1c0,8) == 1) and (@r14w == 2)) { .if (poi(@$t2+0x1c0) == @$t1) { r @$t6 = @$t6 + 1; r @$t7 = @eax; .printf \\\"PBSD SEND_GATE send=%I64x raw=%I64x thread=%p ep=%p record=%p nbl=%p flags_reg=%x family=%x ip=%p\\\\n\\\", @$t6, @$t4, @$thread, @$t2, @$t1, @rbp, @$t7, @r14w, @rip; r @$t17 = 0; .if ($vvalid(@rbp+8,8) == 1) { r @$t9 = poi(@rbp+8); .if ($vvalid(@$t9,0x20) == 1) { r @$t10 = poi(@$t9+8); r @$t13 = dwo(@$t9+0x18); r @$t14 = dwo(@$t9+0x10); .if ($vvalid(@$t10,0x30) == 1) { .if (((wo(@$t10+0xa) & 5) != 0) and (poi(@$t10+0x18) != 0) and (@$t13 >= 0x14) and (dwo(@$t10+0x28) >= @$t14+0x14)) { r @$t11 = poi(@$t10+0x18) + @$t14; .if ($vvalid(@$t11,0x14) == 1) { r @$t12 = 0; .if ((wo(@$t11) == 0xd9a4) and (wo(@$t11+2) == 0xda84)) { r @$t12 = @$t11; } .else { r @$t15 = (by(@$t11) & 0xf) * 4; .if (((by(@$t11) & 0xf0) == 0x40) and (by(@$t11+9) == 6) and (@$t15 >= 0x14) and (@$t15 <= 0x3c) and ((wo(@$t11+6) & 0xff3f) == 0) and (dwo(@$t11+0xc) == 0x100007f) and (dwo(@$t11+0x10) == 0x100007f) and (@$t13 >= @$t15+0x14) and (dwo(@$t10+0x28) >= @$t14+@$t15+0x14)) { r @$t12 = @$t11 + @$t15; } .else {  };  }; .if ((@$t12 != 0) and ($vvalid(@$t12,0x14) == 1)) { .if ((wo(@$t12) == 0xd9a4) and (wo(@$t12+2) == 0xda84) and ((by(@$t12+0xc) & 0xf0) >= 0x50) and ((by(@$t12+0xd) & 0x17) == 2)) { .printf \\\"PBSD SEND_HEADER send=%I64x nbl=%p header=%p flags=%x h0=%I64x h1=%I64x h2=%x\\\\n\\\", @$t6, @rbp, @$t12, by(@$t12+0xd), poi(@$t12), poi(@$t12+8), dwo(@$t12+0x10); r @$t17 = 1; } .else {  };  } .else {  };  } .else {  };  } .else {  };  } .else {  };  } .else {  };  } .else {  }; .if (@$t17 == 0) { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \\\"PBSD_UNREADABLE event=SEND_HEADER capture=incomplete\\\\n\\\"; }; .if ((@$t7 & 0x200000) != 0) { .if (@$t8 != 0) { bc3; r @$t8 = 0; }; } .else { .if (@$t6 >= 4) { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \\\"PBSD_LIMIT point=3 stage=send_count capture=incomplete\\\\n\\\"; } };  } .else { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \\\"PBSD_IDENTITY_CHANGED capture=incomplete\\\\n\\\"; };  } .else { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \\\"PBSD_IDENTITY_CHANGED capture=incomplete\\\\n\\\"; };  }; .if ((@$t8 != 0) and (@$t4 >= 0x40)) { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \\\"PBSD_LIMIT point=3 stage=raw_reads capture=incomplete\\\\n\\\"; }; gc;\"; .printf \"PBSD ARMED address=%p access=r4 accept=disabled\\n\", @$t2+0x30; } .else { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBSD_UNREADABLE event=CREATE capture=incomplete\\n\"; };  } .else {  };  } .else { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBSD_UNREADABLE event=CREATE capture=incomplete\\n\"; };  }; gc;"
+    },
+    {
+      "id": 3,
+      "target": "dynamic-selected-endpoint+0x30",
+      "action": "r @$t4 = @$t4 + 1; .if ((@rip == tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0x30) and (@rcx == @$t2) and (@rbx == @$t2)) { .if (($vvalid(@$t2+0x1c0,8) == 1) and (@r14w == 2)) { .if (poi(@$t2+0x1c0) == @$t1) { r @$t6 = @$t6 + 1; r @$t7 = @eax; .printf \"PBSD SEND_GATE send=%I64x raw=%I64x thread=%p ep=%p record=%p nbl=%p flags_reg=%x family=%x ip=%p\\n\", @$t6, @$t4, @$thread, @$t2, @$t1, @rbp, @$t7, @r14w, @rip; r @$t17 = 0; .if ($vvalid(@rbp+8,8) == 1) { r @$t9 = poi(@rbp+8); .if ($vvalid(@$t9,0x20) == 1) { r @$t10 = poi(@$t9+8); r @$t13 = dwo(@$t9+0x18); r @$t14 = dwo(@$t9+0x10); .if ($vvalid(@$t10,0x30) == 1) { .if (((wo(@$t10+0xa) & 5) != 0) and (poi(@$t10+0x18) != 0) and (@$t13 >= 0x14) and (dwo(@$t10+0x28) >= @$t14+0x14)) { r @$t11 = poi(@$t10+0x18) + @$t14; .if ($vvalid(@$t11,0x14) == 1) { r @$t12 = 0; .if ((wo(@$t11) == 0xd9a4) and (wo(@$t11+2) == 0xda84)) { r @$t12 = @$t11; } .else { r @$t15 = (by(@$t11) & 0xf) * 4; .if (((by(@$t11) & 0xf0) == 0x40) and (by(@$t11+9) == 6) and (@$t15 >= 0x14) and (@$t15 <= 0x3c) and ((wo(@$t11+6) & 0xff3f) == 0) and (dwo(@$t11+0xc) == 0x100007f) and (dwo(@$t11+0x10) == 0x100007f) and (@$t13 >= @$t15+0x14) and (dwo(@$t10+0x28) >= @$t14+@$t15+0x14)) { r @$t12 = @$t11 + @$t15; } .else {  };  }; .if ((@$t12 != 0) and ($vvalid(@$t12,0x14) == 1)) { .if ((wo(@$t12) == 0xd9a4) and (wo(@$t12+2) == 0xda84) and ((by(@$t12+0xc) & 0xf0) >= 0x50) and ((by(@$t12+0xd) & 0x17) == 2)) { .printf \"PBSD SEND_HEADER send=%I64x nbl=%p header=%p flags=%x h0=%I64x h1=%I64x h2=%x\\n\", @$t6, @rbp, @$t12, by(@$t12+0xd), poi(@$t12), poi(@$t12+8), dwo(@$t12+0x10); r @$t17 = 1; } .else {  };  } .else {  };  } .else {  };  } .else {  };  } .else {  };  } .else {  };  } .else {  }; .if (@$t17 == 0) { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBSD_UNREADABLE event=SEND_HEADER capture=incomplete\\n\"; }; .if ((@$t7 & 0x200000) != 0) { .if (@$t8 != 0) { bc3; r @$t8 = 0; }; } .else { .if (@$t6 >= 4) { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBSD_LIMIT point=3 stage=send_count capture=incomplete\\n\"; } };  } .else { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBSD_IDENTITY_CHANGED capture=incomplete\\n\"; };  } .else { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBSD_IDENTITY_CHANGED capture=incomplete\\n\"; };  }; .if ((@$t8 != 0) and (@$t4 >= 0x40)) { bd2; .if (@$t8 != 0) { bc3; r @$t8 = 0; }; bd4; .printf \"PBSD_LIMIT point=3 stage=raw_reads capture=incomplete\\n\"; }; gc;"
+    }
+  ],
+  "automatic_disable": true,
+  "automatic_enable": true,
+  "limits": [
+    "Only selected endpoint reads/writes trigger point3; stop after first observed skip or 64 accesses.",
+    "A clear bit only proves eligibility for the association path, not completed association.",
+    "SYN header capture supports one contiguous already mapped MDL, raw TCP or unfragmented IPv4/TCP.",
+    "No complete NBL lifetime or Windows-versus-driver fault attribution.",
+    "Point4 remains disabled; no kernel ACCEPT or retrieval status is captured."
+  ],
+  "native_query_only": true
+}

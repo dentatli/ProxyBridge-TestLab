@@ -22,6 +22,32 @@ ACCEPT='PBSD ACCEPT ep=9000 nbl=7000 local_raw=da84 peer_raw=d9a4 status=c000022
 
 
 class SendGate(unittest.TestCase):
+    def test_native_query_mode_never_arms_accept_and_requires_no_kernel_accept(self):
+        from pb_endpoint_send_gate import NATIVE_SHA,NATIVE_PROFILE
+        self.assertEqual(hashlib.sha256((ROOT/NATIVE_PROFILE).read_bytes()).hexdigest(),NATIVE_SHA)
+        self.assertEqual(json.loads((ROOT/NATIVE_PROFILE).read_text()),profile(0))
+        self.assertNotIn('be4;',create_action(True))
+        self.assertEqual(policy(True,0)['debugger_points'],[2,3])
+        self.assertEqual(policy(True,0)['raw_hit_limits_per_point'],{'2':16,'3':64})
+        self.assertEqual(policy(True,0),flag_policy(True,True,True,False,'sendnative'))
+        self.assertEqual(profile_sha(True,True,False,'sendnative'),NATIVE_SHA)
+        text=TRACK+ARM.replace('accept=4','accept=disabled')+GATE+HEADER+SECOND+HEADER2
+        self.assertEqual(correlate(text,True)['status'],'SEND_GATE_OBSERVATIONS_COLLECTED')
+        self.assertIsNone(correlate(text,True)['accept'])
+        self.assertEqual(correlate(text+ACCEPT,True)['status'],'INCOMPLETE')
+
+    def test_native_query_mode_does_not_promote_10061_or_missing_query(self):
+        with tempfile.TemporaryDirectory() as temp:
+            p=Path(temp);plan=p/'runtime-plan.json';plan.write_text(json.dumps(dict(policy=policy(True,0))))
+            (p/'diagnostic-run.json').write_text(json.dumps(dict(debugger_observer=True,flow_registration_acknowledged=True,plan_sha256=hashlib.sha256(plan.read_bytes()).hexdigest())))
+            c=p/'console.txt';c.write_text(TRACK+ARM.replace('accept=4','accept=disabled')+GATE+HEADER+SECOND+HEADER2)
+            native=dict(status='TARGET_FAILURE_REPRODUCED',errors=[],matches=[dict(role='control',peer='127.0.0.1:42201',original_api_failure=True)])
+            with patch('pb_target_accept_report.evaluate',return_value=native):
+                r=evaluate(p,c);self.assertEqual(r['status'],'SEND_SKIP_AND_NATIVE_QUERY_FAILURE_OBSERVED')
+                self.assertFalse(r['kernel_accept_observed']);self.assertFalse(r['root_cause_proven'])
+                native['matches']=[];native['errors']=['NATIVE_ENDPOINT_UNOWNED']
+                self.assertEqual(evaluate(p,c)['status'],'INCOMPLETE')
+
     def test_native_report_preserves_incomplete_lifecycle_for_accept256(self):
         from pb_target_accept_report import evaluate as native_evaluate
         with tempfile.TemporaryDirectory() as temp:
@@ -34,6 +60,10 @@ class SendGate(unittest.TestCase):
             r=native_evaluate(p)
             self.assertIn('RUN_CONTROLLER_STATUS_NOT_COLLECTED',r['errors'])
             self.assertIn('COHORT_INCOMPLETE',r['errors'])
+            self.assertFalse(any('POLICY_INVALID' in e for e in r['errors']))
+            (p/'runtime-plan.json').write_text(json.dumps(dict(policy=policy(True,0))))
+            r=native_evaluate(p)
+            self.assertIn('RUN_CONTROLLER_STATUS_NOT_COLLECTED',r['errors'])
             self.assertFalse(any('POLICY_INVALID' in e for e in r['errors']))
 
     def test_accept256_changes_only_accept_cap_and_retains_old_profile(self):

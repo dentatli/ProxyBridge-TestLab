@@ -1,5 +1,38 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER подтвердил ACCEPT256; выбран SEND/native-query без глобальной ACCEPT
+
+USER TOTAL create1/reads2a/accept100hex/sends3/armed0: сработал именноcap256,
+readwatch снята. Не объяснять старой точкой/несброшеннымсчётчиком. USER сообщил,
+что безKD10061никогда не было, разрешил расширение либо более узкий observer.
+Выбран последний: глобальная ACCEPT4 полностьюdisabled; CREATE2 и адресная3.
+Это сокращение вмешательства, не доказанная причина10061; unexpected80000004
+из134304 сохраняется как observereffectcandidate, фильтрыexceptionsне менялись.
+
+Новый SEND-native profile SHA b5ef34718f7f64feb11fe5e79fb65e85796206f805c1ca31c12ad24c948b19d9:
+первые CREATE/read/20byteSYNguards прежние, изCREATE удалён be4, ARMED явно
+accept=disabled. Registered2/4(4d),dynamic3; runtimepoints2/3, hostenableтолько2,
+auto3only, cap16/64,total80; stopприfirstskip/limit/identity/unreadable.
+Старые профили/замороженныеcaptures/stages не изменялись. KernelACCEPT/NTSTATUS
+новыйobserverНЕизмеряет. Reporter требует nativeoriginalquery10022/0bytes,
+unique control42201/nativeownership/completecohort и повторныйSYNсоskip; статус
+SEND_SKIP_AND_NATIVE_QUERY_FAILURE_OBSERVED, kernel_accept_observedfalse,
+rootcause/trapcoveragefalse. Missingquery/10061/неожиданныйACCEPT не promoted.
+
+Isolated pb-send-native-proof-20261020-r1:8/8passed/безkernel/product/traffic;
+здоровыйmodelassociate1/skip0, retryassociate1/skip1, ACCEPThandlerне срабатывает.
+142targettests passed, включая nativepolicyreport и reject10061/missingquery.
+Sameboothealthy131915 replay толькоreadonly: прежние2/3/headers калиброваны;
+не утверждать новый kernelhealthy или Runtime новогоprofile. Nativequery-only
+mode разрешён толькоtarget, не fourprobe. Registration prepared-only
+pb-send-native-registration-20261020-r1; hostupdate2ещёне наблюдался.
+Prepare150143-796ab618 PREPARED_NOT_RUN/exit0, SHA
+cd90ca2b00cbad4f0ba5e78f0deb19f227054e595f5cade350f3eed2755e6773.
+Productstartedfalse/trafficgeneratedfalse; перед выдачейRun нужен Inspect.
+HostUSER bd4/bc2/bp2new/bd2/g; READY reset1..8/be2/g, затемCбезEnter.
+WarningwholeVM/Codex/RDP передBreak/enable; recoverybd2/conditionalbc3/t8/bd4/g.
+No повтор старогоRun/No agentBreak/enable/step/Run. Сначала завершитьPrepare/Inspect.
+
 ## Run134304: третье SEND со skip, но control10061/noquery; нужен итог t5
 
 USER дошёл READY/hostconfirmation/controlSYNsent. Session/cohortCOLLECTED,

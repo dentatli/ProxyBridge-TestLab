@@ -14,6 +14,9 @@ PROFILE_SHA='22febf6a90774473a9618f655c38ab5c854b6ee627cbcaaaa3e4aefe459eb3ba'
 ACCEPT256_PROFILE='scripts/debugger/pb-kd-selected-endpoint-send-gate-accept256-profile-20261020.json'
 ACCEPT256_STAGE='scripts/debugger/pb-kd-selected-endpoint-send-gate-accept256-update-20261020.wdbg'
 ACCEPT256_SHA='8f9664e299516de057336b30923adf4e0cd01393f5f2beafe4ab6b281a0bd924'
+NATIVE_PROFILE='scripts/debugger/pb-kd-selected-endpoint-send-native-profile-20261020.json'
+NATIVE_STAGE='scripts/debugger/pb-kd-selected-endpoint-send-native-update-20261020.wdbg'
+NATIVE_SHA='b5ef34718f7f64feb11fe5e79fb65e85796206f805c1ca31c12ad24c948b19d9'
 GATE='tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0x30'
 
 
@@ -57,7 +60,7 @@ def read_action():
         '.if ((@$t8 != 0) and (@$t4 >= 0x40)) { '+STOP+' .printf "PBSD_LIMIT point=3 stage=raw_reads capture=incomplete\\n"; }; gc;')
 
 
-def create_action():
+def create_action(native_query=False):
     bad=STOP+' .printf "PBSD_UNREADABLE event=CREATE capture=incomplete\\n";'
     body=('bd2; r @$t1 = @rax; r @$t2 = @rdi; r @$t4 = 0; r @$t6 = 0; '
         '.printf "PBSD TRACK ep=%p record=%p context=%p size=%I64x refs=%x flags30=%x\\n", '
@@ -68,8 +71,9 @@ def create_action():
         '($vvalid(@rax+0x1e0,0x14) == 1) and (@rax != 0) and ((@rdi & 3) == 0)',body,bad)
     body=guard('(wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)',body,'')
     body=guard('$vvalid(@r14,4) == 1',body,bad)
-    return ('r @$t3 = @$t3 + 1; .if (@$t3 >= 0x10) { '+STOP+
+    action=('r @$t3 = @$t3 + 1; .if (@$t3 >= 0x10) { '+STOP+
         ' .printf "PBSD_LIMIT point=2 capture=incomplete\\n"; } .else { '+body+' }; gc;')
+    return action.replace('; be4;', ';').replace('accept=4','accept=disabled') if native_query else action
 
 
 def accept_action(accept_limit=64):
@@ -85,7 +89,7 @@ def accept_action(accept_limit=64):
 
 
 def profile(accept_limit=64):
-    if accept_limit not in (64,256):raise ValueError('SEND_ACCEPT_LIMIT_UNSUPPORTED')
+    if accept_limit not in (0,64,256):raise ValueError('SEND_ACCEPT_LIMIT_UNSUPPORTED')
     p=dict(method='kd-selected-endpoint-send-gate-20261020-v1',registered_point_ids=[2,4],dynamic_point_ids=[3],active_point_ids=[],
         host_enable_point_ids=[2],automatic_enable_point_ids=[4],watch_access='r',watch_size=4,raw_hit_limits_per_point={'2':16,'3':64,'4':64},
         max_total_raw_hits=144,points=[dict(id=i,target=t,action=a) for i,t,a in (
@@ -95,7 +99,12 @@ def profile(accept_limit=64):
             'A clear bit only proves eligibility for the association path, not completed association.',
             'SYN header capture supports one contiguous already mapped MDL, raw TCP or unfragmented IPv4/TCP.',
             'No complete NBL lifetime or Windows-versus-driver fault attribution.'])
-    if accept_limit!=64:
+    if accept_limit==0:
+        p.update(method='kd-selected-endpoint-send-native-20261020-v1',native_query_only=True,
+            automatic_enable_point_ids=[],raw_hit_limits_per_point={'2':16,'3':64},max_total_raw_hits=80)
+        p['points']=p['points'][:2];p['points'][0]['action']=create_action(True)
+        p['limits'].append('Point4 remains disabled; no kernel ACCEPT or retrieval status is captured.')
+    elif accept_limit!=64:
         p['method']='kd-selected-endpoint-send-gate-accept256-20261020-v1'
         p['raw_hit_limits_per_point']['4']=accept_limit;p['max_total_raw_hits']=80+accept_limit
         p['points'][2]['action']=accept_action(accept_limit)
@@ -103,7 +112,8 @@ def profile(accept_limit=64):
 
 
 def policy(target=True,accept_limit=64):
-    if accept_limit not in (64,256):raise ValueError('SEND_ACCEPT_LIMIT_UNSUPPORTED')
+    if accept_limit not in (0,64,256):raise ValueError('SEND_ACCEPT_LIMIT_UNSUPPORTED')
+    if accept_limit==0 and not target:raise ValueError('SEND_NATIVE_REQUIRES_TARGET')
     from pb_endpoint_watch_profile import policy as base
     p=base(target)
     p.update(endpoint_send_gate=True,debugger_points=[2,3,4],initial_debugger_points=[] if target else [2],
@@ -111,7 +121,11 @@ def policy(target=True,accept_limit=64):
         automatic_debugger_install_after_create=[3],watch_access='r',raw_hit_limits_per_point={'2':16,'3':64,'4':64},
         max_total_raw_hits=144,selected_snapshot_limits_per_point={'2':1,'3':4,'4':1},stack_count_max=0,
         packet_header_bytes=20,packet_header_count_max=4)
-    if accept_limit!=64:
+    if accept_limit==0:
+        p.update(endpoint_send_native_query=True,debugger_points=[2,3],inactive_debugger_points=[4],
+            automatic_debugger_enable_after_create=[3],raw_hit_limits_per_point={'2':16,'3':64},
+            max_total_raw_hits=80,selected_snapshot_limits_per_point={'2':1,'3':4})
+    elif accept_limit!=64:
         p['endpoint_send_accept_limit']=accept_limit
         p['raw_hit_limits_per_point']['4']=accept_limit;p['max_total_raw_hits']=80+accept_limit
     return p
@@ -120,8 +134,8 @@ def policy(target=True,accept_limit=64):
 def registration(profile_path,receipt_path,receipt_sha,boot):
     from pb_kd_session import read,checked,boot_identity
     sha=hashlib.sha256(Path(profile_path).read_bytes()).hexdigest()
-    limit=256 if sha==ACCEPT256_SHA else 64
-    expected=ACCEPT256_SHA if limit==256 else PROFILE_SHA
+    limit=0 if sha==NATIVE_SHA else 256 if sha==ACCEPT256_SHA else 64
+    expected=NATIVE_SHA if limit==0 else ACCEPT256_SHA if limit==256 else PROFILE_SHA
     p=read(checked(profile_path,expected));r=read(checked(receipt_path,receipt_sha))
     if p!=profile(limit) or (r['method']!='target-flow-prepared-commands-v1' or r['source']!='prepared-command-awaiting-user-attestation' or
         r['profile_sha256']!=expected or r['expected_disabled_ids']!=[2,4] or r['expected_absent_ids']!=[3] or
@@ -130,7 +144,7 @@ def registration(profile_path,receipt_path,receipt_sha,boot):
     return p
 
 
-def correlate(text):
+def correlate(text,native_query=False):
     from pb_target_retrieve_report import parse,DEBUGGER_ERROR
     r=dict(status='INCOMPLETE',errors=[],track=None,armed=None,sends=[],headers=[],accept=None,
         skip_observed=False,repeated_syn_observed=False,nbl_pointer_match=False,root_cause_proven=False,trap_coverage_verified=False)
@@ -143,7 +157,7 @@ def correlate(text):
                 if r['track'] or not all(t[k] for k in ('ep','record','context','refs')) or t['size']!=32:raise ValueError('SEND_TRACK_INVALID')
                 r['track']=t
             elif line.startswith('PBSD ARMED '):
-                if r['armed'] or not r['track'] or 'access=r4 accept=4' not in line:raise ValueError('SEND_ARM_INVALID')
+                if r['armed'] or not r['track'] or ('access=r4 accept=disabled' if native_query else 'access=r4 accept=4') not in line:raise ValueError('SEND_ARM_INVALID')
                 a=parse(line.split(' access=')[0],'PBSD ARMED ',['address'])
                 if a['address']!=r['track']['ep']+0x30:raise ValueError('SEND_ARM_ADDRESS_DIFFERS')
                 r['armed']=a
@@ -160,15 +174,16 @@ def correlate(text):
                 if raw[:4]!=bytes.fromhex('a4d984da') or raw[13]!=h['flags'] or raw[12]>>4<5 or h['flags']&0x17!=2 or not h['header']:raise ValueError('SEND_HEADER_INVALID')
                 h['sequence']=int.from_bytes(raw[4:8],'big');r['headers'].append(h)
             elif line.startswith('PBSD ACCEPT '):
+                if native_query:raise ValueError('SEND_NATIVE_UNEXPECTED_ACCEPT')
                 a=parse(line,'PBSD ACCEPT ','ep nbl local_raw peer_raw status output_raw reads sends'.split())
                 if r['accept'] or not r['headers'] or len(r['headers'])!=len(r['sends']) or (a['local_raw'],a['peer_raw'])!=(0xda84,0xd9a4) or a['sends']!=len(r['sends']) or not r['sends'][-1]['raw']<=a['reads']<=64:raise ValueError('SEND_ACCEPT_INVALID')
                 r['accept']=a
         except (ValueError,OverflowError) as e:r['errors'].append(str(e))
-    if not all((r['track'],r['armed'],r['sends'],r['headers'],r['accept'])) or len(r['sends'])!=len(r['headers']):r['errors'].append('SEND_REQUIRED_OBSERVATION_MISSING')
+    if not all((r['track'],r['armed'],r['sends'],r['headers'])) or (not native_query and not r['accept']) or len(r['sends'])!=len(r['headers']):r['errors'].append('SEND_REQUIRED_OBSERVATION_MISSING')
     if r['headers']:
         r['repeated_syn_observed']=len(r['headers'])>=2 and len({h['sequence'] for h in r['headers']})==1
     if r['accept'] and r['sends']:r['nbl_pointer_match']=r['accept']['nbl']==r['sends'][-1]['nbl']
-    if not r['errors']:r['status']='SEND_SKIP_AND_ACCEPT_MISS_OBSERVED' if r['skip_observed'] and r['repeated_syn_observed'] and not r['sends'][0]['flags_reg']&0x200000 and r['accept']['status']==0xc0000225 else 'SEND_GATE_OBSERVATIONS_COLLECTED'
+    if not r['errors']:r['status']='SEND_SKIP_AND_ACCEPT_MISS_OBSERVED' if not native_query and r['skip_observed'] and r['repeated_syn_observed'] and not r['sends'][0]['flags_reg']&0x200000 and r['accept']['status']==0xc0000225 else 'SEND_GATE_OBSERVATIONS_COLLECTED'
     return r
 
 
@@ -177,8 +192,9 @@ def evaluate(capture,console):
     from pb_target_accept_report import evaluate as native_evaluate
     capture,console=Path(capture),Path(console);p=read(capture/'runtime-plan.json');run=read(capture/'diagnostic-run.json')
     probe=p['policy'].get('workload')=='flag-four-probe';sha=hashlib.sha256((capture/'runtime-plan.json').read_bytes()).hexdigest()
-    if p['policy']!=policy(not probe,p['policy'].get('endpoint_send_accept_limit',64)) or run.get('debugger_observer') is not True or run.get('flow_registration_acknowledged') is not True or run['plan_sha256'].lower()!=sha:raise ValueError('SEND_CAPTURE_BINDING_INVALID')
-    raw=console.read_bytes();r=correlate(raw.decode('utf-8-sig'));n=native_evaluate(capture)
+    native_query=p['policy'].get('endpoint_send_native_query') is True
+    if p['policy']!=policy(not probe,0 if native_query else p['policy'].get('endpoint_send_accept_limit',64)) or run.get('debugger_observer') is not True or run.get('flow_registration_acknowledged') is not True or run['plan_sha256'].lower()!=sha:raise ValueError('SEND_CAPTURE_BINDING_INVALID')
+    raw=console.read_bytes();r=correlate(raw.decode('utf-8-sig'),native_query);n=native_evaluate(capture)
     c=[m for m in n['matches'] if m['role']=='control']
     r.update(native_status=n['status'],native_errors=n['errors'],plan_sha256=sha,console_sha256=hashlib.sha256(raw).hexdigest(),automatic_capture_scope_verified=False)
     if n['errors'] or len(c)!=1 or c[0]['peer']!='127.0.0.1:42201':r['errors'].append('SEND_NATIVE_CONTROL_INCOMPLETE')
@@ -186,5 +202,9 @@ def evaluate(capture,console):
         if r['skip_observed'] or not r['accept'] or r['accept']['status']!=0 or not r['track'] or r['accept']['output_raw']!=r['track']['record'] or len(c)!=1 or c[0]['original_api_failure']:r['errors'].append('SEND_HEALTHY_PROBE_INCOMPLETE')
         if not r['errors']:r['status']='SEND_GATE_HEALTHY_CONTROL_OBSERVED'
     elif len(c)!=1 or not c[0]['original_api_failure']:r['errors'].append('SEND_TARGET_API_FAILURE_NOT_REPRODUCED')
+    if native_query:
+        r['kernel_accept_observed']=False
+        if not r['skip_observed'] or not r['repeated_syn_observed'] or r['sends'][0]['flags_reg']&0x200000:r['errors'].append('SEND_NATIVE_SKIP_SEQUENCE_INCOMPLETE')
+        if not r['errors']:r['status']='SEND_SKIP_AND_NATIVE_QUERY_FAILURE_OBSERVED'
     if r['errors']:r['status']='INCOMPLETE'
     return r

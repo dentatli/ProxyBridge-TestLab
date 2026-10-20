@@ -15,9 +15,9 @@ HEALTHY_STAGE='scripts/debugger/pb-kd-target-flag-healthy-setter-update-20261020
 
 
 def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
-    if endpoint_watch in ('send','send256'):
-        from pb_endpoint_send_gate import PROFILE_SHA as send_sha,ACCEPT256_SHA
-        return ACCEPT256_SHA if endpoint_watch=='send256' else send_sha
+    if endpoint_watch in ('send','send256','sendnative'):
+        from pb_endpoint_send_gate import PROFILE_SHA as send_sha,ACCEPT256_SHA,NATIVE_SHA
+        return NATIVE_SHA if endpoint_watch=='sendnative' else ACCEPT256_SHA if endpoint_watch=='send256' else send_sha
     if endpoint_watch=='packet':
         from pb_endpoint_packet_watch import PROFILE_SHA as packet_sha
         return packet_sha
@@ -30,9 +30,9 @@ def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=F
 def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
     if endpoint_watch:
         if not (create_armed and accept64) or healthy!=(not target):raise ValueError('ENDPOINT_WATCH_POLICY_INVALID')
-        if endpoint_watch in ('send','send256'):
+        if endpoint_watch in ('send','send256','sendnative'):
             from pb_endpoint_send_gate import policy as send_policy
-            return send_policy(target,256 if endpoint_watch=='send256' else 64)
+            return send_policy(target,0 if endpoint_watch=='sendnative' else 256 if endpoint_watch=='send256' else 64)
         if endpoint_watch=='packet':
             from pb_endpoint_packet_watch import policy as packet_policy
             return packet_policy(target)
@@ -62,8 +62,8 @@ def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint
 
 
 def registration(profile_path,receipt_path,receipt_sha,boot):
-    from pb_endpoint_send_gate import PROFILE_SHA as send_sha,ACCEPT256_SHA,registration as send_registration
-    if digest(Path(profile_path)) in (send_sha,ACCEPT256_SHA):return send_registration(profile_path,receipt_path,receipt_sha,boot)
+    from pb_endpoint_send_gate import PROFILE_SHA as send_sha,ACCEPT256_SHA,NATIVE_SHA,registration as send_registration
+    if digest(Path(profile_path)) in (send_sha,ACCEPT256_SHA,NATIVE_SHA):return send_registration(profile_path,receipt_path,receipt_sha,boot)
     from pb_endpoint_packet_watch import PROFILE_SHA as packet_sha,registration as packet_registration
     if digest(Path(profile_path))==packet_sha:return packet_registration(profile_path,receipt_path,receipt_sha,boot)
     from pb_endpoint_watch_profile import PROFILE_SHA as watch_sha,registration as watch_registration
@@ -89,9 +89,9 @@ def registration(profile_path,receipt_path,receipt_sha,boot):
 
 
 def parser_proof(path,create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
-    if endpoint_watch in ('send','send256'):
+    if endpoint_watch in ('send','send256','sendnative'):
         from pb_endpoint_send_gate_fixture import parser_proof as send_proof
-        return send_proof(path,256 if endpoint_watch=='send256' else 64)
+        return send_proof(path,0 if endpoint_watch=='sendnative' else 256 if endpoint_watch=='send256' else 64)
     if endpoint_watch=='packet':
         from pb_endpoint_packet_watch import parser_proof as packet_proof
         return packet_proof(path)

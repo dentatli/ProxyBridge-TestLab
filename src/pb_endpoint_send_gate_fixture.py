@@ -71,15 +71,15 @@ def transform(action):
 
 def fixture_setup(accept_limit=64):
     # CDB truncates a command line at 4096 bytes. Install the independent handlers separately.
-    return ['r @$t0 = @rsi+0x1003','bp4 (@rsi+0x2000) '+quoted(transform(accept_action(accept_limit))),
-        'bd4','sxe -c '+quoted(transform(create_action()))+' bpe','g']
+    return ['r @$t0 = @rsi+0x1003','bp4 (@rsi+0x2000) '+quoted(transform(accept_action(64 if accept_limit==0 else accept_limit))),
+        'bd4','sxe -c '+quoted(transform(create_action(accept_limit==0)))+' bpe','g']
 
 
 def check(output,accept_limit=64):
-    from pb_endpoint_send_gate import profile,PROFILE_SHA,ACCEPT256_PROFILE,ACCEPT256_SHA
-    sha=ACCEPT256_SHA if accept_limit==256 else PROFILE_SHA
+    from pb_endpoint_send_gate import profile,PROFILE_SHA,ACCEPT256_PROFILE,ACCEPT256_SHA,NATIVE_PROFILE,NATIVE_SHA
+    sha=NATIVE_SHA if accept_limit==0 else ACCEPT256_SHA if accept_limit==256 else PROFILE_SHA
     output=Path(output);output.mkdir(parents=True,exist_ok=False)
-    raw=(Path(__file__).resolve().parents[1]/(ACCEPT256_PROFILE if accept_limit==256 else PROFILE)).read_bytes()
+    raw=(Path(__file__).resolve().parents[1]/(NATIVE_PROFILE if accept_limit==0 else ACCEPT256_PROFILE if accept_limit==256 else PROFILE)).read_bytes()
     if hashlib.sha256(raw).hexdigest()!=sha or json.loads(raw)!=profile(accept_limit):raise ValueError('SEND_PROFILE_ACTION_DIFFERS')
     (output/'candidate.json').write_bytes(raw);cases=[]
     for case in (ACCEPT256_CASES if accept_limit==256 else CASES):
@@ -93,8 +93,8 @@ def check(output,accept_limit=64):
         text=(c.stdout+c.stderr).decode(errors='replace');lines=text.splitlines();gates=[l for l in lines if l.startswith('PBSD SEND_GATE ')];headers=[l for l in lines if l.startswith('PBSD SEND_HEADER ')]
         accepts=[l for l in lines if l.startswith('PBSD ACCEPT ')];done=next((l for l in lines if l.startswith('PBSD_FIXTURE_DONE ')),None)
         stats=json.loads(done.split(' ',1)[1]) if done else None
-        if case=='healthy_tcp':ok=len(gates)==len(headers)==len(accepts)==1 and 'flags_reg=1101641 ' in gates[0] and stats==dict(associate=1,skip=0)
-        elif case in ('retry_tcp','retry_ipv4'):ok=len(gates)==len(headers)==2 and len(accepts)==1 and 'raw=4 ' in gates[-1] and 'flags_reg=1301641 ' in gates[-1] and stats==dict(associate=1,skip=1)
+        if case=='healthy_tcp':ok=len(gates)==len(headers)==1 and len(accepts)==(0 if accept_limit==0 else 1) and 'flags_reg=1101641 ' in gates[0] and stats==dict(associate=1,skip=0)
+        elif case in ('retry_tcp','retry_ipv4'):ok=len(gates)==len(headers)==2 and len(accepts)==(0 if accept_limit==0 else 1) and 'raw=4 ' in gates[-1] and 'flags_reg=1301641 ' in gates[-1] and stats==dict(associate=1,skip=1)
         elif case=='raw_limit':ok=not gates and not accepts and any(l.startswith('PBSD_LIMIT point=3 stage=raw_reads') for l in lines)
         elif case=='identity_change':ok=not gates and not accepts and 'PBSD_IDENTITY_CHANGED capture=incomplete' in lines
         elif case in ('accept_200_fillers','accept_254_fillers'):ok=len(gates)==len(headers)==len(accepts)==1 and 'PBSD_LIMIT point=4 capture=incomplete' not in lines
@@ -112,8 +112,8 @@ def check(output,accept_limit=64):
 def parser_proof(path,accept_limit=64):
     from pb_kd_session import read,checked,inventory
     from pb_prepare_kd_baseline import plain,digest
-    from pb_endpoint_send_gate import PROFILE_SHA,ACCEPT256_SHA
-    sha=ACCEPT256_SHA if accept_limit==256 else PROFILE_SHA
+    from pb_endpoint_send_gate import PROFILE_SHA,ACCEPT256_SHA,NATIVE_SHA
+    sha=NATIVE_SHA if accept_limit==0 else ACCEPT256_SHA if accept_limit==256 else PROFILE_SHA
     path=plain(Path(path));r=read(path)
     if (r.get('method')!='endpoint-send-gate-proof-v1' or r.get('profile_sha256')!=sha or r.get('passed') is not True or
         any(r.get(k) is not False for k in ('kernel_connection','product_started','traffic_generated')) or
