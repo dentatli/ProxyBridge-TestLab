@@ -55,11 +55,12 @@ def evaluate(capture,console):
     from pb_target_accept_report import evaluate as native_evaluate
     read=lambda p:json.loads(p.read_text(encoding='utf-8-sig'))
     p,run=read(capture/'runtime-plan.json'),read(capture/'diagnostic-run.json')
-    probe=p['policy']==policy(False)
+    probe=p['policy'].get('workload')=='flag-four-probe'
     armed=p['policy'].get('automatic_debugger_enable_after_create')==[3]
     accept64=p['policy'].get('raw_hit_limits_per_point')=={'2':16,'3':16,'4':64}
+    healthy=p['policy'].get('healthy_setter_probe') is True
     sha=hashlib.sha256((capture/'runtime-plan.json').read_bytes()).hexdigest()
-    if (p['policy']!=policy(not probe,armed,accept64) or run.get('debugger_observer') is not True or
+    if (p['policy']!=policy(not probe,armed,accept64,healthy) or run.get('debugger_observer') is not True or
         run.get('flow_registration_acknowledged') is not True or sha!=run['plan_sha256'].lower()):raise ValueError('FLAG_CAPTURE_BINDING_INVALID')
     raw=console.read_bytes();r=correlate(raw.decode('utf-8-sig'));native=native_evaluate(capture)
     r.update(plan_sha256=sha,console_sha256=hashlib.sha256(raw).hexdigest(),native_status=native['status'],
@@ -70,10 +71,16 @@ def evaluate(capture,console):
     if probe:
         track=next((e for e in r['events'] if e['kind']=='TRACK'),{})
         accept=next((e for e in r['events'] if e['kind']=='RETRIEVE'),{})
-        if (r['counts']!={'TRACK':1,'SET_PRE':0,'RETRIEVE':1} or not accept or
+        expected_counts={'TRACK':1,'SET_PRE':r['counts']['SET_PRE'] if healthy else 0,'RETRIEVE':1}
+        if (r['counts']!=expected_counts or (healthy and r['counts']['SET_PRE']>1) or not accept or
             accept['status']!=0 or accept['output_raw']!=track.get('record') or
             len(controls)!=1 or controls[0]['original_api_failure']):r['errors'].append('FLAG_POSITIVE_PROBE_INCOMPLETE')
         if not r['errors']:r['status']='FLAG_PROBE_SUCCESS_OBSERVED'
+        if healthy:
+            r['setter_pre_observed']=r['counts']['SET_PRE']==1
+            r['setter_absence_proven']=False
+            if r['setter_pre_observed'] and not r['frames']:r['errors'].append('FLAG_HEALTHY_SETTER_STACK_MISSING')
+            if not r['errors']:r['status']='FLAG_HEALTHY_PROBE_NATIVE_SUCCESS_OBSERVED'
     if r['errors']:r['status']='INCOMPLETE'
     return r
 

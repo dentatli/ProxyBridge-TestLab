@@ -158,5 +158,39 @@ class FlagBindings(unittest.TestCase):
         self.assertEqual(old['points'][:2],new['points'][:2])
         self.assertEqual(old['points'][2]['action'].replace('@$t5 >= 0x10','@$t5 >= 0x40'),new['points'][2]['action'])
 
+    def test_healthy_probe_has_four_connections_and_no_host_window(self):
+        p=policy(False,True,True,True)
+        self.assertEqual(p['fillers'],3);self.assertEqual(p['control_connections'],1)
+        self.assertEqual(p['debugger_points'],[2,3,4]);self.assertEqual(p['stack_count_max'],1)
+        self.assertNotIn('host_deadline_ms',p)
+        with self.assertRaisesRegex(ValueError,'REQUIRES_ARMED_FOUR'):policy(True,True,True,True)
+        with self.assertRaisesRegex(ValueError,'EXCLUSIVE_PROBE'):
+            prepare(ROOT,ROOT,self.path,flag_healthy_probe=True,flag_target=True)
+
+    def test_healthy_accept_preserves_setter_and_keeps_global_cap(self):
+        p=json.loads((ROOT/'scripts/debugger/pb-kd-target-flag-healthy-setter-profile-20261020.json').read_text())
+        action=p['points'][2]['action']
+        self.assertIn('== 0xd9a4)) { bd4; .if',action)
+        self.assertIn('>= 0x40) { bd2; bd3; bd4;',action)
+
+    def test_healthy_evaluation_accepts_setter_after_retrieve_but_not_missing_stack(self):
+        plan=self.path/'runtime-plan.json';plan.write_text(json.dumps(dict(policy=policy(False,True,True,True))))
+        sha=hashlib.sha256(plan.read_bytes()).hexdigest()
+        (self.path/'diagnostic-run.json').write_text(json.dumps(dict(debugger_observer=True,flow_registration_acknowledged=True,plan_sha256=sha)))
+        console=self.path/'console.txt'
+        native=dict(status='NATIVE_SUCCESS',errors=[],matches=[dict(role='control',peer='127.0.0.1:42201',original_api_failure=False)])
+        with patch('pb_target_accept_report.evaluate',return_value=native):
+            console.write_text(TRACK+ACCEPT+SETTER+STACK)
+            r=evaluate(self.path,console)
+            self.assertEqual(r['status'],'FLAG_HEALTHY_PROBE_NATIVE_SUCCESS_OBSERVED')
+            self.assertTrue(r['setter_pre_observed']);self.assertFalse(r['post_write_observed'])
+            console.write_text(TRACK+ACCEPT+SETTER)
+            self.assertIn('FLAG_HEALTHY_SETTER_STACK_MISSING',evaluate(self.path,console)['errors'])
+            console.write_text(TRACK+ACCEPT)
+            r=evaluate(self.path,console)
+            self.assertFalse(r['setter_pre_observed']);self.assertFalse(r['setter_absence_proven'])
+            console.write_text(TRACK+ACCEPT+'PBFG_LIMIT point=3 capture=incomplete\n')
+            self.assertEqual(evaluate(self.path,console)['status'],'INCOMPLETE')
+
 
 if __name__=='__main__':unittest.main()

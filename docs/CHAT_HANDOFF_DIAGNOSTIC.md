@@ -1,5 +1,34 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Healthy setter control: готовится короткий контроль тем же setter
+
+Prepare073347-ab151076 exit0/PREPARED_NOT_RUN, SHA
+5fee9eb60d0094fbb578bd21a2057f29fee5388c993d1490c7c341f7064e8983.
+Boot117прежний,freeRAM4461176KiB,driverRunning. Receipt
+pb-flag-healthy-setter-registration-20261020-r1 prepared-only. Hostupdate4неподтверждён.
+USERполучаетupdate4/reset/be2/be4/g однимблоком, затемVMRunLoggerEnabled+
+FlowProfileRegisteredDisabled. Recoverybd2/bd3/bd4/g. СтарыйRunнеповторять.
+
+USER: «Окей, давай уже выясним наконец все». Следующийдискриминатор — наблюдать
+SET_PRE в здоровомконтроле: прежнийFlagProbe имел3inactive. Нельзяобъявлять
+0x200000причинойошибки,покаэто можетбытьнормальнаяветкаreceive.
+Обнаруженпорядок: старыйACCEPTactionотключал3 доhealthyreceive. Новыйотдельный
+профильhealthy-setter меняетТОЛЬКОselectedACCEPT сbd2/bd3/bd4 наbd4;
+CREATE2 прежнийautoenable3 (USERexceptionсохранено), SET_PRE3 прежнийone-shot/k8,
+cap2/3=16,4=64,max96; limit/unreadable сохраняютостановкувсегонабора.
+Hostupdateтолько4; activate2/4/g, VMRunчетырёхсоединенийсразу, безC/hostwindow.
+ПрофильSHA5487823dc3ffd10ce8fbf089de15932d33ee6329035dc09b69963c48c7fefcb7.
+FlagHealthyProbePrepare — exclusivearmedfour безpositivegate/безmanualwindow.
+RuntimeтребуетLoggerEnabled+FlowProfileRegisteredDisabled; неBoundedLoadReviewed.
+Послеcompletion/errorhostbd2/bd3/bd4/g,wholeVM/Codex/RDPwarningпередBreak/be.
+
+Proofhealthy-setter-parser-20261020-r1:4arm+12allactions+3boundarychecks иactual
+healthyACCEPTpreserves3passed;34filesbound.119existingtargettests прошли,
+затем15flagbindingtests (3новых) прошли, PSparserOK. Reporter допускаетSET_PRE
+послеRETRIEVE, отвергаетcap/missingstack; отсутствиеSET_PRE НЕдоказательство
+отсутствиясрабатывания. rootcause/postwrite/trapcoverage false.
+НовогоRun/трафика/Break/stepагентомнебыло. Старыеprofiles/kitsнеизменены.
+
 ## Run072249: hostwindow истёк, контроль не запускался; USER подозревает неверную клавишу
 
 Run072249-d83652b5 FAILED/TARGET_COHORT_INCOMPLETE:TARGET_HOST_WINDOW_EXPIRED_NO_CONTROL.

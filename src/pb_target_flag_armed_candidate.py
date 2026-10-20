@@ -8,7 +8,7 @@ import subprocess
 from pb_target_flag_candidate import candidate as previous_candidate, fixture, check as check_actions
 
 
-def candidate(accept64=False):
+def candidate(accept64=False,healthy=False):
     p = previous_candidate()
     p.update(method='create-armed-flag-candidate-v1', load_allowed=False,
              status='PROPOSAL_REQUIRES_EXPLICIT_HOST_ENABLE_EXCEPTION',
@@ -25,6 +25,11 @@ def candidate(accept64=False):
         p.update(raw_hit_limits_per_point={'2':16,'3':16,'4':64},max_total_raw_hits=96)
         del p['raw_hit_limit_per_point']
         p['points'][2]['action']=p['points'][2]['action'].replace('@$t5 >= 0x10','@$t5 >= 0x40')
+    if healthy:
+        if not accept64:raise ValueError('HEALTHY_REQUIRES_ACCEPT64')
+        old='== 0xd9a4)) { bd2; bd3; bd4; .if'
+        if p['points'][2]['action'].count(old)!=1:raise ValueError('ACCEPT_ACTION_CHANGED')
+        p['points'][2]['action']=p['points'][2]['action'].replace(old,'== 0xd9a4)) { bd4; .if')
     p['limitations'] += [
         'Not accepted by the runtime launcher or any existing frozen plan.',
         'Host user must explicitly authorize be3 inside the selected CREATE action.',
@@ -33,9 +38,9 @@ def candidate(accept64=False):
     return p
 
 
-def check(output,accept64=False):
+def check(output,accept64=False,healthy=False):
     output.mkdir(parents=True, exist_ok=False)
-    p = candidate(accept64)
+    p = candidate(accept64,healthy)
     (output/'candidate.json').write_text(json.dumps(p, indent=2)+'\n', encoding='utf-8', newline='\n')
     debugger = Path(r'C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\cdb.exe')
     symbols = output/'empty-symbols'
@@ -90,6 +95,22 @@ def check(output,accept64=False):
             checks.append(all(any(re.fullmatch(r'bd\s+'+str(i)+r';',line) for line in state)==(count==64) for i in (2,3,4)))
         result['accept64_boundary_checks']=checks
         result['passed'] = result['passed'] and c.returncode==0 and checks==[True]*3 and not re.search(r'(?i)(syntax error|extra character error|couldn.t resolve)',text)
+    if healthy:
+        commands=['bp2 @$ip+0x20 "gc"','bp3 @$ip+0x30 "gc"','bp4 @$ip+0x40 "gc"','bd2',
+                  'r @$t5 = 0',fixture(p['points'][2]['action'],'selected'),
+                  '.printf "HEALTHY_STATE_BEGIN\\n"','.bpcmds','.printf "HEALTHY_STATE_END\\n"','q']
+        path=output/'healthy-accept.wdbg'
+        path.write_text('\n'.join(commands)+'\n',encoding='ascii',newline='\n')
+        c=subprocess.run([str(debugger),'-sins','-y',str(symbols),'-cf',str(path),
+                          r'C:\Windows\System32\cmd.exe','/d','/c','exit','0'],capture_output=True,timeout=20,creationflags=0x08000000)
+        (output/'healthy-accept.stdout.txt').write_bytes(c.stdout)
+        (output/'healthy-accept.stderr.txt').write_bytes(c.stderr)
+        text=(c.stdout+c.stderr).decode('utf-8',errors='replace');lines=[line.strip() for line in text.splitlines()]
+        state=lines[lines.index('HEALTHY_STATE_BEGIN')+1:lines.index('HEALTHY_STATE_END')]
+        disabled={i:any(re.fullmatch(r'bd\s+'+str(i)+r';',line) for line in state) for i in (2,3,4)}
+        result['healthy_accept_preserves_setter']=(c.returncode==0 and disabled=={2:True,3:False,4:True}
+            and not re.search(r'(?i)(syntax error|extra character error|couldn.t resolve)',text))
+        result['passed']=result['passed'] and result['healthy_accept_preserves_setter']
     (output/'parser-check.json').write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
     return result
 
@@ -98,7 +119,8 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--accept64', action='store_true')
+    parser.add_argument('--healthy', action='store_true')
     args = parser.parse_args()
-    result = check(args.output,args.accept64)
+    result = check(args.output,args.accept64,args.healthy)
     print(json.dumps(result))
     raise SystemExit(not result['passed'])

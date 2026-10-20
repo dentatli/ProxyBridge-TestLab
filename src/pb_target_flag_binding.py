@@ -10,9 +10,15 @@ ARMED_PROFILE_SHA='ca1ecd5c335b6864259bb92a9d94dfeda0fc8bf2f655ff273cd59616cbb3f
 ARMED_STAGE='scripts/debugger/pb-kd-target-flag-create-armed-update-20261020.wdbg'
 ACCEPT64_PROFILE_SHA='748d942dd4252dfc79c7461f44cabeebcbeb0151db171d0a964c93eb41317687'
 ACCEPT64_STAGE='scripts/debugger/pb-kd-target-flag-create-armed-accept64-update-20261020.wdbg'
+HEALTHY_PROFILE_SHA='5487823dc3ffd10ce8fbf089de15932d33ee6329035dc09b69963c48c7fefcb7'
+HEALTHY_STAGE='scripts/debugger/pb-kd-target-flag-healthy-setter-update-20261020.wdbg'
 
 
-def policy(target=True, create_armed=False,accept64=False):
+def profile_sha(create_armed=False,accept64=False,healthy=False):
+    return HEALTHY_PROFILE_SHA if healthy else ACCEPT64_PROFILE_SHA if accept64 else ARMED_PROFILE_SHA if create_armed else PROFILE_SHA
+
+
+def policy(target=True, create_armed=False,accept64=False,healthy=False):
     from pb_target_accept_plan import create_policy
     p=dict(create_policy(target,target),observer='etw+kd-target-flag',
         workload='flag-target-201-staged' if target else 'flag-four-probe',
@@ -22,8 +28,11 @@ def policy(target=True, create_armed=False,accept64=False):
         registration_confirmation='user-run-argument-no-independent-host-proof',
         raw_hit_limit_per_point=16,max_total_raw_hits=48 if target else 32,
         selected_snapshots_per_point=1,stack_count_max=1 if target else 0)
+    if healthy:
+        if target or not (create_armed and accept64):raise ValueError('FLAG_HEALTHY_REQUIRES_ARMED_FOUR')
+        p.update(healthy_setter_probe=True,debugger_points=[2,3,4],inactive_debugger_points=[],stack_count_max=1)
     if create_armed:
-        if not target:raise ValueError('FLAG_CREATE_ARMED_REQUIRES_TARGET')
+        if not (target or healthy):raise ValueError('FLAG_CREATE_ARMED_REQUIRES_TARGET')
         p.update(host_enable_debugger_points=[2,4],automatic_debugger_enable_after_create=[3],
                  automatic_enable_authorization='user-explicit-exception-20261020')
     if accept64:
@@ -34,11 +43,12 @@ def policy(target=True, create_armed=False,accept64=False):
 
 
 def registration(profile_path,receipt_path,receipt_sha,boot):
-    accept64=digest(Path(profile_path))==ACCEPT64_PROFILE_SHA
+    healthy=digest(Path(profile_path))==HEALTHY_PROFILE_SHA
+    accept64=healthy or digest(Path(profile_path))==ACCEPT64_PROFILE_SHA
     armed=accept64 or digest(Path(profile_path))==ARMED_PROFILE_SHA
-    sha=ACCEPT64_PROFILE_SHA if accept64 else ARMED_PROFILE_SHA if armed else PROFILE_SHA
+    sha=profile_sha(armed,accept64,healthy)
     p=read(checked(profile_path,sha));r=read(checked(receipt_path,receipt_sha))
-    if (p['method']!=('kd-target-flag-create-armed-accept64-20261020-v1' if accept64 else 'kd-target-flag-create-armed-20261020-v1' if armed else 'kd-target-flag-disabled-candidate-20261020-v1') or p['active_point_ids']!=[] or
+    if (p['method']!=('kd-target-flag-healthy-setter-20261020-v1' if healthy else 'kd-target-flag-create-armed-accept64-20261020-v1' if accept64 else 'kd-target-flag-create-armed-20261020-v1' if armed else 'kd-target-flag-disabled-candidate-20261020-v1') or p['active_point_ids']!=[] or
         p['registered_point_ids']!=[2,3,4] or
         p['proposed_active_point_ids']!=[2,3,4] or
         (p.get('raw_hit_limits_per_point')!={'2':16,'3':16,'4':64} if accept64 else p.get('raw_hit_limit_per_point')!=16) or
@@ -53,9 +63,10 @@ def registration(profile_path,receipt_path,receipt_sha,boot):
     return p
 
 
-def parser_proof(path,create_armed=False,accept64=False):
+def parser_proof(path,create_armed=False,accept64=False,healthy=False):
+    if healthy and not (create_armed and accept64):raise ValueError('FLAG_HEALTHY_REQUIRES_ARMED_FOUR')
     if accept64 and not create_armed:raise ValueError('FLAG_ACCEPT64_REQUIRES_CREATE_ARMED')
-    if create_armed:return armed_parser_proof(path,accept64)
+    if create_armed:return armed_parser_proof(path,accept64,healthy)
     path=plain(Path(path));r=read(path)
     if (r.get('method')!='cdb-safe-bounded-flag-candidate-v1' or
         any(r.get(k) is not False for k in ('kernel_connection','product_started','traffic_generated')) or
@@ -72,7 +83,7 @@ def parser_proof(path,create_armed=False,accept64=False):
     return dict(path=str(path),sha256=digest(path),files=inventory(files))
 
 
-def armed_parser_proof(path,accept64=False):
+def armed_parser_proof(path,accept64=False,healthy=False):
     path=plain(Path(path));r=read(path)
     names=['selected','nonselected','unreadable','limit']
     expected=[{'2':True,'3':False,'4':False},{'2':False,'3':True,'4':False},
@@ -90,9 +101,9 @@ def armed_parser_proof(path,accept64=False):
         any(c.get('exit_code')!=0 or c.get('passed') is not True or c.get('checks')!=[True]*3 or
             c.get('disable_checks')!=[True]*3 for c in f['cases'])):
         raise ValueError('FLAG_ARMED_ALL_ACTIONS_PROOF_INVALID')
-    runtime=Path(__file__).resolve().parents[1]/('scripts/debugger/pb-kd-target-flag-create-armed-accept64-profile-20261020.json' if accept64 else 'scripts/debugger/pb-kd-target-flag-create-armed-profile-20261020.json')
+    runtime=Path(__file__).resolve().parents[1]/('scripts/debugger/pb-kd-target-flag-healthy-setter-profile-20261020.json' if healthy else 'scripts/debugger/pb-kd-target-flag-create-armed-accept64-profile-20261020.json' if accept64 else 'scripts/debugger/pb-kd-target-flag-create-armed-profile-20261020.json')
     candidate=path.parent/'candidate.json';full_candidate=full.parent/'candidate.json'
-    if read(candidate)['points']!=read(checked(runtime,ACCEPT64_PROFILE_SHA if accept64 else ARMED_PROFILE_SHA))['points'] or digest(candidate)!=digest(full_candidate):
+    if read(candidate)['points']!=read(checked(runtime,profile_sha(True,accept64,healthy)))['points'] or digest(candidate)!=digest(full_candidate):
         raise ValueError('FLAG_ARMED_PARSER_PROFILE_DIFFERS')
     files=[path,candidate,full,full_candidate]
     files += [parent/(name+suffix) for parent in (path.parent,full.parent) for name in names
@@ -100,4 +111,7 @@ def armed_parser_proof(path,accept64=False):
     if accept64:
         if r.get('accept64_boundary_checks')!=[True]*3:raise ValueError('FLAG_ACCEPT64_BOUNDARY_PROOF_INVALID')
         files += [path.parent/('accept64-boundary'+suffix) for suffix in ('.wdbg','.stdout.txt','.stderr.txt')]
+    if healthy:
+        if r.get('healthy_accept_preserves_setter') is not True:raise ValueError('FLAG_HEALTHY_SETTER_DISABLED_BY_ACCEPT')
+        files += [path.parent/('healthy-accept'+suffix) for suffix in ('.wdbg','.stdout.txt','.stderr.txt')]
     return dict(path=str(path),sha256=digest(path),files=inventory(files))
