@@ -1,5 +1,37 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run133747 не дошёл до READY: TCP-table resize race и маскирующая ошибка отчётчика
+
+USER точку НЕ включал, READY не было. Первичный diagnostic-run.error:
+TARGET_COHORT_INCOMPLETE/TCP_TABLE_UNSTABLE; cohort observations[]/elapsed235ms,
+control-launch отсутствует. Успели стартовать CLI/fillers, поэтому не утверждать
+«продукт/трафик не запускались». Cleanup отметил TARGET_NATIVE_FORCED_STOP и
+TARGET_RECEIVER_CONTROLLED_STOP_FAILED; CLI graceful/unforced/poststopverified,
+resident DisableIOCTL completed/serviceRunning/noindependentflagreadback.
+Последний вывод INCOMPLETE_EVIDENCE:ENDPOINT_WATCH_POLICY_INVALID — ВТОРИЧНАЯ
+моя ошибка native_report: accept64 dispatch не распознал send256 caps. Исправлено
+и регрессией проверено сохранение ошибок lifecycle вместо policy exception.
+Original capture/report не переписаны; private native-report-replay отдельно
+в pb-send-gate-launch-failure-review-20261020-133747.
+
+TargetAcceptNative раньше4раз выделял exactprevioussize при растущейTCPtable.
+Теперь резерв max64KiB/50%, allocations<=16MiB, прежние4attempts, ошибочные
+размеры/count/APIstatus остаются failures. Публичный ReadWith delegate нужен
+для modelAPItests; productionRead вызывает тот же GetExtendedTcpTable.
+7C#checks: growth200rows/retry/unstable4attempts/oversize/badcount/badsize/APIerror;
+10nativefault и cleanupguard tests passed; 140targetPython tests exit0.
+Readonly liveRead193rows успешен, активных ctsTraffic/CLI/pb_console_host НЕТ;
+driverRunning. Readiness сохранена13:41:02Z. Product/traffic агентом не запускались.
+Не объявлять, что фактический READY после исправления уже наблюдался.
+
+Новый fresh plan134114-adbeb8f6 PREPARED_NOT_RUN/exit0, SHA
+13083255c00915872052cf9c0e160793ada5e9106db96a226d635918e6f84489.
+Observerprofile accept256 неизменен, host4 НЕ перерегистрировать, старый Run
+не повторять/не Resume. Sameboothealthy131915/proof11 reuseReadonly; новая
+inventory включает исправленные modules/reporter. USER следующий stagedRun,
+только послеREADY hostreset1..8/be2/g иCбезEnter. WarningwholeVM/Codex/RDP,
+recoverybd2/conditionalbc3/t8/bd4/g. Agent Break/enable/step/Run не делал.
+
 ## Run132825: SEND skip наблюдался; USER разрешил расширить только ACCEPT cap
 
 USER Run132825-03c909ed/native TARGET_FAILURE_REPRODUCED/errors[]:

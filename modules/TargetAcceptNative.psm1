@@ -10,15 +10,23 @@ using System.Net;
 public static class PBTargetTcpTable {
     [DllImport("iphlpapi.dll")] static extern uint GetExtendedTcpTable(IntPtr p, ref int n, bool order, int af, int cls, uint reserved);
     public class Row { public uint State, Pid; public int LocalPort, RemotePort; public string LocalAddress, RemoteAddress; }
-    public static Row[] Read() {
-        int size=0; uint code=GetExtendedTcpTable(IntPtr.Zero,ref size,false,2,5,0);
+    public delegate uint TableQuery(IntPtr p, ref int n, bool order, int af, int cls, uint reserved);
+    public static Row[] Read() { return ReadWith(GetExtendedTcpTable); }
+    public static Row[] ReadWith(TableQuery query) {
+        int size=0; uint code=query(IntPtr.Zero,ref size,false,2,5,0);
         if(code!=122) throw new System.ComponentModel.Win32Exception((int)code);
         for(int attempt=0;attempt<4;attempt++) {
-            IntPtr p=Marshal.AllocHGlobal(size);
+            // The table grows while the cohort connects. Reserve space instead
+            // of repeatedly allocating exactly the now-stale required size.
+            if(size<4 || size>16*1024*1024) throw new InvalidOperationException("TCP_TABLE_SIZE_INVALID");
+            int capacity=Math.Min(16*1024*1024,checked(size+Math.Max(65536,size/2)));
+            IntPtr p=Marshal.AllocHGlobal(capacity);
             try {
-                code=GetExtendedTcpTable(p,ref size,false,2,5,0);
+                size=capacity;
+                code=query(p,ref size,false,2,5,0);
                 if(code==122) continue;
                 if(code!=0) throw new System.ComponentModel.Win32Exception((int)code);
+                if(size<4 || size>capacity) throw new InvalidOperationException("TCP_TABLE_SIZE_INVALID");
                 int count=Marshal.ReadInt32(p);
                 if(count<0 || count>(size-4)/24) throw new InvalidOperationException("TCP_TABLE_LAYOUT_INVALID");
                 var rows=new List<Row>();

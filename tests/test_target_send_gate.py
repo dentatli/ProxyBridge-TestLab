@@ -22,6 +22,20 @@ ACCEPT='PBSD ACCEPT ep=9000 nbl=7000 local_raw=da84 peer_raw=d9a4 status=c000022
 
 
 class SendGate(unittest.TestCase):
+    def test_native_report_preserves_incomplete_lifecycle_for_accept256(self):
+        from pb_target_accept_report import evaluate as native_evaluate
+        with tempfile.TemporaryDirectory() as temp:
+            p=Path(temp)
+            fixtures={'runtime-plan.json':dict(policy=policy(True,256)),
+                'diagnostic-run.json':dict(debugger_observer=True,flow_registration_acknowledged=True,status='FAILED',cleanup_errors=['FAILED_STOP'],resident_disabled_after=True),
+                'cli-lifecycle.json':dict(ready=True,graceful_stop=True,post_stop_verified=True,output_capture_complete=True,forced_stop=False,error='TCP_TABLE_UNSTABLE'),
+                'cohort.json':dict(status='INCOMPLETE',native_processes_stopped=False,cleanup_errors=['FAILED_STOP'],observations=[])}
+            for name,value in fixtures.items():(p/name).write_text(json.dumps(value))
+            r=native_evaluate(p)
+            self.assertIn('RUN_CONTROLLER_STATUS_NOT_COLLECTED',r['errors'])
+            self.assertIn('COHORT_INCOMPLETE',r['errors'])
+            self.assertFalse(any('POLICY_INVALID' in e for e in r['errors']))
+
     def test_accept256_changes_only_accept_cap_and_retains_old_profile(self):
         from pb_endpoint_send_gate import ACCEPT256_PROFILE,ACCEPT256_SHA,accept_action
         old,new=profile(),profile(256)
