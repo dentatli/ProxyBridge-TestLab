@@ -1,6 +1,34 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Следующий шаг: один USER Run selected-NBL с новым планом
+## Run180714: key5 отсутствует на SEND; receive не пойман до cap16
+
+USER Run pb-target-accept-run-20261020-180714-091c4d12 завершён.
+Native evaluate TARGET_FAILURE_REPRODUCED/errors[]: unique controlPID15720,
+query201/socket6104/relayPID3940, API-1/10022/0bytes/required32,
+peer42201/local34010/endpointerrors0. COLLECTED/cleanup[]/residentdisabledtrue;
+ETW EventsLost/LogBuffersLost/RealTimeBuffersLost все0.
+USER console: source EPc6a5d940/recordc69f4c50/contextc6274250/size20hex.
+SEND1/2 raw1a/1d NBLc5cf3030 flags01101641; SEND3raw2b NBLc6215c20
+flags01301641; все SYN02 с одинаковым sequence, каждый gate проверил source
+EP+1c0=record. PBN STATE send info_raw1/info0/root0/key5absent/nodes0:
+прямое наблюдение отсутствия generic context на выбранном retry NBL в SEND.
+Это не освобождение самого record; source поле сохранилось.
+PBN ARMED затем16 обращений без совпавшего RECEIVE, INCOMPLETE/READ_LIMIT.
+False от pbNblRead означает отсутствие полного совпадения отбора, не NTSTATUS
+и не ошибку TCP. Причины отклонения не печатались, из console их не восстановить.
+PBN CONFIG в этом присланном фрагменте нет; не добавлять искусственно к Run.
+Private pb-selected-nbl-review-20261020-180714/review.json содержит частичный
+разбор и native join; полного NBL verdict нет. Старый Run не повторять.
+
+USER предложил увеличить16→64. Для следующей отдельной подготовки разумен
+cap64 только выбранного NBL плюс ограниченная сводка причин отклонения
+(RIP/key/consume/return frames), без global ACCEPT, без увеличения нагрузки.
+Просто повышение cap без видимости reject не отличит поздний match от
+неправильного отбора/другого пути/замены NBL. Новый helper/profile/proof/plan
+для этого ещё НЕ подготовлены; текущие frozen SHA не менять задним числом.
+Агент не запускал трафик, не менял debugger и лимит текущего профиля.
+
+## Предыдущая контрольная точка: один USER Run selected-NBL с новым планом
 
 USER прислал .bpcmds: новая2 на AlepCreateRedirectRecord+396, новый вызов
 pbNblArm/t19 guard совпадают; bd2 и bd4, dynamic3 отсутствует. Не просить bl.
