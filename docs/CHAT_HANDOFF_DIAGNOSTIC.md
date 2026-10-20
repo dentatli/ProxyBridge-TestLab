@@ -1,5 +1,33 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run150607: SEND skip + native10022 подтверждены без глобальной ACCEPT
+
+USER Run150607-18e07be2. Strict evaluate SEND_SKIP_AND_NATIVE_QUERY_FAILURE_OBSERVED,
+errors[]/nativeerrors[]/kernel_accept_observedfalse/rootcausefalse.
+TRACK EPc55e8b30/recordc4cca260/contextbf5e7bf0/size20hex. SEND1/2 raw1a/1d
+flags01101641/NBLc5839b00; SEND3raw2b flags01301641/NBLbef937d0; все SYNflags02
+sequence4173869915/ports42201→34010. КаждыйgateпроверилliveEP+1c0=record;
+EAXpostread передBT выбирает skipвтретьемSEND. Это реальныйнаблюдаемыйbranch,
+не толькоstatic. Не приравнивать первые2helperпрохода к2сетевымretransmissions.
+ARMEDacceptdisabled; вUSERconsoleнетLIMIT/UNREADABLE/unexpectedstop.
+Нативно controlPID14796/query201/relayPID3956/socket6108/API-1/10022/0bytes,
+required32, uniquepeer42201/local34010, endpointsreaderrors0. Controlnative
+ErrorNotAllDataTransferred/0bytes; нулевойGUIDнеjoin. Session/cohortCOLLECTED,
+cleanup[],nativeprocessesstoppedtrue,CLIgraceful/unforced/poststoptrue,
+residentDisableIOCTLcompleted/Running/noindependentflagreadback. ETWlossall0.
+ExactETWcontrolRST/retry анализ этогоRunне выполнялся; clockalignmentнет.
+
+Private pb-send-native-review-20261020-150607/user-console/send-report сохранены.
+Обновлён docs/TCP_CONTEXT_RST_TRANSITION_2026-10-20.md: прежнийRSTwrite и новый
+SENDskip/query связаны как последовательные доказательства разныхRun, не как
+единый traptrace. KernelACCEPT/RETRIEVEntstatus этимRunне измерен, alternative
+associatepaths/NBLlifetimeне покрыты. Следовательно Windowsvsdriverbug не объявлять.
+Выборочная source/docsпроверка redirecthandle/targetPID/contextsize/Apply и
+queryнаacceptedsocket выявленного нарушения на этом пути не показала, но не
+является полным аудитом. СсылкиMicrosoftвtopicdoc. Рабочийдиагноз tcpiploopback
+contextpropagation наSYNretry послеbit21; неallocationfailure/sourcefieldloss.
+НовогоRun/плана/Break/enable/step/продуктовыхизмененийагентом не было.
+
 ## USER подтвердил ACCEPT256; выбран SEND/native-query без глобальной ACCEPT
 
 USER TOTAL create1/reads2a/accept100hex/sends3/armed0: сработал именноcap256,

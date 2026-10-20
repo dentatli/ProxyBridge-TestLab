@@ -1,5 +1,56 @@
 # Контекст перенаправления: запись флага при RST+ACK
 
+## Обновление: SEND-пропуск и исходный query10022 связаны в Run150607
+
+Сохранённый Run `pb-target-accept-run-20261020-150607-18e07be2` завершился
+`SEND_SKIP_AND_NATIVE_QUERY_FAILURE_OBSERVED`, errors/native_errors пусты.
+Глобальная ACCEPT-точка отключена; использованы CREATE и адресная read-watch
+только выбранного source endpoint. В присланном выводе нет LIMIT, UNREADABLE
+или незапланированной остановки. Это не независимая запись всей консоли.
+
+Для source endpoint `ffffb888c55e8b30` создан record `ffffb888c4cca260`,
+context32bytes. Перед каждым SEND подтверждена прежняя ссылка EP+1c0→record.
+Первый и второй проходы: NBL `ffffb888c5839b00`, flags `0x01101641`.
+Третий проход: NBL `ffffb888bef937d0`, flags `0x01301641`.
+Все три TCP-заголовка — SYN, порты42201→34010, sequence4173869915.
+Первые два снимка одного NBL не объявляются двумя передачами в сеть.
+
+Снимок EAX снят непосредственно после `mov eax,[rcx+30]`, перед `bt eax,15h`.
+На третьем проходе бит21 установлен, поэтому следующая ветка обходит вызов
+ассоциации контекста в `WfpTlShimInspectFastLoopbackSendDatagram`. Это теперь
+наблюдаемый выбор ветки конкретным последующим SYN, а не только статическая
+гипотеза. Полный lifetime NBL и все другие пути ассоциации не покрыты.
+
+В том же Run единственный control42201 принадлежит nativePID14796;
+query201 в relayPID3956/socket6108 вернул APIreturn-1/WSA10022/bytes0,
+при required32 и успешном чтении local/peer endpoints. Нулевой GUID не
+используется как ключ. Session/cohort COLLECTED, cleanup_errors пусты,
+native processes stopped; CLI graceful/unforced/poststopverified.
+Сохранённый DisableIOCTL completed, независимого gEnabled readback нет.
+ETW EventsLost/LogBuffersLost/RealTimeBuffersLost равны0; новые точные ETW
+RST/retry joins здесь не выполнялись и debugger↔ETW clockalignment не заявлен.
+
+Этот Run не измеряет kernel ACCEPT/RETRIEVE NTSTATUS. Он доказывает совместное
+наблюдение SEND-пропуска и исходного query10022 одного контрольного соединения;
+сам по себе не доказывает отсутствие всех альтернативных путей переноса record.
+RST+ACK как источник установки bit21 наблюдался в прежнем Run084117 ниже,
+не в этом же захвате. `root_cause_proven`/`trap_coverage_verified` остаютсяfalse.
+
+Выборочная проверка исходников: driver записывает redirect handle, targetPID,
+context/size до Apply; usermode вызывает IOCTL на принятом socket с буфером32.
+Это соответствует проверенным базовым требованиям
+[FWPS_CONNECT_REQUEST0](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/fwpsk/ns-fwpsk-_fwps_connect_request0)
+и [SIO_QUERY_WFP_CONNECTION_REDIRECT_CONTEXT](https://learn.microsoft.com/en-us/windows/win32/winsock/sio-query-wfp-connection-redirect-context).
+Это не полный аудит драйвера и не исключение всех нарушений контракта WFP.
+Рабочий диагноз — нарушение переноса redirect context через loopback SYN retry
+в пути tcpip.sys после установки bit21. Окончательная атрибуция Windows/driver
+требует отдельного доказательства, а не ещё одного увеличения cap.
+
+Private: `artifacts/diagnostics/pb-send-native-review-20261020-150607/`
+с user-console.txt и send-report.json. Продукт и память ядра при разборе не менялись.
+
+## Предшествующее наблюдение RST-перехода
+
 Разобран сохранённый Run `pb-target-accept-run-20261020-084117-5cf406f7`.
 Новых запусков, трафика и управления отладчиком при разборе не было.
 
@@ -63,9 +114,9 @@ disabled-after подтверждён сохранённым отчётом. Э�
 обходит ассоциацию redirect record → принимающий сокет не получает контекст →
 10022. Последний захват закрыл именно звено «RST+ACK устанавливает бит21».
 
-Для полного доказательства остаётся связать последующий повторный SYN/NBL
-того же endpoint с исполнением обхода ассоциации и отсутствующим контекстом
-на accept. Часы WinDbg и ETW не привязаны; по имеющимся данным не присваивается
+В том захвате не были связаны последующий повторный SYN/NBL того же endpoint
+с исполнением обхода ассоциации и отсутствующим контекстом на accept.
+Новое SEND-наблюдение описано выше. Часы WinDbg и ETW не привязаны; не присваивается
 номер конкретному RST в ETW и не утверждается его точное положение относительно
 retry/query. Здоровый Run080831 показал успешное получение record до установки
 того же флага, но TCP-заголовок здорового перехода не снимался.
