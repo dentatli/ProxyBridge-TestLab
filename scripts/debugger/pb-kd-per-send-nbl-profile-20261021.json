@@ -1,0 +1,46 @@
+{
+  "method": "kd-per-send-nbl-20261021-v1",
+  "registered_point_ids": [
+    2
+  ],
+  "dynamic_point_ids": [
+    3,
+    4
+  ],
+  "active_point_ids": [],
+  "host_enable_point_ids": [
+    2
+  ],
+  "script": "scripts/debugger/pb_retry_epochs.js",
+  "script_sha256": "a6e598185a630a45b7b4ecff44f00813902f9962b661ac9393ea95fbac075fcd",
+  "initialization": "pbRetryInitKernel",
+  "model_required": 0,
+  "raw_hit_limits_per_point": {
+    "2": 16,
+    "3": 128,
+    "4": 512
+  },
+  "max_total_raw_hits": 656,
+  "max_send_observations": 8,
+  "per_send_read_limit": 64,
+  "points": [
+    {
+      "id": 2,
+      "target": "tcpip!AlepCreateRedirectRecord+0x396",
+      "action": "dx @$scriptContents.pbRetryCreate(@r14,@rdi,@rax); gc;"
+    }
+  ],
+  "automatic_disable": true,
+  "automatic_enable": true,
+  "recovery": [
+    "bd2",
+    "dx @$scriptContents.pbRetryStop()",
+    "g"
+  ],
+  "limits": [
+    "Epoch is one helper SEND observation, not a network retransmission number.",
+    "Receive storage and packet identity remain mandatory; no global ACCEPT point.",
+    "A replaced or expired epoch is a gap, not proof of context absence.",
+    "Last observed SEND must have a verified receive snapshot; no kernel endpoint/socket join is claimed."
+  ]
+}

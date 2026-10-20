@@ -1,6 +1,43 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Run184136: cap512 не достигнут; остановка по смене packet storage
+## Подготовлен per-SEND candidate; USER просит экономить проверки/токены
+
+USER согласился на смену NBL по каждой новой SEND observation, затем попросил
+не обвешивать решения сотнями проверок. Принято: только проверки текущего
+риска, не повторять полные suites без причины, короткие updates/final.
+В этом изменении ограничились5 CDB сценариями и разбором их же выводов;
+142/157 прежних тестов не запускались. Никакой Run/driver/hostdebugгер агентом
+не запускался. Состояние WinDbg USER-controlled, предупреждениеwholeVM/RDP/Codex
+перед каждым Break/enable остаётся обязательным.
+
+Новый scripts/debugger/pb_retry_epochs.js SHA
+a6e598185a630a45b7b4ecff44f00813902f9962b661ac9393ea95fbac075fcd.
+Profile scripts/debugger/pb-kd-per-send-nbl-profile-20261021.json SHA
+80c9fdeecce305ca59e3f518ab089600be2eca86f326b7585c8eae37a475d505.
+SOURCE watch3 сохраняется до userStop/globalcap. Каждый helper SEND получает
+новый epoch и заменяет NBLwatch4, предыдущийEND(REPLACED) не считаетсяabsence.
+Epoch != сетевойномерretransmission. До8SEND, sourcecap128, NBLcap64 наepoch,
+512 суммарно; CREATE16, max656total. Без global ACCEPT/общихpacket точек.
+Новый source gate проверяется initKernel pins. Последовательность SYN одинакова,
+sourceEP+1c0 обязан совпадать сrecord. Receive сначалаcallerchain+key/consume,
+затемtargetports, затемNB/MDL/header identity; guard не ослаблен.
+Storagechange/epochcap закрывают4, но сохраняют3 для следующегоSEND. Первый
+успешный RECEIVE тоже не завершаетRun: раннийSYN можетбытьпозжедропнутlistener.
+Только globalcap/ошибкаsource выключаютоба. UserStop закрывает3/4 и пишетFINAL.
+PBR POLICY source_limit80/packet_limit40/total_limit200/send_limit8/version4
+(hex). Registered только2, dynamic3/4 отсутствуютдоRun. Point2 action короткий:
+dx @$scriptContents.pbRetryCreate(@r14,@rdi,@rax); gc; init pbRetryInitKernel,
+recovery pbRetryStop. Старые helper/profile/captures не менялись.
+
+Private pb-retry-epochs-proof-20261020-r2:5/5 passed (normal/replaced/
+reused_storage/budget/stopped), real CDB source3+packet4, cleanup обоих.
+r1 budget fixture вышла за4KiBcode до первогоint3; заменена развёртка64reads
+наCPUloop, r2 прошёл. Реальныйhelper SHA не менялся. Parser по темже5логам
+проверен с явно synthetic model header substitution, неkernelcoverage.
+pb_retry_epochs_report требует полныйlastSEND/RECEIVEpair, неизменныйseq,
+FINALcounts и nativeoriginal10022. Earliergaps сохраняются; rootcause/trap
+coverage/kernelEP-to-socketjoin остаются false. Native reporter/plan bindings
+добавлены отдельно, старые frozenplans не refreeze/Resume. Готовитсяfreshplan.
 
 USER Run pb-target-accept-run-20261020-184136-77cd08c4. Attachment сохранён
 private pb-nbl512-review-20261020-184136/user-console.txt SHA

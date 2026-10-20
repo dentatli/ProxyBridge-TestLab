@@ -1,0 +1,4 @@
+bc2
+bc4
+bp2 tcpip!AlepCreateRedirectRecord+0x396 "dx @$scriptContents.pbRetryCreate(@r14,@rdi,@rax); gc;"
+bd2
