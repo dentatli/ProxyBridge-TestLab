@@ -1,5 +1,21 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER выбрал ещё одну попытку без смены observer/caps; fresh plan042037 готов
+
+После разбора RAW_LIMIT/10061 USER: «Давай просто повторим».
+Старый consumedRun не повторять. Подготовлен НОВЫЙ plan
+artifacts/diagnostics/pb-target-accept-plan-20261021-042037-51194212/runtime-plan.json
+SHA 82F07E51B5C03D66392501CF32C343283FA41C162A534626F50D35CA687D94FF.
+Prepare PREPARED_NOT_RUN/exit0/productfalse/trafficfalse; registration targetr2,
+те же helper/profile/caps/proof/healthyboot119 binding. Нет новых tests/builds.
+Не внедрять latearming безотдельнойподготовки: вэтойпопытке observer НЕ менялся.
+USERhost Break warningwholeVM/Codex/RDP: bd2/bd3/pbaInitKernel/g, CONFIGmodel0true.
+VM USERRun freshplan DebuggerPointsDisabled/FlowProfileRegisteredDisabled/
+BoundedLoadReviewed; READY -> hostBreak warningwholeVM/be2/be3/g -> VM LatinC.
+Recovery послеcompletion/error hostBreak warningwholeVM/bd2/bd3/pbaStop/g.
+НужныactualCONFIG/PRE/POST/FINAL плюсnativeoutput. RAW_LIMITможетповториться;
+10022не гарантируется. Agent неRun/Break/driverchanges. No repeat consumedRun.
+
 ## Target041632: global accept RAW_LIMIT; native10061, не искомый10022
 
 USER Run pb-target-accept-run-20261021-041632-a32f9fb1 закончен INCOMPLETE:
