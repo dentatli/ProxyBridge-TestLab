@@ -1,5 +1,35 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Возобновление послевыключения: healthy202107 разобран, boot119 требует новыйконтроль
+
+USER разрешиланализ после паузы. Run202107-eba28655 native COLLECTED,
+CREATE_PROBE_NATIVE_SUCCESS_DEBUGGER_PENDING/errors[]/cleanup[], CLIgraceful/
+poststoptrue. Единственный control PID776/query1/socket488/relay6200,
+peer42201/local34010, API0/bytes32/ctx_pid776, native524288bytes Succeeded.
+USER PREkey5=1/valuec66f52a0 иPOSTstatus0/recordc66f52a0/contextbf5eccf0/size20hex,
+tid2748/scope/frame/ep/NBL совпадают, FINAL1/1/error0. Это согласованные healthy
+observations, не rootcause. Console сохранён private pb-accept-pair-review-20261020-202107;
+CONFIG вприсланномвыводе отсутствует, strictpairreportINCOMPLETE безсинтезаmodel0.
+
+Текущий Get-KdBootSessionEvidence boot119/start2026-10-21T03:45:41.5Z,
+старыйcontrolboot118. Get-Service ProxyBridgeDrv ->Stopped. Агент неstartservice.
+Helper/profile/proof/code не менялись; тесты иCDB повторноне запускались.
+Same-boot positive gate не позволяет targetplan постаромубуту. Новыйhealthy1
+plan artifacts/diagnostics/pb-target-accept-plan-20261021-035430-0cf55484/runtime-plan.json
+SHA 4C3BA5C9C0205F028BEB3DB4F31D6D4C26300BF4D2AAA30D00B6ED6A7466993D.
+PREPARED_NOT_RUN/exit0/productfalse/trafficfalse, registration r3 freshboot119.
+
+USER physicalWinDbg connect прежнийcom:pipe,port=\\.\pipe\PB-Context-KD,resets=0,reconnect.
+Подключение/Break могутзаморозитьwholeVM/Codex/RDP, gвсегдаотдельно.
+Symbols tcpip/fwpkclnt, MASM, load прежнийpb_accept_pair.js, pbaInitKernel/
+pbaRegister -> CONFIGmodel0/true/true, g. Только затемUSERBreak/be2/be3/g.
+Hostстарыеабсолютныеадреса неиспользовать. Bl/downloadhelper не повторять.
+VM USERAdministrator Start-ServiceProxyBridgeDrv+WaitRunning одинразпослеboot,
+затем Runновогоplan сDebuggerLoggerEnabled/FlowProfileRegisteredDisabled.
+Одинcontrol, безC/fillers. Послеcompletion/error USERBreak/bd2/bd3/pbaStop/g.
+Нуженполный PBA CONFIG/PRE/POST/FINAL +native output, No repeat Run.
+Agent Run/Break/driverchanges не выполнял. Targetplan ждётcurrentboothealthy.
+
 ## Healthy-one r2 plan готов послефикса gate order
 
 artifacts/diagnostics/pb-target-accept-plan-20261020-201907-f072464a/runtime-plan.json
