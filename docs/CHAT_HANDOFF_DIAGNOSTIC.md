@@ -1,5 +1,35 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Независимый тест: USER предложил физический ПК в LAN, адрес/доступ pending
+
+USER согласился попробовать независимый reproducer и сообщил: отдельный тестовый
+физический ПК, LAN, возможен WinDbg, готов предоставить удалённое управление.
+Это новый выбранный стенд вместо предложенной VM. Async вопрос ожидает IP/hostname
+и существующий SSH/WinRM/RDP; пароли в чат не запрашивать. Пока remote connection
+нет, target OS/build/UBR/архитектура/подпись неизвестны. Не путать с PB-BUILD.
+
+Подготовлены docs/INDEPENDENT_WFP_REPRO_2026-10-21.md и read-only
+scripts/Get-IndependentWfpTargetInventory.ps1. PS5 parser passed, скрипт не
+исполнялся ни на target, ни как подмена target на buildVM. Он не настраивает
+SSH/WinRM/driver/firewall/BCD/KDNET. Нет install/build/traffic/reboot.
+На buildVM найдены VS18Community и WDK28000 km library, но reference build
+не выполнялся, наличие файлов не означает готовый собираемый sample.
+
+Microsoft WFPSampler checked upstream (ещё не pinned/downloaded locally):
+ClassifyFunctions_ProxyCallouts context=2*SOCKADDR_STORAGE=256bytes;
+для independent tester нельзя использовать32byte ProxyBridge query buffer.
+Scenarios_Proxy -prs означает remote service, -plspid local targetPID;
+loopback local repro должен выбирать local mode, inline и remote destination
+rewrite, не local tuple. Точные CLI flags перепроверить на pinned revision.
+
+Следующий шаг после адреса/канала — read-only target inventory и сравнение
+OS build. Затем конкретный pinned source/build/install/recovery план. Не
+запускать штатный sample installer/глобальный clean-all, не менять signing/
+SecureBoot/BCD и не подключать KDNET автоматически до предметного плана.
+На physicaltarget Break приостанавливает весь этот ПК/егоRDP/SSH; агент на
+другой машине, не утверждать, что именно PB-BUILDVM остановится приtargetBreak.
+Текущие driver/captures/kits/frozen profiles сохранены, Run131809 не повторять.
+
 ## После Run131809: ведущая гипотеза TCP/IP retry propagation, не окончательная атрибуция
 
 Прочитан актуальный верх TCP_REDIRECT_CAUSAL_REVIEW_2026-10-21.md: там итог
