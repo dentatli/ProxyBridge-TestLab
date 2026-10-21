@@ -1,5 +1,20 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Retry-history v2 наhost подтверждён USER; готов USER Run052928 толькоbe2
+
+USER unloadoldchain/loadhistory, CONFIGmodel0/version2/skip_snapshots8, inittrue/
+registertrue, exact.bpcmds2/3/4сbd2/bd3/bd4, отдельныйg. ActualCONFIGсохранён
+private pb-retry-history-host-observation-20261021; неindependenthostproof,
+frozenreceiptне менялся. Plan052928-5e48efff SHA
+96C72FFC6108FB743CBBE06B577923800B64133F2D68366AE13A1C58C4D30587 совпал,
+PREPARED_NOT_RUN. Initresetужеесть, неbl/download/register/resetповторно.
+USERAdministratorVM Run DebuggerPointsDisabled/FlowProfileRegisteredDisabled/
+BoundedLoadReviewed. READY -> USERphysicalBreak warningwholeVM/Codex/RDP,
+ТОЛЬКОbe2/отдельныйg -> VMLatinC. 3/4включитmatchingCREATE;3снимаетсяна8м
+selectedsnapshot,4ждётacceptдоrawcap. Recovery USERBreak warningwholeVM,
+bd2/bd3/bd4/pbcStop/g. НуженполныйPBCвывод+nativeoutput, no repeatRun.
+Agent неRun/Break/be/driverchanges, tests/buildsнеповторял.
+
 ## Retry-history v2 готов: до8selectedнаблюдений, ждёт новогоhelperнаhost
 
 Freshplan artifacts/diagnostics/pb-target-accept-plan-20261021-052928-5e48efff/runtime-plan.json
