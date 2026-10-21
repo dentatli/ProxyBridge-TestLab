@@ -1,5 +1,28 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Пауза по просьбе USER: PB-SUT выключается, новые опыты не запускались
+
+USER вновь разрешил продолжить основную диагностику, затем остановил её из-за
+квоты Codex и явно попросил выключить физический тестовый ПК до завтра.
+WinRM read-only подтвердил PB-SUT, boot17:06:25.873761Z, ~12.8GiB free,
+productDisabled/Stopped, sampleStopped/Manual, HLKRunning, probe/listenerнет.
+Команда shutdown /s /t30 выполнена на PB-SUT, exit0; evidence private
+pb-main-resume-20261021-r1/shutdown-remote. Не возобновлять работу до USER.
+
+Подготовлены, но НЕ выполнялись: независимые modes Capacity (native
+SOMAXCONN_HINT512 вместо SOMAXCONN) и Drain (принять201 до обработки данных).
+Цель — проверить документированные способы предотвращения queue refusal,
+не объявлять их исправлением внутренней Windows ошибки. Product code не менялся.
+Новый probe C# compile/help exit0, controller parser/diffcheck pass; local
+kit-r5 подписанValid, probeSHA1d8b6e0f01fd9672246a86d8a12601d0f83457e65305ae1f7e770a8def14deb9,
+SYS прежнийd09a6871. Kit НЕ передавался/не устанавливался, ни один Run не начат.
+Перед опытами нужен короткий review новых modes; сравнить свежий Target с
+Capacity/Drain на одном SYS без debugger, отдельные sourceport диапазоны.
+Не повторять уже consumed captures. SOMAXCONN не гарантирует произвольную
+очередь; winsock2.h SOMAXCONN_HINT(N)==-N, официальная listen документация:
+https://learn.microsoft.com/en-us/windows/win32/api/winsock2/nf-winsock2-listen
+Это лишь новый кандидат operational mitigation; root cause пока не доказана.
+
 ## СТОП: зависание agent VM после запуска debugger
 
 [Разбор VM](VM_FREEZE_2026-10-21.md). Пользователь аварийно выключил VM.

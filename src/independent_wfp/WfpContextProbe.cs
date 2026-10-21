@@ -15,6 +15,8 @@ public sealed class ProbeReady
 {
     public string role;
     public int pid, count, listenPort, destinationPort;
+    public int backlogHint;
+    public bool acceptFirst;
 }
 public sealed class ProbeConnection
 {
@@ -34,6 +36,7 @@ public sealed class ProbeSummary
     public string role, error;
     public int pid, expected, completed, failures;
     public bool cleanupCompleted;
+    public int acceptedBeforeProcessing;
 }
 public static class WfpContextProbe
 {
@@ -47,6 +50,7 @@ public static class WfpContextProbe
     static extern int WSAIoctl(IntPtr socket, uint code, IntPtr input, uint inputSize,
         [Out] byte[] output, uint outputSize, out uint bytes, IntPtr overlapped, IntPtr completion);
     [DllImport("ws2_32.dll")] static extern int WSAGetLastError();
+    [DllImport("ws2_32.dll", EntryPoint="listen")] static extern int NativeListen(IntPtr socket, int backlog);
     [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
 
     static string Json(object value)
@@ -133,26 +137,44 @@ public static class WfpContextProbe
         }
         return result;
     }
-    static int Server(string directory, int count, int listenPort, int destinationPort, int backlog, int payload, bool recordsFirst)
+    static int Server(string directory, int count, int listenPort, int destinationPort, int backlog, int payload, bool recordsFirst, int backlogHint, bool acceptFirst)
     {
         var summary = new ProbeSummary {role="server",pid=Pid,expected=count};
         var deadline=Stopwatch.StartNew(); Socket listener=null;
+        var accepted=new List<Socket>();
         NewJson(Path.Combine(directory,"server.claim.json"),summary);
         try
         {
             listener=NewSocket(); listener.Bind(new IPEndPoint(IPAddress.Loopback,listenPort));
-            listener.Listen(backlog);
+            if (backlogHint != 0)
+            {
+                // winsock2.h: SOMAXCONN_HINT(N) == -N. Avoid managed normalization.
+                if (backlogHint < 200) throw new ArgumentOutOfRangeException("backlog-hint");
+                if (NativeListen(listener.Handle,-backlogHint) != 0)
+                    throw new SocketException(WSAGetLastError());
+            }
+            else listener.Listen(backlog);
             NewJson(Path.Combine(directory,"server-ready.json"),new ProbeReady {
-                role="server",pid=Pid,count=count,listenPort=listenPort,destinationPort=destinationPort});
+                role="server",pid=Pid,count=count,listenPort=listenPort,destinationPort=destinationPort,
+                backlogHint=backlogHint,acceptFirst=acceptFirst});
             WaitFlag(directory,"server-release.flag",deadline);
+            if (acceptFirst)
+            {
+                while (accepted.Count < count)
+                {
+                    if (deadline.ElapsedMilliseconds > 90000) throw new TimeoutException("ACCEPT_TOTAL_TIMEOUT");
+                    if (listener.Poll(100000,SelectMode.SelectRead)) accepted.Add(listener.Accept());
+                }
+                summary.acceptedBeforeProcessing=accepted.Count;
+            }
             using (var log = new StreamWriter(new FileStream(Path.Combine(directory,"server-connections.jsonl"),FileMode.CreateNew),Utf8))
             {
                 log.AutoFlush=true;
                 while (summary.completed < count)
                 {
                     if (deadline.ElapsedMilliseconds > 90000) throw new TimeoutException("ACCEPT_TOTAL_TIMEOUT");
-                    if (!listener.Poll(100000,SelectMode.SelectRead)) continue;
-                    using (Socket socket=listener.Accept())
+                    if (!acceptFirst && !listener.Poll(100000,SelectMode.SelectRead)) continue;
+                    using (Socket socket=acceptFirst ? accepted[summary.completed] : listener.Accept())
                     {
                         socket.ReceiveTimeout=10000; socket.SendTimeout=10000;
                         // One original query per socket; no fallback or retry.
@@ -173,6 +195,7 @@ public static class WfpContextProbe
         catch (Exception error) {summary.error=error.Message; summary.failures++;}
         finally
         {
+            foreach (Socket socket in accepted) socket.Close();
             if (listener != null) listener.Close(); summary.cleanupCompleted=true;
             NewJson(Path.Combine(directory,"server-summary.json"),summary);
         }
@@ -237,7 +260,7 @@ public static class WfpContextProbe
     {
         if (args.Length == 0 || (args.Length == 1 && args[0] == "--help"))
         {
-            Console.WriteLine("WfpContextProbe server|fillers|control --directory FRESH_TRIAL_DIR [--count N] [--base-port N] [--listen-port N] [--destination-port N] [--backlog N] [--payload-bytes N] [--records-first 0|1]");
+            Console.WriteLine("WfpContextProbe server|fillers|control --directory FRESH_TRIAL_DIR [--count N] [--base-port N] [--listen-port N] [--destination-port N] [--backlog N] [--backlog-hint 0|200..65535] [--accept-first 0|1] [--payload-bytes N] [--records-first 0|1]");
             Console.WriteLine("No driver, filter or ETW setup. server-release.flag / clients-release.flag are controlled externally. --help creates no sockets.");
             return 0;
         }
@@ -248,7 +271,7 @@ public static class WfpContextProbe
             for (int i=1; i<args.Length; i+=2)
             {
                 if (i+1>=args.Length) throw new ArgumentException("OPTION_VALUE_MISSING");
-                if (args[i]!="--directory" && args[i]!="--count" && args[i]!="--base-port" && args[i]!="--listen-port" && args[i]!="--destination-port" && args[i]!="--backlog" && args[i]!="--payload-bytes" && args[i]!="--records-first") throw new ArgumentException("UNKNOWN_OPTION");
+                if (args[i]!="--directory" && args[i]!="--count" && args[i]!="--base-port" && args[i]!="--listen-port" && args[i]!="--destination-port" && args[i]!="--backlog" && args[i]!="--payload-bytes" && args[i]!="--records-first" && args[i]!="--backlog-hint" && args[i]!="--accept-first") throw new ArgumentException("UNKNOWN_OPTION");
                 values.Add(args[i],args[i+1]);
             }
             string directory=Path.GetFullPath(values["--directory"]);
@@ -257,7 +280,7 @@ public static class WfpContextProbe
             if (role=="control" && count!=1) throw new ArgumentException("CONTROL_COUNT_MUST_BE_ONE");
             int destination=Number(values,"--destination-port",54122,1024,65535);
             int payload=Number(values,"--payload-bytes",524288,1,524288);
-            if (role=="server") return Server(directory,count,Number(values,"--listen-port",34010,1024,65535),destination,Number(values,"--backlog",int.MaxValue,1,int.MaxValue),payload,Number(values,"--records-first",0,0,1)==1);
+            if (role=="server") return Server(directory,count,Number(values,"--listen-port",34010,1024,65535),destination,Number(values,"--backlog",int.MaxValue,1,int.MaxValue),payload,Number(values,"--records-first",0,0,1)==1,Number(values,"--backlog-hint",0,0,65535),Number(values,"--accept-first",0,0,1)==1);
             int first=Number(values,"--base-port",role=="control"?42201:42001,1024,65535);
             if (first+count-1>65535) throw new ArgumentException("PORT_RANGE_INVALID");
             return Clients(directory,role,count,first,destination,payload);

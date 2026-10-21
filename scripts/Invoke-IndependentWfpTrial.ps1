@@ -1,11 +1,12 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Healthy','Target')][string]$Mode='Healthy',
+    [ValidateSet('Healthy','Target','Capacity','Drain')][string]$Mode='Healthy',
     [Parameter(Mandatory=$true)][ValidatePattern('^[a-zA-Z0-9-]+$')][string]$TrialId,
     [string]$KitDirectory='C:\PB-Independent-Wfp-20261021-r2',
     [ValidateRange(42201,65535)][int]$ControlPort=42201,
     [switch]$RecordsFirst,
-    [ValidateRange(1024,65336)][int]$FillerBasePort=42001
+    [ValidateRange(1024,65336)][int]$FillerBasePort=42001,
+    [ValidateRange(200,65535)][int]$BacklogHint=512
 )
 $ErrorActionPreference='Stop'
 if($env:COMPUTERNAME -ne 'PB-SUT'){throw 'TARGET_IDENTITY_DIFFERS'}
@@ -19,6 +20,7 @@ $children=New-Object System.Collections.Generic.List[System.Diagnostics.Process]
 $trace='PBWfp-'+$TrialId
 $traceStarted=$false;$policyAdded=$false;$cleanupErrors=@()
 $result=[ordered]@{status='INCOMPLETE';mode=$Mode;directory=$directory;control_port=$ControlPort;records_first=[bool]$RecordsFirst;filler_base_port=$FillerBasePort}
+$bulk=$Mode -ne 'Healthy'
 function Wait-File([string]$name,[int]$milliseconds=10000){
     $watch=[Diagnostics.Stopwatch]::StartNew()
     while($true){
@@ -37,20 +39,25 @@ function Start-Probe([string]$role,[int]$count){
     if($role -eq 'control'){$arguments+=@('--base-port',"$ControlPort")}
     if($role -eq 'fillers'){$arguments+=@('--base-port',"$FillerBasePort")}
     if($role -eq 'server' -and $RecordsFirst){$arguments+=@('--records-first','1')}
+    if($role -eq 'server' -and $Mode -eq 'Capacity'){$arguments+=@('--backlog-hint',"$BacklogHint")}
+    if($role -eq 'server' -and $Mode -eq 'Drain'){$arguments+=@('--accept-first','1')}
     $process=Start-Process -FilePath $probe -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput "$directory\$role.stdout.txt" -RedirectStandardError "$directory\$role.stderr.txt"
     $children.Add($process)
     return $process
 }
 try{
-    if($Mode -eq 'Target' -and $ControlPort -ge $FillerBasePort -and $ControlPort -lt $FillerBasePort+200){throw 'SOURCE_PORT_RANGES_OVERLAP'}
+    if($bulk -and $ControlPort -ge $FillerBasePort -and $ControlPort -lt $FillerBasePort+200){throw 'SOURCE_PORT_RANGES_OVERLAP'}
     if((Get-Service ProxyBridgeDrv).Status -ne 'Stopped'){throw 'PRODUCT_DRIVER_MUST_BE_STOPPED'}
     foreach($service in 'WFPSampler','WFPSamplerCallouts'){
         if((Get-Service $service).Status -ne 'Running'){throw 'SAMPLE_SERVICE_NOT_RUNNING'}
     }
-    $count=1;if($Mode -eq 'Target'){$count=201}
+    $count=1;if($bulk){$count=201}
     $server=Start-Probe 'server' $count
     $ready=Wait-File 'server-ready.json'
     if($ready.pid -ne $server.Id){throw 'SERVER_PID_DIFFERS'}
+    if($Mode -eq 'Capacity' -and $ready.backlogHint -ne $BacklogHint){throw 'BACKLOG_HINT_DIFFERS'}
+    if($Mode -eq 'Drain' -and -not $ready.acceptFirst){throw 'ACCEPT_FIRST_NOT_ENABLED'}
+    $result['server_ready']=$ready
     $policy=@('-s','PROXY','-l','FWPM_LAYER_ALE_CONNECT_REDIRECT_V4','-ipp','TCP','-ipra','127.0.0.1','-iprp','54122','-aaid',$probe,'-pra','127.0.0.1','-prp','34010','-plspid',"$($server.Id)",'-in','-v')
     $policy | ConvertTo-Json | Set-Content "$directory\policy-arguments.json" -Encoding UTF8
     & $cli @policy *> "$directory\policy-add.txt"
@@ -59,6 +66,7 @@ try{
     & logman.exe start $trace -ets -o "$directory\tcpip.etl" -p Microsoft-Windows-TCPIP 0xffffffffffffffff 5 -bs 128 -nb 32 128 *> "$directory\trace-start.txt"
     if($LASTEXITCODE -ne 0){throw 'TRACE_START_FAILED'}
     $traceStarted=$true
+    if($Mode -eq 'Drain'){$null=New-Item -ItemType File "$directory\server-release.flag"}
     if($Mode -eq 'Healthy'){
         $null=New-Item -ItemType File "$directory\server-release.flag"
     }else{
@@ -85,6 +93,12 @@ try{
         Start-Sleep -Milliseconds 100
         $null=New-Item -ItemType File "$directory\server-release.flag"
     }
+    if($Mode -in @('Capacity','Drain')){
+        $connected=Wait-File 'control-ready.json' 15000
+        if($connected.pid -ne $control.Id){throw 'CONTROL_PID_DIFFERS'}
+        $result['control_connected_before_processing']=$true
+        if($Mode -eq 'Capacity'){$null=New-Item -ItemType File "$directory\server-release.flag"}
+    }
     $null=New-Item -ItemType File "$directory\clients-release.flag"
     foreach($process in $children){if(-not $process.WaitForExit(90000)){throw 'CHILD_TIMEOUT'}}
     $rows=@(Get-Content "$directory\server-connections.jsonl" | ForEach-Object {$_ | ConvertFrom-Json})
@@ -92,12 +106,14 @@ try{
     $result['query_failures']=@($rows | Where-Object {$_.apiReturn -ne 0} | Select-Object peerPort,apiReturn,apiError,bytesReturned)
     $result['server_summary']=Get-Content "$directory\server-summary.json" -Raw | ConvertFrom-Json
     $result['control_summary']=Get-Content "$directory\control-summary.json" -Raw | ConvertFrom-Json
-    if($Mode -eq 'Target'){
+    if($bulk){
         $result['fillers_summary']=Get-Content "$directory\fillers-summary.json" -Raw | ConvertFrom-Json
         if($result.fillers_summary.completed -ne 200 -or $result.fillers_summary.failures -ne 0){throw 'FILLER_DATA_INCOMPLETE'}
     }
     $result['child_exits']=@($children | ForEach-Object { [ordered]@{pid=$_.Id;exit=$_.ExitCode} })
     if($rows.Count -ne $count){throw 'QUERY_COUNT_DIFFERS'}
+    if(@($rows | Group-Object peerPort | Where-Object Count -ne 1).Count){throw 'DUPLICATE_QUERY_PORT'}
+    if($Mode -eq 'Drain' -and $result.server_summary.acceptedBeforeProcessing -ne 201){throw 'ACCEPT_DRAIN_INCOMPLETE'}
     if($Mode -eq 'Healthy'){
         if(@($rows | Where-Object {-not $_.contextValid -or -not $_.dataValid}).Count){throw 'HEALTHY_CONTEXT_OR_DATA_FAILED'}
         $result.status='HEALTHY_SUCCESS'
