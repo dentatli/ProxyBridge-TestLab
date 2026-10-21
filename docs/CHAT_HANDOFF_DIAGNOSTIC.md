@@ -1,5 +1,19 @@
 # Передача чату диагностики TCP / WinDbg
 
+## После accept-пары: source review завершён, кандидат трёх событий ждёт live pins
+
+См. docs/TCP_REDIRECT_CAUSAL_REVIEW_2026-10-21.md. Повторно просмотрен конкретный
+ClassifyCore185..248 сборки63be0eb и сохранённый sendgate. ContractMicrosoft
+проверен онлайн: WFP владеетctx послеApply; flags0inline/Releasehandle штатны.
+РанееизвестныеallocationNULL/directloopbackAcquireбезApply не доказаныпричиной.
+Skipassociation приbit21 — конкретная TCP/IPветка, но crossRunснимки нельзя
+объявитьединойlifetime. Дизайнкандидат: CREATE source42201 -> selectedSKIP+14f
+sameEP -> ACCEPTreturn tuple, триодноразовыхсобытия, безreadwatch/stackspam.
+Нужны actualcurrentboot u CREATE+396L2/SEND+2dL4/SEND+14fL8, USERBreakwarning
+wholeVM/Codex/RDP, gотдельноevenerror. Существующие2/3остаютсяdisabled,
+неdriverrestart/неbe/неRun. Новыйhelper/profile/plan ещё НЕ готовы; продукт,
+capsиcapturedkits не менялись, tests/builds не выполнялись. Rootcausefalse.
+
 ## Target042210: нужная accept PRE/POST пара и исходный10022 подтверждены
 
 USER Run pb-target-accept-run-20261021-042210-53a5256f:
