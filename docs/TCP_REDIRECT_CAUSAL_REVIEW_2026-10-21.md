@@ -1,5 +1,54 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Итог проверки контракта и причинного объяснения после Run131809
+
+Ведущая гипотеза: сбой переноса redirect metadata в TCP/IP при повторном SYN
+после отказа принимающей очереди. Это suspected stack defect, а не установленный
+Windows bug. Наблюдённый endpoint-state gate объясняет пропуск двух найденных
+ветвей привязки, но полного исполнения всех возможных путей в одном Run нет.
+
+Новые уточнения по сохранённым данным:
+
+- ETW именно Run131809 содержит два1214Reason30/SO_PAUSE_ACCEPT и два1186
+  RexmitCount1/2 по controltuple. Loss counters0. Сопоставление с query опирается
+  на native tuple и PID/TID; абсолютное выравнивание часов ETW/WinDbg не доказано.
+- В WfpAleProcessSocketOption IOCTL980000dd идёт сразу к чтению EP+1c0
+  (RVA12157c). NULL ведёт к121588 раньше проверки размера выходного буфера
+  (121593..1215ab). Поэтому наблюдённая NULL-ветка не является size-failure.
+  Размер32 на source сам по себе не доказывает lifetime/корректность payload.
+- QUERY_RECORDS/980000dc также сначала читает тот же EP+1c0 и приNULL идёт
+  в121588 (1215d8..1215e7). Эта query-ветка не создаёт record. Перестановка
+  QUERY_RECORDS перед QUERY_CONTEXT не восстанавливает уже NULL pointer по
+  рассмотренному коду. Setter980000de — другой путь, не замена original query.
+- Рассмотренный driver ClassifyCore задаёт handle/targetPID/context/size и Apply
+  без последующего освобождения context. Source CREATE и query snapshot содержат
+  same context32; ветка allocationNULL не объясняет именно этот CREATE.
+  Это не полная проверка всех reclassifications/чужих callout/loaded-image lifetime.
+- Контроль19окт043838 воспроизвёл original10022 с ETW без активных WinDbg points
+  (TARGET_ACCEPT_RESULT_2026-10-19.md). Точки не являются необходимым условием
+  исходной ошибки; влияние последующих захватов на timing этим не исключено.
+
+Microsoft contract проверен21окт: inline callout передаёт context через connect
+request и Apply; WFP принимает владение памятью context. Документированного
+требования вручную переносить этот context на каждый retransmitted SYN нет в
+рассмотренных страницах. Это не доказательство отсутствия иных требований.
+[Bind/connect redirection](https://learn.microsoft.com/en-us/windows-hardware/drivers/network/using-bind-or-connect-redirection),
+[context ownership](https://learn.microsoft.com/en-us/windows-hardware/drivers/ddi/fwpsk/ns-fwpsk-_fwps_connect_request0),
+[query contract](https://learn.microsoft.com/en-us/windows/win32/winsock/sio-query-wfp-connection-redirect-context).
+Private bit21 не документирован этими API; нельзя присваивать ему публичное имя
+или объявлять его установление на любом RST ошибкой. Healthy receive тоже его ставит.
+
+Следующий различающий опыт — независимый минимальный WFP reproducer по образцу
+Microsoft на отдельном стенде, с тем же queue-refused-SYN/retry условием и
+сначала успешным healthy control. Зафиксировать точный OS build, callout source/
+image, контекст/размер и исходный API result; не маскировать отказ fallback/requery.
+Независимое воспроизведение позволит вынести обоснованный Windows issue; его
+отсутствие требует разбора различий, а не автоматического оправдания Windows.
+Backlog1024 ранее убирал trigger; это mitigation-кандидат, не доказанная починка.
+Новых bp/helper/plan/Run/build/install/driverchanges не выполнено. Для нового
+репродуктора сначала нужен конкретный reviewable build/install/runtime план;
+текущие ограничения shared VM продолжают действовать.
+
 ## Run131809: связь с original10022 подтверждена в одном прогоне
 
 Receive/query evaluator получил RST_TRANSITION_AND_SELECTED_QUERY_NULL_OBSERVED,

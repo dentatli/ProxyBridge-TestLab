@@ -1,5 +1,32 @@
 # Передача чату диагностики TCP / WinDbg
 
+## После Run131809: ведущая гипотеза TCP/IP retry propagation, не окончательная атрибуция
+
+Прочитан актуальный верх TCP_REDIRECT_CAUSAL_REVIEW_2026-10-21.md: там итог
+контракта/кода, свежие same-run ETW findings и следующий различающий опыт.
+Run131809 control_events: два SO_PAUSE_ACCEPT Reason30, retries1/2, loss0.
+QUERY_CONTEXT NULL check предшествует sizecheck; QUERY_RECORDS читает тот же
+record pointer и приNULL идёт в тот же failpath, не восстанавливая привязку.
+Source context32 есть в CREATE/query, поэтому allocationNULL не объясняет
+этот CREATE. Driver Apply/context ownership соответствует рассмотренному
+документированному пути; полная корректность драйвера не доказана.
+
+Основной подозреваемый — propagation в TCP/IP при queue-refused SYN/retry:
+RST ставит bit21, gate подавляет две найденные associationветви. ПоследнийRun
+не наблюдал actualSENDskip/allpaths; rootcause_provenfalse сохраняется.
+Исходный10022 уже воспроизводился без активныхpoints в Run19окт043838.
+Для атрибуции следующий полезный шаг — независимый минимальный WFP reproducer
+по sample Microsoft на отдельномстенде, а не новые hotpoints/ростcaps.
+Его код/build/install/Run пока не подготовлены/не выполнены/не разрешены этим
+read-only шагом. Не приступать к установке по историческим permissions.
+Backlog1024 остаётся известным mitigation-кандидатом, не финальным fix.
+
+Agent только source/report/docs review и официальные Microsoft Learn pages;
+без новыхtests/builds/profiles/Prepare/Break/be/traffic/driverchanges. Сохранены
+private causal-summary/selectedETW со source hashes в review131809. Старые
+captures/kits/manifests не менялись. G давать в одном block последней отдельной
+строкой по USER preference; приошибке предыдущей команды g всё равно выполнить.
+
 ## Run131809: RST + source record retained + selected query NULL, exact PID/TID join
 
 USER Run pb-target-accept-run-20261021-131809-00e46463 завершён:
