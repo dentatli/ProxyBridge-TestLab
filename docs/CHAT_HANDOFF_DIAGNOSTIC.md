@@ -2,6 +2,12 @@
 
 ## Текущий шаг: source-at-ACCEPT, SEND3 всегда выключена
 
+USER actual CONFIGmodel0/version2/inittrue и .bpcmds2/4 совпали; bd2/bd3/bd4.
+Регистрация подтверждена пользовательским выводом, independenthostprooffalse.
+Plan055619 SHA проверен, PREPARED_NOT_RUN; USER Run после отдельногоg.
+ПриREADY USERBreak wholeVMwarning, толькоbe2/отдельныйg, затемLatinCвVM.
+Recovery bd2/bd3/bd4/pbcStop/отдельныйg; повторныйRun запрещён.
+
 USER сохранил RAW create=1/skip=200/accept=14 (hex): 1/512/20.
 В Run053802 именно общая точка3 исчерпала лимит. Private review обновлён;
 причина автоматического engine-stop по-прежнему не доказана. History-захват
