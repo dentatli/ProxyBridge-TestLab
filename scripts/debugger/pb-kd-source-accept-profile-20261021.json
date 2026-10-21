@@ -1,0 +1,70 @@
+{
+  "method": "kd-source-accept-20261021-v1",
+  "registered_point_ids": [
+    2,
+    3,
+    4
+  ],
+  "active_point_ids": [],
+  "dynamic_point_ids": [],
+  "host_enable_point_ids": [
+    2
+  ],
+  "script": "scripts/debugger/pb_retry_history.js",
+  "script_sha256": "47c72a600ddeaf089f8ee8d4f454fe4d431ab00e0770ade1e174ed2f58008a76",
+  "model_required": 0,
+  "initialization": "pbcInitKernel",
+  "registration": "manual-existing-helper-source-accept-actions",
+  "raw_hit_limits_per_point": {
+    "2": 32,
+    "4": 512
+  },
+  "max_total_raw_hits": 544,
+  "selected_events_per_point": {
+    "2": 1,
+    "3": 0,
+    "4": 1
+  },
+  "automatic_enable": true,
+  "automatic_disable": true,
+  "points": [
+    {
+      "id": 2,
+      "target": "tcpip!AlepCreateRedirectRecord+0x396",
+      "action": "r @$t0 = @$t0 + 1; .if (@$t0 >= 0x20) { !pbcabort; } .else { .if ($vvalid(@r14,4) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { r @$t11 = @rax; be4; !pbccreate @r14, @rdi, @rax; } } }; gc;"
+    },
+    {
+      "id": 3,
+      "target": "tcpip!WfpTlShimInspectFastLoopbackSendDatagram+0x34",
+      "action": "r @$t1 = @$t1 + 1; .if (@$t1 >= 0x200) { !pbcabort; } .else { .if ((@$t10 != 0) and (@rbx == @$t10) and (@r14w == 2) and ((@eax & 0x200000) != 0) and ((@efl & 1) != 0)) { !pbcskip @rbx, @rbp, @r14w, @eax, @efl; } }; gc;"
+    },
+    {
+      "id": 4,
+      "target": "tcpip!WfpAleAuthorizeAccept+0xcaf",
+      "action": "r @$t2 = @$t2 + 1; .if (@$t2 >= 0x200) { !pbcabort; } .else { .if ($vvalid(@rbp-0x7c,4) == 1) { .if ((wo(@rbp-0x7c) == 0xda84) and (wo(@rbp-0x7a) == 0xd9a4)) { .if (($vvalid(@$t10+0x30,4) == 1) and ($vvalid(@$t10+0x1c0,8) == 1)) { .if (poi(@$t10+0x1c0) == 0) { .printf \"PBC SOURCE source_ep=%p expected_record=%p record_now=0 context=0 size=0 flags30=%x accept_ep=%p accept_nbl=%p\\n\", @$t10, @$t11, dwo(@$t10+0x30), @rdi, @rbx; } .else { .if ($vvalid(poi(@$t10+0x1c0)+0x1e0,0x10) == 1) { .printf \"PBC SOURCE source_ep=%p expected_record=%p record_now=%p context=%p size=%I64x flags30=%x accept_ep=%p accept_nbl=%p\\n\", @$t10, @$t11, poi(@$t10+0x1c0), poi(poi(@$t10+0x1c0)+0x1e0), poi(poi(@$t10+0x1c0)+0x1e8), dwo(@$t10+0x30), @rdi, @rbx; } .else { .printf \"PBC SOURCE_UNREADABLE reason=RECORD\\n\"; } } } .else { .printf \"PBC SOURCE_UNREADABLE reason=EP\\n\"; }; !pbcaccept @rbx, @rbp, @rdi, @eax; } } }; gc;"
+    }
+  ],
+  "recovery": [
+    "bd2",
+    "bd3",
+    "bd4",
+    "dx @$scriptContents.pbcStop()",
+    "g"
+  ],
+  "limits": [
+    "No SEND breakpoint is enabled. Point3 remains registered only for unchanged helper cleanup.",
+    "Source references and accepted NBL are read during the same debugger stop; pointers do not prove allocation lifetime.",
+    "No instruction-level proof of propagation or independent kernel-to-SOCKET join."
+  ],
+  "automatic_enable_point_ids": [
+    4
+  ],
+  "helper_version": 2,
+  "proposed_active_point_ids": [
+    2,
+    4
+  ],
+  "inactive_point_ids": [
+    3
+  ]
+}

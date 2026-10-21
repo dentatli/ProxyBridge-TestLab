@@ -1,5 +1,44 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий шаг: source-at-ACCEPT, SEND3 всегда выключена
+
+USER сохранил RAW create=1/skip=200/accept=14 (hex): 1/512/20.
+В Run053802 именно общая точка3 исчерпала лимит. Private review обновлён;
+причина автоматического engine-stop по-прежнему не доказана. History-захват
+не повторять и лимиты не увеличивать. Разделы ниже — история предыдущих шагов.
+
+Новый отдельный вопрос: сохраняются ли sourceEP+1c0/record/context32 при ACCEPT,
+когда accepted NBL не имеет key5. Новый профиль source-accept SHA
+cc9b4674456cc79bbc3441f9a3544248f59c41387254a404d0da7b042dabbd10.
+Helper pb_retry_history.js прежний, уже на host; не скачивать/не перезагружать.
+Новые ручные действия2/4; НЕ вызывать pbcRegister после их замены.
+CREATE2 сохраняет expected_record в t11, включает только ACCEPT4, затем
+pbccreate проверяет запись и сохраняет sourceEP в t10. SOURCE читается в
+той же остановке, что ACCEPT. Point3 зарегистрирована для cleanup, всегда
+disabled. Host включает только2. Caps2=32/4=512, total544; hardware/stackdump0.
+
+Четыре изолированных CDB cases прошли: cold600 и600 SEND послеCREATE,
+source NULL, source record unreadable, ACCEPT rawcap. Ранний fixture r1
+выявил отсутствующий разделитель MASM; исправлен, r2 прошёл. Parser тех же
+логов и отрицательный SOURCE join проверены; model-header substitution
+только для parser, не kernel evidence. Proof private pb-source-accept-proof-
+20261021-r2. Kernel/SMP overhead этими проверками не сертифицирован.
+
+Fresh Prepare exit0, product_started=false/traffic_generated=false:
+artifacts/diagnostics/pb-target-accept-plan-20261021-055619-0c524738/runtime-plan.json
+SHA bebe3bea7a76b5a32abf8095411f2dc84d95ada1fe807c22612d39452c504b7f.
+Registration source-accept-r1, прежний healthy040741/boot119; host registration
+ещё pending. Сначала USER disabled redefinition2/4 из stage, init CONFIGmodel0,
+.bpcmds и отдельныйg. Никакого Run до проверки фактических actions/disabled IDs.
+Перед USER Break/enable предупредить wholeVM/Codex/RDP; recovery bd2/bd3/bd4,
+pbcStop, отдельныйg. Agent не Break/be/Run/driver lifecycle.
+
+Отдельный report SOURCE_RECORD_REFERENCED_ACCEPT_CONTEXT_MISSING возможен
+только при source record/context совпадении, size32, bit21, accepted key5absent,
+statusc0000225 и unique native10022. Это чтение ссылок, НЕ доказательство
+allocation lifetime, одного физического packet, independent SOCKET join или
+вины Windows/драйвера. Старые NBL-join критерии не ослаблены.
+
 ## Run053802: historyv2 RAW_LIMIT после2снимковsameNBL; USER подтвердилautoBreak
 
 USER Run pb-target-accept-run-20261021-053802-418437fa native

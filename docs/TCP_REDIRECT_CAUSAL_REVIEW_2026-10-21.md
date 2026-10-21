@@ -1,5 +1,20 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Текущий наблюдатель: source reference в момент ACCEPT
+
+Run053802 RAW counters1/200/14hex подтверждают512 общих попаданий SEND3
+при двух выбранных снимках; прежний history-захват не повторять.
+Новый source-accept профиль держит3 выключенной всегда. CREATE2 проверяет
+исходную запись; ACCEPT4 читает sourceEP record/context/flags и состояние
+accepted NBL в одной остановке. Действия2/4 изменены вручную, JS helper тот же.
+Это отдельный вопрос о сохранении ссылки, а не замена packet-identity проверки.
+Сохранённая ссылка не доказывает allocation lifetime; missing accepted tag не
+доказывает виновность Windows или драйвера. Следующий результат может остаться
+неполным. Caps2/4=32/512; общийSEND/динамическиеwatch/stackdump отсутствуют.
+Четыре коротких CDB fixture прошли без продукта/сети/kernel; это логическая
+проверка команд, не доказательство приемлемого влияния на реальную VM.
+Freshplan055619 prepared, host disabled redefinition pending; см. handoff.
+
 ## Подготовлен retry-history v2 вместо одного SKIP
 
 Новыйhelper/profile сохраняет до8selectedSKIPнаблюдений с одинаковымsourceEP,
