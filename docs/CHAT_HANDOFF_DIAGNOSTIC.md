@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## После Run060837: статически разобраны две ветки association, ждём только code read
+
+Agent продолжил без runtime: сохранённый tcpip-current-disassembly SHA
+1d6058d61cbc6426752ca8179ff354fab3b8ef9208c77b8c56888a12e197245e,
+imageSHA b0683bd7...; private pb-source-accept-causal-review-20261021-060837.
+Receive+182..198 при reached block и bit20 выставляет bit21 без отдельного
+TCPflags test внутри блока. Ранние classify/permit gates остаются применимы.
+FastLoopbackSend: EDI=0; bit21 -> +14f -> EAX=EDI=0, обходятся source record
+load/refinc/key5 association и trailing helper. Caller RVA7d736 test EAX,
+zero ->7d3a3 (обычное продолжение), не missing-context error на этом callsite.
+Нельзя утверждать отсутствие всех возможных поздних fallback по всему стеку.
+
+Найдена ВТОРАЯ key5 association по IAT24dde8: cold RVA1bcc9c. Её рассмотренный
+вход также gated bit21: RVA211ad load[RDI+30],211b0 bt15h,211b4 jb211da
+обходит путь211c3->1bcb5e. В холодном TCP path1bcba3 проверяется protocol6,
+1bcbb0 получает[RDI+1c0], далее1bcc54->1bcc9c ассоциирует key5.
+Не присваивать имя функции по runtime-function fragment2070c: unwind fragment
+не доказывает parent symbol. Не объявлять все альтернативные пути исчерпанными.
+
+Следующий USER шаг — только чтение current code: ln tcpip+211ad;
+u tcpip+211ad Lc; u tcpip+1bcba3 L8; u tcpip+1bcc54 L15; отдельныйg.
+Перед USER Break wholeVM/Codex/RDP warning; 2/3/4 остаются disabled.
+Нет регистрации/enable/new helper/new plan/трафика. После code confirmation
+можно точнее описать общий gate как механизм; rootcause/Windows attribution
+пока false. Не сбрасывать бит/не патчить ядро как причинный эксперимент.
+
 ## Run060837: source reference сохраняется непосредственно при ACCEPT miss
 
 USER Run pb-target-accept-run-20261021-060837-6f11c3e0 завершён:
