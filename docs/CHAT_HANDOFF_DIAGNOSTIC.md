@@ -1,5 +1,36 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Target042210: нужная accept PRE/POST пара и исходный10022 подтверждены
+
+USER Run pb-target-accept-run-20261021-042210-53a5256f:
+TARGET_FAILURE_REPRODUCED/errors[], diagnostic COLLECTED/cleanup_errors[]/
+resident_disabled_after=true. Один control nativePID11260, query201/socket6072,
+relay11724, tuple127.0.0.1:42201 ->34010, endpoint errors0, APIreturn-1/
+error10022/bytes0/required32/original_api_failure=true. NativeSendBytes0,
+ErrorNotAllDataTransferred; никакого10061 в controlresult.
+
+USER PBA PRE tid3bd4/scopeffff878c562911c0/frameffff878c56291320/
+epffffe68679e2c010/nblffffe6867bbe8a70: info_raw1, maskedinfo0/root0/key5=0.
+POST та же identity, statusc0000225/record0/context0/size0; FINAL1/1/error0.
+Это отсутствие контекста ДО Retrieve, не потеря внутри этого вызова.
+Private review pb-accept-pair-review-20261021-042210/pair-report.json:
+ACCEPT_PAIR_CONTEXT_MISSING_OBSERVED/errors[]/native_errors[]. Console provenance
+явно сохраняет: currentpaste не содержитCONFIG, использован ранее присланный
+actualCONFIG тойжеWinDbgsession изhealthy040741; НЕ новая observedinit,
+НЕ syntheticheader, independenthostverification=false. Rawfragment отдельный.
+Rootcausefalse, independent_socket_join_verified=false, lifetimefalse.
+Native корреляция по tuple/единственномуcontrol, не прямой kernel-to-SOCKET join.
+
+Healthy040741 имелkey5present/status0/samevalue/API0/bytes32. Target042210:
+key5absent/statusc0000225/API10022/bytes0. Нужная сравнительная пара получена;
+не повторять её и не повышатьcaps. Предыдущие source/RST/bit21/retry snapshots
+согласуются с механизмом, но взяты издругихRun, не единаяпрямаяcausalchain.
+Следующая задача — атрибуция причины отсутствия association наretry, проверка
+контракта redirect/сроковжизни и существующих source/Windowsbranches; нельзя
+объявлятьWindowsbug/driverbug или освобождениеrecord по этойпаре.
+НовыйRun/hostBreak/servicechanges не выполнялись, helper/profile не менялись,
+тесты/сборки не повторялись; выполнен только evaluator текущегоcapture.
+
 ## USER выбрал ещё одну попытку без смены observer/caps; fresh plan042037 готов
 
 После разбора RAW_LIMIT/10061 USER: «Давай просто повторим».
