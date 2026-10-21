@@ -45,8 +45,11 @@ def evaluate(capture,console):
     from pb_kd_session import read,checked
     from pb_target_accept_report import evaluate as native
     capture,console=Path(capture),Path(console);p=read(capture/'runtime-plan.json');run=read(capture/'diagnostic-run.json')
-    sha=hashlib.sha256((capture/'runtime-plan.json').read_bytes()).hexdigest();checked(p['debugger_profile'],PROFILE_SHA)
-    if p['policy']!=policy() or run.get('flow_registration_acknowledged') is not True or run.get('debugger_observer') is not True or run.get('plan_sha256','').lower()!=sha:raise ValueError('CHAIN_BINDING_INVALID')
+    if p['policy'].get('retry_chain_create_armed') is True:
+        from pb_retry_chain_armed_profile import policy as expected_policy,PROFILE_SHA as expected_sha
+    else:expected_policy,expected_sha=policy,PROFILE_SHA
+    sha=hashlib.sha256((capture/'runtime-plan.json').read_bytes()).hexdigest();checked(p['debugger_profile'],expected_sha)
+    if p['policy']!=expected_policy() or run.get('flow_registration_acknowledged') is not True or run.get('debugger_observer') is not True or run.get('plan_sha256','').lower()!=sha:raise ValueError('CHAIN_BINDING_INVALID')
     raw=console.read_bytes();r=correlate(raw.decode('utf-8-sig'));n=native(capture);controls=[m for m in n['matches'] if m['role']=='control']
     r.update(native_status=n['status'],native_errors=n['errors'],plan_sha256=sha,console_sha256=hashlib.sha256(raw).hexdigest())
     if n['errors'] or len(controls)!=1:r['errors'].append('NATIVE_JOIN_INCOMPLETE')

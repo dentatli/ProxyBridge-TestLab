@@ -1,5 +1,21 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## После Run045723: изменено окно включения, helper и лимиты прежние
+
+Сохранённые USER counters create0/skip200hex/accept15hex устанавливают, что
+SKIP-point исчерпала512 попаданий ДОCREATE; accept имела21 попадание.
+Новый create-armed профиль включает наhost только2. Приmatchingsource42201
+её action включает3/4, затем вызывает прежний pbccreate. Между этими командами
+ядро не исполняется; guardfailure прежнегоhelper снимаетвсё доgc.
+Это прежняя согласованная схема arming-after-CREATE; инструкцияUSER приREADY
+теперь be2/g/C, не be2/be3/be4. Дляперехода надоодинраз заменить action2,
+не перезагружать JS и не вызывать старый pbcRegister поверхновойaction.
+
+СтарыйhelperSHA/прочиедействия/caps не менялись. Новыйprofile4453ed56...,
+3новыхrealCDBcases (cold600доCREATE,guardfailure,capпослеCREATE) passed;
+no kernel/product/network. Targetэффект/вмешательство новойсхемы ещёнеизмерены.
+Прежние healthy/failure evidence сохраняются; новый plan051301 не запускался.
+
 ## Обновление: candidate v1 реализован и проверен в изолированном CDB
 
 USER показал current-boot CREATE+396, SEND+2d/+14f; адресаbase5d... совпадают

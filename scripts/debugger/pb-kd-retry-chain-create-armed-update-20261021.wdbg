@@ -1,0 +1,4 @@
+bp2 tcpip!AlepCreateRedirectRecord+0x396 "r @$t0 = @$t0 + 1; .if (@$t0 >= 0x20) { !pbcabort; } .else { .if ($vvalid(@r14,4) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { be3; be4; !pbccreate @r14, @rdi, @rax; } } }; gc;"
+bd2
+bd3
+bd4

@@ -1,5 +1,40 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Причина RAW_LIMIT установлена: point3 доCREATE; подготовлен профиль включения приCREATE
+
+Fresh plan artifacts/diagnostics/pb-target-accept-plan-20261021-051301-d4b5c54d/runtime-plan.json
+SHA 3119BDE2D72BD9CF0826243338AE71A25C016AA6F6E6D2239DD11EE71A8C2376.
+Prepareexit0/productfalse/trafficfalse, exactvalidateвPrepareпрошёл.
+Registration create-armedr1, sameboot119/healthy040741. ТолькоUSERможетRun;
+сначалаactualhostoverride2/disabled3/4, нестаруюкомандуRun/нестарыйconsumedplan.
+
+USER retainedcounters: PBC RAW create=0 skip=200 accept=15 => decimal0/512/21.
+Point3 общеговыходаSEND достигcap512 ещёдоselectedCREATE. Это проблемаокна
+наблюдения, не новый10022. Счётчики сохраненыprivate review045723.
+
+JS helper pb_retry_chain.js НЕ менялся, download/reloadне нужен. Новыйотдельный
+profile pb-kd-retry-chain-create-armed-profile-20261021.json SHA
+4453ed56e036a6010c61988deece7201c21471e211f97b703dc71b07cacd5de6.
+Изменена только action2: приmatchingCREATEtuple be3/be4 затемстарыйpbccreate;
+VMвсёещёhalted, егоguardfailure вызываетpbcStopдоgc. Это применениесогласованной
+схемыautomaticenableafterCREATE [3,4] (userexception20261020), неagentbe/Break.
+HostприREADY включаетТОЛЬКО2; 3/4disabledдоCREATE; прежниеcaps32/512/512.
+Никакоговключениядоmatchingtuple, hardwarewatch/stack/newpacketloggingнет.
+
+Только3новыхреальныхCDBcases passed:600SEND+600ACCEPTcallsдоCREATEбезtraps,
+selectedchainпослеCREATE; CREATE_CONTEXTfailure выключаетвсё; capпослеCREATE.
+Proof pb-retry-chain-create-armed-proof-20261021-r1, exactcandidate/profilebinding;
+старые5cases/полнsuite/buildнеповторялись, network/product/kernelconnectionfalse.
+Дополнительныйcheckerпроверяетparser этих3логов (явноmodelheadersubstitution).
+Source dispatch/нативныйreport/evaluator допускают новыйexactprofile; старые
+profiles/kitsне менялись. FreshPrepareотдельно; runtimeнеавторизованагенту.
+ДляUSERhostregistration: warningwholeVM/Codex/RDP передBreak, bd2/bd3/bd4,
+pbcInitKernel, заменитьТОЛЬКОbp2inlineизnewstage, bd2/bd3/bd4,.bpcmds,g.
+НЕ pbcRegisterпослеoverride (вернётстаруюaction2), нескачиватьhelperснова.
+ДоactualCONFIGmodel0/бпкомандновойaction2 UserRun не предлагать.
+USER «Осторожней» из-запредупрежденияUI: продолжатьврамкахсанкционированной
+диагностики, безобходаограничений/измененийproductdriver/системныхнастроек.
+
 ## PBC Run045723: RAW_LIMIT доCREATE; controller не увидел controlSYN, cleanupнеполна
 
 USER Run pb-target-accept-run-20261021-045723-5f67fc2d: FAILED/
