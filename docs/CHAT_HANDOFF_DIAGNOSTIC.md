@@ -1,5 +1,28 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Target041632: global accept RAW_LIMIT; native10061, не искомый10022
+
+USER Run pb-target-accept-run-20261021-041632-a32f9fb1 закончен INCOMPLETE:
+control:NATIVE_ENDPOINT_UNOWNED / control:NATIVE_PORT_SET_DIFFERS.
+control.csv содержит одну строку10061 (connection refused), пустые addresses,
+SendBytes0. В proxy.jsonl нет query42201/10022. diagnostic-run COLLECTED,
+cleanup_errors[], resident_disabled_after=true. USERconsole RAW_LIMIT,
+FINAL pre0/post0/error0; это не успешный capture: MASM raw-limit branch
+не выставляет JS error, поэтому error0 не отменяет INCOMPLETE.
+Private console/review: pb-accept-pair-review-20261021-041632.
+
+В pb_accept_pair.js64/65 rawcounter увеличивается ДО tuple filter; каждая
+точка видит глобальные accept paths и выключает обе на256м проходе.
+Fillers/retries могут исчерпать cap раньше control. Конкретный состав этих
+256 попаданий не записан; нельзя утверждать его по догадке. Debugger-caused
+10061 вероятен по истории, но этот Run сам причинность не доказывает.
+Не повторять consumed Run/plan, не повышать глобальный cap автоматически.
+Следующий дизайн: рассмотреть late arming пары по selected source endpoint/
+retry вместо активных accept points во время drain200fillers. Требуются
+актуальные code pins, bounded proof/fresh profile/plan при смене observer;
+прежний frozenkit не подтверждает новый. Новый runtime НЕ запускался,
+helper/profile не менялись, тесты/сборки не повторялись. Rootcausefalse.
+
 ## Target pair plan готов послеполного healthy119 binding; Run USER-only
 
 USER прислал actualexistingCONFIG model0/prefffff8015d045676/
