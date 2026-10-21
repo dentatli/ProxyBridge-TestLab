@@ -2,6 +2,16 @@
 
 ## Текущий шаг: source-at-ACCEPT, SEND3 всегда выключена
 
+Попытка USER Run055619 остановлена до runtime: KD_BOOT_EVENT_XML_DIFFERS.
+Причина воспроизведена read-only: PS7.6.7 ConvertFrom-Json возвращает DateTime
+в identity timestamps, строгий XML/string compare отклоняет; Windows PS5.1
+возвращает String и Assert проходит. Оба видят boot119/event17771.
+Продукт/нагрузка не стартовали, run-directory не создан, план не потреблён.
+Файлы source/profile/plan не менять. Следующий USER запуск явно через
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File Invoke-TargetAccept.ps1
+с тем же Plan055619/SHA и исходными switches. Не pwsh/не прямой вызов из PS7.
+Модуль совместимости PS7 сейчас не правили; boot-check private source-accept-boot-check.ps1.
+
 USER actual CONFIGmodel0/version2/inittrue и .bpcmds2/4 совпали; bd2/bd3/bd4.
 Регистрация подтверждена пользовательским выводом, independenthostprooffalse.
 Plan055619 SHA проверен, PREPARED_NOT_RUN; USER Run после отдельногоg.
