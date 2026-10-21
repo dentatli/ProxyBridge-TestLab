@@ -15,6 +15,9 @@ HEALTHY_STAGE='scripts/debugger/pb-kd-target-flag-healthy-setter-update-20261020
 
 
 def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch=='receiveaccept':
+        from pb_receive_accept_profile import PROFILE_SHA as sha
+        return sha
     if endpoint_watch=='sourceaccept':
         from pb_source_accept_profile import PROFILE_SHA as sha
         return sha
@@ -57,6 +60,9 @@ def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=F
 def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
     if endpoint_watch:
         if not (create_armed and accept64) or healthy!=(not target):raise ValueError('ENDPOINT_WATCH_POLICY_INVALID')
+        if endpoint_watch=='receiveaccept':
+            from pb_receive_accept_profile import policy as receive_policy
+            return receive_policy(target)
         if endpoint_watch=='sourceaccept':
             from pb_source_accept_profile import policy as source_policy
             return source_policy(target)
@@ -116,6 +122,8 @@ def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint
 
 
 def registration(profile_path,receipt_path,receipt_sha,boot):
+    from pb_receive_accept_profile import PROFILE_SHA as receive_sha,registration as receive_registration
+    if digest(Path(profile_path))==receive_sha:return receive_registration(profile_path,receipt_path,receipt_sha,boot)
     from pb_source_accept_profile import PROFILE_SHA as source_sha,registration as source_registration
     if digest(Path(profile_path))==source_sha:return source_registration(profile_path,receipt_path,receipt_sha,boot)
     from pb_retry_history_profile import PROFILE_SHA as history_sha,registration as history_registration
@@ -161,6 +169,9 @@ def registration(profile_path,receipt_path,receipt_sha,boot):
 
 
 def parser_proof(path,create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch=='receiveaccept':
+        from pb_receive_accept_profile import parser_proof as receive_proof
+        return receive_proof(path)
     if endpoint_watch=='sourceaccept':
         from pb_source_accept_profile import parser_proof as source_proof
         return source_proof(path)

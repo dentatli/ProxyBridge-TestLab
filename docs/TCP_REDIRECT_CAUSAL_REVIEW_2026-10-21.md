@@ -1,5 +1,19 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Следующая наблюдаемая цепочка: receive transition и ACCEPT одного source
+
+Подготовлен отдельный receive-accept профиль, прежние frozen профили не менялись.
+CREATE выбираетsource42201 иrecord/context32, автоматически ставит адресный
+w4 watch(sourceEP+30) и включает ACCEPT. Watch проверяет тот же record и при
+первом переходе bit21 читает TCPheader20 из pinned receive path, снимает себя.
+ACCEPT затем снимает source references и accepted WFP context. SENDточки нет.
+Это позволяет сопоставить RST или SYNACK с состоянием к моменту ошибки в одном
+Run; не наблюдает SENDskip непосредственно и не доказывает physical packet join.
+Статическую skipветку нельзя переименовывать в runtime event этого профиля.
+Max16addresswrites, max1header, без stackdump; ownership/userhostcontrols прежние.
+5syntheticCDB cases passed, реального запуска профиля пока нет. После reboot
+нужен отдельный successful currentboot PBA probe, старыйpositive не переиспользовать.
+
 ## Live подтверждение второго пути, новая сессия21окт14:11
 
 USER ln/disassembly установил имя: WfpProcessOutTransportStackIndication.

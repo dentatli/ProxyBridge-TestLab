@@ -1,5 +1,60 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Новый receive+ACCEPT наблюдатель подготовлен, runtime не запускался
+
+Healthy PBA Prepare завершён exit0/PREPARED_NOT_RUN/productfalse/trafficfalse:
+artifacts/diagnostics/pb-target-accept-plan-20261021-093410-6229c5d6/runtime-plan.json
+SHA917eccbf7b1f1ee92ca6daeaa201217f10c9e84b0a3c6de0e05fe11231038a53,
+boot120/event17946/start2026-10-21T09:05:03.5Z, registrationpairr4.
+Один query безfillers, прежний PBAprofile839029.../proofpairr1 и helperf6b159...
+из существующих published bytes; скачивания/новойpairпробы не было.
+До USER Run нужен actual currentboot PBA CONFIGmodel0/inittrue/Registertrue,
+.bpcmds2/3disabled/4absent и отдельныйg. Наhost .scriptload
+C:\PB-KD-Scripts\pb_accept_pair.js, pbaInitKernel(), pbaRegister(), .bpcmds/g.
+Перед USERBreak wholeVM/Codex/RDPwarning. Сам Run пользовательский через
+powershell.exe -NoProfile -ExecutionPolicy Bypass -File Invoke-TargetAccept.ps1
+-Phase Run -PlanPath NEW093410 -PlanSha917ecc... -FlowProfileRegisteredDisabled
+-DebuggerLoggerEnabled (сверить параметры; probe НЕstaged). Hostbe2/be3/g
+перед запускомprobe; cleanupbd2/bd3/pbaStop/g. Регистрировать combinedpoints
+до завершения healthy нельзя. Никакого повторногоRun.
+
+USER «Продолжай» после предложения объединённой цепочки, затем «Осторожнее»
+со screenshot UI warning. Ограничения не обходить; только диагностика стенда,
+никаких kernel patches/bit resets/автоматического Break/be/Run.
+
+Новый exact profile receive-accept SHA
+0e553709c5efdc9cc7b2e654f07f36c7e25ce27c4472a8b1a163ab2191b7a10f,
+src/pb_receive_accept_{profile,fixture,report}.py и новые JSON/stage.
+Старый pb_retry_history.js SHA47c72a... НЕ менялся, новый download не нужен.
+2CREATE -> прежний pbccreate + адресная ba3 w4(sourceEP+30) + be4.
+3 первоначально disabled placeholder, заменяется адресной аппаратной точкой;
+не является общей SEND/receive software-точкой. Max16writes; первый bit21
+transition снимает3 черезbd3, читает только TCPheader20 при pinned Recv+198/
+RBXsourceEP/RSIcontrol+50. Никакого stackdump. Затем4 получает SOURCE/ACCEPT.
+2/4caps32/512, total560; USER host включает только2. Disabled3 остаётся для
+совместимого pbcStop cleanup. При cleanup bd2/bd3/bd4/pbcStop/отдельныйg.
+PBT precise INCOMPLETE предшествует generic pbcAbort RAW_LIMIT при любой ошибке;
+последний не доказывает, что именно cap исчерпан.
+
+Регистрация требует pbcInitKernel и guarded stage с bytepins writer/prologue.
+После customactions НЕ вызывать pbcRegister: он восстановит старый SENDobserver.
+PBC CONFIG старого helper + PBT CONFIG writer/watch_limit10hex/version1 нужны
+в kernel console; PBT RECEIVE один, затем SOURCE/ACCEPT/FINAL. Нет новогоJS.
+
+5realCDB cases r2 passed: RST, SYNACK, wrongtuple abort, writecap, ACCEPT
+доtransition. Guards vvalid сохранены; kernel writer symbol заменён адресом
+фактической synthetic write-инструкции. Parser тех же логов/modelheaderonly
+и отрицательный sourceEPjoin passed. Это не kernel/SMP/intrusiveness proof.
+Private pb-receive-accept-proof-20261021-r2. Broad suites/build не запускались.
+Новый report RST_RECEIVE_TRANSITION_AND_ACCEPT_CONTEXT_MISS_OBSERVED только
+при RSTACKtransition/sameSourceContext32/SOURCEunchanged/acceptedmissing/native
+unique10022; send_skip_observed_in_this_run=false, rootcause/packetidentityfalse.
+
+После reboot старый positive040741 непригоден. Подготавливается один прежний
+PBA healthy singleprobe на текущем boot, registrationpairr4, без новых CDB
+pairtests/helperdownload. Targetplan пока НЕ готовить до успешного currentboot
+healthy/native+PBA PREPOST. Все команды Run явно powershell.exe5.1, не pwsh7.
+
 ## Текущий checkpoint: второй association-path подтверждён live после reboot
 
 USER attachment5c7915f2-3acc-4dd4-94e0-0dc1519ba4e2, WinDbg connected
