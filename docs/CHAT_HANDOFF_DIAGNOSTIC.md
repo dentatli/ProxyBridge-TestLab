@@ -1,5 +1,36 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Receive/query интегрирован; currentboot код подтверждён, новый план готов
+
+USER live disassembly подтвердил QUERY+2c4..2d6 на boot120: record load/test,
+non-NULL jne, NULL instruction377a1588 movr8d,c0000225; отдельныйg выполнен.
+Private pb-receive-query-live-review-20261021 хранит USER evidence/provenance.
+4 CDB fixtures прежние, не повторялись. Parser4cases и native PID/TID/source
+tamper rejection проверены; SYNACK не даёт RST verdict. Это synthetic checks.
+
+Добавлены строгие receivequery policy/profile/proof routes planner/native-report
+и отдельный pb_receive_query_report.py. Новый итог при точном nativejoin:
+RST_TRANSITION_AND_SELECTED_QUERY_NULL_OBSERVED; rootcause/lifetime/acceptedNBL/
+query-return-status false. Отсутствие выбранного NULL/RECEIVE — inconclusive,
+не отсутствие ошибки. Старые profiles/gates не ослаблялись.
+
+Prepare exit0/PREPARED_NOT_RUN, productfalse/trafficfalse:
+artifacts/diagnostics/pb-target-accept-plan-20261021-123827-d3fb2113/runtime-plan.json
+SHA98c31439b124bc1eb680db98bfe72def5904bc25aec5a3cd3dcd48980c6ba011.
+Healthy101205/currentboot120; registration receive-query-r1/proofr1/profile7a221878.
+Plan validated, новая report source в inventory; run-claim отсутствует.
+
+Pending USER host registration: bd2/bd3/bd4, pbcInitKernel (НЕ pbcRegister),
+восстановить3 в disabled software placeholder Recv+198/gc после старогоba3;
+заменить4 guarded QUERY+2d0 action; вывести PBT/PBQ CONFIG и.bpcmds; отдельныйg.
+2 остаётся прежней CREATE+addresswatch action. Все точки отключены на этом шаге.
+Перед USERBreak/be предупреждать wholeVM/Codex/RDPpause; recovery bd2/bd3/bd4,
+pbcStop, отдельныйg. Агент не Break/be/Run. Новый Run только после проверки
+регистрации, userVMadmin powershell.exe / DebuggerPointsDisabled /
+FlowProfileRegisteredDisabled / BoundedLoadReviewed. READY -> USERhost be2/g,
+VM LatinC. Авто3/4 послеCREATE. Preserve PBC/PBT/PBQ CONFIG/CREATE/RECEIVE/NULL/
+FINAL; не повторять consumed plans. Тестовый трафик агент не запускал.
+
 ## После retained counters: кандидат receive/query вместо общего ACCEPT
 
 USER `PBT RAW create=1 accept=200 writes=5` подтвердил raw limit точки4:

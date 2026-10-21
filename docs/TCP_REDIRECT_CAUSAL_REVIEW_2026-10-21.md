@@ -1,5 +1,15 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Receive/query: код подтверждён, захват ещё не выполнен
+
+USER currentboot disassembly QUERY+2c4..2d6 подтвердил ветку NULL+2d0 после
+movrdx,[rdi+1c0]/test/jne. Guarded регистрация новой4 и новый plan123827 готовы;
+planner/reporter binding добавлен, Prepare exit0 без product/network execution.
+Отчёт требует PID/TID original native query и сохранение того же source record.
+Чужой поток/record отклоняются; SYNACK не даёт RST verdict. Успешные QUERY
+с recordnonNULL не попадают в4. Это сокращает число общих остановок, но ещё
+не доказывает устранение влияния отладки. Pending USER disabled registration.
+
 ## Уточнение лимита и следующий кандидат наблюдения
 
 Retained USER counters create1/accept200hex/writes5 подтверждают исчерпание
