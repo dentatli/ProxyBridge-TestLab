@@ -37,3 +37,12 @@ with the sample callout on Windows 26200.9711. See
 `docs/INDEPENDENT_WFP_RESULT_2026-10-21.md` for evidence and limitations.
 The sample services are currently stopped. Do not rerun consumed trial IDs or
 execute the roles manually as a replacement for the diagnostic sequence.
+
+The optional `--records-first 1` server option makes one original QUERY_RECORDS
+call with a 64 KiB buffer before the single QUERY_CONTEXT call. Both raw results
+are recorded separately. The trial controller exposes this as `-RecordsFirst`;
+it also accepts explicit control/filler source ports to avoid reusing TIME_WAIT
+tuples. This order passed the healthy control and still reproduced both getters
+failing on the selected connection after queue refusal/retry. See
+`docs/TCP_REDIRECT_API_CONTRACT_2026-10-21.md` for the separate flags correction
+and experiment evidence. Neither experiment modified ProxyBridge product code.

@@ -2,7 +2,10 @@
 param(
     [ValidateSet('Healthy','Target')][string]$Mode='Healthy',
     [Parameter(Mandatory=$true)][ValidatePattern('^[a-zA-Z0-9-]+$')][string]$TrialId,
-    [string]$KitDirectory='C:\PB-Independent-Wfp-20261021-r2'
+    [string]$KitDirectory='C:\PB-Independent-Wfp-20261021-r2',
+    [ValidateRange(42201,65535)][int]$ControlPort=42201,
+    [switch]$RecordsFirst,
+    [ValidateRange(1024,65336)][int]$FillerBasePort=42001
 )
 $ErrorActionPreference='Stop'
 if($env:COMPUTERNAME -ne 'PB-SUT'){throw 'TARGET_IDENTITY_DIFFERS'}
@@ -15,7 +18,7 @@ $cli=Join-Path $kit 'WFPSampler.exe'
 $children=New-Object System.Collections.Generic.List[System.Diagnostics.Process]
 $trace='PBWfp-'+$TrialId
 $traceStarted=$false;$policyAdded=$false;$cleanupErrors=@()
-$result=[ordered]@{status='INCOMPLETE';mode=$Mode;directory=$directory}
+$result=[ordered]@{status='INCOMPLETE';mode=$Mode;directory=$directory;control_port=$ControlPort;records_first=[bool]$RecordsFirst;filler_base_port=$FillerBasePort}
 function Wait-File([string]$name,[int]$milliseconds=10000){
     $watch=[Diagnostics.Stopwatch]::StartNew()
     while($true){
@@ -30,11 +33,16 @@ function Wait-File([string]$name,[int]$milliseconds=10000){
     }
 }
 function Start-Probe([string]$role,[int]$count){
-    $process=Start-Process -FilePath $probe -ArgumentList @($role,'--directory',$directory,'--count',"$count") -WindowStyle Hidden -PassThru -RedirectStandardOutput "$directory\$role.stdout.txt" -RedirectStandardError "$directory\$role.stderr.txt"
+    $arguments=@($role,'--directory',$directory,'--count',"$count")
+    if($role -eq 'control'){$arguments+=@('--base-port',"$ControlPort")}
+    if($role -eq 'fillers'){$arguments+=@('--base-port',"$FillerBasePort")}
+    if($role -eq 'server' -and $RecordsFirst){$arguments+=@('--records-first','1')}
+    $process=Start-Process -FilePath $probe -ArgumentList $arguments -WindowStyle Hidden -PassThru -RedirectStandardOutput "$directory\$role.stdout.txt" -RedirectStandardError "$directory\$role.stderr.txt"
     $children.Add($process)
     return $process
 }
 try{
+    if($Mode -eq 'Target' -and $ControlPort -ge $FillerBasePort -and $ControlPort -lt $FillerBasePort+200){throw 'SOURCE_PORT_RANGES_OVERLAP'}
     if((Get-Service ProxyBridgeDrv).Status -ne 'Stopped'){throw 'PRODUCT_DRIVER_MUST_BE_STOPPED'}
     foreach($service in 'WFPSampler','WFPSamplerCallouts'){
         if((Get-Service $service).Status -ne 'Running'){throw 'SAMPLE_SERVICE_NOT_RUNNING'}
@@ -60,7 +68,7 @@ try{
         $owned=@(Get-NetTCPConnection -OwningProcess $fillers.Id -ErrorAction Stop)
         ConvertTo-Json -InputObject @($owned | Select-Object LocalAddress,LocalPort,RemoteAddress,RemotePort,State,OwningProcess) | Set-Content "$directory\fillers-tcp.json" -Encoding UTF8
         # Winsock hides the redirected tuple; the native TCP table can expose it.
-        $connections=@($owned | Where-Object {$_.State -eq 'Established' -and $_.RemotePort -in @(54122,34010) -and $_.LocalPort -ge 42001 -and $_.LocalPort -le 42200})
+        $connections=@($owned | Where-Object {$_.State -eq 'Established' -and $_.RemotePort -in @(54122,34010) -and $_.LocalPort -ge $FillerBasePort -and $_.LocalPort -lt $FillerBasePort+200})
         $result['filler_native_count']=$connections.Count
         if($connections.Count -ne 200){throw 'FILLER_COUNT_DIFFERS'}
     }
@@ -69,7 +77,7 @@ try{
     if($Mode -eq 'Target'){
         $watch=[Diagnostics.Stopwatch]::StartNew();$syn=$null
         while($watch.ElapsedMilliseconds -lt 3000){
-            $syn=Get-NetTCPConnection -OwningProcess $control.Id -LocalPort 42201 -State SynSent -ErrorAction SilentlyContinue
+            $syn=Get-NetTCPConnection -OwningProcess $control.Id -LocalPort $ControlPort -State SynSent -ErrorAction SilentlyContinue
             if($syn){break};Start-Sleep -Milliseconds 20
         }
         if(-not $syn){throw 'CONTROL_SYN_SENT_NOT_OBSERVED'}
@@ -94,10 +102,10 @@ try{
         if(@($rows | Where-Object {-not $_.contextValid -or -not $_.dataValid}).Count){throw 'HEALTHY_CONTEXT_OR_DATA_FAILED'}
         $result.status='HEALTHY_SUCCESS'
     }else{
-        $selected=@($rows | Where-Object peerPort -eq 42201)
+        $selected=@($rows | Where-Object peerPort -eq $ControlPort)
         if($selected.Count -ne 1){throw 'CONTROL_QUERY_COUNT_DIFFERS'}
         $result['selected_query']=$selected[0]
-        $fill=@($rows | Where-Object peerPort -ne 42201)
+        $fill=@($rows | Where-Object peerPort -ne $ControlPort)
         if(@($fill | Where-Object {-not $_.contextValid -or -not $_.dataValid}).Count){throw 'FILLER_CONTEXT_OR_DATA_FAILED'}
         if($selected[0].apiError -eq 10022 -and $selected[0].bytesReturned -eq 0){$result.status='INDEPENDENT_10022_OBSERVED_ETW_PENDING'}
         elseif($selected[0].contextValid -and $selected[0].dataValid){$result.status='TARGET_QUERY_SUCCESS_ETW_PENDING'}

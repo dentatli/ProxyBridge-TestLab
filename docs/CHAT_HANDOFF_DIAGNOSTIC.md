@@ -1,5 +1,49 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий этап: две API-версии исключены; USER предпочёл debugger в agent VM
+
+[Разбор контракта и результатов](TCP_REDIRECT_API_CONTRACT_2026-10-21.md).
+Найдено реальное нарушение sample: Apply всегдаREAUTHORIZE_IF_MODIFIED_BY_OTHERS
+при inline. Отдельный source/kit-r3 с единственной conditional flags правкой
+собран/APIUniversal/подписан/загружен на PB-SUT; Healthy pass, Target201queries,
+200fillerspass, один10022/0, queueReason30x2/retry1/2/loss0. Нарушение не нужно
+для отказа. Records-first probe/kit-r4 на том же SYS: healthyrecords970/context256;
+Target200fillerspass, выбранныйcontrol43201 RECORDS10022/0 затем CONTEXT10022/0.
+ETW сноваReason30x2/retry1/2/loss0. Product source/build не менялись.
+
+Эти результаты ещё НЕ доказывают конкретную внутреннюю Windows branch как
+root cause. Старые sourceflag/sendgate/queryNULL captures не имеют полного
+single-NBL/lifetime join; нельзя выдавать их за одну непрерывную цепочку.
+
+USER спросил, не лучше ли установить WinDbg в agent VM, чтобы агент управлял
+сам. Это явное новое разрешение на управление отладчиком ФИЗИЧЕСКОГО PB-SUT;
+не переносить его на исходные VM/consumed plans. Отладка целевого PB-SUT не
+должна останавливать agent VM. До каждого Break/enable/step всё равно сообщать
+о паузе всего PB-SUT, включая его WinRM/RDP, и заранее иметь recovery g.
+
+Здесь уже есть SDK x64 kd.exe/DbgEng; GUIWinDbg пока не установлен. AgentVM
+Ethernet172.17.197.220/20 gateway172.17.192.1, ещё singbox-tun172.19.0.1/30;
+не менять proxy/tunnel/hypervisor как routine step. Target LAN192.168.0.157.
+Входящий LAN→VM путь ещё не проверен. Microsoft documented target=IPv4 в
+KDNET debugger инициирует запрос к target и тот отвечает этому debugger;
+это кандидат для NAT, а не уже проверенное соединение.
+
+На PB-SUT скопированы SDK kdnet.exe/VerifiedNICList.xml вC:\PB-KDNET-20261021-r1.
+Вызов kdnet БЕЗаргументов подтвердил NIC IntelI219-V, busparams0.31.6,
+network debugging supported; no configuration change. Private
+pb-physical-kdnet-inventory-20261021-r1/remote. JSON supported_lines получились
+PSObject с provider metadata — читать только .value, не дампить весь JSON.
+BCD/debugsettings/новый reboot для KDNET ЕЩЁ НЕ выполнялись, ключ не создан.
+Следующее: проверить пригодность hostVM/NAT подключения и только затем включать
+target KDNET с private generated key и управляемым recovery. Не обещать
+автоматическую сессию до реального connect. Async вопрос о внешнем hostIP
+заменён USER предпочтением локального debugger.
+
+Сейчас sample driver/service на targetStopped, ProxyBridgeDisabled/Stopped,
+HLKRunning, фильтровsample0 и probe/listenerнет. Sample service ImagePath указывает
+на kit-r3 исправленный SYS d09a6871…, user service остаётся kit-r2. Kit-r4 имеет
+тот же SYS и новый records-first probe. Последний runtime consumed, не повторять.
+
 ## Итог: независимое воспроизведение подтверждено — 21 октября
 
 [Полный результат](INDEPENDENT_WFP_RESULT_2026-10-21.md). Microsoft WFPSampler

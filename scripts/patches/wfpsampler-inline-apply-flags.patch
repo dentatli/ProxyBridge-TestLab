@@ -1,0 +1,9 @@
+--- a/network/trans/WFPSampler/syslib/HelperFunctions_RedirectData.cpp
++++ b/network/trans/WFPSampler/syslib/HelperFunctions_RedirectData.cpp
+@@ -82,5 +82,5 @@
+    {
+       FwpsApplyModifiedLayerData(pRedirectData->classifyHandle,
+                                  pRedirectData->pWritableLayerData,
+-                                 FWPS_CLASSIFY_FLAG_REAUTHORIZE_IF_MODIFIED_BY_OTHERS);
++                                 pRedirectData->isPended ? FWPS_CLASSIFY_FLAG_REAUTHORIZE_IF_MODIFIED_BY_OTHERS : 0);
+ 

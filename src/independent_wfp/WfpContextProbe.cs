@@ -22,6 +22,9 @@ public sealed class ProbeConnection
     public int pid, tid, localPort, peerPort, apiReturn, apiError;
     public int contextRemotePort, contextFamily, bufferCapacity, expectedContextBytes;
     public uint bytesReturned;
+    public bool recordsQueried;
+    public int recordsApiReturn, recordsApiError, recordsBufferCapacity;
+    public uint recordsBytesReturned;
     public long queryBeginQpc, queryEndQpc, frequency, sentBytes, receivedBytes;
     public ulong socketValue;
     public bool contextValid, dataValid;
@@ -35,6 +38,7 @@ public sealed class ProbeSummary
 public static class WfpContextProbe
 {
     const uint QueryContext = 0x980000DD;
+    const uint QueryRecords = 0x980000DC;
     const int ContextCapacity = 4096;
     const int ExpectedContextSize = 256; // pinned WFPSampler: two SOCKADDR_STORAGE
     static readonly int Pid = Process.GetCurrentProcess().Id;
@@ -96,13 +100,22 @@ public static class WfpContextProbe
             done+=count; result.receivedBytes+=count;
         }
     }
-    static ProbeConnection Query(Socket socket, int destinationPort)
+    static ProbeConnection Query(Socket socket, int destinationPort, bool recordsFirst)
     {
         var bytes = new byte[ContextCapacity]; uint returned = 0;
         var result = new ProbeConnection { role="server", pid=Pid,
             tid=(int)GetCurrentThreadId(), socketValue=unchecked((ulong)socket.Handle.ToInt64()),
             bufferCapacity=ContextCapacity, expectedContextBytes=ExpectedContextSize,
             frequency=Stopwatch.Frequency };
+        if (recordsFirst)
+        {
+            var records = new byte[65536]; uint recordsReturned;
+            result.recordsQueried=true; result.recordsBufferCapacity=records.Length;
+            result.recordsApiReturn=WSAIoctl(socket.Handle, QueryRecords, IntPtr.Zero, 0,
+                records, (uint)records.Length, out recordsReturned, IntPtr.Zero, IntPtr.Zero);
+            result.recordsApiError=result.recordsApiReturn == -1 ? WSAGetLastError() : 0;
+            result.recordsBytesReturned=recordsReturned;
+        }
         result.queryBeginQpc=Stopwatch.GetTimestamp();
         result.apiReturn=WSAIoctl(socket.Handle, QueryContext, IntPtr.Zero, 0,
             bytes, ContextCapacity, out returned, IntPtr.Zero, IntPtr.Zero);
@@ -120,7 +133,7 @@ public static class WfpContextProbe
         }
         return result;
     }
-    static int Server(string directory, int count, int listenPort, int destinationPort, int backlog, int payload)
+    static int Server(string directory, int count, int listenPort, int destinationPort, int backlog, int payload, bool recordsFirst)
     {
         var summary = new ProbeSummary {role="server",pid=Pid,expected=count};
         var deadline=Stopwatch.StartNew(); Socket listener=null;
@@ -143,10 +156,11 @@ public static class WfpContextProbe
                     {
                         socket.ReceiveTimeout=10000; socket.SendTimeout=10000;
                         // One original query per socket; no fallback or retry.
-                        ProbeConnection row=Query(socket,destinationPort);
+                        ProbeConnection row=Query(socket,destinationPort,recordsFirst);
                         try
                         {
                             if (row.apiReturn != 0 || !row.contextValid) throw new IOException("ORIGINAL_CONTEXT_QUERY_FAILED");
+                            if (recordsFirst && (row.recordsApiReturn != 0 || row.recordsBytesReturned == 0)) throw new IOException("ORIGINAL_RECORDS_QUERY_FAILED");
                             ReceivePayload(socket,row.peerPort,payload,row);
                             SendPayload(socket,row.peerPort,payload,row); row.dataValid=true;
                         }
@@ -223,7 +237,7 @@ public static class WfpContextProbe
     {
         if (args.Length == 0 || (args.Length == 1 && args[0] == "--help"))
         {
-            Console.WriteLine("WfpContextProbe server|fillers|control --directory FRESH_TRIAL_DIR [--count N] [--base-port N] [--listen-port N] [--destination-port N] [--backlog N] [--payload-bytes N]");
+            Console.WriteLine("WfpContextProbe server|fillers|control --directory FRESH_TRIAL_DIR [--count N] [--base-port N] [--listen-port N] [--destination-port N] [--backlog N] [--payload-bytes N] [--records-first 0|1]");
             Console.WriteLine("No driver, filter or ETW setup. server-release.flag / clients-release.flag are controlled externally. --help creates no sockets.");
             return 0;
         }
@@ -234,7 +248,7 @@ public static class WfpContextProbe
             for (int i=1; i<args.Length; i+=2)
             {
                 if (i+1>=args.Length) throw new ArgumentException("OPTION_VALUE_MISSING");
-                if (args[i]!="--directory" && args[i]!="--count" && args[i]!="--base-port" && args[i]!="--listen-port" && args[i]!="--destination-port" && args[i]!="--backlog" && args[i]!="--payload-bytes") throw new ArgumentException("UNKNOWN_OPTION");
+                if (args[i]!="--directory" && args[i]!="--count" && args[i]!="--base-port" && args[i]!="--listen-port" && args[i]!="--destination-port" && args[i]!="--backlog" && args[i]!="--payload-bytes" && args[i]!="--records-first") throw new ArgumentException("UNKNOWN_OPTION");
                 values.Add(args[i],args[i+1]);
             }
             string directory=Path.GetFullPath(values["--directory"]);
@@ -243,7 +257,7 @@ public static class WfpContextProbe
             if (role=="control" && count!=1) throw new ArgumentException("CONTROL_COUNT_MUST_BE_ONE");
             int destination=Number(values,"--destination-port",54122,1024,65535);
             int payload=Number(values,"--payload-bytes",524288,1,524288);
-            if (role=="server") return Server(directory,count,Number(values,"--listen-port",34010,1024,65535),destination,Number(values,"--backlog",int.MaxValue,1,int.MaxValue),payload);
+            if (role=="server") return Server(directory,count,Number(values,"--listen-port",34010,1024,65535),destination,Number(values,"--backlog",int.MaxValue,1,int.MaxValue),payload,Number(values,"--records-first",0,0,1)==1);
             int first=Number(values,"--base-port",role=="control"?42201:42001,1024,65535);
             if (first+count-1>65535) throw new ArgumentException("PORT_RANGE_INVALID");
             return Clients(directory,role,count,first,destination,payload);
