@@ -1,6 +1,21 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Текущий этап: две API-версии исключены; USER предпочёл debugger в agent VM
+## СТОП: зависание agent VM после запуска debugger
+
+[Разбор VM](VM_FREEZE_2026-10-21.md). Пользователь аварийно выключил VM.
+KernelReadCapture упал в dbgeng.dll/c0000005; затем SDK kd сообщил transport
+connect к физическому PB-SUT и записал 1722 ошибки pipe/1450. Полная debugger
+сессия и recovery g не подтверждены. Причина зависания всей VM не доказана.
+Новых debugger connections/traffic при разборе не запускать; прежние способы
+KernelReadCapture и hidden kd с redirected output не повторять.
+
+Уточнение старого checkpoint ниже: KDNET на физическом PB-SUT уже настроен
+на 192.168.0.136:50055 и target reboot запрошен; private generated key хранится
+только в игнорируемых artifacts и на target. UDP roundtrip через NAT был
+подтверждён до KDNET. После принудительного выключения agent VM состояние
+PB-SUT/его debugger pause не проверялось. Нельзя считать его восстановленным.
+
+## Предыдущий этап: две API-версии исключены; USER предпочёл debugger в agent VM
 
 [Разбор контракта и результатов](TCP_REDIRECT_API_CONTRACT_2026-10-21.md).
 Найдено реальное нарушение sample: Apply всегдаREAUTHORIZE_IF_MODIFIED_BY_OTHERS
