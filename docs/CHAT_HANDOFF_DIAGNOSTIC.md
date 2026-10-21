@@ -1,5 +1,30 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER receive/query registration сверена; далее один новый Run123827
+
+USER .bpcmds подтверждает exact2 CREATE+dynamicwrite/3disabledplaceholdergc/
+4QUERY_NULL и bd2/bd3/bd4. Адреса377888b6/376a3678/377a1588 соответствуют
+currentboot120; PBC CONFIGmodel0/version2, inittrue. Сверкаactions вручную,
+не независимый hostcapture. Private user-registration-review.json сохранён
+рядом с pb-receive-query-live-review-20261021. PBT/PBQ CONFIG не приложены в
+последнемUSERpaste: вывести их в READY Break передbe2, сохранитьсрез.
+Точку2 не менять, неpbcRegister/неперерегистрироватьвсё/неподниматьcaps.
+
+Новый plan123827 SHA98c31439... совпадает; run-claim отсутствует. Новый Run
+агент не запускал. Дополнительный Inspect был запрошен, но его retained output
+не удалось получить (CoS write_stdin INVALID_ARGUMENT), успех Inspect не заявлять.
+Prepare/validate прежние успешны; обязательные file/boot/runtime gates остаются
+в USER Run. Frozen plan/receipt/proof не изменялись.
+
+USER VMadmin powershell.exe Run этого нового PlanPath/SHA с
+DebuggerPointsDisabled/FlowProfileRegisteredDisabled/BoundedLoadReviewed.
+ДоREADY точкиdisabled. READY -> USERhostBreak (wholeVM/Codex/RDPwarning),
+printf PBT CONFIGwriterRecv+198/watch_limit10/ver1, PBQ CONFIGquery+2d0/
+query_limit10/ver1, be2; отдельноg; затемVMLatinC. Не включать3/4вручную.
+Recovery подготовить доBreak: bd2/bd3/bd4, pbcStop, отдельныйg дажеприошибке.
+После completion/error сохранить PBC/PBT/PBQ CONFIG/CREATE/RECEIVE/NULL/FINAL
+и nativeResult, Run не повторять. СтарыйRun103737 retired.
+
 ## Receive/query интегрирован; currentboot код подтверждён, новый план готов
 
 USER live disassembly подтвердил QUERY+2c4..2d6 на boot120: record load/test,
