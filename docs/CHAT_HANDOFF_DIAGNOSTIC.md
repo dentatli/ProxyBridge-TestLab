@@ -1,5 +1,41 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run051728: все3события и10022; SKIP/ACCEPTразныеNBL, sameRunETW4retry
+
+USER pb-target-accept-run-20261021-051728-dd1c1b66: TARGET_FAILURE_REPRODUCED/
+errors[], diagnosticCOLLECTED/cleanup[]/resident_disabled_aftertrue.
+ЕдинственныйcontrolPID10980/query201/socket6072/relay14536, tuple42201->34010,
+endpointErrors0, originalAPIreturn-1/error10022/bytes0/required32. Не10061.
+PBC CREATE EP77aee790/record79ddf010/context6d573eb0/size20hex/refs1;
+SKIP sameEP/record/context/size,flags1301641,SYN2,seqb408e41b,NBL769cc7c0,
+info_raw1/key5absent. ACCEPT EP72426630/NBL7e90c7f0/statusc0000225/output0,
+info_raw1/key5absent/skip_seen1/skip_nbl_match0. FINAL1/1/1/error0.
+Профильотработал, cap/JSerrorнебыло; но первыйSKIPNBL не совпал сACCEPT.
+
+Actualnative target-report уже содержитcontrolETW:4drops1214Reason30
+SO_PAUSE_ACCEPT,4connectretries1186RexmitCount1..4, lossCounters0.
+103MBXML НЕ перечитывали/недампили: использованыужеотобранныеcontrol_events.
+Поздний1214Reason10ReceivedRST тожеесть, не смешиватьего с4Reason30drops.
+ETWабсолютныевремена/crossclockalignmentневерифицированы; использоватьпорядок
+внутриэтоготрейса, не timingperformanceподотладчиком.
+
+Private pb-retry-chain-review-20261021-051728/chain-report.json:
+RETRY_CHAIN_INCONCLUSIVE/errors[]/nativeerrors[]/rootcausefalse.
+CONFIGвзят изactualUSERhostregistrationobservation передэтимRun, source/provenance
+отмечены, не synthetic/не independenthostproof. Source->SKIPpersistrecord и
+ACCEPTmiss теперьвОДНОМrun/selectedtuple, но НЕ доказано чтоодинpacket/NBL.
+ОдинразовыйSKIPснялсянаfirstcandidate; ACCEPT мог относитьсякпозднемуретрай
+илидругомупредставлениюpacket. Ниодинизвариантовнеустановленпоуказателям.
+Не трактоватьmismatchкакповреждение/клонирование/потерюNBL доказаннуюфактом.
+
+НовыйruntimeНЕ запускался. Следующийдизайнрассмотретьпоследние<=8selectedSYN
+SKIPeventsдоACCEPT, вместопервогоSKIP; безновыхsites/ростаrawcaps/глобальныхdump.
+Не сниматьусловиеNBLjoinизreportрадиуспешноговердикта. Дажеaddressmatchне
+доказываетphysicallifetime. Еслиновыйобработчикменяется — freshprofile/proof/plan,
+предыдущийconsumedRunнеповторять. Покаhelper/profileНЕ менялись, tests/builds
+не запускались; выполнен толькоevaluatorтекущихартефактов. AttributionWindows
+vsProxyBridgeостаётсянеустановленной; sourcecontextприSKIPвалиден32bytes.
+
 ## CREATE-armed регистрация подтверждена USER; следующий USER Run051301 толькоbe2
 
 USER actualCONFIGmodel0, inittrue, bp2overrideсbe3/be4передpbccreate,

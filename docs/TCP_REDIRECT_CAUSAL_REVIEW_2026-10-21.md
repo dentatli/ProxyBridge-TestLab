@@ -1,5 +1,20 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Run051728: сравнение в одном соединении получено, NBL join остаётся открытым
+
+CREATE record/context32 -> выбранный SKIPgate с теми же sourceEP/record/context
+и key5absent -> ACCEPT statusc0000225/key5absent -> исходныйAPI10022/0bytes.
+Native/TCPtuple correlation прошла, cleanup[], sourcecontextприSKIPнеNULL.
+Однако SKIP NBL769cc7c0 и ACCEPT NBL7e90c7f0 различны: exactreport
+RETRY_CHAIN_INCONCLUSIVE, а не полная packet causal chain.
+
+ETWэтогожеcontrol содержит4SO_PAUSE_ACCEPT SYNdrops и4connectretries.
+ПервыйвыбранныйSKIP мог быть более ранней попыткой, чем дошедшая доACCEPT;
+возможное другое представление NBL тоже не исключено. Это объяснения-кандидаты,
+не установленный фактклонирования/повреждения/потери. Большеобщихточекне нужно:
+кандидат следующегоизменения — сохранитьнесколькоselectedSYN доACCEPT, сжёстким
+небольшимлимитом, вместопервого. НовыйhelperпокаНЕреализован/НЕпроверен/НЕзапущен.
+
 ## После Run045723: изменено окно включения, helper и лимиты прежние
 
 Сохранённые USER counters create0/skip200hex/accept15hex устанавливают, что
