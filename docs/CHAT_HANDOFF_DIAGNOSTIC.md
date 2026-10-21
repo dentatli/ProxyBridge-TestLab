@@ -1,5 +1,21 @@
 # Передача чату диагностики TCP / WinDbg
 
+## PBC host registration подтверждена USER; готов USER Run043909
+
+USER actualCONFIG model0 createfffff8015d1388b6/skip5d107eb4/accept5d04567b,
+Inittrue/Registertrue, .bpcmds показывает exactactions2/3/4 иbd2/bd3/bd4,
+отдельныйg выполнен. СтарыйPBA выгружен. Повторregister/bl/reset не нужен.
+Observation private pb-retry-chain-host-registration-observed-20261021;
+это USERpaste, не independenthostproof; frozenreceipt НЕ менялся.
+Read-only planSHA2483DFCCB459651DDE804D904F714D7BF0B16BAFC511C5B324661B341C68DC73
+совпал; boot119/event17771 осталсятемже. Plan043909-cda7b767 ещёPREPARED_NOT_RUN.
+USERAdministratorVM Run сDebuggerPointsDisabled/FlowProfileRegisteredDisabled/
+BoundedLoadReviewed. READY -> USERphysicalBreak warningwholeVM/Codex/RDP,
+be2/be3/be4/gотдельнойстрокой -> VM LatinC. Счётчикисброшеныinit, resetне нужен.
+Recovery послеcompletion/error USERBreak warningwholeVM, bd2/bd3/bd4/pbcStop/g.
+НужныPBC CREATE/SKIP/ACCEPT/FINAL иnativeoutput, currentCONFIGуже сохранён.
+No repeatRun. Agent неRun/Break/be/servicechanges, tests/buildsнеповторял.
+
 ## Новый retry-chain observer готов; нужен host init/register, Run не выполнялся
 
 Fresh plan artifacts/diagnostics/pb-target-accept-plan-20261021-043909-cda7b767/runtime-plan.json
