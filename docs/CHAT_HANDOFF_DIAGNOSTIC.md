@@ -2,6 +2,16 @@
 
 ## Новый receive+ACCEPT наблюдатель подготовлен, runtime не запускался
 
+USER currentboot PBA registration подтверждена: .reload/f fwpkclnt.sys
+устранил null symbol при pbaInitKernel; model0/prefffff80537695676/
+postfffff8053769567b/limit100/version1, inittrue/Registertrue, exact2/3disabled,
+отдельныйg. Перезагружатьhelper/повторятьbl/Register не нужно.
+Plan093410 SHA917ecc... сохранён PREPARED_NOT_RUN и совпал повторномуhash.
+Следующий USER шаг: перед probe USERBreak wholeVMwarning, be2/be3/отдельныйg;
+затем VM powershell.exe5.1 Run093410 с FlowProfileRegisteredDisabled и
+DebuggerLoggerEnabled. READY/C у healthy singleprobe нет. Cleanup bd2/bd3/
+pbaStop/отдельныйg, сохранитьPBA PREPOSTFINAL+native, no repeatRun.
+
 Healthy PBA Prepare завершён exit0/PREPARED_NOT_RUN/productfalse/trafficfalse:
 artifacts/diagnostics/pb-target-accept-plan-20261021-093410-6229c5d6/runtime-plan.json
 SHA917eccbf7b1f1ee92ca6daeaa201217f10c9e84b0a3c6de0e05fe11231038a53,
