@@ -1,5 +1,35 @@
 # Независимая проверка redirect context на тестовом физическом ПК
 
+## Результат получен
+
+[Независимый опыт](INDEPENDENT_WFP_RESULT_2026-10-21.md) подтвердил original
+query10022/0 после queue-refused SYN/retries с Microsoft WFPSampler, без
+работающего ProxyBridgeDrv. Healthy и200fillers успешны; ETW loss0. Фактический
+build после restart26200.9711. Все временные filters удалены, sample службы
+остановлены, HLK работает. Точная внутренняя причина/исправление Windows ещё
+не доказаны. Ниже история подготовки, а не очередь повторных запусков.
+
+## Продолжение с расширенным разрешением USER
+
+USER разрешил необходимые действия до результата без обязательного отдельного
+отката. Комплект скопирован на target. Первая установка остановилась до создания
+sample services: ProxyBridgeDrv отказал в stop с1052. Его startup переключён
+с Manual на Disabled, запланированный restart вернул0. Новый boot и состояние
+HLK после restart пока не подтверждены; RDP доступен, WinRM закрыт. USER получил
+команду Start-Service WinRM. Это блокер доступа, не результат сетевого опыта.
+
+`Install-IndependentWfpSample.ps1` использует SCM/demand-start для KMDF non-PnP,
+затем официальный service -i (включая его SafeBoot keys), переводит sample
+user service на demand-start. Новый trust, INF, BCD не требуются.
+[Microsoft: installing a non-PnP KMDF driver](https://learn.microsoft.com/en-us/windows-hardware/drivers/wdf/installing-a-non-pnp-driver).
+
+`Invoke-IndependentWfpTrial.ps1` подготовлен и прошёл PS5 parser, но ещё не
+запускался. Healthy должен подтвердить context256/один query/512KiB; Target
+проверяет200fillers и один control с ETW. ETW_PENDING статусы требуют отдельного
+анализа trigger/loss; они не доказывают Windows root cause. Во время остановки
+доступа дальнейших workload/установок не выполнялось. Точный текущий checkpoint
+и private evidence paths — в diagnostic handoff.
+
 ## Текущий результат подготовки
 
 WinRM реально проверен на PB-SUT с административными правами под подтверждённым

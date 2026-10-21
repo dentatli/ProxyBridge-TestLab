@@ -29,7 +29,11 @@ children, and remove only its owned policy. A socket failure is evidence, not an
 invitation to retry the context query. ETW must independently establish the queue
 refusal/retry trigger before drawing a causal conclusion.
 
-Current validation: compiler warnings treated as errors, build exit 0; help exit
-0. No socket trial has run. The controller, ETW collection, sample installation,
-and rollback are not implemented here. Do not execute these roles manually as a
-replacement for the reviewed diagnostic sequence.
+Validation: compiler warnings treated as errors, build exit 0; help exit 0.
+`scripts/Invoke-IndependentWfpTrial.ps1` now orchestrates the separate processes,
+narrow policy, TCP ownership, ETW and owned cleanup. The independent healthy
+trial passed; the 200-filler trial reproduced one original 10022/zero-byte query
+with the sample callout on Windows 26200.9711. See
+`docs/INDEPENDENT_WFP_RESULT_2026-10-21.md` for evidence and limitations.
+The sample services are currently stopped. Do not rerun consumed trial IDs or
+execute the roles manually as a replacement for the diagnostic sequence.

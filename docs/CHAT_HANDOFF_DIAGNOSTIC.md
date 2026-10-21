@@ -1,5 +1,81 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Итог: независимое воспроизведение подтверждено — 21 октября
+
+[Полный результат](INDEPENDENT_WFP_RESULT_2026-10-21.md). Microsoft WFPSampler
+на физическом PB-SUT без работающего ProxyBridgeDrv: Healthy query/context256/
+512KiB pass; Target200fillers pass, один controlquery10022/0. ETW той же пары
+портов: два Reason30/SO_PAUSE_ACCEPT и RexmitCount1/2, loss0. Private
+pb-independent-target-20261021-r2/independent-evidence-report.json:
+INDEPENDENT_REPRODUCTION_CONFIRMED,9checks true. Код ProxyBridge и активные
+KD points не являются необходимыми условиями. Точная внутренняя root cause
+Windows ещё не доказана; возможную общую ошибку sample/API usage не исключать.
+
+USER восстановил RDP login после restart; WinRM снова доступен. Новый boot
+15:29:34.5Z подтверждён, OS после restart26200.9711 (до него9457!). SampleSYS
+загрузился; unsigned user EXE заблокировала CodeIntegrity3004, поэтому в НОВОМ
+kit-r2 подписаны все EXE существующим сертификатом; проверка integrity/trust/BCD
+не отключалась. Install-r4 подтверждает servicesRunning и HLKRunning. Source
+sample не менялся. Target-r1 остановился на неверном native port guard, не
+является negative result; target-r2 принимает сохранённый redirected tuple.
+
+Завершение проверено private pb-independent-final-state-20261021-r2:
+0sample filters, sample servicesStopped, ProxyBridgeDrvDisabled/Stopped,
+HLKsvcRunning, probe/listener отсутствуют. Sample установлен, demand-start;
+provider/sublayer/SafeBoot keys/комплект сохранены, полного uninstall не было.
+Первый final-state reader не разобрал multi-root netsh XML; r2 обернул fragment
+в root и завершился успешно, без нового traffic. Remote wrapper ограничивает
+длину error message, чтобы conversion exception не выводил весь capture.
+
+Результат воспроизведения получен: не продолжать автоматически серию Run/точек.
+Дальше полезен sample/API-contract анализ или подготовленный Microsoft report;
+никакая отправка третьим лицам не разрешена и не выполнялась. Старые pending
+checkpoints ниже сохраняют историю, но заменены этим итогом.
+
+## Актуальный стоп-пункт: восстановить WinRM PB-SUT после restart — 21 октября
+
+USER расширил разрешение: выполнять необходимое до результата, отдельный откат
+не обязателен. Это разрешает установку/эксперимент на отдельном физическом ПК;
+не отменяет ограничения исходных consumed VM plans и USER-only host KD actions.
+Подготовлен `Install-IndependentWfpSample.ps1`: проверяет manifest/signature,
+создаёт demand-start WFPSamplerCallouts через SCM, затем использует официальный
+service -i и переводит WFPSampler на demand-start. SCM для non-PnP KMDF на
+Windows10+ подтверждён Microsoft Learn Installing a Non-PnP Driver. INF/новый
+trust/BCD для этого не требуются. Официальный service -i создаёт также свои
+SafeBoot keys; это отражено в output, не скрывать как отсутствие system changes.
+
+Private kit скопирован на PB-SUT в C:\PB-Independent-Wfp-20261021-r1,
+manifest/SYS signature проверены перед первой попыткой. Попытка install-r1
+остановилась ДО создания sample services: ProxyBridgeDrv нельзя выгрузить,
+отдельный native sc stop подтвердил1052. Не повторять остановку. Был сохранён
+исходный product-before.json (Running/Manual); его больше не перезаписывать.
+
+По расширенному разрешению на PB-SUT `sc config ProxyBridgeDrv start= disabled`
+успешен, `shutdown /r /t15` вернул0. Boot before2026-10-08T07:03:58.5Z записан
+в private pb-independent-target-restart-20261021-r1. НОВЫЙ boot ещё не подтверждён!
+RDP3389 доступен; WinRM5985 закрыт. install-r2 не подключился, sample install не
+выполнялся. Не считать queued restart доказательством нового boot или unloaded
+driver. HLK startup не менялся; состояние HLK после restart ещё не проверено.
+Попытка восстановить WinRM через SMB/remote SCM не дала результата (bounded
+sc query, нет подтверждения start), private pb-independent-winrm-recovery-20261021-r1.
+USER async отправлена команда на target ADMIN PowerShell:
+`Start-Service WinRM; Get-Service WinRM`. Это текущий внешний блокер, не approval.
+
+Готов `Invoke-IndependentWfpTrial.ps1`: Healthy либо Target, свежий TrialId;
+узкая volatile policy на probe app/127.0.0.1:54122/TCP→34010/serverPID; одно
+соединение контроля либо200fillers+одинcontrol, TCP state guards, один query на
+accept/512KiB, уникальный TCPIP ETW session, cleanup только своих children/policy/
+trace. Код PS5 parser0, НО runtime ещё не исполнялся. Remote wrapper теперь
+передаёт flat kit через ToSession, параметры script и собирает trial directory
+через FromSession. Не claim full controller verification до actual run.
+
+После восстановления доступа: подтвердить новый boot/driverStopped/HLKRunning,
+завершить sample install без повторной передачи existing kit, затем Healthy с
+НОВЫМ TrialId. Только после healthy pass — один Target trial. Results ETW_PENDING
+не являются causal verdict: отдельно проверить queue-refusal/retry и loss counters.
+Target26200vsVM26100 остаётся материальным различием. Пока независимого результата
+нет. Password/credentials/private evidence в Git не включать.
+
 ## Актуально: WinRM проверен, независимые бинарники подготовлены — 21 октября
 
 USER подтвердил PB-USER. Успешное remote execution на PB-SUT с административным

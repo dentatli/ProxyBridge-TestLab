@@ -4,7 +4,11 @@ param(
     [Parameter(Mandatory=$true)][string]$ExpectedComputerName,
     [Parameter(Mandatory=$true)][PSCredential]$Credential,
     [Parameter(Mandatory=$true)][string]$ScriptPath,
-    [Parameter(Mandatory=$true)][string]$EvidenceDirectory
+    [Parameter(Mandatory=$true)][string]$EvidenceDirectory,
+    [string]$TransferDirectory,
+    [string]$RemoteDirectory,
+    [hashtable]$ScriptParameters=@{},
+    [string]$RemoteCollectDirectory
 )
 
 # A single reviewed remote command. Credentials are never serialized.
@@ -39,14 +43,34 @@ try {
     $actualName=Invoke-Command -Session $remoteSession -ScriptBlock {$env:COMPUTERNAME}
     if ($actualName -ne $ExpectedComputerName) {throw 'REMOTE_COMPUTER_IDENTITY_DIFFERS'}
     $result.identity_confirmed=$true
+    if ($TransferDirectory) {
+        if (-not $RemoteDirectory) {throw 'REMOTE_DIRECTORY_REQUIRED'}
+        $null=Invoke-Command -Session $remoteSession -ScriptBlock {
+            param($destination)
+            if(Test-Path -LiteralPath $destination){throw 'REMOTE_DIRECTORY_MUST_BE_FRESH'}
+            New-Item -ItemType Directory -Path $destination | Out-Null
+        } -ArgumentList $RemoteDirectory
+        Get-ChildItem -LiteralPath $TransferDirectory -File | ForEach-Object {
+            Copy-Item -LiteralPath $_.FullName -Destination $RemoteDirectory -ToSession $remoteSession
+        }
+        $result['transferred_directory']=$RemoteDirectory
+    }
     # Remoting executes reviewed command content, without changing execution policy.
-    $output=(Invoke-Command -Session $remoteSession -ScriptBlock ([scriptblock]::Create($source))) -join "`n"
+    $output=(Invoke-Command -Session $remoteSession -ScriptBlock {
+        param($text,$parameters)
+        & ([scriptblock]::Create($text)) @parameters
+    } -ArgumentList $source,$ScriptParameters) -join "`n"
     $null=$output | ConvertFrom-Json
     $output | Set-Content -LiteralPath (Join-Path $EvidenceDirectory 'command-output.json') -Encoding UTF8
+    if($RemoteCollectDirectory){
+        Copy-Item -LiteralPath $RemoteCollectDirectory -Destination (Join-Path $EvidenceDirectory 'target-files') -FromSession $remoteSession -Recurse
+    }
     $result.status='COLLECTED'
 } catch {
     $result.status='FAILED'
-    $result['error']=$_.Exception.Message
+    $message=$_.Exception.Message
+    # Some conversion errors embed an entire system capture in Message.
+    $result['error']=$message.Substring(0,[Math]::Min(1200,$message.Length))
 } finally {
     if ($remoteSession) {
         try {Remove-PSSession $remoteSession} catch {$cleanupErrors+=$_.Exception.Message}
