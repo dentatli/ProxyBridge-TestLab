@@ -1,5 +1,24 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Run131809: связь с original10022 подтверждена в одном прогоне
+
+Receive/query evaluator получил RST_TRANSITION_AND_SELECTED_QUERY_NULL_OBSERVED,
+errors[]/nativeerrors[]. Same source CREATE/record/context32 -> RSTACK34010->42201
+и bit21 clear->set в Recv+198 -> queryNULL при сохранении того же source
+record/context32 и bit21. PID/TID этой NULL-ветки точно совпали с nativequery201,
+единственным original API failure10022/bytes0. NativeTARGET_FAILURE_REPRODUCED,
+200fillers успешны, cleanup[]/residentdisabledtrue. Лимит не сработал.
+
+Это уточняет локализацию: в момент ошибочного запроса source-record references
+ещё читаются, accepted/query endpoint recordNULL. Нельзя описывать результат как
+доказанное уничтожение контекста или окончательную атрибуцию Windows/драйверу.
+В этом профиле нет runtime SENDskip/acceptedNBL/query-returnNTSTATUS; прежние
+наблюдения этих стадий относятся к другим Run. Lifetime/socket/packet prooffalse.
+Combinedconsole содержит PBC CONFIG предыдущего same-sessionUSERpaste;
+независимого непрерывного hostcapture нет. Private review131809 сохранён.
+Следующий разбор — контракт WFP и причинное объяснение по сохранённым данным,
+без новогоRun автоматически. Исходные frozen capture/plan/proof не менялись.
+
 ## Receive/query: код подтверждён, захват ещё не выполнен
 
 USER currentboot disassembly QUERY+2c4..2d6 подтвердил ветку NULL+2d0 после

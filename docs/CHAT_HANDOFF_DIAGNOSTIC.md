@@ -1,5 +1,38 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run131809: RST + source record retained + selected query NULL, exact PID/TID join
+
+USER Run pb-target-accept-run-20261021-131809-00e46463 завершён:
+TARGET_FAILURE_REPRODUCED/errors[], diagnostic cleanup[]/resident_disabled_aftertrue.
+Новый receive/query report: RST_TRANSITION_AND_SELECTED_QUERY_NULL_OBSERVED,
+errors[]/native_errors[], native_pid_tid_joinedtrue. План123827 consumed, не повторять.
+
+CREATE -> same-source PBT RECEIVE: flags1101641->1301641 на pinned Recv+198,
+TCPflags14(RSTACK), tuple34010->42201, writes5. PBQ NULL в той же сессии:
+IOCTL980000dd/record_reg0, sourceEP/record/context совпали сCREATE, size32,
+source flags1301665 (bit21 остаётся). PBC FINALcreate1/skip0/accept0/error0:
+accept0 штатен этому профилю; QUERY_NULL point заменяет общий ACCEPT observer.
+Никакого RAW_LIMIT/INCOMPLETE. PID704hex=1796/TID109chex=4252 точно совпали с
+единственным original failure nativequery201: peer42201, api-1/error10022,
+bytes0/required32. Успешные200fillers проверены native evaluator.
+
+Private pb-receive-query-review-20261021-131809 содержит fragment, combinedconsole,
+provenance и exactreport. PBC CONFIG взят из предыдущего USER registration
+same-session; PBT/PBQ CONFIG и events из текущегоUSERpaste. Это не continuous/
+independenthostcapture. Не добавлять kernel coverage verdict исходному capture.
+Источник record-pointer/context32 читается в момент queryNULL; это не доказательство
+allocation lifetime, SOCKET ownership или physical packet identity. Query-return
+NTSTATUS не измерен. Окончательный rootcause/виновник по-прежнему не доказан.
+
+Следующий шаг — разбор причинного объяснения/контракта по сохранённому коду и
+вызовам драйвера; без автоматического новогоRun/повышенияcaps/измененияkernel.
+Во время этогоRun agent выполнял только read/report, новыхtraffic/driverchangesнет.
+Helper pbcStop автоматически отключил2/3/4 передFINAL. USER recovery из инструкции
+не показан; не утверждать, что он выполнен. Если нужен ручнойBreak, предупредить
+wholeVM/Codex/RDPpause и заранее дать bd2/bd3/bd4,pbcStop,g.
+USER preference: g помещать в тот же блок отдельной последней строкой; команды
+остаются отдельными, g выполнить даже при ошибке предыдущей команды.
+
 ## USER receive/query registration сверена; далее один новый Run123827
 
 USER .bpcmds подтверждает exact2 CREATE+dynamicwrite/3disabledplaceholdergc/
