@@ -1,5 +1,28 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Healthy boot119 Run040741 прошёл; target ждёт существующую строку CONFIG
+
+USER Run pb-target-accept-run-20261021-040741-2909dbbc: COLLECTED/cleanup[],
+CREATE_PROBE_NATIVE_SUCCESS_DEBUGGER_PENDING/errors[], boot119.
+Control PID8368/query1/socket484/relay12684, API0/bytes32/ctx_pid8368,
+peer42201/local34010, native524288bytes Succeeded. PREkey5=1/value72b5f010,
+POSTstatus0/record72b5f010/context750739f0/size20hex; tid1b14/scope/frame/EP/NBL
+совпадают, FINAL1/1/error0. Private fragment/review сохранены в
+pb-accept-pair-review-20261021-040741; CONFIG вUSERpaste снова отсутствует.
+Async USER question уже отправлен: прислать существующую PBA CONFIG model0
+изначалаэтойсессии. НЕ новые команды/не повторRun. Нельзя синтезировать header.
+Targetprepare script artifacts/diagnostics/prepare-accept-pair-target.py готов,
+но НЕ выполнялся. Он требует полный user-console.txt сactualCONFIG плюс
+сохранённыйfragment; свежая targetregistrationr1/новыйplan лишьпослеполучения.
+Режим target200prefill+одинcontrol, прежниеhelper/profile/cdbproof безchanges.
+Последовательность послеCONFIG: сохранитьcompleteconsole отдельно, pairreport
+долженACCEPT_PAIR_HEALTHY_OBSERVED/errors[], затемодинPreparetarget сэтимpositive.
+Не спрашиватьbl, не перерегистрироватьнеизменённыеточки. ПослеtargetPrepare
+USERpbaInitKernel/reset приdisabled2/3; RunсDebuggerPointsDisabled/
+FlowProfileRegisteredDisabled/BoundedLoadReviewed; READYhostBreak/be2/be3/g/C.
+WholeVM/Codex/RDP warning передBreak/enable; recoverybd2/bd3/pbaStop/g.
+Agent неRun/Break/servicechanges, тесты/сборки не повторял. Rootcauseне доказана.
+
 ## Возобновление послевыключения: healthy202107 разобран, boot119 требует новыйконтроль
 
 USER разрешиланализ после паузы. Run202107-eba28655 native COLLECTED,
