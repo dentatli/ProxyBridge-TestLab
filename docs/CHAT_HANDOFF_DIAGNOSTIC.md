@@ -1,5 +1,32 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run060837: source reference сохраняется непосредственно при ACCEPT miss
+
+USER Run pb-target-accept-run-20261021-060837-6f11c3e0 завершён:
+native TARGET_FAILURE_REPRODUCED/errors[], diagnostic COLLECTED/cleanup[]/
+resident_disabled_aftertrue. Единственный controlPID10964/query201/socket6056/
+relay15708, originalAPI10022/bytes0/required32, tuple34010<-42201.
+CREATE sourceEP7e092a50/record7d5e54f0/context6d56bc30/size20hex.
+В SOURCE при ACCEPT те же sourceEP/expected_record/record_now/context32;
+flags30=1301641. ACCEPT EP79251080/NBL75876c10, statusc0000225/output0,
+info_raw1/info0/root0/key5absent. FINALcreate1/skip0/accept1/error0.
+
+Exact source-accept-report: SOURCE_RECORD_REFERENCED_ACCEPT_CONTEXT_MISSING,
+errors[]/native_errors[]. Private pb-source-accept-review-20261021-060837.
+CONFIG взят из предыдущего USER registration message той же сессии;
+fragment текущего Run сохранён отдельно. Provenance не continuous console,
+не independent host capture. Existing plan055619/profilecc9b... совпали.
+Новых Run/Break/be/driverchanges агент не выполнял.
+
+Доказано: в снимке ошибки source сохраняет ссылки на прежние record/context32,
+тогда как принятый NBL не имеет WFP info/tagged context, retrieval misses.
+НЕ доказаны allocation lifetime/content, physical packet identity, независимый
+kernel-to-SOCKET join и виновник. Не называть это освобождением записи или
+доказанной ошибкой Windows. Bit21 установлен; предыдущие SKIP observations
+поддерживают гипотезу обхода association на retry, но не являются тем же packet.
+Этот захват повторять не нужно. Следующая работа — причинный анализ механизма
+association/gate и условий применимости, без новой широкой трассы/поднятия caps.
+
 ## Текущий шаг: source-at-ACCEPT, SEND3 всегда выключена
 
 Попытка USER Run055619 остановлена до runtime: KD_BOOT_EVENT_XML_DIFFERS.

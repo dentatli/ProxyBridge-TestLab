@@ -1,5 +1,18 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Run060837: одновременное сравнение source и accepted NBL получено
+
+Source-at-ACCEPT report SOURCE_RECORD_REFERENCED_ACCEPT_CONTEXT_MISSING/errors[].
+Native uniquequery201/controlPID10964/API10022/bytes0, cleanup[]. CREATE record
+7d5e54f0/context6d56bc30/size32 остаются в sourceEP7e092a50 в остановке ACCEPT;
+flags1301641. AcceptedNBL75876c10 имеет info_raw1/info0/root0/key5absent;
+retrievalc0000225/output0. FINAL1/0/1/error0, SEND3 не включалась.
+Это прямое подтверждение сохранённых source references одновременно с missing
+accepted context. Содержимое context/lifetime/allocation не проверялось;
+packet propagation и виновник по-прежнему не доказаны. Предыдущий SKIPgate
+bit21 обходит association; применять его как объяснение именно этого accepted
+packet без дополнительной причинной связи нельзя. Не повторять прежний захват.
+
 ## Текущий наблюдатель: source reference в момент ACCEPT
 
 Run053802 RAW counters1/200/14hex подтверждают512 общих попаданий SEND3
