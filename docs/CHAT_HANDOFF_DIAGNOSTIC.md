@@ -1,5 +1,22 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Combined registration подтверждена USER; готов USER Run101425
+
+USER PBC CONFIGmodel0/inittrue и4writerpinsOK, затем exact.bpcmds2/3/4:
+2createfffff805377888b6/newaction,3disabledplaceholderfffff805376a3678/gc,
+4acceptfffff8053769567b/sourceaction; bd2/bd3/bd4. PBT CONFIG writer376a3678/
+watch_limit10hex/version1. Старая SEND3 не зарегистрирована. Userg отдельно
+обязателен (в последнем fragment не показан). Не Register/bl/reset повторно.
+Freshplan101425 SHA358b28f95dc3548b363766d2f0df72a173e80179827b35eb744286d209810895
+совпал, PREPARED_NOT_RUN, run-claim отсутствует. Только USER VMADMIN explicit
+powershell.exe Run DebuggerPointsDisabled/FlowProfileRegisteredDisabled/
+BoundedLoadReviewed. READY -> USERBreak wholeVM/Codex/RDPwarning, толькоbe2,
+отдельныйg -> VMLatinC. 3/4 armCREATE автоматически. Recovery beforeBreak
+wholeVMwarning,bd2/bd3/bd4/pbcStop/отдельныйg. При непредвиденной остановке
+выполнить recovery, не считать capturecomplete/непродолжатьнагрузкувручную.
+НеrepeatRun, неstart/stopдрайвер, сохранитьPBC/PBT CONFIG/CREATE/RECEIVE/
+SOURCE/ACCEPT/FINAL +native. Agent неRun/Break/be/driverchanges.
+
 ## Healthy101205 подтверждён; receive+ACCEPT target101425 подготовлен
 
 USER Run pb-target-accept-run-20261021-101205-486804f7 завершён:
