@@ -1,5 +1,29 @@
 # Передача чату диагностики TCP / WinDbg
 
+## PBC Run044640: CREATE/SKIP наблюдены, ACCEPT нет, native10061
+
+USER Run pb-target-accept-run-20261021-044640-3f7a00f2:
+INCOMPLETE/control:NATIVE_ENDPOINT_UNOWNED/control:NATIVE_PORT_SET_DIFFERS.
+control.csv однастрока10061/emptyaddresses/SendBytes0. diagnostic COLLECTED,
+cleanup_errors[], resident_disabled_after=true. Это не повторискомого10022.
+USER CREATE sourceEP794f0cb0/record76fe96e0/context7506f7f0/size20hex/refs1;
+SKIP sameEP/record/context/size, flags1301641, SYNflags2/seq5285e9fe,
+NBL7988c550/info_raw1/key5absent. Sourceконтекстсуществует уskipgate.
+PBC FINAL create1/skip1/accept0/error0 послеUSERStop. Неполнотунеотменяетerror0.
+ДублиCREATE/SKIPвUSERpaste — повторотображения, не два независимыхсобытия.
+Показанbarestop atAccept+caf, но нетPBCACCEPT/INCOMPLETE/rawlimit/error.
+Причинаstopнеизвестна. AsyncвопросUSER: самостановилсяилиUSERBreak.
+НеобъявлятьJS/bpbug/10061debuggercausation безответа/существующеговесьвывода.
+Private review pb-retry-chain-review-20261021-044640/review.json.
+
+USER спрашиваетпроhighestpriority/exclusiveflow: priorityCPUthreads не
+приостанавливаетTCPflows. Во времяKDcommand всяVMужеhalted; общиесайтыдают
+лишниеtraps во времяпродолжения. RealTime не использовать дляизоляции.
+Нельзя заморозить200fillers как«посторонние»: они создаютlistenerbacklogусловие.
+Обсуждаемоеуменьшениеокнаacceptpoint/инойobserver — новыйдизайн, покаНЕ
+реализован/НЕ зарегистрирован. Caps/profile/helper/priority не менялись,
+tests/builds/новыйRun не запускались. ConsumedRun неповторять. Rootcausefalse.
+
 ## PBC host registration подтверждена USER; готов USER Run043909
 
 USER actualCONFIG model0 createfffff8015d1388b6/skip5d107eb4/accept5d04567b,
