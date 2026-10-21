@@ -1,5 +1,28 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Target pair plan готов послеполного healthy119 binding; Run USER-only
+
+USER прислал actualexistingCONFIG model0/prefffff8015d045676/
+postfffff8015d04567b/limit100/version1 иInit/Registertrue изsession09:06:34+05.
+Completeconsole создан из двух USERfragments сprovenance, synthetic_config=false.
+Positive pb-accept-pair-review-20261021-040741/pair-report.json:
+ACCEPT_PAIR_HEALTHY_OBSERVED/errors[]/nativeerrors[], rootcausefalse.
+Тесты/сборки/новыйhelper/download/register не повторялись.
+
+Fresh target plan artifacts/diagnostics/pb-target-accept-plan-20261021-041118-de61dc68/runtime-plan.json
+SHA 2E4EF4AD22CF5C886716AFB8E2F3084B4B0674DC35C623353D8754D2E34A7876.
+Prepare PREPARED_NOT_RUN/exit0/productfalse/trafficfalse, freshboot119,
+registration pb-accept-pair-target-registration-20261021-r1; hostinitpending.
+USERphysicalHost Break warningwholeVM/Codex/RDP; bd2/bd3/pbaInitKernel/g.
+Должны CONFIGmodel0 иtrue; приerror неVMRun, gвсегдаотдельно. Никакогоbl.
+VM Run новогоplan сDebuggerPointsDisabled/FlowProfileRegisteredDisabled/
+BoundedLoadReviewed. 200fillers толькоподготовка приdisabledpoints. READY ->
+USERBreak warningwholeVM/be2/be3/g, затемлатинскаяC вVM, одинcontrol42201.
+Послеcompletion/error USERBreak warningwholeVM/bd2/bd3/pbaStop/g; No repeatRun.
+НужныPBA CONFIG/PRE/POST/FINAL иnativeoutput. Native10022 не гарантируется;
+еслиkernelpair/nativejoinнеполны либонеожиданныйstatus, неrootcauseverdict.
+Agent неRun/Break/servicechanges. Driver resident, неstop/startприкаждойпробе.
+
 ## Healthy boot119 Run040741 прошёл; target ждёт существующую строку CONFIG
 
 USER Run pb-target-accept-run-20261021-040741-2909dbbc: COLLECTED/cleanup[],
