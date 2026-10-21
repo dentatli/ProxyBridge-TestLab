@@ -12,7 +12,8 @@ NBL7988c550/info_raw1/key5absent. Sourceконтекстсуществует уs
 PBC FINAL create1/skip1/accept0/error0 послеUSERStop. Неполнотунеотменяетerror0.
 ДублиCREATE/SKIPвUSERpaste — повторотображения, не два независимыхсобытия.
 Показанbarestop atAccept+caf, но нетPBCACCEPT/INCOMPLETE/rawlimit/error.
-Причинаstopнеизвестна. AsyncвопросUSER: самостановилсяилиUSERBreak.
+Причинаstopнеизвестна. USERнаasyncвопросответил: «Я вроде нажимал Break.
+Не понятно». Это не подтверждениеавтоматическогоstop и не уверенныйmanualstop.
 НеобъявлятьJS/bpbug/10061debuggercausation безответа/существующеговесьвывода.
 Private review pb-retry-chain-review-20261021-044640/review.json.
 
