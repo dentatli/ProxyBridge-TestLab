@@ -1,5 +1,32 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Healthy101205 подтверждён; receive+ACCEPT target101425 подготовлен
+
+USER Run pb-target-accept-run-20261021-101205-486804f7 завершён:
+CREATE_PROBE_NATIVE_SUCCESS_DEBUGGER_PENDING/errors[], diagnosticCOLLECTED/
+cleanup[]/resident_disabled_aftertrue. PBA PRE key5present/value98da0e2c0;
+POSTstatus0/sameRecord/context96ed1c90/size20hex. Tid2f1c/scope/frame/EP/NBL
+совпадают, FINALpre1/post1/error0. Exact pairreport ACCEPT_PAIR_HEALTHY_OBSERVED,
+errors[]/native_errors[]. Private pb-accept-pair-review-20261021-101205:
+fragment текущегоUSER + CONFIG из предыдущей currentboot registration, это
+не continuous/independent host capture. Boot120, driverRunningоставить.
+
+Fresh combinedtarget Prepare exit0/productfalse/trafficfalse:
+artifacts/diagnostics/pb-target-accept-plan-20261021-101425-d0a4a4f5/runtime-plan.json
+SHA358b28f95dc3548b363766d2f0df72a173e80179827b35eb744286d209810895.
+Profile receive-accept0e553709.../proofr2/registrationr1, positive101205,
+текущийboot120. PREPARED_NOT_RUN; actual combinedhost registration pending.
+Новый JS не требуется: прежний C:\PB-KD-Scripts\pb_retry_history.js.
+Следующий USERhost read/prepare: beforeBreak wholeVM/Codex/RDPwarning,
+bc2/bc3 (только подтверждённыеownedPBAIDs), unloadpb_accept_pair,
+loadpb_retry_history, pbcInitKernel; проверить4codepins Recv+190/+194/+198/+27,
+отдельныйg дажеошибка. Ни be/ни Run до проверки CONFIGmodel0/кодpins и новых
+disabledactions2/3/4. НЕвызыватьpbcRegister — он восстанавливает старый SEND.
+Для actualcombinedregistration использовать profileactions/stage inline,
+не проситьUSERпереноситьregistrationfile. ПотомREADYтолькоbe2/отдельныйg/LatinC;
+dynamic3w4 и4 включитCREATE. Recoverybd2/bd3/bd4/pbcStop/отдельныйg.
+Agent ничего из host/kernel/runtime не выполнял, новых тестов/build не запускал.
+
 ## Healthy Run100421 не дошёл до CLI: после reboot драйвер не загружен
 
 USER Run pb-target-accept-run-20261021-100421-f22313b5 nativeINCOMPLETE из-за
