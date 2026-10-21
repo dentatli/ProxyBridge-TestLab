@@ -1,5 +1,26 @@
 # Независимая проверка redirect context на тестовом физическом ПК
 
+## Доступ к физическому ПК: текущий checkpoint
+
+RDP подключён, через SystemInformation наблюдены имя PB-SUT, Windows11Pro
+build26200/x64/16GiB и SecureBootOff. Точный UBR пока не получен. Driver status
+не проверен; desktop icons не являются его доказательством. Исходная VM имеет
+build26100: отличие OS учитывать в выводах, не менятьtargetOS автоматически.
+Адрес и access audit сохраняются private, credentials не включать вkit/docs.
+
+SSH/WinRM ports пока недоступны; DCOM OSquery завершился timeout. Настройки
+target не менялись. Следующий шаг USER — включить встроенный WinRM в ADMIN
+WindowsPowerShell непосредственно на target. Это запускает/настраивает WinRM
+service, listener и firewall; отдельная установка приложения не требуется.
+Default public-network rule сохраняет local-subnet scope. Не добавлять
+AllowUnencrypted/Basic/широкий TrustedHosts для этого шага.
+
+[Enable-PSRemoting](https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.core/enable-psremoting?view=powershell-5.1).
+Автоматизация терминала черезRDP UI не применяется; после ручной настройки
+проверить фактическое remote execution и затем запускать inventory script.
+
+## Исходный план
+
 USER предложил отдельный физический Windows ПК в той же LAN и удалённое
 управление. IP/имя и существующий канал доступа пока ожидаются. Не предполагать
 наличие SSH/WinRM, совпадение OS build, тестовой подписи или разрешённого KDNET.

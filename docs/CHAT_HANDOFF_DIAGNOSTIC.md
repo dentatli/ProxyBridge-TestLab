@@ -1,5 +1,47 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Physical target RDP доступен; WMI timeout, следующий USER шаг WinRM
+
+USER сообщил target IP и RDP, дал учётные данные и прямо разрешил ввод для
+подключения; значения credentials НЕ сохранять в docs/audits/source. Также
+предложил установить необходимое. Target адрес хранится private в
+artifacts/diagnostics/pb-independent-target-access-20261021-r1/observed-access.json.
+RDP через ChatOnSteroids Desktop/mstsc подключён, рабочий стол наблюдён.
+Credential dialog исчез до agentinput; не утверждать, что агент ввёл пароль
+или что текущий logged-user подтверждён. Аккаунт target пока не проверен.
+
+Через remote SystemInformation наблюдены PB-SUT, Windows11Pro10.0.26200,
+x64,16GiB/free~10GiB, UEFI/SecureBootOff. Это только UI observation; точный UBR
+ещё неизвестен. Desktop watermark26100 не заменяет реальныйVersion26200.
+На desktop есть ProxyBridge icons — это НЕ доказательство loaded/runningdriver.
+Из-заOS26200vsVM26100 отрицательный independent trial не будет exact matched
+контролем старогоOS; различие сохранить, Windows автоматически не оправдывать.
+
+5bounded known-management-port probes: SSH/WinRMHTTP/HTTPSclosed, RPC/SMBopen.
+Source RDP socket local172.17.* (VM/NAT), не подставлять его автоматически в
+target firewall RemoteAddress: target может видеть translated LAN address.
+DCOM inventory attempt1 result не удалось получить (CoS stdin transport),
+attempt2 только OSread с durable output8sec timeout. dcom-result.json содержит
+timeout, не credential-rejection. Больше DCOM повторов не делать.
+
+Computer-use skill полностью прочитан с guidance/confirmations. USER explicit
+login instruction overrides skill auth-automation preference только дляданного
+логина. Нет разрешения ввода PowerShell черезUI: guidance запрещает terminalUI
+automation; поэтому enableWinRM выполняет USER локально вtargetADMINPowerShell.
+RDP UI ограничен navigation/read, не security settings/terminalautomation.
+CoS Desktop exec snapshots не сохраняют indexed input eligibility между exec:
+послеSTALE_WINDOW_STATE reread+singleinput+refresh в одном exec с проверкой
+ранее наблюдённого элемента. Ошибка разрешилась; не повторять blind input.
+
+Следующий USER block на PB-SUT: hostnameguard, Enable-PSRemoting
+-SkipNetworkProfileCheck -Force, Get-ServiceWinRM. WindowsPowerShell5.1/admin,
+не наPB-BUILD. Это включает service/autostart/listener/firewall для remoting;
+driver/trust/BCD/KDNET не меняет. Agent пока этих изменений не выполнял.
+ПослеUSERготово — проверить5985 и подключение, получить read-only inventory.
+LocalVM WinRMStopped/Manual, elevatedtrue; TrustedHostsread не вернулзначение,
+не утверждать, что список пуст. Client WinRM/TrustedHosts не менялись.
+Новые drivers/sample source build/download/traffic/Prepare не запускались.
+
 ## Независимый тест: USER предложил физический ПК в LAN, адрес/доступ pending
 
 USER согласился попробовать независимый reproducer и сообщил: отдельный тестовый
