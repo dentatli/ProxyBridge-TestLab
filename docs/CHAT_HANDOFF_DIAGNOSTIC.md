@@ -1,5 +1,33 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Healthy Run100421 не дошёл до CLI: после reboot драйвер не загружен
+
+USER Run pb-target-accept-run-20261021-100421-f22313b5 nativeINCOMPLETE из-за
+отсутствияcli-lifecycle.json. Первичная diagnostic-run.error:
+TARGET_RESIDENT_OFF_NOT_CONFIRMED, statusFAILED, cleanup[], resident_disabled_afterfalse.
+Savedbefore: SCMStopped, selected_driver_loadedfalse, knownWFPobjectsabsent,
+WinDivertNO_HANDLES. AssertTargetOff выполнен ДО Open/Disable/CLI/ETW/traffic.
+Никакого query/PBA runtime evidence; не трактоватькак10022/отказконтекста.
+Plan093410 consumed (run-claim создан передpreflight), no repeatRun.
+
+Agent read-only SCM повторно Stopped/Type1/Start3, ImagePath existing
+driver-63be0eb-testlab-cli/ProxyBridgeDrv.sys, pinned SHA3cd79cfc... совпал.
+Пропустил resident-load preflight перед USER Run; признано. Требуется USER
+ADMIN VM Start-ServiceProxyBridgeDrv один раз послеboot/WaitRunning, затем
+оставитьRunning. Agent не servicechange/IOCTL/runtime, переустановка не нужна.
+Сначала USERhost disabled2/3 +pbaStop/отдельныйg, если ещёне сделано;
+передBreak wholeVM/Codex/RDPwarning. ПослеStart получитьserviceRunning.
+Перед следующимhealthyRun USERhost pbaInitKernel (сбросfinal/counters), be2/be3,
+отдельныйg. Новаярегистрация/скачиваниеhelper не нужны, tcpipload не менялся.
+
+Freshhealthy Prepare exit0/productfalse/trafficfalse, тотжеprofile/proof/receiptpairr4:
+artifacts/diagnostics/pb-target-accept-plan-20261021-100634-eb0b6397/runtime-plan.json
+SHA03fb2eef92c70eb9e9ba76e9cb42aca87dd76040ea3c4aa98a0982a1c7a9dd5c.
+Новый Run только послеUSER residentRunning; flags FlowProfileRegisteredDisabled/
+DebuggerLoggerEnabled, явно powershell.exe5.1, READY/C нет.
+Private review pb-accept-pair-startup-review-20261021-100421; старыйcaptureнеизменён.
+Combined receive-accept profile готов, targetplan всёещё ждёт healthycurrentboot.
+
 ## Новый receive+ACCEPT наблюдатель подготовлен, runtime не запускался
 
 USER currentboot PBA registration подтверждена: .reload/f fwpkclnt.sys
