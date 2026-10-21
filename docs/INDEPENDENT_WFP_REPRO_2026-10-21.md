@@ -1,5 +1,33 @@
 # Независимая проверка redirect context на тестовом физическом ПК
 
+## Текущий результат подготовки
+
+WinRM реально проверен на PB-SUT с административными правами под подтверждённым
+USER аккаунтом. Remote wrapper восстанавливает client TrustedHosts и состояние
+client WinRM; cleanup errors пуст. Пароль не записан в repo/evidence. Target:
+Windows11Pro26200.9457/x64/16GiB, SecureBootOff/testsigningYes; ProxyBridgeDrv
+Running/Manual, HLKsvc Running/Auto. Target driver и OS отличаются от исходной VM.
+
+Официальный sample закреплён на revision
+`bb68ed5e770bce04dc5395ec9258dafab034184d`, собран Release/x64 с WDK28000,
+build exit0/API validation Universal. Исходники Microsoft не менялись.
+Отдельный `src/independent_wfp/WfpContextProbe.cs` собран с warnings-as-errors,
+help exit0, без открытия sockets. Он делает один query на accept, проверяет
+256байт sample context и исходное назначение, передаёт/проверяет512KiB.
+
+Private staged kit содержит sample CLI/service/SYS и probe. Копия SYS подписана
+существующим сертификатом: sign exit0, Authenticode Valid. Target уже доверяет
+этому сертификату; trust/BCD не менялись, private key не экспортировался.
+Это ещё не installation-ready kit: trial controller, ETW и установка/откат
+требуют завершения. Никакого независимого runtime результата пока нет.
+
+Штатный INF BOOT_START не подходит для временной установки по умолчанию.
+DriverEntry использует KMDF1.15/non-PnP: framework binding надо учесть до выбора
+способа установки. Не запускать штатный глобальный installer. Первый опыт
+провести без KD points, временно исключив ProxyBridgeDrv и восстановив его
+состояние; HLKsvc не останавливать. Исторические pending-статусы ниже сохранены
+для контекста и заменены этим checkpoint.
+
 ## Доступ к физическому ПК: текущий checkpoint
 
 RDP подключён, через SystemInformation наблюдены имя PB-SUT, Windows11Pro

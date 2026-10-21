@@ -1,5 +1,46 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Актуально: WinRM проверен, независимые бинарники подготовлены — 21 октября
+
+USER подтвердил PB-USER. Успешное remote execution на PB-SUT с административным
+токеном сохранено в private `pb-independent-target-winrm-20261021-r2`.
+Скрипты `Invoke-IndependentWfpRemote.ps1` и
+`Get-IndependentWfpTargetPrerequisites.ps1` проверены реальным read-only вызовом;
+client TrustedHosts восстановлен, временно запущенный client WinRM остановлен,
+cleanup errors пуст. Credentials не сохраняются в исходниках/документах/аудите.
+Первый FilePath-вызов остановила локальная execution policy; повтор использовал
+тот же reviewed script text через ScriptBlock, без изменения execution policy.
+
+Target Windows11Pro x64 26200.9457, 16GiB, свободно около10GiB, testsigningYes,
+SecureBootOff. ProxyBridgeDrv Running/Manual; HLKsvc Running/Auto. Их состояние
+агент не менял. Target driver SHA3e5c3c70… отличается от исходной VM. OS26200
+также отличается от исходного26100: отрицательный результат не будет точным
+контролем исходной Windows. Полный inventory и prerequisite audit — private,
+соответственно `pb-independent-target-winrm-20261021-r2/target-inventory.json`
+и `pb-independent-target-prerequisites-20261021-r2/command-output.json`.
+
+Microsoft source закреплён на bb68ed5e770bce04dc5395ec9258dafab034184d,
+sample build-r2 exit0, API validation Universal, исходники не менялись.
+Build-r1 exit1 (неверный default x86 ApiExtractor для этого WDK); r2 выбрал
+x64 ApiExtractor, не отключал API validation. WDK28000, Release/x64.
+`src/independent_wfp/WfpContextProbe.cs`: build-r3 exit0/help0, без socket trial;
+контекст sample256байт, один original query, payload512KiB, раздельные процессы.
+Probe-r2 не собрался из-за относительного пути source; r3 использовал абсолютный.
+
+Private kit `pb-independent-wfp-kit-20261021-r1`: копия sample SYS подписана уже
+существующим тестовым сертификатом (sign exit0/Authenticode Valid), private key
+не экспортировался. Этот сертификат уже доверен target в Root/TrustedPublisher;
+нового trust import не было. Исходный unsigned build сохранён. Kit manifest
+явно installation_ready=false: установки/загрузки sample и нового трафика нет.
+
+Следующий необходимый шаг: завершить demand-start установку/откат и ограниченный
+trial controller/ETW. Штатный INF задаёт BOOT_START; не запускать глобальный
+WFPSamplerInstall.cmd. Sample — KMDF1.15/non-PnP (`WdfDriverCreate`), поэтому не
+считать его WDM и не выбирать SC-only установку без проверки framework binding.
+Для независимого trial временно остановить только согласованный ProxyBridgeDrv
+с последующим восстановлением; HLKsvc не трогать. Никаких новых WinDbg точек.
+Ниже предыдущие checkpoints, их pending-статусы не описывают текущий доступ.
+
 ## Physical target RDP доступен; WMI timeout, следующий USER шаг WinRM
 
 USER сообщил target IP и RDP, дал учётные данные и прямо разрешил ввод для
