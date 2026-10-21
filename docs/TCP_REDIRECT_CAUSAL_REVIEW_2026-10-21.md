@@ -1,5 +1,18 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Live подтверждение второго пути, новая сессия21окт14:11
+
+USER ln/disassembly установил имя: WfpProcessOutTransportStackIndication.
+RVA211ad..211c3 подтверждают bit21 gate перед рассмотренным входом в cold
+associationветку; RVA1bcba3..bbb загружают source record для TCP;1bcc54..cca8
+проверяютNULL, увеличиваютrefs, передаютrecordR9/key5/NBL и вызывают импорт
+FwppNetBufferListAssociateContext. Livecall использует movR10/callthunk,
+diskcallindirect/nop; проверено соответствие потока/аргументов, не byteidentity.
+blпустой/gвыполнен, без runtime. Pending code-read снят, повтор не нужен.
+Условный пропуск двух найденных associationветвей подтверждён; совместное
+объяснение с RST/retry и source-at-ACCEPT остаётся выводом по разным Run,
+не окончательной атрибуцией Windows bug или нарушению контракта драйвером.
+
 ## Разбор после060837: gate блокирует две найденные ветки привязки
 
 В receive-блоке+182..198 бит21 ставится при bit20; внутри этого блока нет

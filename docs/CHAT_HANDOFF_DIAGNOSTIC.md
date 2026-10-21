@@ -1,5 +1,28 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий checkpoint: второй association-path подтверждён live после reboot
+
+USER attachment5c7915f2-3acc-4dd4-94e0-0dc1519ba4e2, WinDbg connected
+2026-10-21 14:11 UTC+5, kernelbasefffff805a3a00000, tcpipbasefffff80537680000.
+bl пустой, symbols tcpip загружены, MASM, отдельныйg выполнен. Никаких Run/
+регистраций/enable. Старыеboot119 планы/absoluteaddresses не использовать.
+
+ln tcpip+211ad установил parent symbol WfpProcessOutTransportStackIndication:
+gate+edd mov[RDI+30],+ee0 bt15h,+ee4 jb+f0a обходит рассмотренную coldветку.
+Live1bcba3..bbb: protocol6, flag10clear -> source record[RDI+1c0] ->1bcc54.
+Live1bcc54..cca8: nullguard/refinc, key5, recordR9, NBL[RAX+30], импорт
+FwppNetBufferListAssociateContext. Вызов в live через movR10/callthunk вместо
+disk indirectcall/nop; смысл bindings совпадает, byteidentity не заявляется.
+Private evidence pb-source-accept-live-code-review-20261021-1411.
+
+Снято pending live-confirmation второго пути. Обе рассмотренные ветки закрывает
+один bit21; это поддерживает механизм пропуска привязки при retry после RST.
+Это не доказывает все возможные пути propagation, causal packet chain,
+allocation lifetime или окончательную вину Windows. Никакого нового Run ради
+повтора этих фактов. Следующий вопрос атрибуции — почему состояние receive
+применяется к retry SYN и соответствует ли это контракту redirect callout;
+не возвращаться к гипотезе освобождения source context без новых свидетельств.
+
 ## После Run060837: статически разобраны две ветки association, ждём только code read
 
 Agent продолжил без runtime: сохранённый tcpip-current-disassembly SHA
