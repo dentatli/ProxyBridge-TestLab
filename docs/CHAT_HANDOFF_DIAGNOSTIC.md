@@ -1,5 +1,27 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run053802: historyv2 RAW_LIMIT после2снимковsameNBL; USER подтвердилautoBreak
+
+USER Run pb-target-accept-run-20261021-053802-418437fa native
+TARGET_FAILURE_REPRODUCED/errors[], diagnosticCOLLECTED/cleanup[]/
+resident_disabled_aftertrue. ЕдинственныйcontrolPID2944/query201/peer42201,
+исходныйAPI10022/bytes0. ETWcontrolReason30drops2/retrycounts1,2,позднийReason10.
+CREATEEP79b19c50/record7afcf950/context7506ab70/size20hex/refs1;
+SKIPhit1/2sameEP/record/context32, flags1301641, sameNBL72e13c30/
+header72e13fac/seq560f2d2f/SYN2/info_raw1/key5absent. НЕ двадоказанныхpacket.
+RAW_LIMIT/FINALcreate1skip2skip_limit_reached0accept0error1, нетACCEPT.
+Затем80000003firstchance stop atSEND+34, USER «Остановиласьсама», отдельныйg.
+Самостоятельныйstop подтверждёнUSER; enginecause/SMPpendingtrap НЕ доказаны.
+СтрокаRAW_LIMITнеуказываетpointID; stopsite3не заменяетretainedcounters.
+Нужныt0/t1/t2безreset/newRun: USERBreakwarningwholeVM/Codex/RDP,
+bd2/bd3/bd4/printfPBCraw/g. Не готовить ещёодинповтор/неподниматьcapsавтоматически.
+
+Private review pb-retry-history-review-20261021-053802. Rootcausefalse.
+5CDBchecksпроверялитолькоlogic/boundsвuserprocess, ненагрузкуsharedkernel
+sites/SMP/workload200. Не представлятьихкакproofruntimeintrusivenessacceptable.
+Этотпрофильпоканеповторять: rawpressureосталасьпослеcoldarming.
+Новыхhelper/profile/tests/builds/Run/driverchangesагентне делал.
+
 ## Retry-history v2 наhost подтверждён USER; готов USER Run052928 толькоbe2
 
 USER unloadoldchain/loadhistory, CONFIGmodel0/version2/skip_snapshots8, inittrue/
