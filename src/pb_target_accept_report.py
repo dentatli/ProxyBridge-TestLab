@@ -126,9 +126,13 @@ def evaluate(path):
                 if policy.get('endpoint_nbl512_context') is True:watch='nbl512'
                 if policy.get('endpoint_retry_epochs') is True:watch='epochs'
                 if policy.get('endpoint_accept_pair') is True:watch='pair'
+                if policy.get('endpoint_retry_chain') is True:watch='chain'
                 armed=policy.get('automatic_debugger_enable_after_create') in ([3],[3,4])
                 accept64=policy.get('endpoint_send_native_query') is True or policy.get('raw_hit_limits_per_point')==({'2':16,'3':64,'4':policy.get('endpoint_send_accept_limit',64)} if watch in ('send','send256') else {'2':16,'3':16,'4':64})
-                if watch=='pair':
+                if watch=='chain':
+                    from pb_retry_chain_profile import policy as chain_policy
+                    if policy!=chain_policy(not probe):errors.append('RETRY_CHAIN_POLICY_INVALID')
+                elif watch=='pair':
                     from pb_accept_pair_profile import policy as pair_policy
                     if policy!=pair_policy(not probe):errors.append('ACCEPT_PAIR_POLICY_INVALID')
                 elif policy!=flag_policy(not probe,armed,accept64,policy.get('healthy_setter_probe') is True,watch):errors.append('FLAG_OBSERVER_POLICY_INVALID')

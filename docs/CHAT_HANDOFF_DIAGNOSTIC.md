@@ -1,5 +1,32 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Новый retry-chain observer готов; нужен host init/register, Run не выполнялся
+
+Fresh plan artifacts/diagnostics/pb-target-accept-plan-20261021-043909-cda7b767/runtime-plan.json
+SHA 2483DFCCB459651DDE804D904F714D7BF0B16BAFC511C5B324661B341C68DC73.
+Prepare+exactvalidate прошли: PREPARED_NOT_RUN/exit0/productfalse/trafficfalse.
+Registration pb-retry-chain-registration-20261021-r1 currentboot119,
+healthy040741 переиспользован поегофактическомуPBA/APIуспеху. Не новыйhealthyRun.
+Runtimeостановлен до actualhost CONFIGmodel0 и Registertrue.
+
+USER livepins CREATE+396 at5d1388b6/SEND+2d5d107ead/+14f5d107fcf совпали.
+Важно: +14f — общийвыход, сампоне доказываетskip. Реализован point3 передjb+34,
+фильтрEAXbit21/CF1/selectedEP/family2. Новый pb_retry_chain.js SHA
+2939e8f76354652b6cbecda6c62bcd97d48450781b50a82a286ab3f47d9d61da.
+Profile pb-kd-retry-chain-profile-20261021.json SHA
+c9b0b9d0b597c991a6eb6d9bfe732976350dceeea853f4afc5a44bb02ba9077f.
+3softwarepoints2CREATE/3SKIPgate/4ACCEPTreturn, всеhostenabled, noautomaticenable.
+Rawcaps32/512/512,total1056; максимумодинselectedeventкаждого, автоdisable.
+CREATEsourceRecordctx32, SKIPsameEP/recordctx32+SYNheader/key5state,
+ACCEPTtuple/status/key5state/NBLmatch. Никакихstack/readwatch/CurrentMdlidentity.
+Lifetime/NBLreuse/independentSOCKETjoin поадресам НЕ доказаны; rootcausefalse.
+5/5realCDBcases r1 passed, parser5+tamper2, PSparse и4singleprobe tests passed.
+No product/network/kernelconnection/fullsuite/build. Нужен новыйhostdownload
+помеченногоhelper, PBAstop/bc2/bc3/unloadPBA/loadPBC/pbcInitKernel/Register/g.
+ПредупреждатьwholeVM/Codex/RDP передBreak/регистрацией; gотдельноevenerror.
+Детали в TCP_REDIRECT_CAUSAL_REVIEW_2026-10-21.md. FreshPrepare отдельно;
+старыеRun/kitне менять/неповторять. Agent неBreak/be/Run/servicechanges.
+
 ## После accept-пары: source review завершён, кандидат трёх событий ждёт live pins
 
 См. docs/TCP_REDIRECT_CAUSAL_REVIEW_2026-10-21.md. Повторно просмотрен конкретный

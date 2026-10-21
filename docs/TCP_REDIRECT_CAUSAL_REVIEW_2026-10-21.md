@@ -1,5 +1,34 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Обновление: candidate v1 реализован и проверен в изолированном CDB
+
+USER показал current-boot CREATE+396, SEND+2d/+14f; адресаbase5d... совпадают
+с actualsessionCONFIG. +14f действительно сохраняет нужные регистры, но является
+ОБЩИМ выходом обеих веток. Поэтому средняя точка перенесена на +34 перед jb:
+MASM требует bit21 изEAX иCF1 послеbt. Снимок означает выбранное условие обхода,
+а не отдельную инструкционную трассу выполненного перехода.
+
+Новые файлы: scripts/debugger/pb_retry_chain.js, src/pb_retry_chain_profile.py,
+pb_retry_chain_fixture.py, pb_retry_chain_report.py, exactJSONprofile/stage.
+IDs2/3/4 software, только USERhost включает все три; automaticenable=false,
+нет hardwarewatch/новыхdynamicpoints. CREATE и выбранный SKIP снимают себя,
+первый выбранный ACCEPT снимает все. Это три события, НЕ три trap на всюVM.
+Rawcaps32/512/512 (1056total): background200/retries не вызываютJSsnapshots,
+но расходуют счётчики и могут снова исчерпатьbudget. Старые caps/профили не менялись.
+Новый cap512 для общихsend/accept выбран с запасом на200fillers; это не безлимит.
+RAW_LIMIT теперь выставляет error1 и выключает все три.
+
+Фактический CDB proof-r1: 5/5 passed — missing, background200, sourcechanged,
+earlyhealthy, rawlimit; безkernelconnection/product/network. Parser техже5логов
+и2подменыidentity/flags отклонены; model-header substitution отмечен только
+вparserfixture, не выдаётся заkernelcapture. PSentryparseOK и4старыхsingleprobe
+tests passed. Полные historical suites/сборки не запускались.
+
+Native runner сохраняет200fillers +onecontrol, gate15sec иsameboothealthy040741.
+Новыйprofilehelper не считается подтверждённым наhost доCONFIGmodel0/Registertrue.
+Продукт/драйвер/старые frozenkits не изменены. Новаяполитика target-only;
+она не расширяет доказательную область прежнего healthyobserver.
+
 ## Результат проверки
 
 Последний Run042210 подтверждает отсутствие WFP info/key5 ДО Retrieve и
