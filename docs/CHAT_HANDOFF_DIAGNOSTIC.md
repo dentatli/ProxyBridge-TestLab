@@ -1,5 +1,22 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER выбрал повторную попытку PBC без смены точек/лимитов; fresh plan045535
+
+USER «Давай еще раз попробуем повторить». Подготовлен новый plan
+artifacts/diagnostics/pb-target-accept-plan-20261021-045535-31f54f16/runtime-plan.json
+SHA 123FA805D966F57168C1DFFA995FD49970E8953E131C928CDB5BE199E54C7E08.
+PREPARED_NOT_RUN/exit0/productfalse/trafficfalse, exactvalidate внутриPrepare,
+registrationr2 freshbootbinding/samehealthy040741. Helper/profile/proof прежние;
+старыйRun044640 неResume/неповторять. Tests/builds не запускались снова.
+USERhost Break warningwholeVM/Codex/RDP: bd2/bd3/bd4/pbcInitKernel/g;
+CONFIGmodel0true передVMRun. Неdownload/register/bl. USERAdministratorVM Run
+сDebuggerPointsDisabled/FlowProfileRegisteredDisabled/BoundedLoadReviewed;
+READY USERhostBreak warningwholeVM/be2/be3/be4/g -> VMLatinC.
+Послеcompletion/error hostBreak warningwholeVM/bd2/bd3/bd4/pbcStop/g.
+ЕслиWinDbgсамостановится, сохранитьпричинупередвозобновлением; невыдавать
+manualBreak заautomaticstop. НужныCONFIG/CREATE/SKIP/ACCEPT/FINAL иnativeoutput.
+Agent неRun/Break/be/servicechanges/prioritychanges. No repeat consumedRun.
+
 ## PBC Run044640: CREATE/SKIP наблюдены, ACCEPT нет, native10061
 
 USER Run pb-target-accept-run-20261021-044640-3f7a00f2:
