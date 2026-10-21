@@ -1,5 +1,20 @@
 # Передача чату диагностики TCP / WinDbg
 
+## CREATE-armed регистрация подтверждена USER; следующий USER Run051301 толькоbe2
+
+USER actualCONFIGmodel0, inittrue, bp2overrideсbe3/be4передpbccreate,
+.bpcmds exactactions иbd2/bd3/bd4, отдельныйg. «breakpoint2exists,redefining»
+штатно. Private observation pb-retry-chain-create-armed-host-observation-20261021;
+не independenthostproof, frozenreceiptне менялся. Plan051301-d4b5c54d SHA
+3119BDE2D72BD9CF0826243338AE71A25C016AA6F6E6D2239DD11EE71A8C2376 совпал,
+PREPARED_NOT_RUN. Счётчикиresetужеinit, неbl/register/download/resetповторно.
+USERAdministratorVM Run сDebuggerPointsDisabled/FlowProfileRegisteredDisabled/
+BoundedLoadReviewed. ПриREADY USERphysicalBreak warningwholeVM/Codex/RDP:
+ТОЛЬКОbe2, отдельныйg; VMLatinC. 3/4включитmatchingCREATEaction2.
+Recoveryпослеcompletion/error USERBreak warningwholeVM, bd2/bd3/bd4/pbcStop/g.
+НуженполныйPBCвывод+native result. No repeatRun. Agent неRun/Break/be/driverchanges,
+tests/buildsнеповторял. Sourceготовность не означаетдоказаннуюrootcause.
+
 ## Причина RAW_LIMIT установлена: point3 доCREATE; подготовлен профиль включения приCREATE
 
 Fresh plan artifacts/diagnostics/pb-target-accept-plan-20261021-051301-d4b5c54d/runtime-plan.json
