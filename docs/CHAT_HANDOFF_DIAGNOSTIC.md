@@ -1,5 +1,35 @@
 # Передача чату диагностики TCP / WinDbg
 
+## После retained counters: кандидат receive/query вместо общего ACCEPT
+
+USER `PBT RAW create=1 accept=200 writes=5` подтвердил raw limit точки4:
+200hex=512 ACCEPT traps; CREATE1, адресных writes5. Влияние отладки на10061
+остаётся гипотезой, а не доказанной причиной. Старый Run103737 не повторять.
+
+Подготовлен отдельный кандидат pb_receive_query_profile.py / JSON7a221878...
+и update.wdbg, меняющий только4. CREATE2 и адресный RECEIVEwatch3 прежние;
+4 переносится на WfpAleProcessSocketOption+2d0: ветка NULL после чтения
+acceptedEP+1c0. Успешная non-NULL ветка эту точку обходит. Лог PBQ NULL
+снимает PID/TID и source record/context; query-return NTSTATUS и accepted NBL
+этим профилем НЕ наблюдаются. Для вывода нужен join с единственным original
+native query по PID/TID и тот же source record; SOCKET lifetime не доказан.
+
+4 synthetic CDB fixtures passed, proof pb-receive-query-proof-20261021-r1.
+600 обходов — synthetic RET branch, не600 настоящих успешных запросов.
+Kernel/product/network не запускались. Проверена механика watch/action/limit;
+это не kernel coverage. Старые frozen profiles/plans не менялись.
+Кандидат пока НЕ интегрирован в target planner/reporter, нового Prepare/Run нет.
+Не применять registration/Run до интеграции и отдельного нового плана.
+
+Следующий USER шаг: read-only `u tcpip!WfpAleProcessSocketOption+0x2c4 L5`
+для currentboot120, затем отдельный g даже при ошибке. Перед USER Break
+предупредить: вся VM включая Codex/RDP останавливается. Recovery: bd2/bd3/bd4,
+dx @$scriptContents.pbcStop(), отдельный g. Агент Break/be/Run не выполняет.
+Ожидаемый код: mov rdx,[rdi+1c0]; test rdx,rdx; jne +2db;
+mov r8d,c0000225. После сверки — закончить reporter/strict policy integration,
+новый Prepare с healthy101205/currentboot120, затем регистрация только4.
+Не вызывать pbcRegister: он возвращает старые общие SEND/ACCEPT actions.
+
 ## Run103737: RST transition получен, затем RAW_LIMIT; control10061, не10022
 
 USER Run pb-target-accept-run-20261021-103737-3ae734b4 diagnosticCOLLECTED/

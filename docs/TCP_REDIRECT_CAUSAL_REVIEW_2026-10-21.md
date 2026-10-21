@@ -1,5 +1,20 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Уточнение лимита и следующий кандидат наблюдения
+
+Retained USER counters create1/accept200hex/writes5 подтверждают исчерпание
+ACCEPT4/cap512. Это объясняет неполноту захвата; причинность control10061
+по отношению к отладке пока не установлена. Общую ACCEPT точку исключаем
+из следующего кандидата, caps не повышаем.
+
+Кандидат receive/query наблюдает CREATE, адресное изменение source flags и
+ветку NULL в WfpAleProcessSocketOption+2d0. Она позволяет сопоставить source
+record/context и PID/TID отказавшего original query; accepted NBL и итоговый
+NTSTATUS этой точкой не измеряются. Нужен строгий native join. Успешные
+non-NULL запросы обходят эту ветку. Четыре synthetic CDB cases passed;
+600 synthetic обходов не являются сетевым тестом. Currentboot live code pin,
+reporter/planner integration и новый Prepare ещё предстоят. Runtime не было.
+
 ## Run103737: partial RST/source transition, без ошибки10022 и ACCEPT
 
 В объединённом профиле получены CREATE и адресный write: same sourceEP/record/

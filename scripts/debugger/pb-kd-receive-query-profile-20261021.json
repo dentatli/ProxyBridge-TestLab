@@ -1,0 +1,80 @@
+{
+  "method": "kd-receive-query-null-20261021-v1",
+  "registered_point_ids": [
+    2,
+    3,
+    4
+  ],
+  "active_point_ids": [],
+  "dynamic_point_ids": [
+    3
+  ],
+  "host_enable_point_ids": [
+    2
+  ],
+  "script": "scripts/debugger/pb_retry_history.js",
+  "script_sha256": "47c72a600ddeaf089f8ee8d4f454fe4d431ab00e0770ade1e174ed2f58008a76",
+  "model_required": 0,
+  "initialization": "pbcInitKernel",
+  "registration": "manual-receive-query-null-actions",
+  "raw_hit_limits_per_point": {
+    "2": 32,
+    "3": 16,
+    "4": 16
+  },
+  "max_total_raw_hits": 64,
+  "selected_events_per_point": {
+    "2": 1,
+    "3": 1,
+    "4": 1
+  },
+  "automatic_enable": true,
+  "automatic_disable": true,
+  "points": [
+    {
+      "id": 2,
+      "target": "tcpip!AlepCreateRedirectRecord+0x396",
+      "action": "r @$t0 = @$t0 + 1; .if (@$t0 >= 0x20) { !pbcabort; } .else { .if ($vvalid(@r14,4) == 1) { .if ((wo(@r14) == 2) and (wo(@r14+2) == 0xd9a4)) { r @$t11 = @rax; !pbccreate @r14, @rdi, @rax; .if (@$t10 != 0) { .if (($vvalid(@$t10+0x30,4) == 1) and ((@$t10 & 3) == 0)) { r @$t12 = dwo(@$t10+0x30); r @$t13 = 0; .if ((@$t12 & 0x200000) == 0) { bc3; ba3 w4 (@$t10+0x30) \"r @$t13 = @$t13 + 1; .if (($vvalid(@$t10+0x30,4) == 1) and ($vvalid(@$t10+0x1c0,8) == 1)) { .if (poi(@$t10+0x1c0) == @$t11) { r @$t14 = dwo(@$t10+0x30); .if (((@$t12 & 0x200000) == 0) and ((@$t14 & 0x200000) != 0)) { bd3; .if ((@rip == tcpip!WfpTlShimInspectRecvTcpDatagram+0x198) and (@rbx == @$t10) and ($vvalid(@rsi,0x58) == 1)) { r @$t15 = poi(@rsi+0x50); .if (($vvalid(@$t15,0x14) == 1) and ($vvalid(@$t11+0x1e0,0x10) == 1)) { .if ((wo(@$t15) == 0xda84) and (wo(@$t15+2) == 0xd9a4) and ((by(@$t15+0xc) & 0xf0) >= 0x50)) { .printf \\\"PBT RECEIVE ep=%p record=%p context=%p size=%I64x old=%x new=%x ip=%p nbl=%p header=%p src_raw=%x dst_raw=%x tcp_flags=%x seq_raw=%x ack_raw=%x writes=%I64x\\\\n\\\", @$t10, @$t11, poi(@$t11+0x1e0), poi(@$t11+0x1e8), @$t12, @$t14, @rip, poi(@rsi+8), @$t15, wo(@$t15), wo(@$t15+2), by(@$t15+0xd), dwo(@$t15+4), dwo(@$t15+8), @$t13; } .else { .printf \\\"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\\\n\\\"; !pbcabort; } } .else { .printf \\\"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\\\n\\\"; !pbcabort; } } .else { .printf \\\"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\\\n\\\"; !pbcabort; }; } .else { .if (@$t13 >= 0x10) { .printf \\\"PBT INCOMPLETE reason=WATCH_LIMIT\\\\n\\\"; !pbcabort; } }; r @$t12 = @$t14; } .else { .printf \\\"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\\\n\\\"; !pbcabort; } } .else { .printf \\\"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\\\n\\\"; !pbcabort; }; gc;\"; be4; } .else { .printf \"PBT INCOMPLETE reason=BIT_ALREADY_SET\\n\"; !pbcabort; }; } .else { .printf \"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\n\"; !pbcabort; }; } } } }; gc;"
+    },
+    {
+      "id": 3,
+      "target": "tcpip!WfpTlShimInspectRecvTcpDatagram+0x198",
+      "action": "gc;",
+      "initial_state": "disabled-placeholder",
+      "dynamic_action": "r @$t13 = @$t13 + 1; .if (($vvalid(@$t10+0x30,4) == 1) and ($vvalid(@$t10+0x1c0,8) == 1)) { .if (poi(@$t10+0x1c0) == @$t11) { r @$t14 = dwo(@$t10+0x30); .if (((@$t12 & 0x200000) == 0) and ((@$t14 & 0x200000) != 0)) { bd3; .if ((@rip == tcpip!WfpTlShimInspectRecvTcpDatagram+0x198) and (@rbx == @$t10) and ($vvalid(@rsi,0x58) == 1)) { r @$t15 = poi(@rsi+0x50); .if (($vvalid(@$t15,0x14) == 1) and ($vvalid(@$t11+0x1e0,0x10) == 1)) { .if ((wo(@$t15) == 0xda84) and (wo(@$t15+2) == 0xd9a4) and ((by(@$t15+0xc) & 0xf0) >= 0x50)) { .printf \"PBT RECEIVE ep=%p record=%p context=%p size=%I64x old=%x new=%x ip=%p nbl=%p header=%p src_raw=%x dst_raw=%x tcp_flags=%x seq_raw=%x ack_raw=%x writes=%I64x\\n\", @$t10, @$t11, poi(@$t11+0x1e0), poi(@$t11+0x1e8), @$t12, @$t14, @rip, poi(@rsi+8), @$t15, wo(@$t15), wo(@$t15+2), by(@$t15+0xd), dwo(@$t15+4), dwo(@$t15+8), @$t13; } .else { .printf \"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\n\"; !pbcabort; } } .else { .printf \"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\n\"; !pbcabort; } } .else { .printf \"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\n\"; !pbcabort; }; } .else { .if (@$t13 >= 0x10) { .printf \"PBT INCOMPLETE reason=WATCH_LIMIT\\n\"; !pbcabort; } }; r @$t12 = @$t14; } .else { .printf \"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\n\"; !pbcabort; } } .else { .printf \"PBT INCOMPLETE reason=WATCH_IDENTITY_OR_HEADER\\n\"; !pbcabort; }; gc;",
+      "access": "w4",
+      "dynamic_address": "selected_source_ep+0x30",
+      "disable_on_transition": true
+    },
+    {
+      "id": 4,
+      "target": "tcpip!WfpAleProcessSocketOption+0x2d0",
+      "action": "r @$t2 = @$t2 + 1; .if (@$t2 >= 0x10) { .printf \"PBQ INCOMPLETE reason=NULL_RAW_LIMIT\\n\"; !pbcabort; } .else { .if (@r15d == 0x980000dd) { .if ((@rdx == 0) and (@$t10 != 0) and ($vvalid(@$t10+0x1c0,8) == 1) and ($vvalid(@$t10+0x30,4) == 1)) { .if (poi(@$t10+0x1c0) == @$t11) { .if ($vvalid(@$t11+0x1e0,0x10) == 1) { .printf \"PBQ NULL ep=%p record_reg=%p ioctl=%x pid=%x tid=%x source_ep=%p source_record=%p context=%p size=%I64x flags30=%x\\n\", @rdi, @rdx, @r15d, @$tpid, @$tid, @$t10, @$t11, poi(@$t11+0x1e0), poi(@$t11+0x1e8), dwo(@$t10+0x30); dx @$scriptContents.pbcStop(); } .else { .printf \"PBQ INCOMPLETE reason=SOURCE_UNREADABLE\\n\"; !pbcabort; } } .else { .printf \"PBQ INCOMPLETE reason=SOURCE_CHANGED\\n\"; !pbcabort; } } .else { .printf \"PBQ INCOMPLETE reason=NULL_OR_SOURCE_GUARD\\n\"; !pbcabort; } } }; gc;"
+    }
+  ],
+  "recovery": [
+    "bd2",
+    "bd3",
+    "bd4",
+    "dx @$scriptContents.pbcStop()",
+    "g"
+  ],
+  "limits": [
+    "No ACCEPT or SEND breakpoint. Point4 lies only on the query record-NULL path.",
+    "QUERY_NULL precedes status assignment; it is not a measured query-return NTSTATUS.",
+    "PID/TID and one unique original native query join are required; independent SOCKET/packet lifetime remains unverified."
+  ],
+  "automatic_enable_point_ids": [
+    3,
+    4
+  ],
+  "helper_version": 2,
+  "proposed_active_point_ids": [
+    2,
+    3,
+    4
+  ],
+  "inactive_point_ids": [],
+  "receive_writer_pin": "(dwo(tcpip!WfpTlShimInspectRecvTcpDatagram+0x190) == 0x304b81f0) and (dwo(tcpip!WfpTlShimInspectRecvTcpDatagram+0x194) == 0x00200000) and (dwo(tcpip!WfpTlShimInspectRecvTcpDatagram+0x198) == 0x64247c8b) and (dwo(tcpip!WfpTlShimInspectRecvTcpDatagram+0x27) == 0xb8b58b48)",
+  "query_code_pin": "(dwo(tcpip!WfpTlShimInspectRecvTcpDatagram+0x190) == 0x304b81f0) and (dwo(tcpip!WfpTlShimInspectRecvTcpDatagram+0x194) == 0x00200000) and (dwo(tcpip!WfpTlShimInspectRecvTcpDatagram+0x198) == 0x64247c8b) and (dwo(tcpip!WfpTlShimInspectRecvTcpDatagram+0x27) == 0xb8b58b48) and (poi(tcpip!WfpAleProcessSocketOption+0x2c4) == 0x48000001c0978b48) and (dwo(tcpip!WfpAleProcessSocketOption+0x2cc) == 0x0b75d285) and (dwo(tcpip!WfpAleProcessSocketOption+0x2d0) == 0x0225b841) and (wo(tcpip!WfpAleProcessSocketOption+0x2d4) == 0xc000)"
+}
