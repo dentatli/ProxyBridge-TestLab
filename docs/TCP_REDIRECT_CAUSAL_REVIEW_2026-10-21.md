@@ -1,5 +1,16 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Run103737: partial RST/source transition, без ошибки10022 и ACCEPT
+
+В объединённом профиле получены CREATE и адресный write: same sourceEP/record/
+context32, flags1101641->1301641 на Recv+198, TCPflags14(RSTACK)/34010->42201,
+writecount5. Послеэтого RAW_LIMIT/FINALaccept0/error1. Source-at-ACCEPT нет.
+Nativecontrol завершился10061, proxyquery42201отсутствует, nativejoinincomplete;
+очисткауспешна. Поэтому этотRun не связывает RSTtransition с10022.
+ОбщийACCEPTobserver остаётся источником возможнойнагрузки даже без SENDpoint;
+пока не установлено, какой rawcapсработал, и влияние не доказано причинно.
+Сохраняем partialданные, не повышаемcaps и не повторяемпрофиль до review.
+
 ## Следующая наблюдаемая цепочка: receive transition и ACCEPT одного source
 
 Подготовлен отдельный receive-accept профиль, прежние frozen профили не менялись.

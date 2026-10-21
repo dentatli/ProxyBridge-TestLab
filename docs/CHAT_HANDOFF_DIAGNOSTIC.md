@@ -1,5 +1,34 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Run103737: RST transition получен, затем RAW_LIMIT; control10061, не10022
+
+USER Run pb-target-accept-run-20261021-103737-3ae734b4 diagnosticCOLLECTED/
+cleanup[]/resident_disabled_aftertrue, cohortCOLLECTED/cleanup[]/native_stoppedtrue.
+Native reportINCOMPLETE: control:NATIVE_ENDPOINT_UNOWNED/NATIVE_PORT_SET_DIFFERS.
+controlCSV (UTF16) result10061, local/remote addresses пустые, exit1; proxy.jsonl
+не содержит query42201, control matches[]; НЕ native reproduction10022.
+
+CREATE ep96acc010/record8dadeb20/context961fb060/size32 -> PBT RECEIVE same
+EP/record/context32, old1101641/new1301641, writer376a3678, TCPflags14(RSTACK),
+tuple34010->42201, seq0/acke1b70eaa, writes5. Затем generic RAW_LIMIT,
+FINALcreate1skip0accept0error1. НетSOURCE/ACCEPT. Валидный partial receive event
+не закрывает chain RST->10022. Принадлежность nativecontrol не подтверждена
+из-за егоconnectfailure; rootcause/packetidentityfalse.
+
+Exact combinedreportINCOMPLETE с nativejoinerrors; private
+pb-receive-accept-review-20261021-103737: fragment, config из предыдущих USER
+messages same-session, provenance неcontinuous/independenthostcapture.
+Связка receive наблюдения проверена; не выдавать partial за полный результат.
+
+RAW_LIMIT не указывает ID; watch5<cap16 и нетPBT WATCH_LIMIT. Вероятна общая
+ACCEPT4/cap512, но retainedt0/t2/t13 ещё не получены. Непреднамеренное влияние
+наблюдателя подозревается (control10061, нетquery, cohort58s), НЕ доказано.
+Не повышатьcaps/не повторятьRun/не объявлять10061продуктовым10022failure.
+Текущий профиль не повторять до review общих ACCEPTtraps. Новыхprofile/plan/
+tests/build агент не создавал. Следующий USER read-only retained counters:
+beforeBreak wholeVM/Codex/RDPwarning, printf create=t0/accept=t2/writes=t13,
+отдельныйg. Неreset/pbcInit/новыйRun радисчётчиков; еслипотеряны — так и отметить.
+
 ## Combined registration подтверждена USER; готов USER Run101425
 
 USER PBC CONFIGmodel0/inittrue и4writerpinsOK, затем exact.bpcmds2/3/4:
