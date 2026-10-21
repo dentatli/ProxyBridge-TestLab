@@ -1,5 +1,39 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Retry-history v2 готов: до8selectedнаблюдений, ждёт новогоhelperнаhost
+
+Freshplan artifacts/diagnostics/pb-target-accept-plan-20261021-052928-5e48efff/runtime-plan.json
+SHA 96C72FFC6108FB743CBBE06B577923800B64133F2D68366AE13A1C58C4D30587.
+Prepareexit0/точныйvalidateвнутриPrepare/productfalse/trafficfalse,
+registrationhistoryr1, sameboot119/healthy040741; hostinitpending. НеRunдоUSER
+actualCONFIGversion2/model0/Registertrue/disabled2/3/4. ПриREADYтолькоbe2/g/C.
+
+USER «Продолжай» послеRun051728. Новый scripts/debugger/pb_retry_history.js SHA
+47c72a600ddeaf089f8ee8d4f454fe4d431ab00e0770ade1e174ed2f58008a76.
+Profile pb-kd-retry-history-profile-20261021.json SHA
+bbbee7a7e12cffcb17c7ee566eaefd0ac4a4274c2737659270643debff7e97f2.
+Oldhelper/profile/kitsНЕменялись. НовыйCONFIGversion2/skip_snapshots8;
+тежеaliaspbcInitKernel/Register/Stop, новыйRegisterсразуимеетCREATEarmedaction2.
+Hostenableтолько2;3/4послеmatchingCREATE. IDs2/3/4/caps32/512/512 прежние.
+SKIPhit1..8сsameEP/record/context32/seq; точка3снимаетсяна8м,4продолжаетждать.
+ACCEPTskip_count/match_hit(last)/match_count сравниваетвсюисториюNBLaddresses;
+FINALskipчисло/skip_limit_reached. Возможныповторыодногопакетавызовами;
+НЕ считать8снимков8physicalpackets. NBLreuse/lifetime/independentSOCKETjoinfalse.
+
+5realCDBcases passed:laterNBLmatch,window8/accept9unmatched,cold600beforeCREATE,
+sourcechanged,rawlimit. Parserтехже5логов +2tamperchecks passed (толькоfixture
+modelheadersubstitution). Полныестарыеsuites/buildнеповторялись, no network/
+product/kernelconnection. dispatch/policy/native/report новыйexactmodehistory.
+Новыйkernelreport RETRY_HISTORY_NBL_MATCH_AND_ACCEPT_MISS_OBSERVED толькоесли
+matchесть/всеmatchedkey5absent/acceptmiss/uniqueoriginal10022; иначенеполно/
+inconclusive. Rootcausefalseдажеприaddressmatch, неэквивалентpacketlifetime.
+
+FreshPrepareотдельно; hostпокастарыйpb_retry_chain.js. СледующийUSERшагdownload
+новогоpinnedhelperсSHAпроверкой, wholeVM/Codex/RDPwarning передBreak:
+bd2/bd3/bd4/pbcStop/unloadold/loadnew/pbcInitKernel/pbcRegister/.bpcmds/g.
+ВсеdisabledдоactualCONFIGmodel0/version2 иRegistertrue. НеRun/be/registerold.
+Agent неBreak/Run/be/driverchanges. НовыекомандытолькоUSERphysicalhost.
+
 ## Run051728: все3события и10022; SKIP/ACCEPTразныеNBL, sameRunETW4retry
 
 USER pb-target-accept-run-20261021-051728-dd1c1b66: TARGET_FAILURE_REPRODUCED/

@@ -15,6 +15,9 @@ HEALTHY_STAGE='scripts/debugger/pb-kd-target-flag-healthy-setter-update-20261020
 
 
 def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch=='history':
+        from pb_retry_history_profile import PROFILE_SHA as sha
+        return sha
     if endpoint_watch=='chainarmed':
         from pb_retry_chain_armed_profile import PROFILE_SHA as sha
         return sha
@@ -51,6 +54,9 @@ def profile_sha(create_armed=False,accept64=False,healthy=False,endpoint_watch=F
 def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
     if endpoint_watch:
         if not (create_armed and accept64) or healthy!=(not target):raise ValueError('ENDPOINT_WATCH_POLICY_INVALID')
+        if endpoint_watch=='history':
+            from pb_retry_history_profile import policy as history_policy
+            return history_policy(target)
         if endpoint_watch=='chainarmed':
             from pb_retry_chain_armed_profile import policy as chain_policy
             return chain_policy(target)
@@ -104,6 +110,8 @@ def policy(target=True, create_armed=False,accept64=False,healthy=False,endpoint
 
 
 def registration(profile_path,receipt_path,receipt_sha,boot):
+    from pb_retry_history_profile import PROFILE_SHA as history_sha,registration as history_registration
+    if digest(Path(profile_path))==history_sha:return history_registration(profile_path,receipt_path,receipt_sha,boot)
     from pb_retry_chain_armed_profile import PROFILE_SHA as chain_armed_sha,registration as chain_armed_registration
     if digest(Path(profile_path))==chain_armed_sha:return chain_armed_registration(profile_path,receipt_path,receipt_sha,boot)
     from pb_retry_chain_profile import PROFILE_SHA as chain_sha,registration as chain_registration
@@ -145,6 +153,9 @@ def registration(profile_path,receipt_path,receipt_sha,boot):
 
 
 def parser_proof(path,create_armed=False,accept64=False,healthy=False,endpoint_watch=False):
+    if endpoint_watch=='history':
+        from pb_retry_history_profile import parser_proof as history_proof
+        return history_proof(path)
     if endpoint_watch=='chainarmed':
         from pb_retry_chain_armed_profile import parser_proof as chain_proof
         return chain_proof(path)

@@ -128,9 +128,13 @@ def evaluate(path):
                 if policy.get('endpoint_accept_pair') is True:watch='pair'
                 if policy.get('endpoint_retry_chain') is True:watch='chain'
                 if policy.get('retry_chain_create_armed') is True:watch='chainarmed'
+                if policy.get('endpoint_retry_history') is True:watch='history'
                 armed=policy.get('automatic_debugger_enable_after_create') in ([3],[3,4])
                 accept64=policy.get('endpoint_send_native_query') is True or policy.get('raw_hit_limits_per_point')==({'2':16,'3':64,'4':policy.get('endpoint_send_accept_limit',64)} if watch in ('send','send256') else {'2':16,'3':16,'4':64})
-                if watch=='chainarmed':
+                if watch=='history':
+                    from pb_retry_history_profile import policy as history_policy
+                    if policy!=history_policy(not probe):errors.append('RETRY_HISTORY_POLICY_INVALID')
+                elif watch=='chainarmed':
                     from pb_retry_chain_armed_profile import policy as chain_policy
                     if policy!=chain_policy(not probe):errors.append('RETRY_CHAIN_ARMED_POLICY_INVALID')
                 elif watch=='chain':

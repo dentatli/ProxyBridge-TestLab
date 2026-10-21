@@ -1,5 +1,20 @@
 # Причина отсутствия контекста: проверка кода после успешной пары accept
 
+## Подготовлен retry-history v2 вместо одного SKIP
+
+Новыйhelper/profile сохраняет до8selectedSKIPнаблюдений с одинаковымsourceEP,
+record/context32иSYNsequence. На8м отключаетсятолько3; ACCEPT4продолжаетждать
+впределахпрежнегоrawcap. ПриACCEPT вычисляются все совпавшиеNBLадреса, последний
+match_hit иmatch_count. Повторные вызовы с тем жеNBL не считаются разными
+физическимипакетами. Дажеaddressmatch не закрываетreuse/lifetimeоговорку.
+При8снимках/accept9безсовпадения результат остаётсяinconclusive, неошибкадрайвера.
+
+RegisterновогоhelperсодержитCREATEarming, hostвключаеттолько2. Sites/capsне
+расширялись; динамическихhardwarewatch/stackdumpнет. 5реальныхCDBcases иparser
+провереныбезпродукта/сети/kernelconnection. Пакетныеистории вмодели искусственные,
+не фактическинаблюдавшийсяWindowsTCP. Новаяверсия ещё не загружена наhost и
+не измерена вruntime. СтарыйRun/profile/helper сохраняются безизменений.
+
 ## Run051728: сравнение в одном соединении получено, NBL join остаётся открытым
 
 CREATE record/context32 -> выбранный SKIPgate с теми же sourceEP/record/context
