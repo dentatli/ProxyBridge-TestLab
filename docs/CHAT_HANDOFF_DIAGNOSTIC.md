@@ -1,5 +1,27 @@
 # Передача чату диагностики TCP / WinDbg
 
+## PBC Run045723: RAW_LIMIT доCREATE; controller не увидел controlSYN, cleanupнеполна
+
+USER Run pb-target-accept-run-20261021-045723-5f67fc2d: FAILED/
+TARGET_COHORT_INCOMPLETE:TARGET_CONTROL_SYN_NOT_OBSERVED. Cohort только
+fillers-established/host-confirmed, нет control-synsent/release-request.
+USERconsole RAW_LIMIT/FINALcreate0skip0accept0error1. Общаястрока не содержит
+IDточки; конкретныйrawcounter НЕ известен. Не выдавать предположениеpoint3
+за наблюдение, не повышать caps/неподготавливать ещёодинповтор автоматически.
+Нужны retained t0/t1/t2 изWinDbg безreset/newRun, printfhex; передUSERBreak
+warnwholeVM/Codex/RDP, bd2/bd3/bd4, printfcounter, отдельныйgevenerror.
+
+diagnosticcleanup_errors TARGET_RECEIVER_CONTROLLED_STOP_FAILED;
+cohortcleanup TARGET_NATIVE_FORCED_STOPx2/native_processes_stopped=false.
+CLIgraceful/poststoptrue, resident_disabled_after=true. Historicalcleanup
+осталасьнеполной. Currentread-only PIDcheck: fillers15016/receiver9816/proxy3012
+отсутствуют; controlPID14480 теперьnode.exe изCodexcua_node, неctsTraffic.exe.
+PIDreuse НЕ трогать, agent никогонеостанавливал; текущиеownedпроцессы поэтим
+receiptнеидентифицированы. DriverRunning/resident какожидается, IOCTLdisable
+подтверждёнreceipt, это не driverStop. Private review pb-retry-chain-review-
+20261021-045723/review.json. Не10022verdict, rootcausefalse.
+Новыхhelper/profile/prioritychanges/tests/builds/Run не было.
+
 ## USER выбрал повторную попытку PBC без смены точек/лимитов; fresh plan045535
 
 USER «Давай еще раз попробуем повторить». Подготовлен новый plan
