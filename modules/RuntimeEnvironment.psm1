@@ -1,5 +1,6 @@
 Set-StrictMode -Version Latest
 Import-Module (Join-Path $PSScriptRoot 'InterceptionState.psm1')
+Import-Module (Join-Path $PSScriptRoot 'PnpDriver.psm1')
 
 function Get-RuntimeEnvironmentValue {
     param([System.Collections.Generic.IDictionary[string, string]]$Environment, [string]$Name)
@@ -128,11 +129,16 @@ function New-RuntimeEnvironmentPlan {
     $null = Get-RuntimeEnvironmentValue $Environment 'PB_VPS_SERVER_LOG'
     }
     $serviceName = Get-RuntimeEnvironmentValue $Environment 'PB_PROXYBRIDGE_SERVICE'
+    $pnpInstance = ''
+    if ($Environment.ContainsKey('PB_PNP_DRIVER_INSTANCE')) {
+        $pnpInstance = Get-RuntimeEnvironmentValue $Environment 'PB_PNP_DRIVER_INSTANCE'
+        if ($pnpInstance -ine 'ROOT\INTERCEPTSUITE_PROXYBRIDGE\0000' -or $hasGui) { throw 'FAIL_CONFIGURATION: PNP_HEADLESS_INSTANCE_INVALID' }
+    }
     $targets = @($binaries | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_.process_name) })
     if (-not $hasGui) {
         if ($serviceName -cne 'ProxyBridgeDrv') { throw 'FAIL_CONFIGURATION: HEADLESS_DRIVER_SERVICE_NAME_INVALID' }
         $cliDirectory = Split-Path -Parent (Get-RuntimeEnvironmentValue $Environment 'PB_PROXYBRIDGE_CLI_EXE')
-        if (-not (Test-EquivalentRuntimePath (Join-Path $cliDirectory 'ProxyBridgeDrv.sys') (Get-RuntimeEnvironmentValue $Environment 'PB_DRIVER_PATH'))) { throw 'FAIL_CONFIGURATION: HEADLESS_DRIVER_NOT_BESIDE_CLI' }
+        if (-not $pnpInstance -and -not (Test-EquivalentRuntimePath (Join-Path $cliDirectory 'ProxyBridgeDrv.sys') (Get-RuntimeEnvironmentValue $Environment 'PB_DRIVER_PATH'))) { throw 'FAIL_CONFIGURATION: HEADLESS_DRIVER_NOT_BESIDE_CLI' }
         # An unconfigured GUI is still a conflict; never omit it from observation.
         $targets += [pscustomobject]@{process_name='ProxyBridge.exe';configured_path=''}
     }
@@ -142,6 +148,7 @@ function New-RuntimeEnvironmentPlan {
         purpose=$(if ($ProductOnly) { 'product-lifecycle-only' } else { 'traffic-run' })
         process_targets=$targets
         service_name=$serviceName
+        pnp_instance_id=$pnpInstance
         service_bootstrap=$(if ($hasGui) { 'gui' } else { 'driver-service' })
         stop_timeout_ms=[int]$RuntimeConfig.cli_readiness.stop_timeout_ms
         service_start_timeout_ms=[int]$RuntimeConfig.environment_preparation.service_start_timeout_ms
@@ -211,6 +218,10 @@ function New-SystemRuntimeEnvironmentAdapter {
         $observationEnvironment['PB_EXPECTED_DRIVER_SHA256'] = [string]$driver.expected_sha256
         $observation = Get-InterceptionStateSnapshot -Environment $observationEnvironment -AllowProductRuntime
         if (-not $observation.current_driver_preparation_allowed) { throw 'HEADLESS_DRIVER_STATE_NOT_VERIFIED' }
+        if ($plan.PSObject.Properties['pnp_instance_id'] -and $plan.pnp_instance_id) {
+            Set-VerifiedPnpDriverState -InstanceId $plan.pnp_instance_id -DriverPath $driver.configured_path -Sha256 $driver.expected_sha256 -State Running -AllowProductRuntime
+            return
+        }
         $controller = [ServiceProcess.ServiceController]::new([string]$plan.service_name)
         try {
             if (($controller.ServiceType -band [ServiceProcess.ServiceType]::KernelDriver) -eq 0) { throw 'HEADLESS_SERVICE_IS_NOT_KERNEL_DRIVER' }

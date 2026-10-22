@@ -1,5 +1,8 @@
 # Передача чату диагностики TCP / WinDbg
 
+
+Актуальное продолжение: [loopback fix и штатный TestLab](UDP_LOOPBACK_AND_TESTLAB_2026-10-22.md).
+
 ## Первый реальный UDP driver trial: return injection error; остановка по лимиту
 
 Сначала [актуальный checkpoint](UDP_DRIVER_TRIAL_CHECKPOINT_2026-10-22.md).

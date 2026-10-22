@@ -476,7 +476,10 @@ static int parse_arguments(int argc, char **argv, CONFIG *config)
          config->stream_count < 2 || config->payload_size_explicit ||
          config->parallel_count != 1 || config->reconnect_count != 1 ||
          config->process_index || config->endpoint_behavior[0] ||
-         config->expected_action != (config->benchmark_exact_source ? ACTION_DIRECT : ACTION_PROXY) || config->expect != EXPECT_ECHO ||
+         // Source identity is independent of routing: packet-channel PROXY
+         // preserves the original endpoint just like a DIRECT response.
+         (config->benchmark_relay_port ? config->expected_action != ACTION_PROXY :
+          (config->expected_action != ACTION_DIRECT && config->expected_action != ACTION_PROXY)) || config->expect != EXPECT_ECHO ||
          (config->benchmark_relay_port && strcmp(config->benchmark_relay_ip, "127.0.0.1") != 0) ||
          strcmp(config->remote_ip, "127.0.0.1") != 0 ||
          config->remote_host[0] || config->second_remote_port != config->udp_remote_port ||

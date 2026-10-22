@@ -13,12 +13,14 @@ param(
     [ValidateRange(8,1000)][int]$WarmupPackets = 8,
     [ValidateRange(1,4)][int]$Streams = 1,
     [ValidateSet('SHARED','DISTINCT')][string]$DestinationMode = 'SHARED',
+    [ValidateSet('LEGACY_RELAY','PACKET_CHANNEL')][string]$UdpCaptureMode = 'LEGACY_RELAY',
     [switch]$AllowProductRuntime,
     [switch]$Resume
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if (-not $AllowProductRuntime) { throw 'PRODUCT_RUNTIME_NOT_ALLOWED' }
+if ($Resume -and $UdpCaptureMode -eq 'PACKET_CHANNEL') { throw 'PACKET_CHANNEL_COMPARISON_REQUIRES_NEW_SERIES' }
 if ($ComparisonMode -eq 'LOGGING' -and ($Resume -or $Streams -ne 2 -or $DestinationMode -ne 'DISTINCT')) { throw 'LOGGING_REQUIRES_NEW_TWO_DESTINATION_SERIES' }
 if ($ComparisonMode -eq 'LOGGING' -and $EvidenceLogMode -ne 'FLUSH_EACH') { throw 'LOGGING_SELECTS_POLICY_PER_VARIANT' }
 if ($DestinationMode -eq 'DISTINCT' -and $Streams -ne 2) { throw 'DISTINCT_DESTINATIONS_REQUIRE_TWO_STREAMS' }
@@ -109,7 +111,7 @@ try {
             $probeMode = $(if ($routedMode) { 'RULES' } else { $mode })
             $logMode = $(if ($ComparisonMode -eq 'LOGGING') { $mode } else { $EvidenceLogMode })
             Write-Host ('[{0}/{1}] {2}: {3} UDP echo, {4} bytes, pause {5} ms / UDP-обмены, байты, пауза' -f $manifest.runs.Count,($PairCount*2),$name,$PacketCount,$(if ($MessageSize) { $MessageSize } else { 'auto' }),$IntervalMs)
-            & (Join-Path $PSScriptRoot 'Invoke-WfpLocalRouteProbe.ps1') -EnvPath $EnvPath -EvidenceDirectory (Join-Path $EvidenceDirectory $name) -TrafficMode $probeMode -Actions PROXY -Protocol UDP -UdpBenchmark -MatchedComparisonWorkload:($ComparisonMode -in @('ROUTED','LOGGING')) -BenchmarkPacketCount $PacketCount -BenchmarkIntervalMs $IntervalMs -BenchmarkMessageSize $MessageSize -BenchmarkWarmupPackets $WarmupPackets -BenchmarkStreams $Streams -BenchmarkDestinationMode $DestinationMode -EvidenceLogMode $logMode -UdpProxyPythonPath $UdpProxyPythonPath -AllowProductRuntime
+            & (Join-Path $PSScriptRoot 'Invoke-WfpLocalRouteProbe.ps1') -EnvPath $EnvPath -EvidenceDirectory (Join-Path $EvidenceDirectory $name) -TrafficMode $probeMode -Actions PROXY -Protocol UDP -UdpBenchmark -UdpCaptureMode $UdpCaptureMode -MatchedComparisonWorkload:($ComparisonMode -in @('ROUTED','LOGGING')) -BenchmarkPacketCount $PacketCount -BenchmarkIntervalMs $IntervalMs -BenchmarkMessageSize $MessageSize -BenchmarkWarmupPackets $WarmupPackets -BenchmarkStreams $Streams -BenchmarkDestinationMode $DestinationMode -EvidenceLogMode $logMode -UdpProxyPythonPath $UdpProxyPythonPath -AllowProductRuntime
             $report = Get-Content (Join-Path $EvidenceDirectory ($name + '/udp-benchmark-report.json')) -Raw | ConvertFrom-Json
             if ($report.logging_policy_verified -ne $true -or $report.helper_log_flush_mode -ne $logMode) { throw "COMPARISON_LOG_POLICY_NOT_CONFIRMED_$name" }
             $confirmed = $report.correctness_status -eq 'PASS' -and $report.performance_status -eq 'MEASURED'

@@ -6,6 +6,7 @@ param(
     [string]$EvidenceDirectory = '',
     [string]$EnvPath = '',
     [string]$UdpProxyPythonPath = '',
+    [ValidateSet('LEGACY_RELAY','PACKET_CHANNEL')][string]$UdpCaptureMode = 'LEGACY_RELAY',
     [switch]$Resume
 )
 Set-StrictMode -Version Latest
@@ -52,7 +53,7 @@ if ($Profile -eq 'FAST') { Write-Host 'Без дополнительной па�
 Write-Host ('Результаты / Results: ' + $EvidenceDirectory)
 Start-Transcript -LiteralPath ($EvidenceDirectory + '.log') -Append:$Resume | Out-Null
 try {
-    & (Join-Path $PSScriptRoot 'Invoke-WfpUnruledComparison.ps1') -EnvPath $EnvPath -EvidenceDirectory $EvidenceDirectory -UdpProxyPythonPath $UdpProxyPythonPath -ComparisonMode $(if ($Profile -eq 'LOG_FLUSH') { 'LOGGING' } else { 'ROUTED' }) -EvidenceLogMode $EvidenceLogMode -PairCount 3 -PacketCount $packetCount -IntervalMs $intervalMs -MessageSize $messageSize -WarmupPackets 100 -Streams $streams -DestinationMode $destinationMode -AllowProductRuntime -Resume:$Resume | Out-Null
+    & (Join-Path $PSScriptRoot 'Invoke-WfpUnruledComparison.ps1') -EnvPath $EnvPath -EvidenceDirectory $EvidenceDirectory -UdpProxyPythonPath $UdpProxyPythonPath -UdpCaptureMode $UdpCaptureMode -ComparisonMode $(if ($Profile -eq 'LOG_FLUSH') { 'LOGGING' } else { 'ROUTED' }) -EvidenceLogMode $EvidenceLogMode -PairCount 3 -PacketCount $packetCount -IntervalMs $intervalMs -MessageSize $messageSize -WarmupPackets 100 -Streams $streams -DestinationMode $destinationMode -AllowProductRuntime -Resume:$Resume | Out-Null
     $report = Get-Content -LiteralPath (Join-Path $EvidenceDirectory 'comparison-report.json') -Raw | ConvertFrom-Json
     Write-Host ('Сопоставимость / Comparability: ' + $report.status)
     Write-Host ('Отчёт / Report: ' + (Join-Path $EvidenceDirectory 'summary.md'))

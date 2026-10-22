@@ -25,6 +25,7 @@ def main():
     test_id = config.get('test_id', 'local-udp-proxy')
     unruled = receipt.get('traffic_mode') == 'product-running-unruled'
     product_off = receipt.get('traffic_mode') == 'product-off-direct'
+    packet_channel = receipt.get('udp_capture_mode') == 'PACKET_CHANNEL'
     process = read(directory / (test_id + '-process.json'))
     lifecycle = None if product_off else read(directory / 'cli-lifecycle.json')
     lifecycle_verified = receipt.get('product_off_verified') is True if product_off else (
@@ -87,6 +88,7 @@ def main():
                         e['local_port'] == r['requested_remote_port'])
     delivered_sequences = {r['sequence'] for r in delivery}
     complete = (stream_layout_verified and destination_layout_verified and logging_policy_verified and
+                (not packet_channel or sources['ORIGINAL_ENDPOINT'] == config['packet_count']) and
                 (not unruled or receipt.get('unruled_profile_verified') is True) and
                 len(native) == config['packet_count'] and
                 [r['sequence'] for r in native] == list(range(1, config['packet_count'] + 1)) and
@@ -295,7 +297,9 @@ def main():
             if values['samples']:
                 summary.append(f"| {role} | {values['cpu_pct_machine_mean']:.3f} | "
                                f"{values['private_bytes_mean']/1048576:.2f} / {values['private_bytes_sample_max']/1048576:.2f} |")
-        summary.extend(['', f"Системный CPU: {phase['system_cpu_pct_mean']:.2f}%; "
+        system_cpu = ('unavailable' if phase['system_cpu_pct_mean'] is None else
+                      f"{phase['system_cpu_pct_mean']:.2f}%")
+        summary.extend(['', f"Системный CPU: {system_cpu}; "
                         f"сбор: {phase['samples']} выборок, {phase['covered_s']:.2f} с покрытия.", ''])
     if unruled:
         summary.extend(['UDP-перенаправление здесь не проверяется: успешный прямой обмен вне правил не означает исправление relay-дефекта.', ''])

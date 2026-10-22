@@ -77,6 +77,23 @@ Assert-True $timeoutResult.cleanup.verified 'bootstrap timeout must clean GUI'
 $processNames=@('ProxyBridge.exe','ProxyBridge_CLI.exe')
 Assert-Equal 0 @(& $timeoutAdapter.GetProcesses $processNames).Count 'bootstrap timeout must leave no GUI/CLI'
 
+$pnpEnvironment=Copy-Environment $environment
+$null=$pnpEnvironment.Remove('PB_PROXYBRIDGE_EXE')
+$pnpEnvironment['PB_PROXYBRIDGE_SERVICE']='ProxyBridgeDrv'
+$pnpEnvironment['PB_PNP_DRIVER_INSTANCE']='ROOT\INTERCEPTSUITE_PROXYBRIDGE\0000'
+$pnpEnvironment['PB_DRIVER_PATH']='C:\Windows\System32\DriverStore\FileRepository\proxybridgedrv.inf_amd64_0123456789abcdef\ProxyBridgeDrv.sys'
+$pnpPlan=New-RuntimeEnvironmentPlan -Environment $pnpEnvironment -RuntimeConfig $runtime -ProductOnly
+Assert-Equal 'ROOT\INTERCEPTSUITE_PROXYBRIDGE\0000' $pnpPlan.pnp_instance_id 'PnP lifecycle must retain the exact selected instance'
+Assert-Equal 'driver-service' $pnpPlan.service_bootstrap 'PnP lifecycle must remain headless'
+$badPnp=Copy-Environment $pnpEnvironment;$badPnp['PB_PNP_DRIVER_INSTANCE']='ROOT\OTHER\0000'
+Assert-Throws {New-RuntimeEnvironmentPlan -Environment $badPnp -RuntimeConfig $runtime -ProductOnly} 'PNP_HEADLESS_INSTANCE_INVALID' 'foreign devnode must be rejected before runtime'
+$legacySeparate=Copy-Environment $pnpEnvironment;$null=$legacySeparate.Remove('PB_PNP_DRIVER_INSTANCE')
+Assert-Throws {New-RuntimeEnvironmentPlan -Environment $legacySeparate -RuntimeConfig $runtime -ProductOnly} 'HEADLESS_DRIVER_NOT_BESIDE_CLI' 'legacy kit path rule must remain enforced'
+Import-Module (Join-Path $root 'modules/PnpDriver.psm1')
+Assert-Throws {Set-VerifiedPnpDriverState -InstanceId $pnpPlan.pnp_instance_id -DriverPath $pnpEnvironment['PB_DRIVER_PATH'] -Sha256 ('a'*64) -State Running} 'PRODUCT_RUNTIME_NOT_ALLOWED' 'PnP transitions must require explicit runtime authorization'
+Assert-Throws {Set-VerifiedPnpDriverState -InstanceId 'ROOT\OTHER\0000' -DriverPath $pnpEnvironment['PB_DRIVER_PATH'] -Sha256 ('a'*64) -State Running -AllowProductRuntime} 'PNP_PRODUCT_INSTANCE_INVALID' 'foreign instance cannot reach system mutations'
+Assert-Throws {Set-VerifiedPnpDriverState -InstanceId $pnpPlan.pnp_instance_id -DriverPath 'C:\Other\ProxyBridgeDrv.sys' -Sha256 ('a'*64) -State Running -AllowProductRuntime} 'PNP_DRIVERSTORE_PATH_INVALID' 'PnP lifecycle must reject arbitrary service paths'
+
 if($EmitSummary){
     "EXACT_PROCESS_PREPARATION=$($exactResult.status) forced_fallback=$($exactAdapter.state.kill_count)"
     "FOREIGN_PROCESS_CONFLICT=$($foreignResult.reason) killed=$($foreignAdapter.state.kill_count)"

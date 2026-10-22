@@ -1,5 +1,8 @@
 # Передача новому чату: UDP/SOCKS5 и физический PB-SUT
 
+
+Актуальное продолжение: [loopback fix и штатный TestLab](UDP_LOOPBACK_AND_TESTLAB_2026-10-22.md).
+
 ## Актуально: разрешение получено, kernel trial выполнен, осталась return injection
 
 Читать [checkpoint реального trial и сравнения TestLab](UDP_DRIVER_TRIAL_CHECKPOINT_2026-10-22.md).

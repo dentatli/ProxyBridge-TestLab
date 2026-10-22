@@ -11,6 +11,7 @@ param(
     [string]$UdpProxyPythonPath = '',
     [switch]$UdpBenchmark,
     [switch]$MatchedComparisonWorkload,
+    [ValidateSet('LEGACY_RELAY','PACKET_CHANNEL')][string]$UdpCaptureMode = 'LEGACY_RELAY',
     [ValidateRange(16,40000)][int]$BenchmarkPacketCount = 64,
     [ValidateRange(0,200)][int]$BenchmarkIntervalMs = 100,
     [ValidateRange(0,1200)][int]$BenchmarkMessageSize = 0,
@@ -23,6 +24,7 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if (-not $AllowProductRuntime) { throw 'PRODUCT_RUNTIME_NOT_ALLOWED' }
+if ($UdpCaptureMode -eq 'PACKET_CHANNEL' -and $Protocol -ne 'UDP') { throw 'PACKET_CHANNEL_MODE_REQUIRES_UDP' }
 if ($EvidenceLogMode -eq 'BUFFERED' -and -not $UdpBenchmark) { throw 'BUFFERED_EVIDENCE_REQUIRES_UDP_BENCHMARK' }
 if ($MatchedComparisonWorkload -and -not $UdpBenchmark) { throw 'MATCHED_WORKLOAD_REQUIRES_UDP_BENCHMARK' }
 if ($BenchmarkMessageSize -gt 0 -and ($BenchmarkMessageSize -lt 256 -or -not $UdpBenchmark)) { throw 'IDENTIFIED_MESSAGE_SIZE_REQUIRES_BENCHMARK_AND_256_TO_1200_BYTES' }
@@ -39,12 +41,13 @@ if ($TrafficMode -eq 'OFF' -and ($Protocol -ne 'UDP' -or -not $UdpBenchmark)) { 
 if ($Protocol -eq 'UDP' -and ($ProxyType -ne 'SOCKS5' -or ($TrafficMode -eq 'RULES' -and $Actions -contains 'DIRECT'))) { throw 'UDP_PROBE_SUPPORTS_SOCKS5_PROXY_OR_UNRULED_ONLY' }
 if ($UdpBenchmark -and ($Protocol -ne 'UDP' -or $ProxyType -ne 'SOCKS5' -or $Actions.Count -ne 1 -or ($TrafficMode -eq 'RULES' -and $Actions[0] -ne 'PROXY'))) { throw 'BENCHMARK_REQUIRES_UDP_SOCKS5_PROXY_OR_UNRULED' }
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($module in @('Env','ProductBuild','RuntimeEnvironment','InterceptionState','ProxyBridgeCli','ProcessAdapter','ProxyBridgeEvidence')) { Import-Module (Join-Path $root ('modules/' + $module + '.psm1')) }
+foreach ($module in @('Env','ProductBuild','RuntimeEnvironment','InterceptionState','PnpDriver','ProxyBridgeCli','ProcessAdapter','ProxyBridgeEvidence')) { Import-Module (Join-Path $root ('modules/' + $module + '.psm1')) }
 if (Test-Path -LiteralPath $EvidenceDirectory) { throw 'PROBE_REQUIRES_NEW_EVIDENCE_DIRECTORY' }
 $null = New-Item -ItemType Directory -Path $EvidenceDirectory
 $EvidenceDirectory = (Resolve-Path -LiteralPath $EvidenceDirectory).Path
 $environment = Import-DotEnv -Path $EnvPath
 $python = Join-Path $root 'bin/dev-venv/Scripts/python.exe'
+if ($environment.ContainsKey('PB_LOCAL_PYTHON_EXE')) { $python = $environment['PB_LOCAL_PYTHON_EXE'] }
 $receiverPython = ''
 $client = Join-Path $root 'bin/pb_net_client.exe'
 $wheel = Join-Path $root 'bin/tools/pproxy-2.7.9/pproxy-2.7.9-py3-none-any.whl'
@@ -79,6 +82,7 @@ $receipt['traffic_mode'] = $(if ($TrafficMode -eq 'OFF') { 'product-off-direct' 
 $receipt['unruled_profile_verified'] = $false
 $receipt['product_off_verified'] = $false
 $receipt['receiver_process_identity_verified'] = $false
+$receipt['udp_capture_mode'] = $UdpCaptureMode
 if ($TrafficMode -eq 'UNRULED') { $receipt.scope = "IPv4 $Protocol directly to loopback receiver with ProxyBridge running; client outside rules" }
 if ($TrafficMode -eq 'OFF') { $receipt.scope = 'IPv4 UDP directly to loopback receiver; selected ProxyBridge stopped and not started' }
 function Save-ProbeJson($Value, [string]$Name) { $Value | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath (Join-Path $EvidenceDirectory $Name) -Encoding UTF8 }
@@ -206,7 +210,11 @@ try {
             [ordered]@{mode='product-running-unruled';client_process='pb_net_client.exe';configured_process='pb_testlab_other_app.exe';client_absent_from_rules=$true;watched_images=[int]$watchMatch.Groups[1].Value;cli_pid=$ownedCli.pid;cli_path=$ownedCli.actual_path;verified_at_utc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $EvidenceDirectory 'unruled-profile-evidence.json') -Encoding UTF8
         }
         if ($UdpBenchmark) {
-            if ($TrafficMode -eq 'RULES') {
+            if ($TrafficMode -eq 'RULES' -and $UdpCaptureMode -eq 'PACKET_CHANNEL') {
+                if ($ownedCli.session.Stdout -notmatch 'driver: UDP packet channel active \(ABI 1\)') { throw 'OWNED_UDP_PACKET_CHANNEL_NOT_REPORTED' }
+                [ordered]@{pid=$ownedCli.pid;path=$ownedCli.actual_path;driver_sha256=$environment['PB_EXPECTED_DRIVER_SHA256'];abi=1;source_policy='exact';verified_at_utc=[DateTime]::UtcNow.ToString('o')} | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $EvidenceDirectory 'packet-channel-ownership.json') -Encoding UTF8
+            }
+            if ($TrafficMode -eq 'RULES' -and $UdpCaptureMode -eq 'LEGACY_RELAY') {
             $relayMatch = [regex]::Match($ownedCli.session.Stdout, 'UDP relay listening on port (\d+)')
             if (-not $relayMatch.Success) { throw 'OWNED_UDP_RELAY_NOT_REPORTED' }
             $relayPort = [int]$relayMatch.Groups[1].Value
@@ -231,7 +239,7 @@ try {
                 $clientPlan.arguments += @('--stream-count',"$packetsPerStream",'--benchmark-streams',"$BenchmarkStreams",'--benchmark-warmup-count',"$BenchmarkWarmupPackets",'--stream-interval-ms',"$BenchmarkIntervalMs",'--second-remote-port',"$port")
                 if ($BenchmarkDestinationMode -eq 'DISTINCT') { $clientPlan.arguments += @('--benchmark-alternate-port',"$BasePort") }
                 if ($BenchmarkMessageSize -gt 0) { $clientPlan.arguments += @('--benchmark-message-size',"$BenchmarkMessageSize") }
-                if ($TrafficMode -in @('UNRULED','OFF')) { $clientPlan.arguments += @('--benchmark-source-policy','exact') }
+                if ($TrafficMode -in @('UNRULED','OFF') -or $UdpCaptureMode -eq 'PACKET_CHANNEL') { $clientPlan.arguments += @('--benchmark-source-policy','exact') }
                 else { $clientPlan.arguments += @('--benchmark-relay-ip','127.0.0.1','--benchmark-relay-port',"$relayPort") }
                 $clientPlan.timeout_ms = $benchmarkTimeoutMs
                 $native = $null
@@ -397,11 +405,15 @@ try {
             if ($remaining.Count) { throw 'PROBE_PRODUCT_PROCESS_REMAINS' }
             $afterCli = Get-InterceptionStateSnapshot -Environment $environment -AllowProductRuntime
             if ($afterCli.wfp.status -ne 'SERVICE_FILE_VERIFIED') { throw 'PROBE_DRIVER_IDENTITY_CHANGED' }
+            if ($environment.ContainsKey('PB_PNP_DRIVER_INSTANCE')) {
+                Set-VerifiedPnpDriverState -InstanceId $environment['PB_PNP_DRIVER_INSTANCE'] -DriverPath $environment['PB_DRIVER_PATH'] -Sha256 $environment['PB_EXPECTED_DRIVER_SHA256'] -State Stopped -AllowProductRuntime
+            } else {
             $controller = [ServiceProcess.ServiceController]::new('ProxyBridgeDrv')
             try {
                 if ($controller.Status -eq [ServiceProcess.ServiceControllerStatus]::Running) { $controller.Stop() }
                 $controller.WaitForStatus([ServiceProcess.ServiceControllerStatus]::Stopped,[TimeSpan]::FromSeconds(10))
             } finally { $controller.Dispose() }
+            }
             $after = Get-InterceptionStateSnapshot -Environment $environment -AllowProductRuntime
             Save-ProbeJson $after 'interception-after.json'
             $receipt.driver_stop_observed = $after.wfp.service_state -eq 'Stopped' -and $after.wfp_objects.query_complete -and $after.wfp_objects.no_known_objects_observed
