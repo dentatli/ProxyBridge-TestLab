@@ -1,10 +1,24 @@
 # UDP: loopback injection и сравнение штатным TestLab
 
+## Итог локального этапа
+
+Локальная проверка завершена: [итоговые before/after результаты](UDP_TESTLAB_BEFORE_AFTER_RESULTS_2026-10-22.md).
+Штатный TestLab15072/15072 через новую версию (включая1536 на финальном
+штатном CLI); final package1.1.0.0 —
+42/42 Direct,42/42 explicit SOCKS,39/39 Core включая stalled-proxy isolation.
+Восстановление исходного пакета подтверждено. Отдельный старый TCP DIRECT
+route defect воспроизведён до/после и не исправлен. Ниже — журнал этапов,
+не очередь возобновления старых trial. PR нет, integration driver не менялась.
+
+Последний product code head735b9fa, CLIbe95c16e, Core7a02e79b, final SYSc1ab4193.
+CLI Stop теперь принадлежит main, readiness flush-ится; upstream/ConPTY gate
+прошёл3 запуска без forced stop. Headless review kit сохранён отдельно.
+
 ## Текущий объём
 
 USER разрешил установку и проверки, потребовал сравнение до/после штатной
 лабораторией. Разрешение действует. PR/merge в integration `driver` не разрешены.
-Приоритеты: надёжность → скорость → ресурсы → размер. Работа продолжается.
+Приоритеты: надёжность → скорость → ресурсы → размер.
 
 ## Подтверждённое исправление
 
@@ -115,7 +129,9 @@ Test-ProcessLifecycle имеет прежнее несовместимое ож�
 Дальше: matched до/после с одинаковым instrumented CLI/native client, более
 длинной CPU/RAM фазой, TCP smoke и дополнительной two-stream UDP серией.
 
-Сначала проверить завершение r5 (command-output, route receipt, report, rollback),
-затем продвигаться по correctness и matched before/after штатными сценариями.
-Новые каталоги для каждого trial. Не Resume/reseal старые результаты. Не
-создавать PR. Посторонний untracked KernelReadCapture.cs не трогать/не запускать.
+Все описанные trial потреблены; не повторять/Resume/reseal. Для следующей
+проверки — свежие directories и final SYS c1ab4193/Core7a02e79b, package1.1.0.0.
+Локальный UDP объём завершён. Дальнейшее расширение: отдельный TCP DIRECT fix,
+external paths, multihoming одного endpoint, длительная нагрузка/power/HLK,
+политика owner crash. User сам проверяет перед запросом PR; не создавать PR
+автоматически. Посторонний untracked KernelReadCapture.cs не трогать/не запускать.

@@ -1,7 +1,7 @@
 # Передача новому чату: UDP/SOCKS5 и физический PB-SUT
 
 
-Актуальное продолжение: [loopback fix и штатный TestLab](UDP_LOOPBACK_AND_TESTLAB_2026-10-22.md).
+Итог локального UDP этапа: [before/after и финальный package1.1.0.0](UDP_TESTLAB_BEFORE_AFTER_RESULTS_2026-10-22.md). История — [журнал этапов](UDP_LOOPBACK_AND_TESTLAB_2026-10-22.md).
 
 ## Актуально: разрешение получено, kernel trial выполнен, осталась return injection
 
