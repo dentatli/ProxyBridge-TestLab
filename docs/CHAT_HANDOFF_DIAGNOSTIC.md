@@ -1,5 +1,14 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Передача следующей задачи
+
+USER планирует отдельный чат для новой проблемы. Подготовлена
+[передача UDP/SOCKS5 и управления физическим PB-SUT](NEXT_DIAGNOSTIC_CHAT_2026-10-22.md).
+В ней есть актуальные рабочие копии, WinRM wrapper, private DPAPI credential
+reference, GUI WinDbg topology и границы старых captures. В этом этапе target
+не опрашивался и UDP runtime не запускался. Issue ProxyBridge273 опубликован;
+автору задан вопрос о PR accept-before-setup, PR пока не открыт.
+
 ## Отчёт для Microsoft подготовлен
 
 По просьбе USER создан английский [bug report](MICROSOFT_WFP_REDIRECT_CONTEXT_BUG_REPORT_2026-10-22.md):
