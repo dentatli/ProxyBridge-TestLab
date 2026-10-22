@@ -1,28 +1,22 @@
-# Working preferences
+# ProxyBridge-TestLab
 
-- Respond in Russian by default. Lead with the outcome; keep answers concise, concrete, and clear. Include verification evidence and material limitations when relevant.
-- Complete authorized work autonomously. Resolve routine choices from context; ask only when missing input materially changes the outcome. Explicit task boundaries and stop points remain binding.
-- Distinguish observations, hypotheses, and proposed actions. Never claim a build, test, installation, or deployment succeeded without checking its result.
-- Inspect relevant files and symbols selectively. Use Serena for semantic navigation when connected and suitable; otherwise use targeted searches. Avoid dumping entire logs or repositories.
-- Match verification to the change and risk. Do not repeat successful checks without a new reason; honor explicit prohibitions on builds, installs, and execution.
-- Periodically check remaining Codex usage limits during active work and before long operations using the available usage-limits tool. If any applicable reported usage window has 5% or less remaining, stop starting new work, safely finish or unwind only actions needed to leave the system recoverable, save a concise checkpoint, and notify the user. If limits are unavailable, report that fact rather than estimating them.
-- When using grill-me or grilling, ask exactly one question at a time, explain the recommended choice, and wait for the answer.
+## Scope and context
 
-## Separate development and diagnostic work
+- Choose scope from the current request. Development and diagnosis are separate; neither historical NEXT entries nor development permissions authorize diagnostic runs.
+- Development: read [development handoff](docs/CHAT_HANDOFF_DEVELOPMENT.md). Continue UI, orchestration, reporting, and remote setup independently of the TCP failure. Do not investigate or fix that failure in development work. Preserve evidence gates and report actual test failures.
+- Diagnosis: start with [current UDP/SOCKS5 handoff](docs/NEXT_DIAGNOSTIC_CHAT_2026-10-22.md). For TCP/WinDbg, read the current summary and linked checkpoint in [diagnostic handoff](docs/CHAT_HANDOFF_DIAGNOSTIC.md). Respect applicable runtime restrictions; read older entries only as needed.
+- [Historical context](docs/history/AGENTS_CONTEXT_2026-10-08.md) is evidence, not an action queue or fresh authorization. Keep progress in the relevant handoff/topic document, not AGENTS.md.
 
-The user separated these tasks on 2026-10-08. Choose the scope from the user's request; do not infer scope from historical NEXT entries.
+## Workspace, checks, and Git
 
-- Application development: read [development handoff](docs/CHAT_HANDOFF_DEVELOPMENT.md). Continue TestLab functionality without investigating or fixing the TCP redirect-context failure. The unresolved failure does not block independent UI, orchestration, reporting, and remote-setup development. Preserve evidence gates and show actual test failures.
-- TCP failure / WinDbg diagnosis: read [diagnostic handoff](docs/CHAT_HANDOFF_DIAGNOSTIC.md), then its current checkpoint. Its runtime restrictions remain binding for diagnostic work. Do not use development authorization to bypass them.
-- Full prior project context is preserved in [historical snapshot](docs/history/AGENTS_CONTEXT_2026-10-08.md). This is historical evidence, not a global action queue. Read relevant entries selectively. Historical permissions, commands and NEXT entries do not override the current request and scoped handoffs.
-- Keep ongoing status in the corresponding handoff or topic document. Do not append the diagnostic journal to this file again.
+- Check Git status before edits; preserve other chats' changes. Do not reset, overwrite, or discard unrelated work. Use separate worktrees for parallel source edits when requested; they share the VM, driver, services, ports, and debugger.
+- Development checks expected to take <5 minutes are authorized; do not split longer suites to evade this limit. Coordinate ProxyBridge/traffic checks with diagnosis; do not run them with active debugger points or a diagnostic workload on the VM. This allowance excludes diagnostic Run.
+- Routine development must not change system proxy, BCD, trust/signing, hypervisor, power state, or product driver installation. Such work requires its own scope and authorization.
+- Preserve captures, frozen kits, and manifests. Do not refreeze or Resume old preparations, or claim a changed profile matches a frozen kit. Historical build/test results apply only to their recorded revisions.
+- Commit and push authorized source/docs changes; verify the remote result. No force-push. Exclude private captures, kits, archives, SSH private keys, credentials, and machine-specific backups.
 
-## Shared workspace and verification
+## WinDbg safety
 
-- Separate chats do not establish file ownership. Before editing, inspect Git status and preserve other work. Do not reset, overwrite or discard another chat's changes. Use separate worktrees for parallel source changes when requested; a worktree does not isolate the VM, driver, services, ports or debugger.
-- Debugger topology explicitly fixed by USER on 2026-10-22: run WinDbg inside the agent VM and debug only the physical PB-SUT (192.168.0.157). The agent may install and operate WinDbg here for PB-SUT, including Break, breakpoint enable and single-step. Never use WinDbg to debug the agent VM itself; do not reuse its old named-pipe connection. Before actions that can stop the target, warn that PB-SUT, including its WinRM/RDP, can pause and prepare recovery commands. The agent VM/Codex must remain the debugger host. Enter g as a separate command; it may be the last line of the same pasted block. The separate prohibition on KernelReadCapture and the previous hidden kd with redirected output remains in force.
-- Ordinary development checks expected to take less than five minutes are authorized. Do not split a longer suite to evade that limit. Coordinate checks that start ProxyBridge or generate traffic with diagnostic work; do not run them while debugger points are active or a diagnostic workload is using the VM. Diagnostic Run is not authorized by this general allowance.
-- Preserve captured evidence, frozen kits and their manifests. Do not refreeze or Resume old diagnostic preparations. Never claim that a changed profile conforms to a previously frozen kit.
-- Do not change system proxy, BCD, trust/signing, hypervisor configuration, power state or product driver installation as a routine development step. Keep such work separate from application development and obey its explicit authorization and stop points.
-- Commit and push authorized source/documentation changes, and verify the remote result. Do not commit private captures, kits, archives, SSH private keys, credentials or machine-specific backups. Do not force-push or discard unrelated work.
-- Historical test/build statuses are evidence for their recorded revisions, not proof of the current checkout. Verify claims against implementation and appropriate checks.
+- Agent VM is the debugger host; only physical PB-SUT (192.168.0.157) may be the target. Installing/operating WinDbg here for PB-SUT, including Break, breakpoint enable, and single-step, is authorized. Never debug the agent VM or reuse its old named pipe.
+- Before an action that can pause PB-SUT (including WinRM/RDP), warn the user and prepare recovery commands. Enter `g` on a separate command line; it may be the last line of a pasted block.
+- KernelReadCapture and hidden kd with redirected output remain prohibited.
