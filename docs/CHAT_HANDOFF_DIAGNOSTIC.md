@@ -1,5 +1,33 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Действующее разрешение USER: WinDbg внутри agent VM, target только PB-SUT
+
+2026-10-22 USER явно подтвердил: можно установить и использовать WinDbg здесь
+для физического PB-SUT192.168.0.157; agent VM больше не является debuggee.
+Это заменяет прежнее требование передавать Break/enable физическому хосту USER.
+AGENTS.md обновлён. Агент может сам управлять WinDbg для PB-SUT, заранее
+предупреждая о паузе target WinRM/RDP и имея recovery g. Старую named-pipe
+сессию к самой VM не использовать. KernelReadCapture и прежний hidden kd
+с redirected output по-прежнему запрещены; разрешение не оправдывает их повтор.
+
+SDK GUI WinDbg уже установлен: C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\windbg.exe,
+fileversion10.0.28000.2526. Повторная установка не нужна для первого GUI connect.
+На момент проверки windbg/WinDbgX/kd/KernelReadCapture processes отсутствовали.
+Предыдущая просьба USER открыть WinDbg на основном ПК больше не актуальна.
+
+После этого GUI WinDbg запущен здесь через обычный видимый Start-Process,
+PID9212 на момент запуска, target192.168.0.157:50055, initial command g.
+stdout/stderr НЕ перенаправлялись; SDKkd/KernelReadCapture не запускались.
+Перед запуском freeRAM3.77GiB. Сохранённый ключ прочитан с PB-SUT через
+временную WinRM session; клиентские TrustedHosts/service восстановлены.
+Проверено наличие одного GUI окна с NETtargetPB-SUT. Это НЕ доказательство
+Kernel Debugger connection established: console output пока не считан,
+Break/точки/новый Run не выполнялись. Не запускать второй debugger вслепую.
+Sky UIA показывает только заголовки, без command edit controls; root title
+содержит transport key, не выводить его/CommandLine и не снимать screenshot
+до установки безопасного заголовка. Следующий запуск должен использовать
+WinDbg -T с нейтральным title. UIA set_value title не изменил фактический title.
+
 ## USER потребовал окончательного подтверждения; нужен связанный kernel capture
 
 Причина всё ещё не объявлена окончательно подтверждённой. Подготовлен PRIVATE
