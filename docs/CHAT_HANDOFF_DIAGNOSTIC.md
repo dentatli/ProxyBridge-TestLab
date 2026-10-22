@@ -1,5 +1,15 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Отчёт для Microsoft подготовлен
+
+По просьбе USER создан английский [bug report](MICROSOFT_WFP_REDIRECT_CONTEXT_BUG_REPORT_2026-10-22.md):
+ожидаемое/фактическое поведение, modified sample disclosure, pinned sources,
+минимальное воспроизведение, A/B без debugger, связанная kernel цепочка,
+хеши evidence и границы вывода. Файлы/ссылки сверены с сохранёнными данными;
+нового runtime не было. Отчёт не отправлен, raw captures не опубликованы.
+Механизм установлен для исследованного отказа; intended private-bit semantics,
+точный Windows source fix и другие версии ОС ещё не подтверждены Microsoft.
+
 ## Актуальный итог — 2026-10-22: механизм подтверждён одним flow
 
 Читать [итоговый связанный захват](TCP_CONTEXT_SINGLE_FLOW_CONFIRMED_2026-10-22.md).
