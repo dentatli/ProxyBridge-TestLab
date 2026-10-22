@@ -1,5 +1,16 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Причина UDP установлена: потеря назначения и владельца ответа
+
+См. [разбор причины](UDP_FLOW_IDENTITY_ROOT_CAUSE_2026-10-22.md).
+Новый driver-only опыт: один живой concrete-bound сокет отправил A/B двум
+назначениям; QUERY при чтении A уже вернул назначение B. Map хранит последнее
+назначение endpoint, а не назначение пакета. Общая SOCKS association Core
+теряет владельца ответа; IPv6 читает таблицу без заполнителя в WFP backend.
+Алгоритмы предшествуют нашим двум PR. Wildcard-only patch недостаточен.
+Offline review PASS; raw marker one_source исправлен только в интерпретации
+(tuple/list mismatch). Стенд восстановлен, продукт не изменён, PR нет.
+
 ## Актуальный UDP checkpoint: текущая driver, локальный режим PB-SUT
 
 Завершена [локальная матрица](UDP_LOCAL_MATRIX_CURRENT_DRIVER_2026-10-22.md)
