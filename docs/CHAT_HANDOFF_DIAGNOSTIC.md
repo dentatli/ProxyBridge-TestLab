@@ -1,5 +1,17 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Актуальный UDP checkpoint: текущая driver, локальный режим PB-SUT
+
+Завершена [локальная матрица](UDP_LOCAL_MATRIX_CURRENT_DRIVER_2026-10-22.md)
+на `b359627` Core и соответствующем установленном KMDF-драйвере. Direct и
+explicit SOCKS5 controls прошли IPv4/IPv6; Core IPv4=4/6, IPv6=0/6.
+Driver-only IOCTL подтвердил wildcard mismatch обеих семей; paired IPv4
+показал доставку ответа A клиенту B. Нужны исправления драйвера и Core.
+USER выбрал локальный режим; внешний Linux-origin не включать в этот этап.
+Product source/PR не менялись. PB-SUT возвращён в исходные
+Stopped/Disabled/problem32, listeners0/processes0; HLKsvc Running.
+Старые TCP captures не пересматривались, debugger не использовался.
+
 ## UDP/SOCKS5 — новый результат
 
 Исследование UDP начато и локализовало

@@ -1,5 +1,14 @@
 # Передача новому чату: UDP/SOCKS5 и физический PB-SUT
 
+## Текущий результат на объединённой driver
+
+См. [локальную матрицу PB-SUT](UDP_LOCAL_MATRIX_CURRENT_DRIVER_2026-10-22.md).
+База `b359627`, новый Core, установленный соответствующий KMDF SYS.
+Подтверждены wildcard map mismatch, отдельный IPv6 relay gap и cross-delivery
+ответов двух IPv4-клиентов. Direct/explicit controls прошли обе семьи.
+USER выбрал локальный режим вместо недоступного Linux-origin.
+Стенд восстановлен, продуктовая UDP-ветка чистая, исправление ещё не внесено.
+
 ## Обновление: причина локализована на исходном комплекте
 
 См. [UDP map address mismatch](UDP_MAP_ADDRESS_MISMATCH_2026-10-22.md).
