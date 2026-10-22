@@ -1,5 +1,9 @@
 # ProxyBridge-TestLab
 
+## Product priorities
+
+- For ProxyBridge architecture and optimization, priorities in strict descending order are: (1) traffic reliability and stability; (2) traffic processing speed, latency and throughput; (3) resource consumption (CPU, RAM, handles/sockets); (4) application/distribution size. Implementation complexity is secondary. Do not sacrifice correctness, isolation, or stability for speed or size. Establish functional correctness first; compare performance and resource use by measurements, not promises.
+
 ## Scope and context
 
 - Choose scope from the current request. Development and diagnosis are separate; neither historical NEXT entries nor development permissions authorize diagnostic runs.
