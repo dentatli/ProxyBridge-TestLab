@@ -1,5 +1,29 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий checkpoint: разобрана нефатальная обработка RST до SYN retry
+
+Читать [механизм TCP retry/WFP metadata](TCP_CONTEXT_RST_RETRY_MECHANISM_2026-10-22.md).
+Без target runtime найдено: TcpTcbReceive вызывает WFP receive inspection
+перед TCP-разбором/решением RST; receive OR+30/200000h предшествует TCP retry.
+TcpTcbCarefulDatagram/SynSent/RST+ACK имеет нефатальную500мс ветку; отдельная
+abort ветка зависит от ConnectFailFast/flags/неименованныхbyte fields.
+ETL выбранного TCB подтверждает500мс timer через1.2/0.9/0.9мкс после каждого
+из трёх раннихRST. Именно поэтому RST здесь не обязан немедленно завершить
+connect. FastOpen как отдельная причина не доказан; настройки TCP не менять.
+
+Технически важное: .pdata range не равен всей функции! Доработан private
+разбор UNW_FLAG_CHAININFO; TcpTcbReceive включает hot+secondary+coldfragment,
+CarefulDatagram включаетcoldRSTpath1bff20..1c0d9f. Усечённые первые dumps
+не считать доказательством отсутствия ветвей/calls.
+Send gate наbit21 напрямую обходит key5association и не проверяет TCP SYN;
+вместе с A/B раннегоRST это локализует вероятную несогласованность между
+receive inspection marker и продолжающимся handshake. Полногоsingle-flow
+kerneljoin всё ещё нет; privatebitнепатчить. Возможноеvendorfixповедение:
+сохранятьassociation/lifetimeнаSYNretryпослераннегоreceive.
+Новые workloads/debuggers/установки не запускались, последнееtargetQUIESCENT.
+Product37e64c6 не менялась; новые tests не добавлялись. Untracked
+KernelReadCapture.cs сохранён, не запускать/не коммитить.
+
 ## Актуальное уточнение: ранние RST найдены; без них retries сохраняют context
 
 Читать [различающий опыт](TCP_CONTEXT_RST_DISCRIMINATION_2026-10-22.md).
