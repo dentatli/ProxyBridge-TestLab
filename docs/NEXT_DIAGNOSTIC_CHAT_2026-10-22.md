@@ -1,5 +1,15 @@
 # Передача новому чату: UDP/SOCKS5 и физический PB-SUT
 
+## Реализация UDP и следующий runtime gate
+
+Сначала прочитать [checkpoint реализации](UDP_PACKET_CHANNEL_IMPLEMENTATION_2026-10-22.md).
+UDP-ветка продукта `30b4ec7` опубликована, integration `driver` по-прежнему
+`b359627`. Build/native analysis/INF и изолированные Core проверки прошли;
+новый SYS не устанавливался и kernel runtime не подтверждён. Signed candidate,
+baseline backup на PB-SUT и bounded rollback trial подготовлены, но не запущены:
+требуется разрешение на замену product driver package. PR не разрешён.
+Старые описания «продукт не изменён» ниже относятся к предыдущим checkpoints.
+
 ## Актуальная причина UDP — читать перед планированием исправления
 
 [Разбор потери назначения и идентичности клиента](UDP_FLOW_IDENTITY_ROOT_CAUSE_2026-10-22.md)

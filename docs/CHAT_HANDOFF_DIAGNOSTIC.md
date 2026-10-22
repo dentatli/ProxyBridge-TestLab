@@ -1,5 +1,16 @@
 # Передача чату диагностики TCP / WinDbg
 
+## UDP реализация: kernel runtime gate ещё не пройден
+
+[Реализация и проверки](UDP_PACKET_CHANNEL_IMPLEMENTATION_2026-10-22.md):
+product commit `30b4ec7` опубликован в UDP-ветке; `driver` не менялась, PR нет.
+Core/CLI/driver builds, native analysis и standalone INF verification прошли.
+Packet builder 28/28, Core IOCP через simulated device на PB-SUT — IPv6/domain/
+auth, владельцы/адреса ответов верны, все I/O освобождены. SYS ещё не загружался.
+Подписанный candidate, baseline export и bounded trial/rollback script готовы;
+установка требует отдельного разрешения. PB-SUT Stopped/Disabled, trust/BCD
+не изменены. Подробные ограничения и hashes — в отчёте.
+
 ## Выбор решения и уточнённые приоритеты
 
 USER зафиксировал порядок: надёжность/стабильность → скорость обработки →
@@ -7,7 +18,7 @@ USER зафиксировал порядок: надёжность/стабил�
 Сравнение и выбранная архитектура: [варианты UDP](UDP_SOLUTION_SELECTION_2026-10-22.md).
 Выбран WFP datagram path с payload/metadata через ограниченный async device
 channel и SOCKS association на endpoint/config. Это проектное решение,
-производительность ещё не измерена; реализация не начата, разрешения на PR нет.
+производительность ещё не измерена; реализация начата (см. checkpoint выше), разрешения на PR нет.
 
 ## Причина UDP установлена: потеря назначения и владельца ответа
 
