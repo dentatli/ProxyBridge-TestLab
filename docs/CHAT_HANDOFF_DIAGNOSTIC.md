@@ -1,5 +1,31 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Текущий checkpoint: один flow после drop; RST после10022
+
+USER возобновил исследование. Читать
+[новый результат и границы вывода](TCP_CONTEXT_SINGLE_FLOW_DROP_2026-10-22.md).
+На физическом PB-SUT26200.9711, corrected sampleSYS/kit-r7, без debugger:
+один flow, точный временный inbound block, безfillers -> оба getters10022/0;
+ETWReason7x3/retry1/2/3/loss0. Следующий Healthy flow records970/context256/
+data512KiB обе стороны pass. Переполнение очереди не обязательно для отказа.
+Один зарегистрированный выбранный RST идёт ПОСЛЕ getter на2.0419мс, PID/TID
+совпадают с serverquery. Это сверено rawQPC и обычным OpenTrace на одном ETL,
+не через предположительное BootTime+QPC. Полное отсутствие других RST на
+уровне пакетов не доказано. Предположение об обязательном предварительном
+RST больше не поддерживается. Accept-first предотвращает проверенный trigger
+очереди; универсальное исправление metadata retry им не доказано.
+
+Статически разобран прежний VM26100 tcpip.sys+matchingPDB: send bit gate
+обходит key5association; receive setter перед последующим resultcheck.
+Это не прямое execution proof для физического26200; private bit не патчить.
+Финальное состояние проверено QUIESCENT: filters0/probe0/listener0,
+sampleStopped/productStopped, HLKRunning. Новый runtime после этого не запускался.
+PktMon только inventory, захватов/фильтров нет. KernelReadCapture untracked
+сохранён, не запускать/не коммитить. Product branch37e64c6 не менялась, тесты
+не возвращались. Новый диагностический ModeSilentRetry в TestLab controller.
+Следующий полезный шаг — single-flow association first-SYN vs retry с точной
+привязкой к26200; не повторять200fillers и не включать широкие raw points.
+
 По явной просьбе USER история feature branch очищена до одного коммита:
 37e64c6e835a64833f1d3ae385052bb2125b93e6, parent Driver63be0eb. Итоговое дерево
 идентично прежнему92c7a61 (только relay source); промежуточных добавлений/удалений

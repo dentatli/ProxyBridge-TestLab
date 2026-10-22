@@ -1,6 +1,6 @@
 [CmdletBinding()]
 param(
-    [ValidateSet('Healthy','Target','Capacity','Drain')][string]$Mode='Healthy',
+    [ValidateSet('Healthy','Target','Capacity','Drain','SilentRetry')][string]$Mode='Healthy',
     [Parameter(Mandatory=$true)][ValidatePattern('^[a-zA-Z0-9-]+$')][string]$TrialId,
     [string]$KitDirectory='C:\PB-Independent-Wfp-20261021-r2',
     [ValidateRange(42201,65535)][int]$ControlPort=42201,
@@ -18,9 +18,9 @@ $probe=Join-Path $kit 'WfpContextProbe.exe'
 $cli=Join-Path $kit 'WFPSampler.exe'
 $children=New-Object System.Collections.Generic.List[System.Diagnostics.Process]
 $trace='PBWfp-'+$TrialId
-$traceStarted=$false;$policyAdded=$false;$cleanupErrors=@()
+$traceStarted=$false;$policyAdded=$false;$blockAdded=$false;$cleanupErrors=@()
 $result=[ordered]@{status='INCOMPLETE';mode=$Mode;directory=$directory;control_port=$ControlPort;records_first=[bool]$RecordsFirst;filler_base_port=$FillerBasePort}
-$bulk=$Mode -ne 'Healthy'
+$bulk=$Mode -in @('Target','Capacity','Drain')
 function Wait-File([string]$name,[int]$milliseconds=10000){
     $watch=[Diagnostics.Stopwatch]::StartNew()
     while($true){
@@ -63,11 +63,20 @@ try{
     & $cli @policy *> "$directory\policy-add.txt"
     if($LASTEXITCODE -ne 0){throw 'POLICY_ADD_FAILED'}
     $policyAdded=$true
+    if($Mode -eq 'SilentRetry'){
+        # Exact incoming tuple only. Remove after SynSent is observed; ETW
+        # records how many retransmissions occurred before removal completed.
+        $blockPolicy=@('-s','BASIC_ACTION_BLOCK','-l','FWPM_LAYER_INBOUND_TRANSPORT_V4','-ipp','TCP','-ipla','127.0.0.1','-iplp','34010','-ipra','127.0.0.1','-iprp',"$ControlPort",'-v')
+        $blockPolicy | ConvertTo-Json | Set-Content "$directory\block-policy-arguments.json" -Encoding UTF8
+        & $cli @blockPolicy *> "$directory\block-add.txt"
+        if($LASTEXITCODE -ne 0){throw 'SILENT_BLOCK_ADD_FAILED'}
+        $blockAdded=$true
+    }
     & logman.exe start $trace -ets -o "$directory\tcpip.etl" -p Microsoft-Windows-TCPIP 0xffffffffffffffff 5 -bs 128 -nb 32 128 *> "$directory\trace-start.txt"
     if($LASTEXITCODE -ne 0){throw 'TRACE_START_FAILED'}
     $traceStarted=$true
     if($Mode -eq 'Drain'){$null=New-Item -ItemType File "$directory\server-release.flag"}
-    if($Mode -eq 'Healthy'){
+    if(-not $bulk){
         $null=New-Item -ItemType File "$directory\server-release.flag"
     }else{
         $fillers=Start-Probe 'fillers' 200
@@ -82,7 +91,7 @@ try{
     }
     $control=Start-Probe 'control' 1
     $null=Wait-File 'control-started.json'
-    if($Mode -eq 'Target'){
+    if($Mode -in @('Target','SilentRetry')){
         $watch=[Diagnostics.Stopwatch]::StartNew();$syn=$null
         while($watch.ElapsedMilliseconds -lt 3000){
             $syn=Get-NetTCPConnection -OwningProcess $control.Id -LocalPort $ControlPort -State SynSent -ErrorAction SilentlyContinue
@@ -91,7 +100,14 @@ try{
         if(-not $syn){throw 'CONTROL_SYN_SENT_NOT_OBSERVED'}
         $syn | Select-Object LocalAddress,LocalPort,RemoteAddress,RemotePort,State,OwningProcess | ConvertTo-Json | Set-Content "$directory\control-syn.json" -Encoding UTF8
         Start-Sleep -Milliseconds 100
-        $null=New-Item -ItemType File "$directory\server-release.flag"
+        if($Mode -eq 'SilentRetry'){
+            & $cli @blockPolicy -r *> "$directory\block-remove.txt"
+            if($LASTEXITCODE -ne 0){throw 'SILENT_BLOCK_REMOVE_FAILED'}
+            $blockAdded=$false
+            $result['block_removed_after_syn_sent']=$true
+        }else{
+            $null=New-Item -ItemType File "$directory\server-release.flag"
+        }
     }
     if($Mode -in @('Capacity','Drain')){
         $connected=Wait-File 'control-ready.json' 15000
@@ -117,6 +133,12 @@ try{
     if($Mode -eq 'Healthy'){
         if(@($rows | Where-Object {-not $_.contextValid -or -not $_.dataValid}).Count){throw 'HEALTHY_CONTEXT_OR_DATA_FAILED'}
         $result.status='HEALTHY_SUCCESS'
+    }elseif($Mode -eq 'SilentRetry'){
+        if($rows[0].peerPort -ne $ControlPort){throw 'CONTROL_QUERY_PORT_DIFFERS'}
+        $result['selected_query']=$rows[0]
+        if($rows[0].contextValid -and $rows[0].dataValid){$result.status='SILENT_RETRY_QUERY_SUCCESS_ETW_PENDING'}
+        elseif($rows[0].apiError -eq 10022 -and $rows[0].bytesReturned -eq 0){$result.status='SILENT_RETRY_CONTEXT_FAILURE_ETW_PENDING'}
+        else{throw 'OTHER_CONTROL_FAILURE'}
     }else{
         $selected=@($rows | Where-Object peerPort -eq $ControlPort)
         if($selected.Count -ne 1){throw 'CONTROL_QUERY_COUNT_DIFFERS'}
@@ -130,6 +152,7 @@ try{
 }catch{$result['error']=$_.Exception.Message}
 finally{
     if($traceStarted){& logman.exe stop $trace -ets *> "$directory\trace-stop.txt";if($LASTEXITCODE -ne 0){$cleanupErrors+='TRACE_STOP_FAILED'}}
+    if($blockAdded){& $cli @blockPolicy -r *> "$directory\block-remove-cleanup.txt";if($LASTEXITCODE -ne 0){$cleanupErrors+='SILENT_BLOCK_REMOVE_FAILED'}}
     if($policyAdded){& $cli @policy -r *> "$directory\policy-remove.txt";if($LASTEXITCODE -ne 0){$cleanupErrors+='POLICY_REMOVE_FAILED'}}
     foreach($process in $children){try{if(-not $process.HasExited){$process.Kill();$process.WaitForExit()}}catch{$cleanupErrors+=$_.Exception.Message}}
     $result['cleanup_errors']=$cleanupErrors
