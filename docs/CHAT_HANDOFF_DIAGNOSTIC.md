@@ -1,5 +1,20 @@
 # Передача чату диагностики TCP / WinDbg
 
+## 22 октября: USER выбрал accept-before-setup; готова отдельная product правка
+
+Читать [код, совместимость и проверки](PROXYBRIDGE_ACCEPT_SETUP_FIX_2026-10-22.md).
+Свежие git refs Driver63be0eb, PR243head9b5fff5. Новый commit0e5693d в fork
+dentatli/codex/accept-before-setup; только один production file TCP relay,
+fixed queue512 + один setup worker, backlog не менялся, WFP/PnP/IOCTL нетронуты.
+Шесть native regression cases passed на физическом PB-SUT (mock WFP queries,
+real loopback IPv4/IPv6). User-mode DLL build exit0 для Driver+fix и PR243+fix;
+точный merge-tree совпал с фактической интеграцией, без конфликтов.
+PR243 не менялся; local integration5c4dab4 только для проверки. Product runtime,
+реальный WFP/IPv6 metadata/HLK новой revision ещё не проверены; не наследовать
+старые passes. DLL/driver не устанавливались; следующий product шаг — такая
+отдельная проверка перед production rollout. Windows root cause не объявлять
+доказанной. Не возвращаться к упавшему KernelReadCapture/hidden kd.
+
 ## 22 октября: предотвращение отказа очереди проверено двумя способами
 
 USER включил PB-SUT и явно возобновил работу. Читать
