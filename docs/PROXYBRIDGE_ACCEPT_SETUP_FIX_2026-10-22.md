@@ -7,8 +7,11 @@ USER выбрал именно быстрый приём до обработки
 
 - InterceptSuite/ProxyBridge Driver:63be0ebf9bec92bfba95ef3d6729c375aa9af84e.
 - PR243 head:9b5fff56ced41eacf0f50b7f1b43b54a1dbb093f.
-- Новое исправление:0e5693d35e73fad6114c668be6a0da9cfa5aa546,
+- Текущий чистый commit:37e64c6e835a64833f1d3ae385052bb2125b93e6,
   [ветка в форке](https://github.com/dentatli/ProxyBridge/tree/codex/accept-before-setup).
+  По явному запросу USER тестовые файлы убраны и история сведена к одному
+  коммиту над Driver63be0eb. Код relay идентичен проверенному варианту ниже.
+  Тестовые материалы и прежние commit IDs ниже являются историей проверки.
 - Локальная интеграция с PR:5c4dab4, tree
   bd0b7f2639c16ab289edd765c40341d2f793a875. Merge-tree и фактический merge
   дали одинаковое дерево, конфликтов нет. Удалённый PR243 не менялся.
