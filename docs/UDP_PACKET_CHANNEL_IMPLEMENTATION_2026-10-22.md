@@ -1,5 +1,10 @@
 # UDP packet channel: реализация и граница сквозной проверки
 
+**Последующее обновление:** [первый реальный driver trial](UDP_DRIVER_TRIAL_CHECKPOINT_2026-10-22.md)
+выполнен по разрешению USER: kernel gate не пройден, driver return injection
+error после успешного SOCKS roundtrip. Baseline восстановлен. Описание ниже
+фиксирует подготовку до этой установки, а не актуальный запрет на её выполнение.
+
 ## Состояние
 
 Реализация опубликована в `dentatli/ProxyBridge:codex/udp-map-source-key`, commit

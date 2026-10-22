@@ -1,5 +1,15 @@
 # Передача новому чату: UDP/SOCKS5 и физический PB-SUT
 
+## Актуально: разрешение получено, kernel trial выполнен, осталась return injection
+
+Читать [checkpoint реального trial и сравнения TestLab](UDP_DRIVER_TRIAL_CHECKPOINT_2026-10-22.md).
+USER разрешил установку и проверку; повторное разрешение не нужно. Требует
+штатного лабораторного before/after. Первый trial отрицательный: controls
+проходят, Core outbound/SOCKS roundtrip наблюдаем, driver inject_error=1,
+worker timeout. Baseline package восстановлен, стенд quiescent. Остановлено
+на remaining=5% Codex; точный NTSTATUS/исправление/сравнение ещё впереди.
+Ниже предыдущие checkpoints; их «установка не разрешена» уже устарело.
+
 ## Реализация UDP и следующий runtime gate
 
 Сначала прочитать [checkpoint реализации](UDP_PACKET_CHANNEL_IMPLEMENTATION_2026-10-22.md).

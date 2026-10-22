@@ -1,5 +1,17 @@
 # Передача чату диагностики TCP / WinDbg
 
+## Первый реальный UDP driver trial: return injection error; остановка по лимиту
+
+Сначала [актуальный checkpoint](UDP_DRIVER_TRIAL_CHECKPOINT_2026-10-22.md).
+USER разрешил установку/проверки и потребовал сравнение до/после через TestLab.
+Новый SYS реально установлен/запущен: controls12/12+12/12; первый Core case
+timeout, при этом proxy_out/origin/proxy_return имеют одинаковый hash и
+driver inject_error=1. Точный completion NTSTATUS ещё не получен.
+Исходный пакет восстановлен (hash baseline, Stopped/Disabled/problem32).
+Сравнение TestLab ещё не выполнено; найден штатный UDP comparison pipeline.
+Новая установка в этой работе уже разрешена; r1 trial не повторять.
+Usage remaining=5%, поэтому новые действия прекращены, сохранён checkpoint.
+
 ## UDP реализация: kernel runtime gate ещё не пройден
 
 [Реализация и проверки](UDP_PACKET_CHANNEL_IMPLEMENTATION_2026-10-22.md):
