@@ -1,5 +1,12 @@
 # Передача чату диагностики TCP / WinDbg
 
+USER затем явно потребовал убрать Windows/tests из ветки и больше не писать
+тесты. Все три файла удалены commit92c7a617a5c55e4c34ae48aa8a3deff9332176fd,
+fork branch codex/accept-before-setup обновлён и remote SHA проверен. Итоговый
+diff к Driver63be0eb содержит только Windows/src/relay/pb_relay_tcp.c.
+Прежние test результаты ниже — исторические свидетельства, не файлы текущей
+feature branch. Не возвращать тесты и не писать новые без нового указания USER.
+
 ## 22 октября: USER выбрал accept-before-setup; готова отдельная product правка
 
 Читать [код, совместимость и проверки](PROXYBRIDGE_ACCEPT_SETUP_FIX_2026-10-22.md).
