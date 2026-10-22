@@ -6,8 +6,39 @@
 только по явному требованию пользователя после его проверки; разрешение
 создать PR не является разрешением слить его. Разрешение двух перечисленных
 ниже PR не распространяется на будущие PR.
+Способ будущего слияния — **Squash and merge**: один законченный PR,
+один коммит в `driver`.
 
-## Выполненная подготовка
+## Актуальное состояние после очистки истории
+
+По явному требованию пользователя обычные merge commits заменены двумя
+squash-коммитами поверх upstream `63be0eb`:
+
+- `3624e620189bff243c2c0462df9aff981944b2e6` — изменения PR #1, HLK/KMDF;
+- `b3596272a8dc8898790b016d1e4c488c2fdc917d` — изменения PR #2, accept-before-setup.
+
+Fork `driver` и `codex/udp-map-source-key` опубликованы на `b359627` одним
+atomic push, с отдельным force-with-lease по ожидаемому старому SHA каждой
+ветки. Это разовое явно разрешённое переписывание; будущие force-push этим
+не разрешены. Проверено: ровно два коммита поверх `63be0eb`, оба без merge
+parents; итоговое Git tree полностью совпадает с прежним `eb8c1a7`, дерево
+первого squash совпадает с прежним результатом PR #1. Код не менялся,
+build/runtime не повторялись.
+
+GitHub PR #1/#2 сохраняют исторические записи первоначального merge;
+уже состоявшийся способ слияния в карточке PR задним числом не меняется.
+Новая история веток построена эквивалентными squash-коммитами.
+
+В Git repository рабочей копии `C:\src\ProxyBridge-accept-first` прежний
+`eb8c1a7` сохранён локально в
+`refs/codex-backups/driver-before-squash-20261022` и
+`refs/codex-backups/udp-map-before-squash-20261022`.
+Существовавшая старая локальная `driver` имела отдельный коммит и сохранена
+как `archive/driver-before-cleanup-20261022`; новая локальная `driver`
+соответствует `dentatli/driver`. Рабочая UDP-ветка чистая и также на `b359627`.
+Исходные feature-ветки PR не переписывались. Новый UDP PR не создавался.
+
+## Предыдущая подготовка до очистки истории
 
 - Fork `driver` обновлён fast-forward с `137d128` до upstream
   `InterceptSuite/ProxyBridge:Driver` на
@@ -29,11 +60,11 @@
 
 Для новой ветки переиспользована чистая рабочая копия
 `C:\src\ProxyBridge-accept-first`; её имя каталога историческое.
-Она теперь находится на `codex/udp-map-source-key`, tracking
+Она находится на `codex/udp-map-source-key`, tracking
 `dentatli/codex/udp-map-source-key`. Ветка `codex/accept-before-setup`
 и её коммит сохранены. Диагностическая TestLab-копия не переключалась.
 
-Fork `driver` и UDP-ветка сверены через ls-remote: обе указывают на
+Перед очисткой fork `driver` и UDP-ветка были сверены через ls-remote на
 `eb8c1a72ed30dd8e6a2b5414d4086fe0a6bd7c06`. Upstream `Driver` при
 синхронизации был `63be0eb`; новые merge commits добавлены только в fork.
 Исторические captures и результаты

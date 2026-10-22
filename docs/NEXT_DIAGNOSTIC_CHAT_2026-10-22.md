@@ -56,8 +56,10 @@ startup config/rules. Не чинить это повторно по старо�
 Актуальный [порядок работы с ветками продукта](PRODUCT_BRANCH_WORKFLOW.md):
 fork `driver` синхронизирован с upstream `Driver` (`63be0eb`), затем оба
 запрошенных PR слиты по явному разрешению USER. Fork `driver` и UDP-ветка
-теперь на `eb8c1a7`. Каталог `C:\src\ProxyBridge-accept-first`
-на `codex/udp-map-source-key`, обновлённой fast-forward от fork `driver`; ниже прежняя
+после разрешённой USER очистки истории находятся на `b359627`: два squash
+коммита поверх upstream вместо merge commits, итоговые файлы идентичны
+прежнему `eb8c1a7`. Каталог `C:\src\ProxyBridge-accept-first`
+на `codex/udp-map-source-key` от fork `driver`; ниже прежняя
 привязка этого каталога к accept-before-setup описывает состояние передачи.
 Новые PR в `driver` — только по явному требованию пользователя.
 
