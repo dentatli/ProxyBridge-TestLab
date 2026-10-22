@@ -53,6 +53,13 @@ startup config/rules. Не чинить это повторно по старо�
 
 ## Рабочие копии и закрытый TCP вопрос
 
+Актуальный [порядок работы с ветками продукта](PRODUCT_BRANCH_WORKFLOW.md):
+fork `driver` синхронизирован с upstream `Driver` (`63be0eb`); два запрошенных
+PR в fork открыты, но не слиты. Каталог `C:\src\ProxyBridge-accept-first`
+теперь на новой `codex/udp-map-source-key` от fork `driver`; ниже прежняя
+привязка этого каталога к accept-before-setup описывает состояние передачи.
+Новые PR в `driver` — только по явному требованию пользователя.
+
 - Диагностика: C:\src\ProxyBridge-TestLab, codex/checkpoint-20261007.
 - Разработка: C:\Users\LabAdmin\.codex\worktrees\testlab-development\ProxyBridge-TestLab,
   codex/development-functional-completion. HEAD при чтении d5b51f3; status clean.

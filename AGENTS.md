@@ -14,6 +14,7 @@
 - Routine development must not change system proxy, BCD, trust/signing, hypervisor, power state, or product driver installation. Such work requires its own scope and authorization.
 - Preserve captures, frozen kits, and manifests. Do not refreeze or Resume old preparations, or claim a changed profile matches a frozen kit. Historical build/test results apply only to their recorded revisions.
 - Commit and push authorized source/docs changes; verify the remote result. No force-push. Exclude private captures, kits, archives, SSH private keys, credentials, and machine-specific backups.
+- Product branches follow the [owner-controlled driver workflow](docs/PRODUCT_BRANCH_WORKFLOW.md): new work branches from dentatli/ProxyBridge `driver`; PR creation and merging each require an explicit user request.
 
 ## WinDbg safety
 
