@@ -5,6 +5,7 @@
 - Distinguish observations, hypotheses, and proposed actions. Never claim a build, test, installation, or deployment succeeded without checking its result.
 - Inspect relevant files and symbols selectively. Use Serena for semantic navigation when connected and suitable; otherwise use targeted searches. Avoid dumping entire logs or repositories.
 - Match verification to the change and risk. Do not repeat successful checks without a new reason; honor explicit prohibitions on builds, installs, and execution.
+- Periodically check remaining Codex usage limits during active work and before long operations using the available usage-limits tool. If any applicable reported usage window has 5% or less remaining, stop starting new work, safely finish or unwind only actions needed to leave the system recoverable, save a concise checkpoint, and notify the user. If limits are unavailable, report that fact rather than estimating them.
 - When using grill-me or grilling, ask exactly one question at a time, explain the recommended choice, and wait for the answer.
 
 ## Separate development and diagnostic work
