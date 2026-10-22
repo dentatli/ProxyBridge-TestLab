@@ -1,5 +1,7 @@
 # Передача чату диагностики TCP / WinDbg
 
+TCP DIRECT исправлен в отдельной ветке от driver: [проверка 2026-10-23](TCP_DIRECT_FIX_VALIDATION_2026-10-23.md). Core build и native gate11/11 PASS; штатный Lab DIRECT остаётся INCONCLUSIVE из-за проверки source port. Driver восстановлен Stopped/Disabled; PR нет.
+
 
 Итог локального UDP этапа: [before/after и финальный package1.1.0.0](UDP_TESTLAB_BEFORE_AFTER_RESULTS_2026-10-22.md). История — [журнал этапов](UDP_LOOPBACK_AND_TESTLAB_2026-10-22.md).
 
