@@ -1,5 +1,25 @@
 # Передача чату диагностики TCP / WinDbg
 
+## USER потребовал окончательного подтверждения; нужен связанный kernel capture
+
+Причина всё ещё не объявлена окончательно подтверждённой. Подготовлен PRIVATE
+непроверенный черновик в pb-rst-gate-static-review-20261022-r1:
+pb-single-flow-rst-candidate-20261022.wdbg, generator и reason-code mapping.
+Один source48806/context256, source flags hardware read/write watch,
+RST writer/SYN gate/return/acceptedEP/query identity. Bps2/4/5/6 плюс dynamicba3;
+все softwarepoints первоначальноdisabled, hardware только после CREATE.
+Черновик НЕ прошёл debugger parser/live code pins и НЕ запускался. Не выдавать
+его за готовый/проверенный профиль, не привязывать к старым frozen kits.
+Генерация команд не является kernel capture или proof.
+
+USER задан async вопрос: где сейчас WinDbg и к какой машине подключён.
+Нужен ответ перед host-регистрацией: текущий AGENTS.md оставляет Break/enable/
+single-step за USER на физическом хосте. Нельзя автоматически подменять это
+старым разрешением на управление PB-SUT. Не запускать скрытыйkd/KernelReadCapture.
+Новый target runtime/подключение/Break/enable/установка не выполнялись;
+последнее проверенное физическое состояние QUIESCENT. Не повторять A/B,
+они уже различилиRSTиretries; оставшийсяпробел—однацепочкаendpoint/NBL/query.
+
 ## Текущий checkpoint: разобрана нефатальная обработка RST до SYN retry
 
 Читать [механизм TCP retry/WFP metadata](TCP_CONTEXT_RST_RETRY_MECHANISM_2026-10-22.md).
