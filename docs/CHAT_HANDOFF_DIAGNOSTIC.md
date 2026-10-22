@@ -1,5 +1,30 @@
 # Передача чату диагностики TCP / WinDbg
 
+## 22 октября: предотвращение отказа очереди проверено двумя способами
+
+USER включил PB-SUT и явно возобновил работу. Читать
+[результат и границы исправления](TCP_CONTEXT_QUEUE_MITIGATION_2026-10-22.md).
+Без debugger, build26200.9711, same corrected sampleSYS: свежий Target201
+снова дал200pass+control10022/0 обоих getters, ETWReason30x2/retry1/2.
+Drain (принять201 до данных) и Capacity (один Listen(-512)) дали201pass,
+records/context/data512KiB в обе стороны, без selectedReason30/retry, loss0.
+Private pb-queue-comparison-review-20261022-r1/report.json:28checks true.
+Kernel instruction root cause остаётся недоказанной; это проверенные меры
+предотвращения queue refusal, не восстановление уже потерянного context.
+
+Capacity-r1/r2/r3 INCOMPLETE: managed listening state, WinRM reserved47001,
+двойной listen/controltimeout соответственно. Не выдавать их за context failures.
+R4/kit-r7: Framework Socket.Listen(-512) напрямую; no native listen PInvoke.
+Киты не перезаписывались. Product code только читался, не менялся/не собирался.
+Для продукта кандидат: быстрый accept отдельно от lookup/rules/log/worker setup,
+явный initial backlog hint, bounded worker queue и fail-closed при отсутствующем
+context. Требуются отдельное внедрение и проверки продукта/IPv6/перегрузки.
+
+Конечное состояние PB-SUT проверено QUIESCENT: sample filters0, sample services
+Stopped, productStopped, HLKRunning, probe/listenerнет; ОС остаётся включённой.
+Исходный KernelReadCapture и hidden kd не запускать. Его untracked source
+сохранён отдельно и не относится к рабочим тестерам. Старые стопы ниже — история.
+
 ## Пауза по просьбе USER: PB-SUT выключается, новые опыты не запускались
 
 USER вновь разрешил продолжить основную диагностику, затем остановил её из-за

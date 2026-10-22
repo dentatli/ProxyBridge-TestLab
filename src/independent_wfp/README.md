@@ -46,3 +46,14 @@ tuples. This order passed the healthy control and still reproduced both getters
 failing on the selected connection after queue refusal/retry. See
 `docs/TCP_REDIRECT_API_CONTRACT_2026-10-21.md` for the separate flags correction
 and experiment evidence. Neither experiment modified ProxyBridge product code.
+
+The controller also supports `Capacity` and `Drain` comparisons. Capacity calls
+`.NET Framework Socket.Listen(-N)` once, using Windows `SOMAXCONN_HINT(N)`;
+Drain accepts the bounded set of 201 sockets before processing their data.
+The corresponding options are `--backlog-hint` and `--accept-first`.
+On 2026-10-22 both comparisons passed all 201 original records/context queries
+and bidirectional payload checks, without the selected queue-refusal/retry
+events present in the baseline. This verifies prevention in this workload;
+it does not repair lost metadata or prove an instruction-level Windows cause.
+See `docs/TCP_CONTEXT_QUEUE_MITIGATION_2026-10-22.md`. Avoid source port 47001
+on PB-SUT: WinRM reserves it. Use fresh trial IDs and disjoint available ports.

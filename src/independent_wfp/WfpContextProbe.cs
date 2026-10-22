@@ -50,7 +50,6 @@ public static class WfpContextProbe
     static extern int WSAIoctl(IntPtr socket, uint code, IntPtr input, uint inputSize,
         [Out] byte[] output, uint outputSize, out uint bytes, IntPtr overlapped, IntPtr completion);
     [DllImport("ws2_32.dll")] static extern int WSAGetLastError();
-    [DllImport("ws2_32.dll", EntryPoint="listen")] static extern int NativeListen(IntPtr socket, int backlog);
     [DllImport("kernel32.dll")] static extern uint GetCurrentThreadId();
 
     static string Json(object value)
@@ -148,10 +147,10 @@ public static class WfpContextProbe
             listener=NewSocket(); listener.Bind(new IPEndPoint(IPAddress.Loopback,listenPort));
             if (backlogHint != 0)
             {
-                // winsock2.h: SOMAXCONN_HINT(N) == -N. Avoid managed normalization.
+                // .NET Framework Socket.Listen passes backlog unchanged to Winsock
+                // and updates its listening state. winsock2.h: HINT(N) == -N.
                 if (backlogHint < 200) throw new ArgumentOutOfRangeException("backlog-hint");
-                if (NativeListen(listener.Handle,-backlogHint) != 0)
-                    throw new SocketException(WSAGetLastError());
+                listener.Listen(-backlogHint);
             }
             else listener.Listen(backlog);
             NewJson(Path.Combine(directory,"server-ready.json"),new ProbeReady {
