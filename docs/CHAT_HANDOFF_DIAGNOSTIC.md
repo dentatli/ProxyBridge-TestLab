@@ -1,6 +1,38 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Текущий checkpoint: один flow после drop; RST после10022
+## Актуальное уточнение: ранние RST найдены; без них retries сохраняют context
+
+Читать [различающий опыт](TCP_CONTEXT_RST_DISCRIMINATION_2026-10-22.md).
+Предыдущий вывод ниже о необязательности предварительного RST ОТОЗВАН:
+extractor смотрел1184/termination, но пропустил1479/send и1601/receiveflags.
+В том же single-flow ETL есть ТРИ ранних RST+ACK в SynSent на выбранном TCB.
+Терминальный RST+2.0419мс после getter действительно поздний, но не единственный.
+
+На PB-SUT без debugger проведены три новых one-flow опыта с тем же sample:
+точный inboundblock+DISCARD block -> retry1/context256/data pass;
+обратный контроль безDISCARD -> retries1/2/earlyRST/10022 обоих getters;
+DISCARD+hold3500мс -> retries1/2/3/триReason7drops/NO registered RST/
+records970/context256/data512KiB обе стороны pass. ETW loss0 везде.
+Простая retransmission и переполнение очереди недостаточны для объяснения;
+сильное свидетельство участия раннегоRST/receive state. Private flag causality
+на одном непрерывном NBL trace всё ещё не доказана; не объявлять точную
+инструкцию окончательно ошибочной и не патчить private state.
+
+Read-only копии tcpip/fwpkclnt/netio собраны с target: tcpip.sys ПОБАЙТНО
+совпадает с прежней VM (b0683bd7…, file26100.8875 приOS26200.9711).
+Это привязало прежний статический разбор к реальному дисковому образу.
+Bit immediate scan+owning pdata disassembly: один прямой+30 OR200000h вreceive;
+не полный поиск всех альтернативных writer/clear. Post-association helper key9
+не смешивать с redirect record key5.
+
+Добавлены только diagnostic controller options BlockDiscard/DropHoldMilliseconds,
+default поведения других modes не менялся; product37e64c6 нетронут, новых tests нет.
+Финал проверен QUIESCENT, sampleStopped/productStopped/HLKRunning/filters0/
+probe0/listener0. Никаких новых debugger connections, скрытогоkd или
+KernelReadCapture не запускалось. Следующий шаг — узкая причинность receive
+flag -> skipassociation или подготовка one-flow отчёта поставщику; не broadpoints.
+
+## Предыдущий checkpoint (RST-интерпретация исправлена выше)
 
 USER возобновил исследование. Читать
 [новый результат и границы вывода](TCP_CONTEXT_SINGLE_FLOW_DROP_2026-10-22.md).

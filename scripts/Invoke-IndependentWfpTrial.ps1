@@ -6,7 +6,9 @@ param(
     [ValidateRange(42201,65535)][int]$ControlPort=42201,
     [switch]$RecordsFirst,
     [ValidateRange(1024,65336)][int]$FillerBasePort=42001,
-    [ValidateRange(200,65535)][int]$BacklogHint=512
+    [ValidateRange(200,65535)][int]$BacklogHint=512,
+    [switch]$BlockDiscard,
+    [ValidateRange(100,5000)][int]$DropHoldMilliseconds=100
 )
 $ErrorActionPreference='Stop'
 if($env:COMPUTERNAME -ne 'PB-SUT'){throw 'TARGET_IDENTITY_DIFFERS'}
@@ -18,7 +20,7 @@ $probe=Join-Path $kit 'WfpContextProbe.exe'
 $cli=Join-Path $kit 'WFPSampler.exe'
 $children=New-Object System.Collections.Generic.List[System.Diagnostics.Process]
 $trace='PBWfp-'+$TrialId
-$traceStarted=$false;$policyAdded=$false;$blockAdded=$false;$cleanupErrors=@()
+$traceStarted=$false;$policyAdded=$false;$blockAdded=$false;$discardAdded=$false;$cleanupErrors=@()
 $result=[ordered]@{status='INCOMPLETE';mode=$Mode;directory=$directory;control_port=$ControlPort;records_first=[bool]$RecordsFirst;filler_base_port=$FillerBasePort}
 $bulk=$Mode -in @('Target','Capacity','Drain')
 function Wait-File([string]$name,[int]$milliseconds=10000){
@@ -46,6 +48,7 @@ function Start-Probe([string]$role,[int]$count){
     return $process
 }
 try{
+    if($BlockDiscard -and $Mode -ne 'SilentRetry'){throw 'DISCARD_BLOCK_REQUIRES_SINGLE_FLOW_DROP_MODE'}
     if($bulk -and $ControlPort -ge $FillerBasePort -and $ControlPort -lt $FillerBasePort+200){throw 'SOURCE_PORT_RANGES_OVERLAP'}
     if((Get-Service ProxyBridgeDrv).Status -ne 'Stopped'){throw 'PRODUCT_DRIVER_MUST_BE_STOPPED'}
     foreach($service in 'WFPSampler','WFPSamplerCallouts'){
@@ -64,6 +67,16 @@ try{
     if($LASTEXITCODE -ne 0){throw 'POLICY_ADD_FAILED'}
     $policyAdded=$true
     if($Mode -eq 'SilentRetry'){
+        if($BlockDiscard){
+            # Attempt the documented TRANSPORT_DISCARD suppression for this
+            # tuple only. Whether reset generation stopped must be checked in ETW.
+            $discardPolicy=@('-s','BASIC_ACTION_BLOCK','-l','FWPM_LAYER_INBOUND_TRANSPORT_V4_DISCARD','-ipp','TCP','-ipla','127.0.0.1','-iplp','34010','-ipra','127.0.0.1','-iprp',"$ControlPort",'-v')
+            $discardPolicy|ConvertTo-Json|Set-Content "$directory\discard-policy-arguments.json" -Encoding UTF8
+            & $cli @discardPolicy *> "$directory\discard-add.txt"
+            if($LASTEXITCODE -ne 0){throw 'DISCARD_BLOCK_ADD_FAILED'}
+            $discardAdded=$true
+            $result['discard_block_enabled']=$true
+        }
         # Exact incoming tuple only. Remove after SynSent is observed; ETW
         # records how many retransmissions occurred before removal completed.
         $blockPolicy=@('-s','BASIC_ACTION_BLOCK','-l','FWPM_LAYER_INBOUND_TRANSPORT_V4','-ipp','TCP','-ipla','127.0.0.1','-iplp','34010','-ipra','127.0.0.1','-iprp',"$ControlPort",'-v')
@@ -99,7 +112,10 @@ try{
         }
         if(-not $syn){throw 'CONTROL_SYN_SENT_NOT_OBSERVED'}
         $syn | Select-Object LocalAddress,LocalPort,RemoteAddress,RemotePort,State,OwningProcess | ConvertTo-Json | Set-Content "$directory\control-syn.json" -Encoding UTF8
-        Start-Sleep -Milliseconds 100
+        if($Mode -eq 'SilentRetry'){
+            $result['drop_hold_milliseconds']=$DropHoldMilliseconds
+            Start-Sleep -Milliseconds $DropHoldMilliseconds
+        }else{Start-Sleep -Milliseconds 100}
         if($Mode -eq 'SilentRetry'){
             & $cli @blockPolicy -r *> "$directory\block-remove.txt"
             if($LASTEXITCODE -ne 0){throw 'SILENT_BLOCK_REMOVE_FAILED'}
@@ -153,6 +169,7 @@ try{
 finally{
     if($traceStarted){& logman.exe stop $trace -ets *> "$directory\trace-stop.txt";if($LASTEXITCODE -ne 0){$cleanupErrors+='TRACE_STOP_FAILED'}}
     if($blockAdded){& $cli @blockPolicy -r *> "$directory\block-remove-cleanup.txt";if($LASTEXITCODE -ne 0){$cleanupErrors+='SILENT_BLOCK_REMOVE_FAILED'}}
+    if($discardAdded){& $cli @discardPolicy -r *> "$directory\discard-remove-cleanup.txt";if($LASTEXITCODE -ne 0){$cleanupErrors+='DISCARD_BLOCK_REMOVE_FAILED'}}
     if($policyAdded){& $cli @policy -r *> "$directory\policy-remove.txt";if($LASTEXITCODE -ne 0){$cleanupErrors+='POLICY_REMOVE_FAILED'}}
     foreach($process in $children){try{if(-not $process.HasExited){$process.Kill();$process.WaitForExit()}}catch{$cleanupErrors+=$_.Exception.Message}}
     $result['cleanup_errors']=$cleanupErrors
