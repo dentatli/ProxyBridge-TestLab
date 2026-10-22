@@ -1,5 +1,7 @@
 # Передача чату диагностики TCP / WinDbg
 
+Benchmark TCP DIRECT остановлен при remaining5%: [checkpoint2026-10-23](TCP_DIRECT_BENCHMARK_CHECKPOINT_2026-10-23.md). Подтверждённых performance результатов нет; baseline gate WRONG_ROUTE требует разбора. PB-SUT восстановлен Stopped/Disabled.
+
 TCP DIRECT исправлен в отдельной ветке от driver: [проверка 2026-10-23](TCP_DIRECT_FIX_VALIDATION_2026-10-23.md). Core build и native gate11/11 PASS; штатный Lab DIRECT остаётся INCONCLUSIVE из-за проверки source port. Driver восстановлен Stopped/Disabled; PR нет.
 
 
