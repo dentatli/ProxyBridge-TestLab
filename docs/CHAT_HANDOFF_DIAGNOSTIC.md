@@ -1,52 +1,42 @@
 # Передача чату диагностики TCP / WinDbg
 
-## Действующее разрешение USER: WinDbg внутри agent VM, target только PB-SUT
+## Актуальный итог — 2026-10-22: механизм подтверждён одним flow
 
-2026-10-22 USER явно подтвердил: можно установить и использовать WinDbg здесь
-для физического PB-SUT192.168.0.157; agent VM больше не является debuggee.
-Это заменяет прежнее требование передавать Break/enable физическому хосту USER.
-AGENTS.md обновлён. Агент может сам управлять WinDbg для PB-SUT, заранее
-предупреждая о паузе target WinRM/RDP и имея recovery g. Старую named-pipe
-сессию к самой VM не использовать. KernelReadCapture и прежний hidden kd
-с redirected output по-прежнему запрещены; разрешение не оправдывает их повтор.
+Читать [итоговый связанный захват](TCP_CONTEXT_SINGLE_FLOW_CONFIRMED_2026-10-22.md).
+На физическом PB-SUT получены CREATE → первоначальная association → ранний
+RST writer bit0x200000 → SYN retry без metadata до/после helper → ACCEPT
+на том же последнем NBL с C0000225 → QUERY того же acceptedEP с NULL record
+→ RECORDS/CONTEXT10022/0. Source record/context сохранены. API PID/TID
+совпали с kernel query; ETW loss0. Это закрывает прежний пробел NBL join.
+Связанный опыт и прежние A/B без debugger подтверждают механизм для этой
+сборки; vendor source fix и другие версии Windows не проверены.
 
-SDK GUI WinDbg уже установлен: C:\Program Files (x86)\Windows Kits\10\Debuggers\x64\windbg.exe,
-fileversion10.0.28000.2526. Повторная установка не нужна для первого GUI connect.
-На момент проверки windbg/WinDbgX/kd/KernelReadCapture processes отсутствовали.
-Предыдущая просьба USER открыть WinDbg на основном ПК больше не актуальна.
+Корректное изменение ProxyBridge — уже подготовленный accept до setup,
+commit37e64c6 в отдельной ветке. Оно предотвращает queue-refusal trigger,
+но не восстанавливает metadata после всех возможных ранних RST. Нового
+product runtime/build/install, исправления драйвера или тестов не было.
+Новые повторы для подтверждения этой же цепочки сейчас не требуются.
 
-После этого GUI WinDbg запущен здесь через обычный видимый Start-Process,
-PID9212 на момент запуска, target192.168.0.157:50055, initial command g.
-stdout/stderr НЕ перенаправлялись; SDKkd/KernelReadCapture не запускались.
-Перед запуском freeRAM3.77GiB. Сохранённый ключ прочитан с PB-SUT через
-временную WinRM session; клиентские TrustedHosts/service восстановлены.
-Проверено наличие одного GUI окна с NETtargetPB-SUT. Это НЕ доказательство
-Kernel Debugger connection established: console output пока не считан,
-Break/точки/новый Run не выполнялись. Не запускать второй debugger вслепую.
-Sky UIA показывает только заголовки, без command edit controls; root title
-содержит transport key, не выводить его/CommandLine и не снимать screenshot
-до установки безопасного заголовка. Следующий запуск должен использовать
-WinDbg -T с нейтральным title. UIA set_value title не изменил фактический title.
+USER разрешил WinDbg внутри agent VM только для физического PB-SUT192.168.0.157.
+Это заменило прежнее user-only host управление. Саму agent VM не отлаживать.
+KernelReadCapture и hidden kd/redirected stdout остаются запрещены.
+GUI SDK WinDbg уже установлен и подключён к PB-SUT, PID12264 на момент
+проверки, нейтральный title. Не запускать второй debugger. .wtitle потребляет
+остаток строки; использовать -T при следующем запуске. Командные файлы
+WinDbg — ASCII/CRLF, $< для отдельных строк, g последней отдельной строкой.
+Перед Break/enable предупреждать о паузе физического PB-SUT/WinRM/RDP.
 
-## USER потребовал окончательного подтверждения; нужен связанный kernel capture
+Завершение: sample filters0, probe0, listener0, sample services и product
+Stopped, HLKsvc Running; watch3 удалён, software2/4/5/6 disabled, g выполнен.
+Не повторять старые Runs и не менять private flags/BCD/trust/ConnectFailFast.
+Private evidence: pb-independent-single-flow-kernel-20261022-r2,
+pb-gui-single-flow-20261022-r2, pb-single-flow-final-state-20261022-r2.
+Run-r1 неполон из-за ошибки разделителя в hardware action, восстановлен и
+собран отдельно; не смешивать с успешным capture-r2. Непрерывный GUI log
+в r1 содержит оба этапа; снимок debugger-final.log сохранён в r2.
 
-Причина всё ещё не объявлена окончательно подтверждённой. Подготовлен PRIVATE
-непроверенный черновик в pb-rst-gate-static-review-20261022-r1:
-pb-single-flow-rst-candidate-20261022.wdbg, generator и reason-code mapping.
-Один source48806/context256, source flags hardware read/write watch,
-RST writer/SYN gate/return/acceptedEP/query identity. Bps2/4/5/6 плюс dynamicba3;
-все softwarepoints первоначальноdisabled, hardware только после CREATE.
-Черновик НЕ прошёл debugger parser/live code pins и НЕ запускался. Не выдавать
-его за готовый/проверенный профиль, не привязывать к старым frozen kits.
-Генерация команд не является kernel capture или proof.
-
-USER задан async вопрос: где сейчас WinDbg и к какой машине подключён.
-Нужен ответ перед host-регистрацией: текущий AGENTS.md оставляет Break/enable/
-single-step за USER на физическом хосте. Нельзя автоматически подменять это
-старым разрешением на управление PB-SUT. Не запускать скрытыйkd/KernelReadCapture.
-Новый target runtime/подключение/Break/enable/установка не выполнялись;
-последнее проверенное физическое состояние QUIESCENT. Не повторять A/B,
-они уже различилиRSTиretries; оставшийсяпробел—однацепочкаendpoint/NBL/query.
+Ниже — исторические checkpoints. Их pending NEXT/ограничения заменяются
+актуальным итогом и более поздними явными инструкциями USER.
 
 ## Текущий checkpoint: разобрана нефатальная обработка RST до SYN retry
 
