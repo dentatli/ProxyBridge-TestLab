@@ -129,7 +129,12 @@ class Agent:
             writer.write(json_bytes(ready) + b"\n")
             await writer.drain()
             if request["task"] == "metrics":
-                result = {key: value for key, value in row.items() if key != "udp_flows"}
+                result = {key: value for key, value in row.items() if key not in ("udp_flows", "_inflight_transfers")}
+                # Completed counters remain unchanged. Include validated payload in
+                # live transfers exactly once, while their connections are open.
+                inflight = row.get('_inflight_transfers', {}).values()
+                for direction in ('rx_bytes', 'tx_bytes'):
+                    result[direction] += sum(transfer[direction] for transfer in inflight)
                 result["udp_unique_flows"] = len(row["udp_flows"])
                 from trafficlab.resources import process_sample, system_sample
                 result["resources"] = process_sample(os.getpid())
@@ -161,6 +166,8 @@ class Agent:
                 row["route_samples"].append({"flow_id": request["flow_id"], "peer": list(peer[:2])})
             started = time.monotonic()
             transfer = {"rx_bytes": 0, "tx_bytes": 0, "rx_sha256": None, "tx_sha256": None}
+            inflight = row.setdefault('_inflight_transfers', {})
+            inflight[id(transfer)] = transfer
             try:
                 await asyncio.wait_for(self.exchange(reader, writer, request, transfer), request["seconds"] + 20)
                 row["completed"] += 1
@@ -171,6 +178,7 @@ class Agent:
                 row["active"] -= 1
                 row["rx_bytes"] += transfer["rx_bytes"]
                 row["tx_bytes"] += transfer["tx_bytes"]
+                del inflight[id(transfer)]
             result = {"complete": True, "flow_id": request["flow_id"],
                       "elapsed_seconds": time.monotonic() - started, **transfer}
             result["proof"] = mac(self.secret, b"result:", challenge.encode() + raw + json_bytes(result))
@@ -292,11 +300,13 @@ class DatagramAgent(asyncio.DatagramProtocol):
                 raise ValueError("TRAFFIC_UDP_FLOW_LIMIT")
             flows[request["flow_id"]] = sequence
             row["udp_received"] += 1
+            row['rx_bytes'] += len(payload)
             response = {**request, "peer": list(address[:2])}
             response["proof"] = mac(self.agent.secret, b"udp-server:", json_bytes(response) + payload)
             assert self.transport is not None
             try:
                 self.transport.sendto(json_bytes(response) + b"\n" + payload, address)
+                row['tx_bytes'] += len(payload)
             except OSError:
                 row["udp_reply_errors"] += 1
         except (ValueError, KeyError, TypeError, AssertionError, OSError, json.JSONDecodeError):

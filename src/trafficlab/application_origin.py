@@ -103,7 +103,10 @@ class ApplicationOrigins:
             row['application_flows'][value['flow_id']]['dns_transport']=transport
         if session is None:
             row["udp_received"] += 1
-        return dns_response(packet, question, response(self.agent.secret, value, peer))
+        reply = dns_response(packet, question, response(self.agent.secret, value, peer))
+        row['rx_bytes'] += len(packet)
+        row['tx_bytes'] += len(reply)
+        return reply
 
     async def headers(self, reader: asyncio.StreamReader) -> tuple[str, dict[str, str]]:
         raw = await reader.readuntil(b"\r\n\r\n")

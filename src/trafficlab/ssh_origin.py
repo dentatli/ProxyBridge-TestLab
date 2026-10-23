@@ -25,8 +25,11 @@ class SshOrigin:
         if message.get('identity', {}).get('run_id') != conn.get_extra_info('username'):
             raise ValueError('APPLICATION_SSH_USER_IDENTITY_CHANGED')
         session = self.connections[conn]
-        value, _, _ = self.origins.authenticate(message, kind, session['peer'], session)
-        return json_bytes(response(self.origins.agent.secret, value, session['peer'], message['payload']))
+        value, row, payload = self.origins.authenticate(message, kind, session['peer'], session)
+        reply = json_bytes(response(self.origins.agent.secret, value, session['peer'], message['payload']))
+        row['rx_bytes'] += len(payload)
+        row['tx_bytes'] += len(payload)
+        return reply
 
     async def process(self, process: Any) -> None:
         if process.command != 'testlab-echo':

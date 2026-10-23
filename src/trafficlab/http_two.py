@@ -172,7 +172,8 @@ async def serve(origins: Any, reader: asyncio.StreamReader, writer: asyncio.Stre
                     raise ValueError('APPLICATION_GRPC_MODE_CHANGED')
                 data = bytes(request)
                 message = json.loads(grpc_decode(data) if kind == 'grpc' else data)
-                identity, row, _ = origins.authenticate(message, kind, peer, session)
+                identity, row, payload = origins.authenticate(message, kind, peer, session)
+                row['rx_bytes'] += len(payload)
                 if kind=='http2':
                     flow=row['application_flows'][identity['flow_id']]
                     flow['http2_peak_streams']=session['http2_peak_streams']
@@ -182,6 +183,7 @@ async def serve(origins: Any, reader: asyncio.StreamReader, writer: asyncio.Stre
                     reply = grpc_encode(reply)
                 conn.send_headers(event.stream_id, [(':status', '200'), ('content-type', 'application/grpc+proto' if kind == 'grpc' else 'application/json')])
                 conn.send_data(event.stream_id, reply, end_stream=kind != 'grpc')
+                row['tx_bytes'] += len(payload)
                 if kind == 'grpc':
                     conn.send_headers(event.stream_id, [('grpc-status', '0')], end_stream=True)
         writer.write(conn.data_to_send()); await writer.drain()
