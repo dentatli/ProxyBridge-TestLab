@@ -130,9 +130,6 @@
 .result-plots { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:24px; }
 .result-plots strong { font-size:13px; }.result-plots small { color:var(--muted); }
 .result-bars>div { display:grid; grid-template-columns:16px 1fr 70px; align-items:center; gap:10px; margin:10px 0; }
-.result-bars>div>div { height:10px; background:#22373a; border-radius:5px; overflow:hidden; }
-.result-bars i { display:block; height:100%; background:#6a94b6; }
-.result-bars>div:nth-child(2) i { background:var(--teal); }
 .result-bars b { text-align:right; font-size:14px; }
 #traffic-evidence-dialog { width:min(1000px,calc(100vw - 40px)); max-height:85vh; box-sizing:border-box; color:var(--ink); background:#101e20; border:1px solid #537779; border-radius:12px; padding:24px; }
 #traffic-evidence-dialog::backdrop { background:#000a; }
@@ -190,3 +187,22 @@
 .result-metric-group h5 { margin:0 0 8px; font-size:13px; color:#d5e5e8; }
 .result-metric-group .result-quick-metrics { margin-block:8px; }
 .result-metric-group small { color:var(--muted); font-size:11px; }
+
+.result-bars .result-bar { display:block; width:100%; height:12px; }
+.result-bar-track { fill:#22373a; }
+.result-bar-fill { fill:#8db5d4; }
+.result-bars>div:nth-child(2) .result-bar-fill { fill:var(--teal); }
+.result-bars b { font-variant-numeric:tabular-nums; }
+.result-side-a { color:#8db5d4; font-weight:700; }
+.result-side-b { color:var(--teal); font-weight:700; }
+.result-pair-legend { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:16px; }
+.result-pair-legend>div { display:flex; align-items:center; gap:12px; background:#0c1c20; border:1px solid #385159; border-left:4px solid #8db5d4; border-radius:6px; padding:12px; }
+.result-pair-legend>.result-legend-b { border-left-color:var(--teal); }
+.result-pair-legend>div>b { font-size:20px; color:#8db5d4; }
+.result-pair-legend>.result-legend-b>b { color:var(--teal); }
+.result-pair-legend small { display:block; color:var(--muted); margin-top:5px; }
+.result-delta { display:flex; flex-wrap:wrap; gap:4px 12px; padding:8px 10px; background:#1a2d32; border-radius:5px; font-size:12px; margin-top:10px; }
+.result-delta span { color:var(--muted); }
+.result-delta.is-better strong { color:#8fe7c6; }
+.result-delta.is-worse strong { color:#ffc0c0; }
+@media(max-width:640px) { .result-pair-legend { grid-template-columns:1fr; } }
