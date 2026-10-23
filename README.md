@@ -74,12 +74,15 @@ Source builds do not establish product correctness; runtime evidence gates remai
 ```
 
 Open `http://127.0.0.1:5178/`. See [Local web UI](ui/README.md). The Ubuntu wizard
-and a separate 22-case traffic catalog (transport plus DNS, TLS, HTTP/HTTPS and
-WebSocket) are implemented; see [traffic workloads,
+and 51 traffic scenarios grouped into 10 checks are implemented; see [traffic workloads,
 evidence and acceptance limits](docs/TRAFFIC_LAB.md). Real product checks require
 an administrator UI (`scripts/Start-TestLabUi.ps1 -Administrator`, after building).
-Driver file identity and owned cleanup remain mandatory. The v4.0.0 adapter and
-acceptance of arbitrary/relocated product bundles remain pending.
+Driver file identity and owned cleanup remain mandatory. Product types are Driver WFP
+and WinDivert, with a minimum WinDivert version of 4.0.0 and separate CLI adapters
+for 4.0 and 4.1+. Official 4.3.0 passed a short local TCP RTT check on 2026-10-23;
+official 4.0.0 did not confirm CLI readiness within the deadline. These results do
+not establish acceptance of all scenarios or arbitrary product bundles. See the
+[current local checkpoint](docs/LOCAL_APP_CHECKPOINT.md).
 
 The standalone harness and its technical backend are retained below. They are
 separate from the laboratory workflow; their historical verification is not proof
