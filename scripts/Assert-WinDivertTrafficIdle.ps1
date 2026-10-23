@@ -50,3 +50,4 @@ $off=($wfp.state -in @('Stopped','MISSING')) -and $objects.query_complete -and $
     loaded_query_complete=$loaded.query_complete;known_driver_names_absent=$loaded.known_interception_driver_names_absent;
     product_process_count=$processes.Count;scope='WinDivert-selected-file-owned-SCM-loaded-names-and-known-WFP-objects';loaded_binary_verified=$false}|ConvertTo-Json -Compress
 if(-not $off){exit 2}
+exit 0
