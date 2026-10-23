@@ -16,7 +16,7 @@ $environment['PB_DRIVER_PATH']=[string]$binding.driver
 $environment['PB_EXPECTED_DRIVER_SHA256']=[string]$binding.driver_sha256
 $state=Get-InterceptionStateSnapshot -Environment $environment -AllowProductRuntime
 $loaded=Get-LoadedInterceptionDriverObservation -AllowProductRuntime
-$processes=@(Get-CimInstance Win32_Process -OperationTimeoutSec 5 | Where-Object Name -in @('ProxyBridge.exe','ProxyBridge_CLI.exe'))
+$processes=@(Get-CimInstance Win32_Process -OperationTimeoutSec 5 | Where-Object Name -in @('ProxyBridge.exe','ProxyBridge_CLI.exe','pb_core_host.exe'))
 if($RestoreOwnedDriver -and $state.wfp.service_state -eq 'Running'){
     $claim=Get-Content -LiteralPath (Join-Path (Split-Path -Parent $BindingPath) 'driver-ownership.json') -Raw | ConvertFrom-Json
     if($claim.id -ne $binding.id -or -not $claim.off_before -or -not $claim.cli_ready -or -not $claim.cli_cleanup_verified -or

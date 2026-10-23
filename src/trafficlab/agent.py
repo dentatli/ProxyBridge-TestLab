@@ -148,6 +148,8 @@ class Agent:
                 result['runtime_tcp_connections'] = tcp_connections
                 result['runtime_quic_connections'] = quic_connections
                 result["proxy_connections"] = len(self.proxy.pending) if hasattr(self, "proxy") else 0
+                result['proxy_udp_associations'] = len({id(value) for value in self.proxy.associations.values()}) if hasattr(self, 'proxy') else 0
+                result['proxy_tcp_connections'] = max(0, result['proxy_connections'] - result['proxy_udp_associations'])
                 result["proof"] = mac(self.secret, b"result:", challenge.encode() + raw + json_bytes(result))
                 writer.write(json_bytes(result) + b"\n")
                 await writer.drain()

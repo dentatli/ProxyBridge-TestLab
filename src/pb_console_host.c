@@ -118,19 +118,21 @@ int wmain(int argc, wchar_t **argv) {
     size_t command_length = 0;
     unsigned long stop_ms;
     int result = HOST_ERROR, i, offset;
-    BOOL use_terminal, identity_ack;
+    BOOL use_terminal, identity_ack, control_input;
     BOOL attributes_ready = FALSE, assigned = FALSE, signalled = FALSE;
-    char request[8] = {0};
+    char request[8192] = {0};
     DWORD request_length = 0;
     offset = 0;
-    use_terminal = FALSE; identity_ack = FALSE;
+    use_terminal = FALSE; identity_ack = FALSE; control_input = FALSE;
     while (argc > 1 + offset) {
         if (wcscmp(argv[1 + offset], L"--terminal") == 0 && !use_terminal) use_terminal = TRUE;
         else if (wcscmp(argv[1 + offset], L"--identity-ack") == 0 && !identity_ack) identity_ack = TRUE;
+        else if (wcscmp(argv[1 + offset], L"--control-input") == 0 && !control_input) control_input = TRUE;
         else break;
         offset++;
     }
     if (argc < 4 + offset) return HOST_ERROR;
+    if (control_input && use_terminal) return HOST_ERROR;
     stop_ms = wcstoul(argv[1 + offset], &end, 10);
     if (*end || stop_ms < 1 || stop_ms > 60000) return HOST_ERROR;
     command = (wchar_t *)calloc(32768, sizeof(wchar_t));
@@ -153,7 +155,10 @@ int wmain(int argc, wchar_t **argv) {
     } else {
         if (!duplicate_inheritable(GetStdHandle(STD_OUTPUT_HANDLE), &inherited[0]) ||
             !duplicate_inheritable(GetStdHandle(STD_ERROR_HANDLE), &inherited[1])) goto done;
-        inherited[2] = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &security, OPEN_EXISTING, 0, NULL);
+        if (control_input) {
+            if (!CreatePipe(&inherited[2], &terminal_in_write, &security, 0) ||
+                !SetHandleInformation(terminal_in_write, HANDLE_FLAG_INHERIT, 0)) goto done;
+        } else inherited[2] = CreateFileW(L"NUL", GENERIC_READ, FILE_SHARE_READ | FILE_SHARE_WRITE, &security, OPEN_EXISTING, 0, NULL);
         if (inherited[2] == INVALID_HANDLE_VALUE) goto done;
     }
     InitializeProcThreadAttributeList(NULL, 2, 0, &attribute_size);
@@ -190,20 +195,25 @@ int wmain(int argc, wchar_t **argv) {
     for (;;) {
         DWORD available = 0, read_count = 0;
         char ch;
-        DWORD wait = WaitForSingleObject(child.hProcess, 25);
+        DWORD wait = WaitForSingleObject(child.hProcess, control_input ? 0 : 25);
         if (wait == WAIT_OBJECT_0) { result = HOST_NATURAL_EXIT; goto done; }
         if (wait != WAIT_TIMEOUT) goto done;
         if (use_terminal && WaitForSingleObject(output_thread, 0) != WAIT_TIMEOUT) goto done;
         // EOF also requests cleanup, e.g. when the runner disappears.
         if (!PeekNamedPipe(input, NULL, 0, NULL, &available, NULL)) break;
-        if (!available) continue;
+        if (!available) { if (control_input) Sleep(5); continue; }
         if (!ReadFile(input, &ch, 1, &read_count, NULL) || read_count != 1) break;
         if (ch == '\n') {
-            if (request_length != 4 || memcmp(request, "STOP", 4) != 0) goto done;
-            break;
+            DWORD written = 0;
+            if (request_length == 4 && memcmp(request, "STOP", 4) == 0) break;
+            if (!control_input || request_length < 7 || memcmp(request, "PB_CMD\t", 7) != 0) goto done;
+            request[request_length++] = '\n';
+            if (!WriteFile(terminal_in_write, request, request_length, &written, NULL) || written != request_length) goto done;
+            request_length = 0;
+            continue;
         }
         if (ch == '\r') continue;
-        if (request_length >= sizeof(request)) goto done;
+        if (request_length >= sizeof(request) - 1) goto done;
         request[request_length++] = ch;
     }
     if (use_terminal) {

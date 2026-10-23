@@ -5,6 +5,12 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1') -ErrorAction Stop
 $binding=Get-Content -LiteralPath $BindingPath -Raw | ConvertFrom-Json
+if ($binding.PSObject.Properties.Name -contains 'execution_model' -and $binding.execution_model -eq 'persistent-core-session-v1') {
+    if ($binding.runtime_mode -ne 'local') { throw 'TRAFFIC_SESSION_LOCAL_ONLY' }
+    $env:PYTHONPATH=Join-Path $binding.root 'src'
+    & $binding.python -B -m trafficlab.session_runner --binding $BindingPath --output-root $OutputRoot
+    exit $LASTEXITCODE
+}
 $attemptPath=Join-Path $OutputRoot 'attempt.json'
 $attempt=Get-Content -LiteralPath $attemptPath -Raw | ConvertFrom-Json
 $results=[Collections.Generic.List[object]]::new()

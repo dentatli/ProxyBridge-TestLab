@@ -13,7 +13,7 @@ function Assert-BoundFile([string]$Path,[string]$Expected) {
 }
 Assert-BoundFile $binding.driver $binding.driver_sha256
 $loaded=Get-LoadedInterceptionDriverObservation -AllowProductRuntime
-$processes=@(Get-CimInstance Win32_Process -OperationTimeoutSec 5 | Where-Object Name -in @('ProxyBridge.exe','ProxyBridge_CLI.exe','ProxyBridgeSvc.exe'))
+$processes=@(Get-CimInstance Win32_Process -OperationTimeoutSec 5 | Where-Object Name -in @('ProxyBridge.exe','ProxyBridge_CLI.exe','ProxyBridgeSvc.exe','pb_core_host.exe'))
 if($RestoreOwnedDriver -and -not $loaded.known_interception_driver_names_absent){
     $claim=Get-Content -LiteralPath (Join-Path (Split-Path -Parent $BindingPath) 'driver-ownership.json') -Raw | ConvertFrom-Json
     $exitVerified=$claim.cli_cleanup_verified -or ($claim.PSObject.Properties.Name -contains 'cli_exit_verified' -and $claim.cli_exit_verified -eq $true)

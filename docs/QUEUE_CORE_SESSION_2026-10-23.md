@@ -1,0 +1,21 @@
+# Одна сессия ProxyBridge на локальную очередь
+
+По запросу пользователя лаборатория перестала перезапускать продукт между фазами и сценариями. Файлы продукта неизменны. CLI4.3 не имеет команды reload; лабораторный pb_core_host.exe вызывает публичный API выбранной ProxyBridgeCore.dll: AddProxyConfig, AddRule/EditRule, EnableRule/DisableRule, Start/Stop. Общий SetEnabled не вызывается. Одна конфигурация SOCKS5 с ограниченными HMAC credentials на очередь и одно правило только для Python workload/точного origin/текущего порта. Локальный origin имеет другое имя.
+
+ABI: [официальный4.3 header](https://github.com/InterceptSuite/ProxyBridge/blob/8cb9dceeed582fcd7c2baed8d20eec34934732fc/Windows/src/ProxyBridge.h), [driver b359 header](https://github.com/dentatli/ProxyBridge/blob/b3596272a8dc8898790b016d1e4c488c2fdc917d/Windows/src/core/ProxyBridge.h). Последний аргумент localhost у Add/EditRule различается; WFP использует глобальную настройку localhost. Runtime проверен пока только с WinDivert4.3, WFP не запускался.
+
+## Достоверность и границы
+
+- Настоящий OFF наблюдается до Start и после Stop. OFF control один на очередь; three-modes OFF measurement выполняется с выбранной длительностью/нагрузкой до Start. Disabled rules всегда UNRULED.
+- Между сценариями: отключить правило, проверить native ACK, retained PID/path/start identity, SHA источников и подписанный idle-origin; сменить точный порт/правило, включить. Обычный FAIL сохраняется, очередь продолжается после подтверждённой изоляции. Потеря сессии/ACK/identity/control-channel или непроверенный idle останавливают очередь. Отмена выполняет одну финальную остановку/очистку.
+- Подписанные маршруты, TLS/SSH pins, flow receipts, UDP loss1%, полнота transport/capture сохранены. Живой idle SOCKS UDP association выделен в signed metrics отдельно от TCP; активный origin/TCP запрещает продолжение. Нагрузка завершается до rule barrier.
+- Case cleanup_verified имеет scope queue-final-off, не означает OFF между случаями. Фазовый lifecycle сохраняет session-remains-running. Общая capture и штатная остановка проверяются перед PASS. Завершённые случаи сохраняются при последующей отмене.
+- Измеряется selected Core внутри native host лаборатории, отдельно от официального CLI; CPU/RAM процесса не ресурсы драйвера. Новый method/execution_model, queue profile hash и позиция в очереди входят в comparison conditions. Исторические CLI результаты с новым методом не смешиваются. Remote orchestration прежний; изменённый agent bundle требует штатной новой подготовки перед remote run.
+- Host изолирован native job owner; путь DLL проверен, credentials только private stdin. Native process handle удерживается до exit. Stop выполняется главным потоком, DLL не выгружается до завершения процесса. Forced exit остаётся FAIL; восстановление требует native exit и полного OFF. GUI/service/WFP не устанавливаются, signing/BCD/proxy не меняются.
+- Atomic progress: уникальный temp и ограниченный retry transient PermissionError. Постоянная ошибка сохраняется; новые отчёты содержат errno/winerror/filename. Точный источник старого PermissionError не установлен, старые отчёты сохранены.
+
+## Проверка
+
+Preview16, attempt20261023-155942-4379225c919b4601924802ae5f163535: three-modes PASS (OFF/UNRULED/SOCKS5 подтверждены), UDP-connected FAIL(loss/route/transport), затем app-tls PASS. Все активные фазы PID4916. Start1/Stop1, child0/host10, forced=false, capture complete+retained, final product/origin cleanup=true. FAIL действительно не остановил очередь. Это проверка оркестрации, не acceptance50. Снимок artifacts/session-development/preview16-verification-final.json, raw evidence в private traffic-lab папке. Preview15 remainder44 штатно отменён, оба cleanup=true.
+
+Native /W4/WX и .NET build0warnings/errors, PythonAST/JS syntax PASS. Atomic записи проверены на transient PermissionError, concurrent writers и постоянную ошибку без её скрытия. Новых tracked autotests/сценариев нет. Финальный пакет17 и отмена после завершённого случая ещё ожидают проверки.

@@ -4,6 +4,8 @@
 
 ## Текущая пара
 
+Метод локальных очередей изменён: [одна Core API сессия](QUEUE_CORE_SESSION_2026-10-23.md), отдельные method/resource scope/queue conditions. Старые CLI измерения с ними не смешивать.
+
 | Вариант | Зафиксированный источник | Статус |
 | --- | --- | --- |
 | Driver WFP пользователя | [dentatli/ProxyBridge:driver](https://github.com/dentatli/ProxyBridge/commit/b3596272a8dc8898790b016d1e4c488c2fdc917d), b3596272a8dc8898790b016d1e4c488c2fdc917d | Remote HEAD подтверждён23октября; локальный комплект лаборатории этой ревизии ещё не подтверждён |

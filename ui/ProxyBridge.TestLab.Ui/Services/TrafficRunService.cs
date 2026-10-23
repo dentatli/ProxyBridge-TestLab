@@ -292,6 +292,7 @@ public sealed partial class TrafficRuntimeService
                 var python = LocalPythonRuntime.Resolve(app.RepositoryRoot);
                 if (!File.Exists(python)) throw new InvalidOperationException("TRAFFIC_PYTHON_311_REQUIRED");
                 var cli = Path.Combine(selection.InstallationDirectory, "ProxyBridge_CLI.exe");
+                var core = Path.Combine(selection.InstallationDirectory, "ProxyBridgeCore.dll");
                 var driver = selection.Contract == "driver" ? BenchmarkLabService.ResolveDriverPath(selection) : Path.Combine(selection.InstallationDirectory, "WinDivert64.sys");
                 var hashes = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var row in observed.GetProperty("components").EnumerateArray())
@@ -305,6 +306,7 @@ public sealed partial class TrafficRuntimeService
                         "config/traffic-echo.proto", "config/product-cli-adapters.json", "bin/pb_console_host.exe", "bin/pb_wfp_state.exe" }
                         .Select(path => Path.Combine(app.RepositoryRoot, path))).Concat(TrafficDependencyFiles("win-x64")).Append(python).Append(typeof(TrafficRuntimeService).Assembly.Location);
                 if (selection.Contract == "v4.0.0") sourceFiles = sourceFiles.Concat(new[] { "bin/tools/windivert-2.2.2/windivertctl.exe", "bin/tools/windivert-2.2.2/WinDivert.dll" }.Select(path => Path.Combine(app.RepositoryRoot, path)));
+                if (request.Mode == "local") sourceFiles = sourceFiles.Append(Path.Combine(app.RepositoryRoot, "bin", "pb_core_host.exe"));
                 sourceFiles = sourceFiles.Select(Path.GetFullPath).ToArray();
                 foreach (var file in sourceFiles)
                 {
@@ -317,6 +319,8 @@ public sealed partial class TrafficRuntimeService
                     local_runtime_sha256 = localRuntimeHash, product_contract = selection.Contract, adapter_id = adapter.GetString(),
                     product_version = observed.GetProperty("product_version").GetString(),
                     host, runtime_mode = request.Mode, port = 42501, control_port = 42503, proxy_port = 42502, secret = payload.Secret,
+                    execution_model = request.Mode == "local" ? "persistent-core-session-v1" : "independent-cli-v1",
+                    core, core_host = Path.Combine(app.RepositoryRoot, "bin", "pb_core_host.exe"),
                     remote_bundle_sha256 = payload.Bundle, root = app.RepositoryRoot, cli, driver, driver_sha256 = hashes[driver],
                     console_host = Path.Combine(app.RepositoryRoot, "bin", "pb_console_host.exe"), python, source_hashes = hashes,
                     cancellation_path = Path.Combine(directory, "cancel.requested"),

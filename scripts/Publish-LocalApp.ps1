@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$Version='0.3.0-local-preview.15',[string]$OutputRoot='', [string]$PythonDirectory='')
+param([string]$Version='0.3.0-local-preview.17',[string]$OutputRoot='', [string]$PythonDirectory='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -62,7 +62,7 @@ try {
         'scripts/Invoke-TrafficLabRun.ps1','scripts/Assert-TrafficLabIdle.ps1','scripts/Assert-WinDivertTrafficIdle.ps1',
         'bin/tools/windivert-2.2.2/windivertctl.exe','bin/tools/windivert-2.2.2/WinDivert.dll','bin/tools/windivert-2.2.2/LICENSE',
         'packaging/Start-ProxyBridge-TestLab.ps1','packaging/Stop-ProxyBridge-TestLab.ps1','packaging/Repair-ProxyBridge-TestLab.ps1',
-        'src/pb_service_query.cs','src/pb_loaded_drivers.cs','bin/pb_console_host.exe','bin/pb_wfp_state.exe'
+        'src/pb_service_query.cs','src/pb_loaded_drivers.cs','src/pb_core_host.c','bin/pb_core_host.exe','bin/pb_console_host.exe','bin/pb_wfp_state.exe'
     )) {Copy-PublicFile $relative}
     [IO.File]::Copy((Join-Path $root 'packaging/LOCAL-README.md'),(Join-Path $stage 'README.md'))
     $pythonTarget=Join-Path $stage 'bin/runtime/python'

@@ -23,9 +23,19 @@ from trafficlab.worker import cancelled, connect, execute, read_result
 
 def atomic(path: str, value: Any) -> None:
     target = Path(path)
-    temporary = target.with_suffix(target.suffix + ".tmp")
-    temporary.write_bytes(json_bytes(value) + b"\n")
-    temporary.replace(target)
+    temporary = target.with_name(target.name + '.' + uuid.uuid4().hex + '.tmp')
+    try:
+        temporary.write_bytes(json_bytes(value) + b"\n")
+        for retry in range(6):
+            try:
+                temporary.replace(target)
+                break
+            except PermissionError:
+                if retry == 5:
+                    raise
+                time.sleep(0.02 * (retry + 1))
+    finally:
+        temporary.unlink(missing_ok=True)
 
 
 class OriginMetricsChannel:
@@ -304,6 +314,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
         report["complete"] = not report["cancelled"] and not recovery_only and len(report["stages"]) == len(stages) and all(stage["complete"] for stage in report["stages"])
     except Exception as error:
         report['failure_context'] = dict(context)
+        report['failure_detail'] = {'exception_type': type(error).__name__, 'errno': getattr(error, 'errno', None),
+                                  'winerror': getattr(error, 'winerror', None), 'filename': str(getattr(error, 'filename', '') or '')}
         report["errors"].append(type(error).__name__ + ":TRAFFIC_SCHEDULE_FAILED")
     finally:
         if journal is not None:
