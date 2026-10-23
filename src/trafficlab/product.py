@@ -208,6 +208,7 @@ class Product:
         self.finish_output()
         with self.lock:
             self.evidence.update(host_exit_code=self.process.returncode, child_exit_code=exit_code,
+                exit_verified=self.process.returncode == 10 and exit_code is not None and exit_code != 259 and self.evidence.get("path_verified") is True,
                 cleanup_verified=self.process.returncode == 10 and exit_code == 0 and not self.evidence["forced_stop"],
                 output_bytes=self.output_bytes, output_capture_sha256=self.digest.hexdigest(),
                 capture_scope="bounded-prefix-file-and-memory-tail; full-stream-hash-and-route-counts", route_events=dict(self.route_events),

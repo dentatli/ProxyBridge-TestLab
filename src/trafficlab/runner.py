@@ -38,7 +38,8 @@ def idle(binding_path: str, binding: dict[str, Any], restore_owned: bool = False
 
 def ownership(binding_path: str, binding: dict[str, Any], product: Product) -> None:
     atomic(str(Path(binding_path).parent / "driver-ownership.json"), {"id": binding["id"], "off_before": True,
-        "driver_sha256": binding["driver_sha256"], "product_contract": binding.get("product_contract", "driver"), "cli_ready": product.evidence["ready"], "cli_cleanup_verified": product.evidence["cleanup_verified"]})
+        "driver_sha256": binding["driver_sha256"], "product_contract": binding.get("product_contract", "driver"), "cli_ready": product.evidence["ready"],
+        "cli_exit_verified": product.evidence.get("exit_verified", False), "cli_cleanup_verified": product.evidence["cleanup_verified"]})
 
 
 def validate_route(report: dict[str, Any], proxied: bool) -> bool:
@@ -139,6 +140,9 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
                     measured = run(measured_job, catalog, str(raw), progress)
                 lifecycle = product.evidence
                 ownership(binding_path, binding, product)
+                if not lifecycle["cleanup_verified"]:
+                    code = lifecycle.get("child_exit_code")
+                    raise ValueError("TRAFFIC_CLI_CRASHED" if isinstance(code, int) and code >= 0x80000000 else "TRAFFIC_CONTROLLED_SHUTDOWN_FAILED")
             gate = idle(binding_path, binding, mode != "OFF")
             route = validate_route(measured, mode == "SOCKS5") and (mode == "OFF" or lifecycle["route_events"].get("PROXY" if mode == "SOCKS5" else "DIRECT", 0) > 0)
             loss_samples = [stage.get('max_udp_flow_loss_fraction') for stage in measured['stages']] if measured.get('compact_stages') else [
@@ -173,10 +177,11 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
     finally:
         private_profile.unlink(missing_ok=True)
         try:
-            if product is not None and product.evidence["ready"] and product.evidence["cleanup_verified"]:
+            exited = product is not None and product.evidence.get("exit_verified", product.evidence["cleanup_verified"])
+            if product is not None and product.evidence["ready"] and exited:
                 ownership(binding_path, binding, product)
-            result["off_after_attempt"] = idle(binding_path, binding, product is not None and product.evidence["ready"] and product.evidence["cleanup_verified"])
-            result["cleanup_verified"] = product is None or product.evidence["cleanup_verified"]
+            result["off_after_attempt"] = idle(binding_path, binding, product is not None and product.evidence["ready"] and exited)
+            result["cleanup_verified"] = (product is None or exited) and result["off_after_attempt"]["off_verified"]
         except (OSError, ValueError, subprocess.TimeoutExpired):
             result["errors"].append("TRAFFIC_CLEANUP_OR_REBOOT_REQUIRED")
         result["cancelled"] = cancelled(job)
