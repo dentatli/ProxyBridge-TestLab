@@ -4,7 +4,8 @@ using ProxyBridge.TestLab.Ui.Hubs;
 using ProxyBridge.TestLab.Ui.Models;
 using ProxyBridge.TestLab.Ui.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+var publishedContent = Directory.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot")) ? AppContext.BaseDirectory : null;
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = publishedContent });
 // Python helpers inherit this process-only setting; installed application files
 // stay immutable while reports and launch inputs use their dedicated roots.
 Environment.SetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "1", EnvironmentVariableTarget.Process);
