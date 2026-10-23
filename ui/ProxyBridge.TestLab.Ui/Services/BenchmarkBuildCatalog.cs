@@ -106,6 +106,7 @@ public sealed class BenchmarkBuildCatalog(AppStoragePaths storage, DpapiSecretPr
     public static JsonElement Attach(JsonElement observation, BenchmarkBuildEntry entry)
     {
         var values = observation.EnumerateObject().ToDictionary(property => property.Name, property => property.Value.Clone());
+        values["product_label"] = JsonSerializer.SerializeToElement(entry.Contract == "driver" ? "Driver WFP" : "WinDivert");
         values["build_id"] = JsonSerializer.SerializeToElement(entry.Id);
         values["display_name"] = JsonSerializer.SerializeToElement(entry.DisplayName);
         return JsonSerializer.SerializeToElement(values);
