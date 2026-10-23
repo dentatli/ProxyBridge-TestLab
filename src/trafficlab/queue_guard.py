@@ -14,7 +14,11 @@ from trafficlab.schedule import origin_metrics
 from trafficlab.worker import cancelled
 
 CASE_FAILURES = {"TRAFFIC_TRANSPORT_INCOMPLETE", "TRAFFIC_ROUTE_UNVERIFIED",
-                 "TRAFFIC_UDP_LOSS_THRESHOLD_EXCEEDED"}
+                 "TRAFFIC_UDP_LOSS_THRESHOLD_EXCEEDED", "TRAFFIC_OFF_CONTROL_FAILED",
+                 "TRAFFIC_UNRULED_CONTROL_FAILED", "TRAFFIC_UNRULED_CLEANUP_FAILED",
+                 "TRAFFIC_CLI_CRASHED", "TRAFFIC_CLI_READINESS_FAILED",
+                 "TRAFFIC_CLI_PROFILE_NOT_CONFIRMED", "TRAFFIC_CONTROLLED_SHUTDOWN_FAILED",
+                 "TRAFFIC_CLI_CAPTURE_INCOMPLETE"}
 
 
 def eligible(report: dict[str, Any], binding: dict[str, Any]) -> bool:
@@ -27,21 +31,23 @@ def eligible(report: dict[str, Any], binding: dict[str, Any]) -> bool:
         return False
     if (report.get("complete") is not False or report.get("cancelled") is not False or
         report.get("cleanup_verified") is not True or report.get("off_after_attempt", {}).get("off_verified") is not True or
-        not errors or not set(errors).issubset(CASE_FAILURES) or not measurements or
+        not isinstance(errors, list) or not errors or any(not isinstance(code, str) for code in errors) or
+        not set(errors).issubset(CASE_FAILURES) or
         conditions.get("remote_bundle_sha256") != binding.get("remote_bundle_sha256") or
         conditions.get("local_runtime_sha256") != binding.get("local_runtime_sha256") or
         not conditions.get("application_tls_sha256")):
         return False
-    if any(not any(row.get("mode") == mode and row.get("complete") is True and row.get("route_verified") is True
-                   for row in controls) for mode in ("OFF", "UNRULED")):
-        return False
-    for measurement in measurements:
-        if measurement.get("mode") == "OFF":
-            continue
-        lifecycle = measurement.get("lifecycle", {})
-        if (lifecycle.get("ready") is not True or lifecycle.get("cleanup_verified") is not True or
-            lifecycle.get("capture_complete") is not True or lifecycle.get("forced_stop") is not False):
+    # A case may fail before measurements (including a CLI crash). Readiness
+    # is not a recovery proof: require native process exit and retained identity.
+    lifecycles = [row.get("lifecycle", {}) for row in measurements if row.get("mode") != "OFF"]
+    lifecycles += [report[key] for key in ("unruled_lifecycle", "last_lifecycle") if report.get(key)]
+    for lifecycle in lifecycles:
+        if (lifecycle.get("exit_verified") is not True or lifecycle.get("path_verified") is not True or
+            lifecycle.get("capture_complete") is not True or lifecycle.get("output_retention_ok") is not True or
+            lifecycle.get("forced_stop") is not False):
             return False
+    if any(code.startswith("TRAFFIC_CLI_") or code.endswith("SHUTDOWN_FAILED") or code == "TRAFFIC_UNRULED_CLEANUP_FAILED" for code in errors) and not lifecycles:
+        return False
     return True
 
 
