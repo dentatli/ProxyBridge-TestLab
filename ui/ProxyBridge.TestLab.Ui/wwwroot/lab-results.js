@@ -91,7 +91,7 @@ function resultMetricLabel(metric, scenario) {
   if (id === "ram" || id === "unruled_ram") return "processRam";
   return id === "added_p95" ? "proxyDifference" : "unruledDifference";
 }
-let resultChoices = { builds: null, scenario: "tcp_rtt", workload: "LEGACY", metrics: { tcp_rtt: ["direct_p95", "unruled_p95", "p95", "cpu", "ram"], tcp_transfer: ["direct_upload", "unruled_upload", "upload", "direct_download", "unruled_download", "download", "upload_cpu", "download_cpu", "upload_ram", "download_ram"] } };
+let resultChoices = { builds: null, scenario: "tcp_rtt", workload: "SHORT:LOW", metrics: { tcp_rtt: ["direct_p95", "p95", "cpu", "ram"], tcp_transfer: ["direct_upload", "upload", "direct_download", "download", "upload_cpu", "download_cpu", "upload_ram", "download_ram"] } };
 resultChoices.metrics.tcp_rtt_three_modes = ["direct_p95", "unruled_p95", "p95", "unruled_added_p95", "unruled_cpu", "cpu", "unruled_ram", "ram"];
 resultChoices.metrics.tcp_connections = resultMetrics.tcp_connections.map(metric => metric[0]);
 resultChoices.metrics.tcp_upload = resultMetrics.tcp_upload.map(metric => metric[0]);
