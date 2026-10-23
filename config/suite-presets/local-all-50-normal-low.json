@@ -1,0 +1,258 @@
+{
+  "format": "proxybridge-testlab-suite",
+  "schema_version": 1,
+  "name": "Все 50 без суточного этапа · NORMAL LOW",
+  "mode": "local",
+  "tests": [
+    {
+      "scenario": "three-modes",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "tcp-rtt",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "tcp-upload",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "tcp-download",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "tcp-duplex",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "tcp-multistream",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "loaded-rtt",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "tcp-connections",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "flow-rate",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "udp-connected",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "udp-unconnected",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "udp-sweep",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "udp-connections",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-http",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-https",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-websocket",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-websocket-tls",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-http2",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-grpc",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-grpc-client-stream",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-grpc-server-stream",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-grpc-bidi-stream",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-http3",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-http3-multiplex",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-http-payload-sweep",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-https-payload-sweep",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-wss-payload-sweep",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-http2-payload-sweep",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-http3-payload-sweep",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-tls",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-quic",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-quic-multiplex",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-dns-tcp",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-dns-udp",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-dns-tls",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-dns-https",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-ssh",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-sftp",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-smtp",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-smtps",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-imap",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-imaps",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-pop3",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-pop3s",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-mqtt",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-mqtts",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-amqp",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "app-amqps",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "mixed",
+      "duration": "NORMAL",
+      "load": "LOW"
+    },
+    {
+      "scenario": "stability",
+      "duration": "NORMAL",
+      "load": "LOW"
+    }
+  ]
+}
