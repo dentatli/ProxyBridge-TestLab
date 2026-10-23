@@ -118,9 +118,12 @@ function trafficFailureHelp(row){
   if(errors.includes("TRAFFIC_CLI_CRASHED"))messages.push(t("trafficCrashFailureHelp"));
   return messages.length?`<p>${messages.map(html).join(" ")}</p>`:"";
 }
+Object.assign(labText.ru,{trafficForcedStop:"CLI не завершился вовремя и был принудительно закрыт. Тест сохраняет FAIL; продолжение возможно только после проверки полного восстановления."});
+Object.assign(labText.en,{trafficForcedStop:"The CLI did not exit within the deadline and was forcibly closed. The case remains FAIL; continuation requires verified full recovery."});
 function trafficCliExitMarkup(row){
   const code=row.last_lifecycle?.child_exit_code;
-  return Number.isInteger(code)&&code>=0&&code<=0xffffffff?`<p>${t("trafficCliExitCode")}: 0x${code.toString(16).toUpperCase().padStart(8,"0")}</p>`:"";
+  const forced=row.last_lifecycle?.forced_stop===true||row.last_lifecycle?.host_exit_code===11?`<p>${html(t("trafficForcedStop"))}</p>`:"";
+  return forced+(Number.isInteger(code)&&code>=0&&code<=0xffffffff?`<p>${t("trafficCliExitCode")}: 0x${code.toString(16).toUpperCase().padStart(8,"0")}</p>`:"");
 }
 function trafficHistoryFamilies(attempt,rows,selected,renderRow){
   const requested=(attempt.cases||[]).filter(row=>selected==="all"||`${row.Id||row.id}|${row.Duration||row.duration}|${row.Load||row.load}`===selected);

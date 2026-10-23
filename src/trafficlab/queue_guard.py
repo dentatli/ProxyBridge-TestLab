@@ -23,7 +23,6 @@ CASE_FAILURES = {"TRAFFIC_TRANSPORT_INCOMPLETE", "TRAFFIC_ROUTE_UNVERIFIED",
 
 def eligible(report: dict[str, Any], binding: dict[str, Any]) -> bool:
     errors = report.get("errors")
-    controls = report.get("controls", [])
     measurements = report.get("measurements", [])
     conditions = report.get("conditions", {})
     if any(not isinstance(binding.get(key), str) or len(binding[key]) != 64
@@ -43,8 +42,7 @@ def eligible(report: dict[str, Any], binding: dict[str, Any]) -> bool:
     lifecycles += [report[key] for key in ("unruled_lifecycle", "last_lifecycle") if report.get(key)]
     for lifecycle in lifecycles:
         if (lifecycle.get("exit_verified") is not True or lifecycle.get("path_verified") is not True or
-            lifecycle.get("capture_complete") is not True or lifecycle.get("output_retention_ok") is not True or
-            lifecycle.get("forced_stop") is not False):
+            lifecycle.get("capture_complete") is not True or lifecycle.get("output_retention_ok") is not True):
             return False
     if any(code.startswith("TRAFFIC_CLI_") or code.endswith("SHUTDOWN_FAILED") or code == "TRAFFIC_UNRULED_CLEANUP_FAILED" for code in errors) and not lifecycles:
         return False
