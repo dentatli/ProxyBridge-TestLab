@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$Version='0.3.0-local-preview.23',[string]$OutputRoot='', [string]$PythonDirectory='')
+param([string]$Version='0.3.0-local-preview.24',[string]$OutputRoot='', [string]$PythonDirectory='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot

@@ -76,7 +76,7 @@ function renderTrafficExecution(execution){
   const key=JSON.stringify([model.id,labLanguage,model.groups.map(group=>[group.id,group.rows.map(row=>row.id)])]);
   if(key!==trafficQueueDomKey){
     trafficQueueDomKey=key;
-    container.innerHTML=`<div class="traffic-queue-overview"><strong data-queue-overview role="status" aria-live="polite"></strong><a href="/lab.html?page=results" data-lab-page="results">${html(trafficQueueLabel("logs"))}</a></div><ol class="traffic-queue-list">${model.groups.map((group,index)=>`<li><details data-queue-card="${html(group.id)}"><summary><span class="traffic-queue-number">${index+1}</span><span class="traffic-queue-title">${html(group.name)}</span><span class="traffic-queue-status"></span><span class="traffic-queue-count"></span></summary><ol class="traffic-queue-stages">${group.rows.map(row=>`<li data-queue-stage="${html(row.id)}"><span class="traffic-queue-stage-icon" aria-hidden="true"></span><span>${html(row.name)}</span><span class="traffic-queue-stage-status"></span></li>`).join("")}</ol></details></li>`).join("")}</ol><p class="traffic-queue-note"></p>`;
+    container.innerHTML=`<div class="traffic-queue-overview"><strong data-queue-overview role="status" aria-live="polite"></strong><a href="/lab.html?page=results" data-lab-page="results">${html(trafficQueueLabel("logs"))}</a></div><ol class="traffic-queue-list">${model.groups.map((group,index)=>`<li><details data-queue-card="${html(group.id)}"><summary><span class="traffic-queue-number">${index+1}</span><span class="traffic-queue-title">${html(group.name)}</span><span class="traffic-queue-status"></span><span class="traffic-queue-count"></span></summary><ol class="traffic-queue-stages">${group.rows.map(row=>`<li data-queue-stage="${html(row.id)}"><span class="traffic-queue-stage-icon" aria-hidden="true"></span><span>${html(row.name)}</span><span class="traffic-queue-stage-status"></span></li>`).join("")}</ol></details></li>`).join("")}</ol>`;
     container.querySelectorAll("details").forEach(card=>{
       card.querySelector("summary").addEventListener("click",event=>{
         event.preventDefault();card.open=!card.open;
@@ -101,6 +101,5 @@ function renderTrafficExecution(execution){
       element.querySelector(".traffic-queue-stage-status").textContent=trafficQueueLabel(row.status);
     }
   }
-  container.querySelector(".traffic-queue-note").textContent=model.active&&model.groups.some(group=>group.rows.some(row=>row.status==="PROVISIONAL"))?trafficQueueLabel("provisional"):"";
   lab("traffic-run-status").hidden=true;
 }

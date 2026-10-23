@@ -153,14 +153,6 @@ function renderTraffic(){
     caseIndex>=0?`${trafficName(runningCases[caseIndex].id||runningCases[caseIndex].Id)} · ${caseIndex+1}/${runningCases.length}`:"",progress?.stage,
     progress?.index!==undefined?`${t("trafficWindow")}: ${progress.index+1}/${progress.total}`:"",run?.id].filter(Boolean).join(" · ");
   renderTrafficExecution(trafficState?.execution);
-  const live=progress?.live_origin,liveBox=lab('traffic-live-progress');
-  liveBox.hidden=!active;
-  const age=typeof live?.observed_at_unix_seconds==='number'?Date.now()/1000-live.observed_at_unix_seconds:null;
-  const sameCase=!trafficState?.execution?.queue?.current_case_id||progress?.run_id?.startsWith(`${run.id}.${trafficState.execution.queue.current_case_id}.`);
-  const fresh=sameCase&&live?.available===true&&Number.isFinite(age)&&age>=-1&&age<=5;
-  const operation=['REGISTERING_SESSION','RUNNING_WORKLOAD','COLLECTING_EVIDENCE','WRITING_REPORT','PREPARING_REPORT'].includes(progress?.operation)?t(`trafficFailure_${progress.operation}`):'';
-  liveBox.textContent=[operation,
-    fresh?`${t('trafficLiveRx')}: ${trafficLiveBytes(live.rx_bytes)} · ${t('trafficLiveTx')}: ${trafficLiveBytes(live.tx_bytes)} · ${t('trafficLiveActive')}: ${number(live.active,0)} · ${t('trafficLiveTransactions')}: ${number(live.application_transactions,0)}`:t('trafficLiveUnavailable')].filter(Boolean).join(' · ');
   lab("traffic-error").textContent=trafficError||(remote&&trafficState?.runtime?.state==="APPLY_UNKNOWN"?t("trafficApplyUnknown"):trafficState?.runtime?.error)||(run?.error==="TRAFFIC_CASE_FAILED"?"":run?.error)||(!trafficState?.runtime?.administrator?t("trafficAdmin"):"");
   const families=trafficFamilies(trafficCatalog);
   const cardsKey=JSON.stringify([trafficCatalog,trafficChoice,trafficFamilyPreferences,labLanguage,busy]);
@@ -279,6 +271,10 @@ function trafficMetric(row,key){
   if(!row.complete)return null;
   const measured=trafficSelectedMeasurement(row);
   if(!measured?.complete||!measured.route_verified)return null;
+  return trafficMeasurementMetric(measured,key);
+}
+function trafficMeasurementMetric(measured,key){
+  if(!measured)return null;
   const overall=measured.overall||{},resources=measured.resources||{};
   const workload=overall.phase_observations?.groups?.workload;
   const counter=(role,name,stat)=>resources[role]?.counters?.[name]?.[stat];

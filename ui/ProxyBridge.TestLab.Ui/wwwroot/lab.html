@@ -181,7 +181,6 @@
         <div class="lab-test-settings"><button id="traffic-start" type="button" class="button primary" data-i18n="trafficStart"></button><button id="traffic-stop" type="button" class="button secondary" data-i18n="trafficStop" disabled></button></div>
         <div id="traffic-execution" class="traffic-execution" hidden></div>
         <p id="traffic-run-status" role="status" aria-live="polite"></p>
-        <p id="traffic-live-progress" class="lab-status" hidden></p>
         <p id="traffic-error" class="lab-warning" role="alert"></p>
       </section>
       <div id="lab-local-launch">
@@ -207,9 +206,9 @@
         <h2 id="results-heading" tabindex="-1" data-i18n="results">Результаты</h2>
         <p id="traffic-history-warning" class="lab-warning" role="alert" hidden></p>
         <nav class="result-switch" aria-label="Results"><button type="button" data-result-view="reports" aria-pressed="true" data-i18n="reportRuns"></button><button type="button" data-result-view="compare" aria-pressed="false" data-i18n="reportCompare"></button></nav>
-        <div id="traffic-report-view"><div id="traffic-history"></div><button id="traffic-history-more" class="button secondary" type="button" data-i18n="trafficMore" hidden></button></div>
+        <div id="traffic-report-view"><p id="traffic-download-status" role="status" aria-live="polite"></p><div id="traffic-history"></div><button id="traffic-history-more" class="button secondary" type="button" data-i18n="trafficMore" hidden></button></div>
         <div id="traffic-pair-view" hidden><div id="traffic-pair-selection" class="result-pair-select"></div><div id="traffic-pair-overview"></div></div>
-        <details class="result-advanced"><summary data-i18n="reportAdvanced"></summary>
+        <details class="result-advanced" hidden inert><summary data-i18n="reportAdvanced"></summary>
         <h4 data-i18n="trafficCompare"></h4>
         <label><span data-i18n="trafficConditions"></span><select id="traffic-comparison-filter"><option value=""></option></select></label>
         <label><span data-i18n="trafficComparisonMode"></span><select id="traffic-comparison-mode"><option value="SOCKS5">SOCKS5</option><option value="OFF">OFF</option><option value="UNRULED">UNRULED</option></select></label>
@@ -223,7 +222,7 @@
         <p id="traffic-export-status" role="status" aria-live="polite"></p>
         </details>
       </section>
-      <details class="result-advanced"><summary data-i18n="reportArchive"></summary>
+      <details class="result-advanced" hidden inert><summary data-i18n="reportArchive"></summary>
       <div class="lab-header"><button id="refresh-lab" class="button secondary" type="button" data-i18n="refresh">Обновить</button></div>
       <nav class="lab-result-tabs" data-i18n-aria="resultSections" aria-label="Разделы результатов">
         <a href="/lab.html?page=results&amp;tab=compare" data-results-tab="compare" data-i18n="compareResults">Сравнение</a>

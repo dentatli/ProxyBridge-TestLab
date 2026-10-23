@@ -1,7 +1,7 @@
 "use strict";
 // Summary first. Original evidence and detailed measurements remain available on demand.
 Object.assign(labText.ru,{
-  reportRuns:'Отчёты',reportCompare:'Сравнить прогоны',reportAdvanced:'Экспорт и расширенное сравнение',reportArchive:'Архив прежних отчётов',reportClose:'Закрыть',
+  reportAllMetrics:'Все показатели',reportDownload:'Скачать итоги (JSON)',reportObserved:'Наблюдения: корректность обмена или маршрута не подтверждена',reportRuns:'Отчёты',reportCompare:'Сравнить прогоны',reportAdvanced:'Экспорт и расширенное сравнение',reportArchive:'Архив прежних отчётов',reportClose:'Закрыть',
   reportPassed:'Пройдено',reportFailed:'Ошибки',reportOther:'Не завершено',reportSteps:'этапов',reportCleanup:'Очистка подтверждена',reportUnclean:'Очистка не подтверждена',
   reportDetails:'Подробности и логи',reportTechnical:'Измерения и условия',reportJson:'Данные отчёта',reportLogs:'Логи и исходные результаты',reportNoLogs:'Лог для этого этапа не сохранён.',reportLoading:'Загрузка…',reportLogError:'Не удалось открыть данные.',reportSharedLog:'Общий лог ProxyBridge',reportNext:'Следующая часть',
   reportLoss:'Потери ответов',reportTransport:'Обмен не завершён',reportRoute:'Маршрут не подтверждён',reportCancelled:'Выполнение отменено',reportSkipped:'Не запускалось',reportStartup:'ProxyBridge не подтвердил готовность',reportUnknown:'Результат не подтверждён',reportOk:'Обмен и маршрут подтверждены',
@@ -11,7 +11,7 @@ Object.assign(labText.ru,{
   reportSoak:'В течение выбранного времени повторяются минутные интервалы: передача TCP в обе стороны, UDP и измерение задержки. До нагрузки и после неё проверяется восстановление. Данные и ресурсы записываются по интервалам.'
 });
 Object.assign(labText.en,{
-  reportRuns:'Reports',reportCompare:'Compare runs',reportAdvanced:'Export and advanced comparison',reportArchive:'Earlier report archive',reportClose:'Close',
+  reportAllMetrics:'All measurements',reportDownload:'Download results (JSON)',reportObserved:'Observations: exchange or route correctness is unverified',reportRuns:'Reports',reportCompare:'Compare runs',reportAdvanced:'Export and advanced comparison',reportArchive:'Earlier report archive',reportClose:'Close',
   reportPassed:'Passed',reportFailed:'Failed',reportOther:'Unfinished',reportSteps:'stages',reportCleanup:'Cleanup verified',reportUnclean:'Cleanup unverified',
   reportDetails:'Details and logs',reportTechnical:'Measurements and conditions',reportJson:'Report data',reportLogs:'Logs and raw results',reportNoLogs:'No log was retained for this stage.',reportLoading:'Loading…',reportLogError:'Could not open evidence.',reportSharedLog:'Shared ProxyBridge log',reportNext:'Next part',
   reportLoss:'Reply loss',reportTransport:'Exchange incomplete',reportRoute:'Route unverified',reportCancelled:'Cancelled',reportSkipped:'Not started',reportStartup:'ProxyBridge readiness unconfirmed',reportUnknown:'Unverified result',reportOk:'Exchange and route verified',
@@ -45,25 +45,45 @@ function trafficReportReason(row,attempt){
   return t('reportUnknown');
 }
 function trafficReportMeasurements(row){
-  const m=row?.measurements?.find(item=>item.mode==='SOCKS5');
-  if(!m?.complete||!m.route_verified)return [];
-  const values=[['trafficSent',trafficMiB(m.overall?.tcp_tx_bytes_per_second)],['trafficReceived',trafficMiB(m.overall?.tcp_rx_bytes_per_second)],['trafficP99',m.overall?.probe_latency?.p99_ms??m.overall?.connection_latency?.p99_ms],['trafficCpu',m.resources?.product_cli?.counters?.cpu_percent_of_pc?.mean]];
-  return values.filter(([,value])=>typeof value==='number'&&Number.isFinite(value));
+  const measured=row?.measurements?.find(item=>item.mode==='SOCKS5');
+  return trafficMetrics.map(key=>[key,trafficMeasurementMetric(measured,key)])
+    .filter(([,value])=>typeof value==='number'&&Number.isFinite(value));
+}
+function trafficReportMetricMarkup(row){
+  const values=trafficReportMeasurements(row),primary=new Set(['trafficSent','trafficReceived','trafficP99','trafficUdpP99','trafficLoss','trafficCpu','trafficRam','trafficSystemCpu','trafficSystemRam','trafficCliHandles','trafficCliThreads']);
+  const integer=new Set(['trafficPeak','trafficCliHandles','trafficCliThreads','trafficTransactions','trafficConnectSamples',...Object.keys(trafficUdpCounters)]);
+  const markup=rows=>`<div class="result-quick-metrics">${rows.map(([name,value])=>`<span>${html(t(name))}<b>${number(value,integer.has(name)?0:2)}</b></span>`).join('')}</div>`;
+  const extra=values.filter(([key])=>!primary.has(key));
+  return markup(values.filter(([key])=>primary.has(key)))+(extra.length?`<details class="result-more-metrics"><summary>${t('reportAllMetrics')} (${values.length})</summary>${markup(extra)}</details>`:'');
+}
+function trafficReportChronological(runs){
+  const time=run=>{const value=Date.parse(run.started_at_utc);return Number.isFinite(value)?value:0;};
+  return [...runs].sort((a,b)=>time(b)-time(a)||String(b.id).localeCompare(String(a.id)));
+}
+function downloadTrafficReport(runId){
+  const run=trafficHistory.find(item=>item.id===runId);if(!run)return;
+  const blob=new Blob([JSON.stringify({schema_version:1,scope:'single-attempt',exported_at_utc:new Date().toISOString(),items:[run]},null,2)+'\n'],{type:'application/json;charset=utf-8'});
+  const status=lab('traffic-download-status');
+  if(blob.size>8*1024*1024){status.textContent=t('trafficExportTooLarge');return;}
+  const url=URL.createObjectURL(blob),anchor=document.createElement('a');
+  anchor.href=url;anchor.download=`testlab-${String(run.id).replace(/[^a-zA-Z0-9_-]/g,'_')}.json`;
+  document.body.append(anchor);anchor.click();anchor.remove();setTimeout(()=>URL.revokeObjectURL(url),10000);
+  status.textContent=t('trafficExportStarted');
 }
 function renderConciseTrafficHistory(){
   const stamp=JSON.stringify([trafficHistory,trafficCatalog,labLanguage,labState.builds,trafficSnapshotUnavailable]);
   if(trafficHistoryKey===stamp)return;const firstRender=!reportHasData&&trafficHistory.length>0;trafficHistoryKey=stamp;
   if(trafficHistory.length)reportHasData=true;
   const expanded=new Set([...lab('traffic-history').querySelectorAll('details[open][data-result-key]')].map(node=>node.dataset.resultKey));
-  const comprehensive=trafficHistory.find(run=>(run.cases?.length||0)>=20);
-  const order=comprehensive?[comprehensive,...trafficHistory.filter(run=>run!==comprehensive)]:trafficHistory;
+  const order=trafficReportChronological(trafficHistory);
   lab('traffic-history').innerHTML=order.map((run,index)=>{
     const counts=trafficReportCounts(run),groups=trafficFamilyReportGroups(trafficCatalog,run.cases||[],run.results||[]),key=run.id;
-    const label=run===comprehensive?t('reportComplex'):t('reportRecent');
+    const label=(run.cases?.length||0)>=20?t('reportComplex'):t('reportRecent');
     return `<article class="result-run"><details data-result-key="${html(key)}" ${expanded.has(key)||firstRender&&index===0?'open':''}><summary class="result-run-heading"><span><small>${html(label)} · ${html(trafficReportDate(run))} · ${html(t(run.mode||'remote'))}</small><strong>${html(trafficReportBuild(run))}</strong></span><span>${trafficReportBadge(run.activity_observation==='UNCONFIRMED'?'UNVERIFIED':run.state)}<span class="result-counts"><b class="result-pass">${t('reportPassed')}: ${counts.passed}</b><b class="result-fail">${t('reportFailed')}: ${counts.failed}</b>${counts.other?`<b>${t('reportOther')}: ${counts.other}</b>`:''}</span></span></summary>
       <p class="result-cleanup">${t(run.cleanup_verified&&run.local_origin_cleanup_verified!==false?'reportCleanup':'reportUnclean')} · ${run.cases?.length||0} ${t('reportSteps')}</p>
+      <div class="result-report-actions"><button type="button" class="button secondary" data-report-download="${html(key)}">${t('reportDownload')}</button></div>
       <div class="result-families">${groups.map(group=>`<details class="result-family" data-result-key="${html(key+'.'+group.family.id)}" ${expanded.has(key+'.'+group.family.id)?'open':''}><summary><strong>${html(trafficFamilyName(group.family))}</strong><span>${trafficReportBadge(group.status)} ${group.passed}/${group.stages.length}</span></summary><div class="result-stage-list">${group.stages.map((stage,i)=>{
-        const row=group.rows[i];return `<section class="result-stage"><div><strong>${html(trafficName(stage.id))}</strong><p>${html(trafficReportReason(row,run))}</p><small>${html(t(stage.duration))} · ${html(t(stage.load))}</small></div><div>${trafficReportBadge(trafficReportStatus(row,run))}<div class="result-quick-metrics">${trafficReportMeasurements(row).slice(0,3).map(([name,value])=>`<span>${html(t(name))}<b>${number(value)}</b></span>`).join('')}</div>${row?`<button type="button" class="button secondary" data-evidence-run="${html(key)}" data-evidence-case="${html(stage.id)}">${t('reportDetails')}</button>`:''}</div></section>`;
+        const row=group.rows[i];return `<section class="result-stage"><div><strong>${html(trafficName(stage.id))}</strong><p>${html(trafficReportReason(row,run))}</p><small>${html(t(stage.duration))} · ${html(t(stage.load))}</small></div><div>${trafficReportBadge(trafficReportStatus(row,run))}${row?.measurements?.some(m=>m.mode==='SOCKS5'&&(!m.complete||!m.route_verified))?`<p class="result-observed">${t('reportObserved')}</p>`:''}${trafficReportMetricMarkup(row)}${row?`<button type="button" class="button secondary" data-evidence-run="${html(key)}" data-evidence-case="${html(stage.id)}">${t('reportDetails')}</button>`:''}</div></section>`;
       }).join('')}</div></details>`).join('')}</div></details></article>`;
   }).join('')||`<p>${t('trafficNone')}</p>`;
   renderRunComparison();
@@ -150,6 +170,7 @@ async function loadTrafficLog(name,offset=0){
   }catch{if(sequence===evidenceSequence)lab('traffic-log-text').textContent=t('reportLogError');}
 }
 lab('traffic-results').addEventListener('click',event=>{
+  const download=event.target.closest('[data-report-download]');if(download){downloadTrafficReport(download.dataset.reportDownload);return;}
   const details=event.target.closest('[data-evidence-run]');if(details){openTrafficEvidence(details.dataset.evidenceRun,details.dataset.evidenceCase);return;}
   const view=event.target.closest('[data-result-view]');if(view){resultView=view.dataset.resultView;lab('traffic-report-view').hidden=resultView!=='reports';lab('traffic-pair-view').hidden=resultView!=='compare';for(const button of lab('traffic-results').querySelectorAll('[data-result-view]'))button.setAttribute('aria-pressed',String(button===view));renderRunComparison();}
   const family=event.target.closest('[data-result-family]');if(family){resultPair.family=family.dataset.resultFamily;renderRunComparison();}
