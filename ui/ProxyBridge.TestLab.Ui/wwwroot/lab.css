@@ -142,3 +142,30 @@
  .result-pair-select,.result-plots { grid-template-columns:1fr; }.result-family-buttons { grid-template-columns:repeat(2,minmax(0,1fr)); }
  #traffic-evidence-dialog { width:calc(100vw - 20px); padding:16px; }.evidence-header { align-items:flex-start; }
 }
+
+/* Execution queue: text/icon statuses remain readable without colour. */
+.traffic-execution { margin-block: 1.5rem; }
+.traffic-queue-overview { display:flex; justify-content:space-between; gap:1rem; flex-wrap:wrap; margin-bottom:1rem; }
+.traffic-queue-list,.traffic-queue-stages { list-style:none; padding:0; margin:0; }
+.traffic-queue-list { display:grid; gap:.65rem; }
+.traffic-queue-list details { --queue-colour:#90a4ae; border:1px solid #385159; border-left:4px solid var(--queue-colour); border-radius:8px; background:#0b191d; overflow:hidden; }
+.traffic-queue-list summary { display:flex; align-items:center; gap:.75rem; padding:1rem; cursor:pointer; list-style:none; }
+.traffic-queue-list summary::-webkit-details-marker { display:none; }
+.traffic-queue-list summary::after { content:"＋"; }
+.traffic-queue-list details[open] > summary::after { content:"−"; }
+.traffic-queue-list summary:focus-visible { outline:2px solid #61c8ff; outline-offset:-3px; }
+.traffic-queue-number { color:var(--queue-colour); font-variant-numeric:tabular-nums; }
+.traffic-queue-title { flex:1; font-weight:650; }
+.traffic-queue-status { color:var(--queue-colour); font-size:.9rem; }
+.traffic-queue-count { color:#aabdc2; font-size:.85rem; white-space:nowrap; }
+.traffic-queue-list [data-status="PASS"],.traffic-queue-list [data-status="PROVISIONAL"] { --queue-colour:#65d6a4; }
+.traffic-queue-list [data-status="FAIL"] { --queue-colour:#ff8d94; }
+.traffic-queue-list [data-status="MIXED"] { --queue-colour:#f5c36b; }
+.traffic-queue-list [data-status="RUNNING"] { --queue-colour:#70c9ff; }
+.traffic-queue-list .is-current { outline:2px solid #70c9ff; outline-offset:1px; background:#10252e; }
+.traffic-queue-stages { border-top:1px solid #30474e; padding:.3rem 1rem .6rem; }
+.traffic-queue-stages li { --queue-colour:#90a4ae; display:flex; gap:.75rem; align-items:baseline; padding:.7rem 0; }
+.traffic-queue-stage-icon { color:var(--queue-colour); width:1rem; flex-shrink:0; font-weight:700; }
+.traffic-queue-stage-status { margin-left:auto; color:var(--queue-colour); font-size:.85rem; white-space:nowrap; }
+.traffic-queue-note { color:#aabdc2; font-size:.85rem; }
+@media(max-width:640px) { .traffic-queue-list summary { flex-wrap:wrap; gap:.5rem; padding:.8rem; } .traffic-queue-title { flex-basis:65%; } .traffic-queue-stage-status { white-space:normal; text-align:right; } }

@@ -152,14 +152,16 @@ function renderTraffic(){
   lab("traffic-run-status").textContent=[labState.builds.find(build=>build.id===(run?.build_id||labState.observation?.build_id))?.display_name,run?.state,
     caseIndex>=0?`${trafficName(runningCases[caseIndex].id||runningCases[caseIndex].Id)} · ${caseIndex+1}/${runningCases.length}`:"",progress?.stage,
     progress?.index!==undefined?`${t("trafficWindow")}: ${progress.index+1}/${progress.total}`:"",run?.id].filter(Boolean).join(" · ");
+  renderTrafficExecution(trafficState?.execution);
   const live=progress?.live_origin,liveBox=lab('traffic-live-progress');
   liveBox.hidden=!active;
   const age=typeof live?.observed_at_unix_seconds==='number'?Date.now()/1000-live.observed_at_unix_seconds:null;
-  const fresh=live?.available===true&&Number.isFinite(age)&&age>=-1&&age<=5;
+  const sameCase=!trafficState?.execution?.queue?.current_case_id||progress?.run_id?.startsWith(`${run.id}.${trafficState.execution.queue.current_case_id}.`);
+  const fresh=sameCase&&live?.available===true&&Number.isFinite(age)&&age>=-1&&age<=5;
   const operation=['REGISTERING_SESSION','RUNNING_WORKLOAD','COLLECTING_EVIDENCE','WRITING_REPORT','PREPARING_REPORT'].includes(progress?.operation)?t(`trafficFailure_${progress.operation}`):'';
   liveBox.textContent=[operation,
-    fresh?`${t('trafficLiveRx')}: ${trafficLiveBytes(live.rx_bytes)} · ${t('trafficLiveTx')}: ${trafficLiveBytes(live.tx_bytes)} · ${t('trafficLiveActive')}: ${number(live.active,0)} · ${t('trafficLiveTransactions')}: ${number(live.application_transactions,0)}`:t('trafficLiveUnavailable'),t('trafficLiveHelp')].filter(Boolean).join(' · ');
-  lab("traffic-error").textContent=trafficError||(remote&&trafficState?.runtime?.state==="APPLY_UNKNOWN"?t("trafficApplyUnknown"):trafficState?.runtime?.error)||run?.error||(!trafficState?.runtime?.administrator?t("trafficAdmin"):"");
+    fresh?`${t('trafficLiveRx')}: ${trafficLiveBytes(live.rx_bytes)} · ${t('trafficLiveTx')}: ${trafficLiveBytes(live.tx_bytes)} · ${t('trafficLiveActive')}: ${number(live.active,0)} · ${t('trafficLiveTransactions')}: ${number(live.application_transactions,0)}`:t('trafficLiveUnavailable')].filter(Boolean).join(' · ');
+  lab("traffic-error").textContent=trafficError||(remote&&trafficState?.runtime?.state==="APPLY_UNKNOWN"?t("trafficApplyUnknown"):trafficState?.runtime?.error)||(run?.error==="TRAFFIC_CASE_FAILED"?"":run?.error)||(!trafficState?.runtime?.administrator?t("trafficAdmin"):"");
   const families=trafficFamilies(trafficCatalog);
   const cardsKey=JSON.stringify([trafficCatalog,trafficChoice,trafficFamilyPreferences,labLanguage,busy]);
   let restoreFocus=null;
@@ -179,6 +181,9 @@ function renderTraffic(){
   const reviewCases=active?Object.entries(reviewChoices).map(([id,row])=>({id,...row})):trafficCases();
   const reviewEstimate=trafficEstimate(reviewCases,active?run?.continue_after_failure===true:trafficSafeContinue());
   const selectedFamilies=families.filter(family=>reviewChoice(family).selected);
+  lab("traffic-selection-review").hidden=active;
+  if(run&&lab("traffic-selection-review").dataset.queueRun!==run.id){lab("traffic-selection-review").open=false;lab("traffic-selection-review").dataset.queueRun=run.id;}
+  lab("traffic-run").querySelector('[data-i18n="trafficRunHelp"]').hidden=!!run;
   lab("traffic-selection-summary").innerHTML=selectedFamilies.length?`<p>${t(active?"trafficActiveSelection":"trafficSelectionReview")}:</p><ul>${selectedFamilies.map(family=>{
     const choice=reviewChoice(family);
     return `<li>${html(trafficFamilyName(family))} · ${t(`trafficDepth_${choice.profile}`)} · ${t("trafficStages")}: ${choice.ids.length} · ${choice.duration==="MIXED"?t("trafficMixed"):family.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[choice.duration]+" h":t(choice.duration)} / ${choice.load==="MIXED"?t("trafficMixed"):t(choice.load)}</li>`;
@@ -419,6 +424,7 @@ async function trafficAction(action){
     const body=action==="apply"?{planId:trafficState.runtime.plan.planId}:action==="start"?{buildId:labState.observation.build_id,mode:lab("lab-mode").value,cases:trafficCases(),allowLongRun:true,continueAfterFailure:trafficSafeContinue()}:{};
     const response=await fetch(`/api/v1/lab/traffic/${action}`,{method:"POST",headers:{"Content-Type":"application/json","X-TestLab-CSRF":labState.csrf},body:JSON.stringify(body)});
     const data=await response.json();if(!response.ok)throw new Error(data.error||"TRAFFIC_REQUEST_FAILED");
+    if(action==="start"){trafficState.execution={run:data,active:true};renderTrafficExecution(trafficState.execution);}
   }catch(error){trafficError=error.message;}finally{trafficActionActive=false;await loadTraffic();}
 }
 lab("traffic-cases").addEventListener("change",event=>{

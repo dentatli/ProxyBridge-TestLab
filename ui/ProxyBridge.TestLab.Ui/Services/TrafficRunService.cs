@@ -7,6 +7,7 @@ namespace ProxyBridge.TestLab.Ui.Services;
 public sealed partial class TrafficRuntimeService
 {
     private object? _run;
+    private JsonElement? _queuePresentation;
     private string? _activeDirectory;
     private Task? _execution;
     private static readonly JsonSerializerOptions Pretty = new() { WriteIndented = true };
@@ -38,13 +39,13 @@ public sealed partial class TrafficRuntimeService
                 mode = request.Mode, cases = request.Cases, estimate_seconds = Estimate(request.Cases, request.ContinueAfterFailure),
                 continue_after_failure = request.ContinueAfterFailure, complete = false, cleanup_verified = false };
             await WriteAsync(Path.Combine(directory, "attempt.json"), attempt);
-            lock (_stateGate) { _run = attempt; _activeDirectory = directory; _checked = null; }
+            lock (_stateGate) { _run = attempt; _queuePresentation = null; _activeDirectory = directory; _checked = null; }
             _execution = Task.Run(async () =>
             {
                 try { await ExecuteRunAsync(request, selected, directory, id); }
                 catch (Exception)
                 {
-                    lock (_stateGate) { _run = new { id, state = "FAILED", complete = false, cleanup_verified = false, error = "TRAFFIC_RUN_OR_STORAGE_FAILED" }; _activeDirectory = null; _checked = null; }
+                    lock (_stateGate) { _queuePresentation = ReadQueuePresentation(); _run = new { id, cases = request.Cases, mode = request.Mode, state = "FAILED", complete = false, cleanup_verified = false, error = "TRAFFIC_RUN_OR_STORAGE_FAILED" }; _activeDirectory = null; _checked = null; }
                 }
                 finally { _gate.Release(); }
             });
@@ -219,6 +220,24 @@ public sealed partial class TrafficRuntimeService
             errors = row.TryGetProperty("errors", out var errors) ? errors.Clone() : JsonSerializer.SerializeToElement(Array.Empty<string>()), measurements };
     }
 
+    private JsonElement? ReadQueuePresentation()
+    {
+        if (_activeDirectory is null) return _queuePresentation;
+        var path = Path.Combine(_activeDirectory, "queue-state.json");
+        try
+        {
+            if (!File.Exists(path) || (File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0) return null;
+            using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+            if (stream.Length > 32768) return null;
+            using var document = JsonDocument.Parse(stream, new JsonDocumentOptions { MaxDepth = 8 });
+            _queuePresentation = document.RootElement.Clone();
+            return _queuePresentation;
+        }
+        catch (IOException) { return null; }
+        catch (UnauthorizedAccessException) { return null; }
+        catch (JsonException) { return null; }
+    }
+
     public object Progress()
     {
         lock (_stateGate)
@@ -238,7 +257,7 @@ public sealed partial class TrafficRuntimeService
                 }
                 catch (IOException) { }
                 catch (JsonException) { }
-            return new { run = _run, progress, active = _activeDirectory is not null };
+            return new { run = _run, progress, queue = ReadQueuePresentation(), active = _activeDirectory is not null };
         }
     }
 
@@ -278,7 +297,7 @@ public sealed partial class TrafficRuntimeService
             using var document = JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(directory, "attempt.json")));
             final = document.RootElement.Clone();
         }
-        lock (_stateGate) { _run = final; _activeDirectory = null; _checked = null; _error = error; }
+        lock (_stateGate) { _queuePresentation = ReadQueuePresentation(); _run = final; _activeDirectory = null; _checked = null; _error = error; }
     }
 
     private async Task<JsonElement> ExecutePreparedRunAsync(TrafficRunRequest request, ProductSelectionRequest selection,

@@ -1,6 +1,6 @@
 const labText = {
   ru: {
-    title: "Лаборатория ProxyBridge", language: "Язык", connection: "Подключение", testing: "Тестирование", launch: "Проверка и запуск", results: "Результаты", milliseconds: "мс", maximum: "Максимум",
+    title: "Лаборатория ProxyBridge", language: "Язык", connection: "Подключение", testing: "Выбор проверок", launch: "Проверка и запуск", results: "Результаты", milliseconds: "мс", maximum: "Максимум",
     installationHelp: "Выберите файлы установленного ProxyBridge. Проверка читает файлы, не запускает программу и не меняет драйвер.",
     version: "Версия", folder: "Папка ProxyBridge", driverPath: "Файл драйвера, если находится в другой папке", inspect: "Проверить файлы", select: "Выбрать комплект", details: "Технические сведения",
     proxyMode: "Расположение SOCKS5-прокси", local: "На этом ПК", remote: "На удалённом узле", scenario: "Сценарий", transfer: "Отправка и скачивание TCP", rtt: "Задержка TCP-запроса и ответа", loadedRtt: "Задержка TCP под нагрузкой", udp: "Обмен UDP и задержка",
@@ -31,7 +31,7 @@ const labText = {
     scope: "Разные загрузки одной VM; фон мог меняться. CPU/RAM относятся к CLI, не к драйверу. Исходные результаты сохранены.", addition: "Добавка к прямому RTT, мс", rttScope: "Три пары, 1000 измеренных обменов и 200 прогревочных на прогон. Разности квантилей не являются задержкой каждого отдельного пакета.", badReports: "Некоторые отчёты недоступны."
   },
   en: {
-    title: "ProxyBridge laboratory", language: "Language", connection: "Connection", testing: "Testing", launch: "Check and run", results: "Results", milliseconds: "ms", maximum: "Max",
+    title: "ProxyBridge laboratory", language: "Language", connection: "Connection", testing: "Select checks", launch: "Check and run", results: "Results", milliseconds: "ms", maximum: "Max",
     installationHelp: "Choose your installed ProxyBridge files. Inspection reads files without starting the product or changing its driver.",
     version: "Version", folder: "ProxyBridge folder", driverPath: "Driver file if located elsewhere", inspect: "Inspect files", select: "Select kit", details: "Technical details",
     proxyMode: "SOCKS5 proxy location", local: "On this PC", remote: "On a remote host", scenario: "Scenario", transfer: "TCP upload and download", rtt: "TCP request/response latency", loadedRtt: "TCP latency under load", udp: "UDP exchange and latency",
@@ -63,9 +63,9 @@ const labText = {
   }
 };
 Object.assign(labText.ru, {
-  connection: "Сборки", launch: "Запуск", navigation: "Разделы лаборатории",
-  openRun: "Открыть запуск", toTesting: "К тестированию", toRun: "К запуску",
-  toResults: "Посмотреть результаты", changeTesting: "Изменить тестирование",
+  machineSetup: "Машина и настройка", connection: "Сборки", launch: "Запуск", navigation: "Разделы лаборатории",
+  openRun: "Открыть запуск", toTesting: "К выбору проверок", toRun: "К запуску",
+  toResults: "Посмотреть результаты", changeTesting: "Изменить проверки",
   version: "Тип ProxyBridge", buildName: "Название сборки", savedBuilds: "Сохранённые сборки",
   buildCatalogHelp: "Выбор повторно проверит файлы. Собственное имя не подтверждает совместимость новой сборки.",
   noBuilds: "Сохранённых сборок пока нет.", selectedBuild: "Выбрана", chooseBuild: "Выбрать", renameBuild: "Переименовать",
@@ -120,7 +120,7 @@ Object.assign(labText.ru, {
   noConfirmedDetails: "Подтверждённых показателей для этой попытки нет. Она не заменяется предыдущим успешным результатом.", noHistoryMatches: "Нет запусков по выбранным фильтрам.", moreHistory: "Загрузить более ранние запуски"
 });
 Object.assign(labText.en, {
-  connection: "Builds", launch: "Run", navigation: "Laboratory navigation",
+  machineSetup: "Machine setup", connection: "Builds", launch: "Run", navigation: "Laboratory navigation",
   openRun: "Open run", toTesting: "Continue to testing", toRun: "Continue to run",
   toResults: "View results", changeTesting: "Change testing",
   version: "ProxyBridge type", buildName: "Build name", savedBuilds: "Saved builds",
@@ -267,7 +267,7 @@ function visibleSuite() {
   const { suite, run } = labState.runControl;
   return suite && (!run || suite.tests.some(test => test.planId === run.planId) || new Date(suite.startedAtUtc) >= new Date(run.startedAtUtc)) ? suite : null;
 }
-const labPages = { builds: "connection", testing: "testing", run: "launch", results: "results" };
+const labPages = { builds: "connection", machine: "machineSetup", testing: "testing", run: "launch", results: "results" };
 const legacyLabPages = { connection: "builds", testing: "testing", launch: "run", results: "results" };
 function pageFromUrl() {
   const url = new URL(location.href);

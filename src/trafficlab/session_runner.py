@@ -94,11 +94,27 @@ def execute(binding_path: str, directory: Path) -> int:
         'cpu_model': os.environ.get('PROCESSOR_IDENTIFIER', 'unknown'), 'runtime_mode': 'local', 'origin_scope': 'same-Windows-host-loopback',
         'product_contract': binding['product_contract'], 'adapter_id': binding['adapter_id'], 'product_version': binding['product_version']}
     progress = str(directory / 'progress.json')
+    queue_view: dict[str, Any] = {'run_id': binding['id'], 'phase': 'PREPARING',
+        'environment_ready': False, 'baseline_ready': False, 'client_ready': False, 'current_case_id': None}
+
+    def publish_queue(phase: str, **updates: Any) -> None:
+        # Presentation only. A UI snapshot must never change execution or evidence gates.
+        queue_view.update(phase=phase, **updates)
+        queue_view['results'] = [{key: row.get(key) for key in
+            ('case_id', 'duration', 'load', 'complete', 'cancelled', 'skipped', 'case_isolation_verified')} for row in results
+            if row.get('elapsed_seconds') is not None or row.get('skipped')]
+        try:
+            atomic(str(directory / 'queue-state.json'), queue_view)
+        except OSError:
+            pass
+
+    publish_queue('PREPARING')
     try:
         if binding.get('runtime_mode') != 'local' or binding.get('execution_model') != MODEL:
             raise ValueError('TRAFFIC_SESSION_LOCAL_ONLY')
         immutable(binding)
         off_before = idle(binding_path, binding)
+        publish_queue('BASELINE', environment_ready=True)
         catalog = json.loads((Path(binding['root']) / 'config/traffic-workloads.json').read_text(encoding='utf-8-sig'))
         short_catalog = {**catalog, 'duration_seconds': {**catalog['duration_seconds'], 'SHORT': 0.2}}
         if cancelled(binding):
@@ -132,6 +148,7 @@ def execute(binding_path: str, directory: Path) -> int:
                 baseline['three-modes'] = measurement(measured, raw, 'OFF', {'product_started': False, 'cleanup_verified': True}, {'recipe': 'echo'})
         if cancelled(binding):
             return 1
+        publish_queue('CLIENT_STARTING', baseline_ready=True)
         channel_job = {**binding, 'run_id': binding['id'] + '.queue', **{key: base_conditions[key] for key in ('application_tls_sha256', 'application_ssh_sha256') if key in base_conditions}}
         channel = OriginMetricsChannel(channel_job)
         channel.__enter__()
@@ -140,9 +157,11 @@ def execute(binding_path: str, directory: Path) -> int:
         session.__enter__()
         queue_evidence['start_count'] = 1
         queue_evidence['pid'] = session.pid
+        publish_queue('TESTING')
         for case in binding['cases']:
             if cancelled(binding):
                 break
+            publish_queue('TESTING', current_case_id=case['case_id'])
             started = time.monotonic()
             row: dict[str, Any] = {'case_id': case['case_id'], 'duration': case['duration'], 'load': case['load'],
                 'complete': False, 'cancelled': False, 'cleanup_verified': False, 'cleanup_scope': 'queue-final-off',
@@ -167,6 +186,7 @@ def execute(binding_path: str, directory: Path) -> int:
                 if not row['controls'][-1]['route_verified']:
                     row['errors'].append('TRAFFIC_UNRULED_CONTROL_FAILED')
                 else:
+                    publish_queue('TESTING', client_ready=True)
                     if case['case_id'] == 'three-modes':
                         row['measurements'].append(baseline['three-modes'])
                     from trafficlab.application_wire import APPLICATION_PORTS
@@ -206,6 +226,7 @@ def execute(binding_path: str, directory: Path) -> int:
                 row['complete'] = row['complete'] and not row['cancelled']
                 row['elapsed_seconds'] = time.monotonic() - started
                 atomic(str(directory / (case['case_id'] + '.report.json')), row)
+                publish_queue('TESTING', current_case_id=None)
             if not row['complete'] and not binding.get('continue_after_failure', True):
                 break
     except Exception as exception:
@@ -213,6 +234,8 @@ def execute(binding_path: str, directory: Path) -> int:
         queue_evidence['exception_type'] = type(exception).__name__
         queue_evidence['exception_detail'] = str(exception)[:400]
     finally:
+        publish_queue('CLEANUP', current_case_id=None, interrupted=bool(error) or cancelled(binding),
+                      preparation_failed=bool(error) and not queue_view['client_ready'], cancelled=cancelled(binding))
         if session is not None:
             session.close()
             queue_evidence['stop_count'] = int(queue_evidence['start_count'] > 0)
@@ -263,6 +286,7 @@ def execute(binding_path: str, directory: Path) -> int:
                  'execution_model': MODEL, 'queue_session': queue_evidence, 'off_before': off_before,
                  'continue_after_failure': binding.get('continue_after_failure', True), 'recovery_checks': recovery}
         atomic(str(attempt_path), final)
+        publish_queue('FINISHED', product_cleanup_verified=cleanup, error=error, cancelled=stopped)
     return 0 if complete else 1
 
 

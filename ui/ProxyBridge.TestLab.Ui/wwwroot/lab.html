@@ -10,6 +10,7 @@
   <script src="/lab.js" defer></script>
   <script src="/lab-remote.js" defer></script>
   <script src="/lab-traffic-families.js" defer></script>
+  <script src="/lab-execution.js" defer></script>
   <script src="/lab-traffic.js" defer></script>
   <script src="/lab-traffic-results.js" defer></script>
   <script src="/lab-suites.js" defer></script>
@@ -24,9 +25,10 @@
     </header>
     <nav class="lab-steps" aria-label="Navigation" data-i18n-aria="navigation">
       <a href="/lab.html?page=builds" data-lab-page="builds"><span>1</span><span data-i18n="connection">Сборки</span></a>
-      <a href="/lab.html?page=testing" data-lab-page="testing"><span>2</span><span data-i18n="testing">Тестирование</span></a>
-      <a href="/lab.html?page=run" data-lab-page="run"><span>3</span><span data-i18n="launch">Запуск</span></a>
-      <a href="/lab.html?page=results" data-lab-page="results"><span>4</span><span data-i18n="results">Результаты</span></a>
+      <a href="/lab.html?page=machine" data-lab-page="machine"><span>2</span><span data-i18n="machineSetup">Машина и настройка</span></a>
+      <a href="/lab.html?page=testing" data-lab-page="testing"><span>3</span><span data-i18n="testing">Тестирование</span></a>
+      <a href="/lab.html?page=run" data-lab-page="run"><span>4</span><span data-i18n="launch">Запуск</span></a>
+      <a href="/lab.html?page=results" data-lab-page="results"><span>5</span><span data-i18n="results">Результаты</span></a>
     </nav>
     <aside id="lab-global-run" class="lab-global-run" hidden>
       <p id="lab-global-run-status" role="status" aria-live="polite"></p>
@@ -59,29 +61,10 @@
         <div id="lab-builds"></div>
         <p id="lab-build-error" class="lab-warning" role="alert"></p>
       </div>
-      <div class="lab-page-actions"><a id="lab-next-testing" class="button primary" href="/lab.html?page=testing" data-lab-page="testing" data-i18n="toTesting">К тестированию</a></div>
+      <div class="lab-page-actions"><a id="lab-next-testing" class="button primary" href="/lab.html?page=machine" data-lab-page="machine" data-i18n="machineSetup">Машина и настройка</a></div>
     </section>
-    <section id="testing" class="panel" data-lab-view="testing" aria-labelledby="testing-heading" hidden>
-      <h2 id="testing-heading" tabindex="-1" data-i18n="testing">Тестирование</h2>
-      <div class="lab-suite-catalog">
-        <h3 data-i18n="savedSuites">Сохранённые наборы</h3>
-        <p data-i18n="savedSuitesHelp">Сохраните тесты и их параметры, чтобы повторить набор с другой сборкой.</p>
-        <div class="lab-fields">
-          <label><span data-i18n="savedSuites">Сохранённые наборы</span><select id="lab-saved-suite"><option value="" data-i18n="chooseSuite">Выберите набор</option></select></label>
-          <label><span data-i18n="suiteName">Название набора</span><input id="lab-suite-name" type="text" maxlength="64" autocomplete="off"></label>
-        </div>
-        <div class="lab-actions">
-          <button id="lab-suite-apply" type="button" class="button secondary" data-i18n="applySuite">Выбрать набор</button>
-          <button id="lab-suite-save" type="button" class="button primary" data-i18n="saveNewSuite">Сохранить новый</button>
-          <button id="lab-suite-update" type="button" class="button secondary" data-i18n="updateSuite">Обновить выбранный</button>
-          <button id="lab-suite-delete" type="button" class="button secondary" data-i18n="deleteSuite">Удалить набор</button>
-          <button id="lab-suite-export" type="button" class="button secondary" data-i18n="suiteExport" disabled></button>
-          <button id="lab-suite-import" type="button" class="button secondary" data-i18n="suiteImport"></button>
-          <input id="lab-suite-import-file" type="file" accept=".json,application/json" hidden>
-        </div>
-        <p id="lab-suite-status" role="status" aria-live="polite"></p>
-        <p data-i18n="suitePortableHelp"></p>
-      </div>
+    <section id="machine" class="panel" data-lab-view="machine" aria-labelledby="machine-heading" hidden>
+      <h2 id="machine-heading" tabindex="-1" data-i18n="machineSetup">Машина и настройка</h2>
       <div class="lab-fields">
         <label><span data-i18n="proxyMode">Расположение SOCKS5-прокси</span><select id="lab-mode"><option value="local" data-i18n="local">На этом ПК</option><option value="remote" data-i18n="remote">На удалённом узле</option></select></label>
       </div>
@@ -118,6 +101,32 @@
         </div>
         <p class="lab-warning" data-i18n="remoteTestGate"></p>
       </section>
+        <div class="lab-test-settings"><button id="traffic-plan" class="button secondary" type="button" data-i18n="trafficPrepare"></button><button id="traffic-apply" class="button primary" type="button" data-i18n="trafficApply" disabled></button></div>
+        <p id="traffic-runtime-status" role="status" aria-live="polite"></p>
+        <p id="traffic-runtime-help" role="alert" hidden></p><pre id="traffic-runtime-plan" hidden></pre>
+      <div class="lab-page-actions"><a class="button secondary" href="/lab.html?page=builds" data-lab-page="builds" data-i18n="connection">Сборки</a><a class="button primary" href="/lab.html?page=testing" data-lab-page="testing" data-i18n="toTesting">К проверкам</a></div>
+    </section>
+    <section id="testing" class="panel" data-lab-view="testing" aria-labelledby="testing-heading" hidden>
+      <h2 id="testing-heading" tabindex="-1" data-i18n="testing">Тестирование</h2>
+      <div class="lab-suite-catalog">
+        <h3 data-i18n="savedSuites">Сохранённые наборы</h3>
+        <p data-i18n="savedSuitesHelp">Сохраните тесты и их параметры, чтобы повторить набор с другой сборкой.</p>
+        <div class="lab-fields">
+          <label><span data-i18n="savedSuites">Сохранённые наборы</span><select id="lab-saved-suite"><option value="" data-i18n="chooseSuite">Выберите набор</option></select></label>
+          <label><span data-i18n="suiteName">Название набора</span><input id="lab-suite-name" type="text" maxlength="64" autocomplete="off"></label>
+        </div>
+        <div class="lab-actions">
+          <button id="lab-suite-apply" type="button" class="button secondary" data-i18n="applySuite">Выбрать набор</button>
+          <button id="lab-suite-save" type="button" class="button primary" data-i18n="saveNewSuite">Сохранить новый</button>
+          <button id="lab-suite-update" type="button" class="button secondary" data-i18n="updateSuite">Обновить выбранный</button>
+          <button id="lab-suite-delete" type="button" class="button secondary" data-i18n="deleteSuite">Удалить набор</button>
+          <button id="lab-suite-export" type="button" class="button secondary" data-i18n="suiteExport" disabled></button>
+          <button id="lab-suite-import" type="button" class="button secondary" data-i18n="suiteImport"></button>
+          <input id="lab-suite-import-file" type="file" accept=".json,application/json" hidden>
+        </div>
+        <p id="lab-suite-status" role="status" aria-live="polite"></p>
+        <p data-i18n="suitePortableHelp"></p>
+      </div>
       <fieldset id="lab-test-selection"><legend data-i18n="selectTests"></legend>
         <div class="lab-test-card">
           <div class="lab-test-heading"><label class="lab-test-toggle"><input type="checkbox" data-lab-test="tcp_rtt"><span data-i18n="rtt"></span></label><span class="lab-test-time" data-workload-time="tcp_rtt"></span></div>
@@ -155,28 +164,26 @@
       <p id="lab-testing-time" class="lab-testing-time" role="status" aria-live="polite"></p>
       <section id="traffic-testing" class="lab-suite-catalog" hidden>
         <h3 data-i18n="trafficHeading"></h3><p data-i18n="trafficScope"></p>
-        <div class="lab-test-settings"><button id="traffic-plan" class="button secondary" type="button" data-i18n="trafficPrepare"></button><button id="traffic-apply" class="button primary" type="button" data-i18n="trafficApply" disabled></button></div>
-        <p id="traffic-runtime-status" role="status" aria-live="polite"></p>
-        <p id="traffic-runtime-help" role="alert" hidden></p><pre id="traffic-runtime-plan" hidden></pre>
         <div id="traffic-cases"></div><p id="traffic-estimate" role="status"></p>
       </section>
       <p data-i18n="suiteHelp">Проверки и их этапы выполняются последовательно. После ошибки очередь останавливается, если не включено продолжение при подтверждённом восстановлении. Отмена сохраняет завершённые результаты и выполняет очистку.</p>
       <p data-i18n="suiteProfileHelp">Полнота выбирает состав этапов. Длительность и нагрузка задаются для всей карточки.</p>
       <p data-i18n="controlled">В каждом режиме используется контролируемый получатель. Прямой трафик служит базой для сравнения выбранного пути через SOCKS5.</p>
       <p id="scenario-description"></p>
-      <div class="lab-page-actions"><a class="button secondary" href="/lab.html?page=builds" data-lab-page="builds" data-i18n="connection">Сборки</a><a class="button primary" href="/lab.html?page=run" data-lab-page="run" data-i18n="toRun">К запуску</a></div>
+      <div class="lab-page-actions"><a class="button secondary" href="/lab.html?page=machine" data-lab-page="machine" data-i18n="machineSetup">Машина и настройка</a><a class="button primary" href="/lab.html?page=run" data-lab-page="run" data-i18n="toRun">К запуску</a></div>
     </section>
     <section id="launch" class="panel" data-lab-view="run" aria-labelledby="run-heading" hidden>
+      <h2 id="run-heading" tabindex="-1" data-i18n="launch">Запуск</h2>
       <section id="traffic-run" class="lab-suite-catalog" hidden>
         <h3 data-i18n="trafficHeading"></h3><p data-i18n="trafficRunHelp"></p>
-        <div id="traffic-selection-summary"></div>
+        <details id="traffic-selection-review" open><summary data-i18n="trafficSelectionReview">Будет выполнено</summary><div id="traffic-selection-summary"></div></details>
         <p id="traffic-version-notice" role="note" hidden></p>
         <div class="lab-test-settings"><button id="traffic-start" type="button" class="button primary" data-i18n="trafficStart"></button><button id="traffic-stop" type="button" class="button secondary" data-i18n="trafficStop" disabled></button></div>
+        <div id="traffic-execution" class="traffic-execution" hidden></div>
         <p id="traffic-run-status" role="status" aria-live="polite"></p>
         <p id="traffic-live-progress" class="lab-status" hidden></p>
         <p id="traffic-error" class="lab-warning" role="alert"></p>
       </section>
-      <h2 id="run-heading" tabindex="-1" data-i18n="launch">Запуск</h2>
       <div id="lab-local-launch">
       <div id="lab-launch-summary" class="lab-launch-summary"></div>
       <p id="lab-selection-required" class="lab-warning" hidden><span data-i18n="SELECTION_REQUIRED">Сначала выберите и сохраните комплект.</span> <a href="/lab.html?page=builds" data-lab-page="builds" data-i18n="connection">Сборки</a></p>
