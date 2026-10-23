@@ -81,7 +81,9 @@ try {
     foreach($name in @('Lib','DLLs')) {Copy-RuntimeTree (Join-Path $PythonDirectory $name) (Join-Path $pythonTarget $name)}
     [IO.File]::WriteAllText((Join-Path $stage 'Start.cmd'), '@echo off'+"`r`n"+'powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0packaging\Start-ProxyBridge-TestLab.ps1"'+"`r`n",[Text.Encoding]::ASCII)
     [IO.File]::WriteAllText((Join-Path $stage 'VERSION.txt'),$Version+"`r`n",[Text.UTF8Encoding]::new($false))
-    $manifest=[ordered]@{schema_version=1;name='ProxyBridge TestLab';version=$Version;platform='win-x64';scope='local';controller_self_contained=$true;local_python_included=$true;product_binaries_included=$false;runtime_validation='PENDING_ADMINISTRATOR_ACCEPTANCE'}
+    $sourceCommit=(& git -C $root rev-parse HEAD).Trim()
+    if($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[a-f0-9]{40}$') {throw 'RELEASE_SOURCE_REVISION_UNAVAILABLE'}
+    $manifest=[ordered]@{schema_version=1;name='ProxyBridge TestLab';version=$Version;source_commit=$sourceCommit;platform='win-x64';scope='local';controller_self_contained=$true;local_python_included=$true;product_binaries_included=$false;runtime_validation='PENDING_ADMINISTRATOR_ACCEPTANCE'}
     [IO.File]::WriteAllText((Join-Path $stage 'MANIFEST.json'),($manifest|ConvertTo-Json)+"`r`n",[Text.UTF8Encoding]::new($false))
     $sums=@(Get-ChildItem -LiteralPath $stage -Recurse -File | Sort-Object FullName | ForEach-Object {
         (Get-FileHash -LiteralPath $_.FullName).Hash.ToLowerInvariant()+'  '+$_.FullName.Substring($stage.Length+1).Replace('\','/')
