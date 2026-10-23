@@ -206,3 +206,7 @@
 .result-delta.is-better strong { color:#8fe7c6; }
 .result-delta.is-worse strong { color:#ffc0c0; }
 @media(max-width:640px) { .result-pair-legend { grid-template-columns:1fr; } }
+
+.result-delta,.result-observed-delta { display:grid; gap:5px; padding:12px; margin-top:12px; background:#10262c; border:1px solid #385159; border-radius:6px; }
+.result-delta>strong,.result-observed-delta>strong { font-size:20px; font-variant-numeric:tabular-nums; color:#e1eaec; }
+.result-observed-delta>small,.result-observed-delta>span,.result-delta>span { font-size:12px; color:var(--muted); }
