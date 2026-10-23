@@ -16,7 +16,7 @@
 
 После окончания открыть «Результаты»: проверить общий статус и каждый раскрываемый этап. FAIL/SKIPPED/CANCELLED не считать пройденным сценарием. Скачать загруженную историю(JSON) и нужное сравнение(CSV). При прекращении очереди сначала проверить причину и очистку, не перезапускать автоматически ради получения50PASS.
 
-Доказательства текущего запуска: artifacts/local-completion/official430-all50-start.json (worktree), %LOCALAPPDATA%/ProxyBridge-TestLab/traffic-lab/<attempt-id> (private), история лаборатории. Не публиковать приватные captures/ключи. Полный запуск ещё не завершён на момент подготовки инструкции.
+Доказательства текущего запуска: artifacts/local-completion/official430-all50-start.json (worktree), %LOCALAPPDATA%/ProxyBridge-TestLab/traffic-lab/<attempt-id> (private), история лаборатории. Не публиковать приватные captures/ключи. Финальный результат: FAILED TRAFFIC_RECOVERY_BLOCKED;1PASS (three-modes),1FAIL (tcp-rtt),48SKIPPED. На UNRULED control второго сценария CLI вышел с0xC0000005; errors TRAFFIC_UNRULED_CLEANUP_FAILED/TRAFFIC_CLI_CRASHED. Guard не допускает продолжение после ошибки lifecycle (TRAFFIC_FAILURE_NOT_RECOVERABLE). Итоговые product/origin cleanup=true; SYS WinDivert отсутствует, product processes0, исходный WFP Stopped/Manual. Длительность около2min, а не исходная оценка79min. Это не завершённая приёмка50 сценариев. Итог сохранён в artifacts/local-completion/official430-all50-final.json; исходные отчёты не переписаны. Не обходить guard и не перезапускать автоматически.
 
 ## Повтор вручную
 
