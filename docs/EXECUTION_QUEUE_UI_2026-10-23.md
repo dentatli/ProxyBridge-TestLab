@@ -12,3 +12,5 @@ Local runner публикует небольшой `queue-state.json`: толь�
 - Реальный короткий WinDivert 4.3.0 run `20261023-180856-08fd0d35a733457692eb6b900b9a8091`, SHORT/LOW, оценка164с: TCP RTT PASS, TCP upload PASS, UDP connected FAIL, следующий DNS TCP PASS. Один PID7772, Start1/Stop1, product/origin cleanup=true. Все три preparation milestones=true, UI показал промежуточные и конечные статусы. Снимки API `artifacts/execution-ui/snapshot-*.json`, итог `final.json`. Причина UDP не исследовалась; полный50/soak/WFP не запускались.
 
 Новых tracked автотестов нет. Продукт, driver installation, BCD, signing, system proxy и диагностическая ветка не менялись.
+
+Пакет preview.23 собран из da13207, все1476 SHA256 совпали; административный запуск на5178/local readiness PASS, active=false. Короткий продуктовый прогон выше выполнен из исходного worktree перед упаковкой; после упаковки проверены запуск и интерфейс, сетевой прогон не повторялся. Dev5188 остановлен. Код и документация push, удалённый HEAD проверяется в checkpoint.
