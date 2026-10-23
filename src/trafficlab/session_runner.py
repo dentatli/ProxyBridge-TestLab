@@ -194,7 +194,7 @@ def execute(binding_path: str, directory: Path) -> int:
                 expected = 3 if case['case_id'] == 'three-modes' else 1
                 row['complete'] = not row['errors'] and len(row['measurements']) == expected and all(item['complete'] for item in row['measurements'])
                 row['product_route_confirmed'] = any(item['mode'] == 'SOCKS5' and item['route_verified'] for item in row['measurements'])
-                if not row['complete']:
+                if not row['complete'] and not cancelled(binding) and len(results) < len(binding['cases']):
                     recovery.append({'case_id': case['case_id'], 'safe_to_continue': True, 'reason': 'TRAFFIC_SESSION_ISOLATION_VERIFIED',
                                      'isolation': row['case_isolation'], 'fresh_off_verified': None})
             except Exception as exception:
@@ -234,6 +234,12 @@ def execute(binding_path: str, directory: Path) -> int:
             error = error or 'TRAFFIC_CONTROLLED_SHUTDOWN_FAILED'
         if not capture_ok:
             error = error or 'TRAFFIC_CLI_CAPTURE_INCOMPLETE'
+        immutable_ok = True
+        try:
+            immutable(binding)
+        except (OSError, ValueError):
+            immutable_ok = False
+            error = error or 'TRAFFIC_IMMUTABLE_FILE_CHANGED'
         stopped = cancelled(binding)
         for case in binding['cases']:
             if not any(row['case_id'] == case['case_id'] for row in results):
@@ -242,11 +248,13 @@ def execute(binding_path: str, directory: Path) -> int:
         for row in results:
             row['cleanup_verified'] = cleanup
             row['cleanup_scope'] = 'queue-final-off'
-            row['complete'] = row['complete'] and cleanup and graceful and capture_ok
+            row['complete'] = row['complete'] and cleanup and graceful and capture_ok and immutable_ok
             if not graceful and not row.get('skipped'):
                 row['errors'].append('TRAFFIC_CONTROLLED_SHUTDOWN_FAILED')
             if not capture_ok and not row.get('skipped'):
                 row['errors'].append('TRAFFIC_CLI_CAPTURE_INCOMPLETE')
+            if not immutable_ok and not row.get('skipped'):
+                row['errors'].append('TRAFFIC_IMMUTABLE_FILE_CHANGED')
             atomic(str(directory / (row['case_id'] + '.report.json')), row)
         complete = not stopped and not error and all(row['complete'] for row in results) and cleanup
         final = {**original, 'state': 'CANCELLED' if stopped else 'COMPLETE' if complete else 'FAILED', 'complete': complete,
