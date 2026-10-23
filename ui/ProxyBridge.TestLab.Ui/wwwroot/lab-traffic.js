@@ -100,7 +100,7 @@ function trafficFamilyCard(family,busy,expanded){
 }
 Object.assign(labText.ru,{trafficCliExitCode:"Код завершения CLI"});
 Object.assign(labText.en,{trafficCliExitCode:"CLI exit code"});
-Object.assign(labText.ru,{trafficReadinessFailureHelp:"CLI не подтвердил готовность в отведённое время.",trafficCrashFailureHelp:"CLI завершился аварийно. Проверка не считается пройденной; код завершения указан ниже."});
+Object.assign(labText.ru,{trafficReadinessFailureHelp:"Клиент не подтвердил готовность в отведённое время.",trafficCrashFailureHelp:"Процесс клиента завершился аварийно. Проверка не считается пройденной; код завершения указан ниже."});
 Object.assign(labText.en,{trafficReadinessFailureHelp:"The CLI did not confirm readiness within the deadline.",trafficCrashFailureHelp:"The CLI crashed. The check has not passed; its exit code is shown below."});
 function trafficFailureHelp(row){
   const errors=row.errors||[],messages=[];
@@ -111,7 +111,7 @@ function trafficFailureHelp(row){
   if(errors.includes("TRAFFIC_CLI_CRASHED"))messages.push(t("trafficCrashFailureHelp"));
   return messages.length?`<p>${messages.map(html).join(" ")}</p>`:"";
 }
-Object.assign(labText.ru,{trafficForcedStop:"CLI не завершился вовремя и был принудительно закрыт. Тест сохраняет FAIL; продолжение возможно только после проверки полного восстановления."});
+Object.assign(labText.ru,{trafficForcedStop:"Процесс клиента не завершился вовремя и был принудительно закрыт. Тест сохраняет FAIL; продолжение возможно только после проверки полного восстановления."});
 Object.assign(labText.en,{trafficForcedStop:"The CLI did not exit within the deadline and was forcibly closed. The case remains FAIL; continuation requires verified full recovery."});
 function trafficCliExitMarkup(row){
   const code=row.last_lifecycle?.child_exit_code;
@@ -451,6 +451,9 @@ for(const action of ["plan","apply","start","stop"])lab(`traffic-${action}`).add
 lab("lab-mode").addEventListener("change",renderTraffic);
 const renderLabBeforeTraffic=renderLab;
 renderLab=function(){renderLabBeforeTraffic();renderTraffic();};
+// User-facing resource names apply to both Core-host and historic CLI evidence.
+Object.assign(labText.ru,{trafficCliResident:'Память процесса в RAM, МиБ',trafficCliRamDelta:'Изменение выделенной памяти процесса, МиБ',trafficCliResidentDelta:'Изменение памяти процесса в RAM, МиБ',trafficCliHandles:'Дескрипторы процесса',trafficCliThreads:'Потоки процесса',trafficResource_product_cli:'Процесс клиента ProxyBridge',trafficResource_origin_system:'ОС получателя',trafficWorkerCpu:'CPU исполнителя нагрузки, % ПК',trafficWorkerRam:'Выделенная память исполнителя, МиБ',trafficOriginProcessCpu:'CPU получателя и прокси, % узла',trafficOriginProcessRam:'Память получателя и прокси в RAM, МиБ',trafficOriginProcessRamDelta:'Изменение памяти получателя и прокси, МиБ',trafficCliExitCode:'Код завершения клиента',trafficCpu:'CPU процесса клиента, % ПК',trafficRam:'Выделенная память процесса, МиБ',trafficSent:'Отправка, МиБ/с',trafficReceived:'Получение, МиБ/с',trafficMore:'Ещё отчёты'});
+Object.assign(labText.en,{trafficCliResident:'Process RAM working set, MiB',trafficCliRamDelta:'Process commit change, MiB',trafficCliResidentDelta:'Process RAM change, MiB',trafficCliHandles:'Process handles',trafficCliThreads:'Process threads',trafficResource_product_cli:'ProxyBridge client process',trafficResource_origin_system:'Receiver OS',trafficCliExitCode:'Client exit code',trafficCpu:'Client process CPU, % of PC',trafficRam:'Process committed memory, MiB'});
 loadTraffic();setInterval(()=>{if(!trafficActionActive)loadTraffic();},3000);
 
 Object.assign(labText.ru,{trafficLocalScope:"Windows, получатель на этом же ПК. ",trafficLocalRuntime:"Локальный получатель подготавливается автоматически перед запуском. TLS/SSH-ключи изолированы; измерения используют ресурсы этого же ПК."});

@@ -17,6 +17,9 @@ try{
   const saved=JSON.parse(sessionStorage.getItem('testlab-comparison-table')||'null');
   if(Array.isArray(saved?.ids)&&saved.ids.length){trafficTableState={ids:trafficTableNormalize(saved.ids),family:typeof saved.family==='string'?saved.family:'all'};trafficTableInitialized=true;}
 }catch{}
+let trafficTableExpanded=new Set();
+try{const saved=JSON.parse(localStorage.getItem('testlab-comparison-expanded')||'[]');if(Array.isArray(saved))trafficTableExpanded=new Set(saved.filter(key=>typeof key==='string'&&key.length<180).slice(0,512));}catch{}
+function trafficTableGroup(key,label){return `<button type="button" class="comparison-group-toggle" data-table-group="${html(key)}" aria-expanded="${trafficTableExpanded.has(key)}">${trafficTableExpanded.has(key)?'▾':'▸'} ${html(label)}</button>`;}
 function trafficTableNormalize(ids){
   const seen=new Set(),result=[];
   for(const value of ids.slice(0,4)){const id=typeof value==='string'&&value.length<128&&!seen.has(value)?value:'';result.push(id);if(id)seen.add(id);}
@@ -50,7 +53,8 @@ function trafficTableBody(runs,slots,families){
   for(const family of families){
     const stages=family.rows.filter(stage=>selected.some(run=>(run.cases||[]).some(row=>(row.id||row.Id)===stage.id)));
     if(!stages.length)continue;
-    result+=`<tr class="comparison-family"><th colspan="${span}" scope="rowgroup">${html(trafficFamilyName(family))}</th></tr>`;
+    result+=`<tr class="comparison-family"><th colspan="${span}" scope="rowgroup">${trafficTableGroup(family.id,trafficFamilyName(family))}</th></tr>`;
+    if(!trafficTableExpanded.has(family.id))continue;
     for(const stage of stages){
       const rows=runs.map(run=>trafficTableStage(run,stage.id)),base=rows[0],baseRun=runs[0];
       result+=`<tr class="comparison-stage"><th scope="row">${html(trafficName(stage.id))}</th>${runs.map((run,i)=>`<td>${run?trafficReportBadge(trafficReportStatus(rows[i],run)):'—'}${rows[i]?`<small>${html(t(rows[i].duration))} · ${html(t(rows[i].load))}</small>`:''}</td>`).join('')}</tr>`;
@@ -64,9 +68,10 @@ function trafficTableBody(runs,slots,families){
       for(const [group,keys] of trafficTableMetricGroups){
         const available=keys.filter(key=>rows.some(row=>Number.isFinite(trafficTableValue(row,key)))&&!(key==='trafficTransactions'&&rows.every(row=>!trafficTableValue(row,key))));
         if(!available.length)continue;
-        result+=`<tr class="comparison-metric-group"><th colspan="${span}">${t(group)}</th></tr>`;
+        metricCount+=available.length;
+        result+=`<tr class="comparison-metric-group"><th colspan="${span}">${trafficTableGroup(family.id+'/'+stage.id+'/'+group,t(group))}</th></tr>`;
+        if(!trafficTableExpanded.has(family.id+'/'+stage.id+'/'+group))continue;
         for(const key of available){
-          metricCount++;
           // Blank columns do not participate; a missing selected stage blocks ranking.
           const chosen=runs.flatMap((run,i)=>run?[i]:[]),best=slots.some((id,i)=>id&&!runs[i])?[]:trafficTableBest(chosen.map(i=>runs[i]),chosen.map(i=>rows[i]),key).map(i=>chosen[i]);
           const rankedComparable=chosen.length>=2&&chosen.every(i=>trafficReportComparable(runs[chosen[0]],rows[chosen[0]],runs[i],rows[i]));
@@ -89,7 +94,7 @@ function renderRunComparison(){
   if(!trafficTableInitialized&&options.length){trafficTableState.ids=trafficTableNormalize(options.slice(0,2).map(run=>run.id));trafficTableInitialized=true;}
   const families=trafficFamilies(trafficCatalog);
   if(trafficTableState.family!=='all'&&!families.some(f=>f.id===trafficTableState.family))trafficTableState.family='all';
-  const stamp=JSON.stringify([trafficHistory,trafficCatalog,labState.builds,labLanguage,trafficTableState,trafficSnapshotUnavailable,trafficComparisonBlocked]);
+  const stamp=JSON.stringify([trafficHistory,trafficCatalog,labState.builds,labLanguage,trafficTableState,[...trafficTableExpanded],trafficSnapshotUnavailable,trafficComparisonBlocked]);
   if(stamp===trafficTableStamp)return;trafficTableStamp=stamp;
   const selection=lab('traffic-pair-selection'),overview=lab('traffic-pair-overview');
   if(trafficSnapshotUnavailable||trafficComparisonBlocked){trafficTableStructureKey='';trafficTableToolbarKey='';selection.innerHTML='';overview.textContent=t('trafficHistoryUnavailable');return;}
@@ -112,6 +117,7 @@ function renderRunComparison(){
   if(focus!==undefined)selection.querySelector(`[data-compare-slot="${CSS.escape(focus)}"]`)?.focus({preventScroll:true});
 }
 lab('traffic-pair-view').addEventListener('click',event=>{
+  const group=event.target.closest('[data-table-group]');if(group){const key=group.dataset.tableGroup;if(trafficTableExpanded.has(key))trafficTableExpanded.delete(key);else trafficTableExpanded.add(key);try{localStorage.setItem('testlab-comparison-expanded',JSON.stringify([...trafficTableExpanded]));}catch{}renderRunComparison();lab('traffic-pair-overview').querySelector(`[data-table-group="${CSS.escape(key)}"]`)?.focus({preventScroll:true});return;}
   if(event.target.closest('[data-compare-add]')&&trafficTableState.ids.length<4){trafficTableState.ids.push('');trafficTableSave();renderRunComparison();}
   const remove=event.target.closest('[data-compare-remove]');
   if(remove&&trafficTableState.ids.length>2){trafficTableState.ids.splice(Number(remove.dataset.compareRemove),1);trafficTableSave();renderRunComparison();}

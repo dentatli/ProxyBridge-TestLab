@@ -214,3 +214,6 @@
 .comparison-run-controls select { min-width:0; font-size:12px; }
 .comparison-matrix td.comparison-best-observed { background:#143329; box-shadow:inset 3px 0 #65b68f; }
 .comparison-best-observed>strong { color:#b2e5cc; }
+
+.comparison-group-toggle { display:block; width:100%; padding:4px 0; border:0; background:transparent; color:inherit; font:inherit; font-weight:650; text-align:left; cursor:pointer; }
+.comparison-group-toggle:focus-visible { outline:2px solid var(--teal); outline-offset:3px; }
