@@ -86,7 +86,13 @@ lab('traffic-comparison-mode').value=trafficCompareChoice.mode;
 const trafficCases=()=>trafficFamilies(trafficCatalog).flatMap(family=>family.rows.filter(row=>trafficChoice[row.id]?.selected).map(row=>({id:row.id,duration:trafficChoice[row.id].duration,load:trafficChoice[row.id].load})));
 const trafficCaseEstimate=row=>row.id==="soak"?({SHORT:24,NORMAL:48,LONG:72}[row.duration]*3600+300):({SHORT:6,NORMAL:30,LONG:120}[row.duration]*({"tcp-multistream":3,"loaded-rtt":3,"flow-rate":3,"mixed":3,"three-modes":3,"tcp-connections":5,"udp-connections":5,"udp-sweep":6,"stability":10}[row.id]||trafficCatalog?.cases.find(value=>value.id===row.id)?.payload_sizes?.length||1)+20);
 const trafficSafeContinue=()=>trafficState?.runtime?.supports_safe_continuation===true&&lab("traffic-continue-after-failure").checked;
-const trafficEstimate=()=>trafficCases().reduce((sum,row)=>sum+trafficCaseEstimate(row),0)+(trafficSafeContinue()?Math.max(0,trafficCases().length-1)*20:0);
+const trafficEstimate=(cases=trafficCases(),continueAfterFailure=trafficSafeContinue())=>cases.reduce((sum,row)=>sum+trafficCaseEstimate(row),0)+(continueAfterFailure?Math.max(0,cases.length-1)*20:0);
+function trafficReviewChoices(run,active,choices){
+  if(!active||!Array.isArray(run?.cases))return choices;
+  return Object.fromEntries(run.cases.map(row=>[row.id||row.Id,{selected:true,duration:row.duration||row.Duration,load:row.load||row.Load}]));
+}
+Object.assign(labText.ru,{trafficActiveSelection:"Запущенный набор",trafficWindow:"Окно"});
+Object.assign(labText.en,{trafficActiveSelection:"Running selection",trafficWindow:"Window"});
 const trafficName=id=>trafficCatalog?.cases.find(row=>row.id===id)?.[labLanguage]||id;
 function trafficFamilyCard(family,busy,expanded){
   const choice=trafficFamilyChoice(family),disabled=busy?"disabled":"";
@@ -128,7 +134,10 @@ function renderTraffic(){
   lab("traffic-runtime-plan").textContent=plan?JSON.stringify({ubuntu:plan.ubuntuVersion,bundle:plan.bundleSha256,files:plan.files,tcp:plan.tcpPorts,udp:plan.udpPorts,expires:plan.expiresUtc},null,2):"";
   lab("traffic-estimate").textContent=`${t("trafficEstimate")}: ${number(trafficEstimate()/60,1)} ${t("trafficMinutes")}`;
   const run=trafficState?.execution?.run, progress=trafficState?.execution?.progress;
-  lab("traffic-run-status").textContent=[labState.builds.find(build=>build.id===labState.observation?.build_id)?.display_name,run?.state,progress?.stage,progress?.index!==undefined?`${progress.index+1}/${progress.total}`:"",run?.id].filter(Boolean).join(" · ");
+  const runningCases=run?.cases||[],caseIndex=runningCases.findIndex(row=>progress?.run_id?.startsWith(`${run.id}.${row.id||row.Id}.`));
+  lab("traffic-run-status").textContent=[labState.builds.find(build=>build.id===(run?.build_id||labState.observation?.build_id))?.display_name,run?.state,
+    caseIndex>=0?`${trafficName(runningCases[caseIndex].id||runningCases[caseIndex].Id)} · ${caseIndex+1}/${runningCases.length}`:"",progress?.stage,
+    progress?.index!==undefined?`${t("trafficWindow")}: ${progress.index+1}/${progress.total}`:"",run?.id].filter(Boolean).join(" · ");
   const live=progress?.live_origin,liveBox=lab('traffic-live-progress');
   liveBox.hidden=!active;
   const age=typeof live?.observed_at_unix_seconds==='number'?Date.now()/1000-live.observed_at_unix_seconds:null;
@@ -158,11 +167,15 @@ function renderTraffic(){
     trafficCardsKey=cardsKey;
     lab("traffic-cases").innerHTML=families.map(family=>trafficFamilyCard(family,busy,expanded.includes(family.id))).join("");
   }
-  const selectedFamilies=families.filter(family=>trafficFamilyChoice(family).selected);
-  lab("traffic-selection-summary").innerHTML=selectedFamilies.length?`<p>${t("trafficSelectionReview")}:</p><ul>${selectedFamilies.map(family=>{
-    const choice=trafficFamilyChoice(family);
+  const reviewChoices=trafficReviewChoices(run,active,trafficChoice);
+  const reviewChoice=family=>active?trafficFamilySelection(family,reviewChoices):trafficFamilyChoice(family);
+  const reviewCases=active?Object.entries(reviewChoices).map(([id,row])=>({id,...row})):trafficCases();
+  const reviewEstimate=trafficEstimate(reviewCases,active?run?.continue_after_failure===true:trafficSafeContinue());
+  const selectedFamilies=families.filter(family=>reviewChoice(family).selected);
+  lab("traffic-selection-summary").innerHTML=selectedFamilies.length?`<p>${t(active?"trafficActiveSelection":"trafficSelectionReview")}:</p><ul>${selectedFamilies.map(family=>{
+    const choice=reviewChoice(family);
     return `<li>${html(trafficFamilyName(family))} · ${t(`trafficDepth_${choice.profile}`)} · ${t("trafficStages")}: ${choice.ids.length} · ${choice.duration==="MIXED"?t("trafficMixed"):family.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[choice.duration]+" h":t(choice.duration)} / ${choice.load==="MIXED"?t("trafficMixed"):t(choice.load)}</li>`;
-  }).join("")}</ul><p>${t("trafficEstimate")}: ≈ ${number(trafficEstimate()/60,1)} ${t("trafficMinutes")}</p>`:`<p>${t("trafficNoSelection")}</p>`;
+  }).join("")}</ul><p>${t("trafficEstimate")}: ≈ ${number(reviewEstimate/60,1)} ${t("trafficMinutes")}</p>`:`<p>${t("trafficNoSelection")}</p>`;
   filterTrafficCards();
   if(restoreFocus){
     const control=lab("traffic-cases").querySelector(restoreFocus);
