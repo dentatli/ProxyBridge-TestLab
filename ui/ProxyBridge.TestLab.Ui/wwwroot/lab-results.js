@@ -53,7 +53,6 @@ resultMetrics.tcp_loaded_rtt = ["push", "pull"].flatMap(direction => {
   const prefix = direction === "push" ? "upload" : "download";
   const rtt = ["off", "proxy"].flatMap(mode => ["p50", "p95", "p99"].map(quantile => {
     const key = `loaded_${direction}_${mode}_${quantile}`;
-    for (const language of ["ru", "en"]) labText[language][key] = `${labText[language][prefix]}: ${labText[language][mode === "off" ? "offMode" : "proxy"] || "SOCKS5"} · RTT ${quantile}, ${labText[language].milliseconds}`;
     return [key, key, row => row.loaded_metrics?.[direction]?.[mode]?.[quantile + "_ms"], 3];
   }));
   return [...rtt,
@@ -276,6 +275,10 @@ async function moreHistory() {
   finally { moreHistoryActive = false; renderSavedResults(); }
 }
 function setupResults() {
+  for (const language of ["ru", "en"]) for (const [key] of resultMetrics.tcp_loaded_rtt) {
+    const match = /^loaded_(push|pull)_(off|proxy)_(p50|p95|p99)$/.exec(key);
+    if (match) labText[language][key] = `${labText[language][match[1] === "push" ? "upload" : "download"]}: ${match[2] === "off" ? labText[language].offMode : "SOCKS5"} · RTT ${match[3]}, ${labText[language].milliseconds}`;
+  }
   lab("history-scenario").value = "all";
   lab("comparison-condition").addEventListener("change", () => renderComparison(resultRows(), resultBuilds(resultRows())));
   lab("comparison-workload").addEventListener("change", () => {
