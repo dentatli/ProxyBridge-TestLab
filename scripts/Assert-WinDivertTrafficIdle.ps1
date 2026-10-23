@@ -17,8 +17,9 @@ $processes=@(Get-CimInstance Win32_Process -OperationTimeoutSec 5 | Where-Object
 if($RestoreOwnedDriver -and -not $loaded.known_interception_driver_names_absent){
     $claim=Get-Content -LiteralPath (Join-Path (Split-Path -Parent $BindingPath) 'driver-ownership.json') -Raw | ConvertFrom-Json
     $exitVerified=$claim.cli_cleanup_verified -or ($claim.PSObject.Properties.Name -contains 'cli_exit_verified' -and $claim.cli_exit_verified -eq $true)
+    $identityVerified=$claim.cli_ready -or ($claim.PSObject.Properties.Name -contains 'cli_path_verified' -and $claim.cli_path_verified -eq $true)
     if($claim.id -ne $binding.id -or $claim.product_contract -ne 'v4.0.0' -or -not $claim.off_before -or
-        -not $claim.cli_ready -or -not $exitVerified -or $claim.driver_sha256 -ine $binding.driver_sha256 -or
+        -not $identityVerified -or -not $exitVerified -or $claim.driver_sha256 -ine $binding.driver_sha256 -or
         $processes.Count -ne 0 -or -not $loaded.query_complete -or
         @($loaded.known_interception_drivers | Where-Object {$_ -ine 'WinDivert64.sys'}).Count -ne 0){throw 'TRAFFIC_WINDIVERT_RESTORE_OWNERSHIP_NOT_CONFIRMED'}
     # Driver teardown can finish after the owned CLI exits. Observe its bounded
