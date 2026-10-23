@@ -91,7 +91,7 @@ function renderRunComparison(){
   const pairStamp=()=>JSON.stringify([trafficHistory,trafficCatalog,labState.builds,labLanguage,resultPair,trafficSnapshotUnavailable,trafficComparisonBlocked]);
   const stamp=pairStamp();
   if(stamp===reportPairKey)return;reportPairKey=stamp;
-  if(trafficSnapshotUnavailable||trafficComparisonBlocked){lab('traffic-pair-selection').innerHTML='';lab('traffic-pair-overview').textContent=t('trafficHistoryUnavailable');return;}
+  if(trafficSnapshotUnavailable||trafficComparisonBlocked){reportPairOptionsKey='';lab('traffic-pair-selection').innerHTML='';lab('traffic-pair-overview').textContent=t('trafficHistoryUnavailable');return;}
   const options=trafficHistory.filter(run=>run.results?.length);
   if(!options.some(run=>run.id===resultPair.a))resultPair.a=(options.find(run=>(run.cases?.length||0)>=20)||options[0])?.id||'';
   reportPairKey=pairStamp();
@@ -102,23 +102,26 @@ function renderRunComparison(){
   }
   const a=options.find(run=>run.id===resultPair.a),b=options.find(run=>run.id===resultPair.b);
   if(!a||!b||a.id===b.id){lab('traffic-pair-overview').innerHTML=`<p>${t(a&&b?'reportSameRun':'reportCompareHelp')}</p>`;return;}
-  const groups=trafficFamilyReportGroups(trafficCatalog,a.cases||[],a.results||[]);
+  const left=trafficFamilyReportGroups(trafficCatalog,a.cases||[],a.results||[]);
+  const right=trafficFamilyReportGroups(trafficCatalog,b.cases||[],b.results||[]);
+  const groups=[...left,...right.filter(group=>!left.some(other=>other.family.id===group.family.id))];
   if(!groups.some(group=>group.family.id===resultPair.family))resultPair.family=groups[0]?.family.id||'';
   reportPairKey=pairStamp();
-  const right=trafficFamilyReportGroups(trafficCatalog,b.cases||[],b.results||[]);
   const group=groups.find(item=>item.family.id===resultPair.family);
+  const selectedRight=right.find(item=>item.family.id===resultPair.family);
+  const stages=[...(group?.stages||[]),...(selectedRight?.stages||[]).filter(stage=>!group?.stages.some(other=>other.id===stage.id))];
   const specs=resultPair.metric==='speed'?[['tx','trafficSent'],['rx','trafficReceived']]:resultPair.metric==='latency'?[['latency','trafficP99']]:[['cpu','trafficCpu'],['ram','trafficRam']];
   lab('traffic-pair-overview').innerHTML=`<div class="result-family-buttons">${groups.map(item=>{
-    const other=right.find(r=>r.family.id===item.family.id);return `<button type="button" data-result-family="${html(item.family.id)}" aria-pressed="${item.family.id===resultPair.family}"><strong>${html(trafficFamilyName(item.family))}</strong><span>${trafficReportBadge(item.status)} → ${other?trafficReportBadge(other.status):'—'}</span></button>`;
-  }).join('')}</div><div class="result-metric-switch">${['speed','latency','resources'].map(metric=>`<button type="button" data-result-metric="${metric}" aria-pressed="${resultPair.metric===metric}">${t({speed:'reportSpeed',latency:'reportLatency',resources:'reportResources'}[metric])}</button>`).join('')}</div><p class="result-hint">${t('reportScope')}</p>${(group?.stages||[]).map((stage,i)=>{
-    const ra=group.rows[i],rb=b.results?.find(row=>row.case_id===stage.id),ok=trafficReportComparable(a,ra,b,rb);
+    const original=left.find(r=>r.family.id===item.family.id),other=right.find(r=>r.family.id===item.family.id);return `<button type="button" data-result-family="${html(item.family.id)}" aria-pressed="${item.family.id===resultPair.family}"><strong>${html(trafficFamilyName(item.family))}</strong><span>${original?trafficReportBadge(original.status):'—'} → ${other?trafficReportBadge(other.status):'—'}</span></button>`;
+  }).join('')}</div><div class="result-metric-switch">${['speed','latency','resources'].map(metric=>`<button type="button" data-result-metric="${metric}" aria-pressed="${resultPair.metric===metric}">${t({speed:'reportSpeed',latency:'reportLatency',resources:'reportResources'}[metric])}</button>`).join('')}</div><p class="result-hint">${t('reportScope')}</p>${stages.map(stage=>{
+    const ra=a.results?.find(row=>row.case_id===stage.id),rb=b.results?.find(row=>row.case_id===stage.id),ok=trafficReportComparable(a,ra,b,rb);
     const plots=ok?specs.map(([key,label])=>{
       const va=trafficReportMetric(ra,key),vb=trafficReportMetric(rb,key);
       if(![va,vb].every(value=>typeof value==='number'&&Number.isFinite(value)&&value>=0))return '';
       const max=Math.max(va,vb,0.001);
       return `<section><strong>${html(t(label))}</strong><div class="result-bars">${[[va,'A'],[vb,'B']].map(([value,side])=>`<div><span>${side}</span><div><i style="width:${(value/max*100).toFixed(2)}%"></i></div><b>${number(value)}</b></div>`).join('')}</div><small>${t('reportDelta')}: ${vb-va>0?'+':''}${number(vb-va)}${va>0?` (${number((vb-va)/va*100,1)}%)`:''}</small></section>`;
     }).join(''):'';
-    return `<article class="result-compare-stage"><header><strong>${html(trafficName(stage.id))}</strong><span>${trafficReportBadge(trafficReportStatus(ra,a))} → ${trafficReportBadge(trafficReportStatus(rb,b))}</span></header><p>${!rb?t('reportNoPair'):ok?t('reportComparable'):t('reportDifferent')}</p><div class="result-plots">${plots}</div></article>`;
+    return `<article class="result-compare-stage"><header><strong>${html(trafficName(stage.id))}</strong><span>${trafficReportBadge(trafficReportStatus(ra,a))} → ${trafficReportBadge(trafficReportStatus(rb,b))}</span></header><p>${!ra||!rb?t('reportNoPair'):ok?t('reportComparable'):t('reportDifferent')}</p><div class="result-plots">${plots}</div></article>`;
   }).join('')}`;
 }
 
