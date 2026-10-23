@@ -9,3 +9,12 @@
 Новый модуль lab-comparison-table.js; старый renderRunComparison/plot и неиспользуемые стили полос удалены, имя renderRunComparison сохранено для вызовов основного UI. Отчёты, раскрываемые этапы, JSON/логи и engine не менялись.
 
 Проверено: Node syntax обоих модулей/git diff check; ephemeral checks лимит4/дубли, higher/lower winner, product identity, runtime mismatch, failed/missing, zero denominator, ties/display precision; browser RU/EN на сохранённых23:33/23:16/23:09/22:03, 4колонки/disabled add, persistence после reload, фильтрTCP, sticky при прокрутке. Evidence artifacts/comparison-table/{check.cjs,four-columns.png,scrolled.png}, не tracked. Новых автотестов/traffic/product runs/WFP/диагностики нет. Архивы/другой worktree/продукт не затронуты.
+
+
+## Компактная шапка и подсветка — preview.30
+
+По новым скриншотам пользователя закреплённая шапка теперь содержит только название сборки, дату и режим. Выбор прогонов/удаление столбцов вынесены над таблицей, не закрепляются. «Добавить прогон» заменено на «Добавить столбец» (EN Add column). Шапка ниже, выбор сохраняется без пересоздания селекторов при выборе.
+
+Предыдущее отсутствие подсветки объяснялось несовпадением local_runtime_sha256 (версии лаборатории). По прямому запросу лучшее **числовое показание** успешных подтверждённых этапов теперь также выделяется при разных условиях. Визуально только мягкий зеленоватый фон и линия, без «✓ Лучшее показание»/галочек/жёлтого. При одинаковых условиях matched winner сохраняется, при несовпадении это справочное сравнение показаний, не подтверждённый эффект сборки; различия видны в строке условий и кратком общем пояснении. PASS/cleanup и numeric availability по-прежнему нужны, FAIL/missing не ранжируются. Equal displayed/tied best прежние. Семантика лучшего сохранена в aria-label для экранного чтения, видимой подписи нет.
+
+Node syntax/ephemeral guards обновлены на numeric winner при разном runtime, FAIL/missing/zero/ties/cap4/duplicates PASS. Browser RU/EN на реальных23:33/23:16: compact header без селекторов, controls над таблицей, изменение прогона обновляет шапку, best reading виден; после уточнений зелёный фон без подписи и кнопка «Добавить столбец». Screenshot artifacts/comparison-compact/green-no-label.png. Новых сетевых прогонов/автотестов нет. Результаты и engine не изменялись.
