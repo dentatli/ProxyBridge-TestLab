@@ -113,7 +113,7 @@ function trafficFailureHelp(row){
   const errors=row.errors||[],messages=[];
   if(errors.includes("TRAFFIC_CLI_READINESS_FAILED")) {
     messages.push(t("trafficReadinessFailureHelp"));
-    if(row.conditions?.adapter_id==="windivert-4.0-cli-v1")messages.push(t("legacyCliNotice"));
+    if(row.conditions?.adapter_id==="windivert-4.0-cli-v1")messages.push(t("winDivertVersionSupport"));
   }
   if(errors.includes("TRAFFIC_CLI_CRASHED"))messages.push(t("trafficCrashFailureHelp"));
   return messages.length?`<p>${messages.map(html).join(" ")}</p>`:"";

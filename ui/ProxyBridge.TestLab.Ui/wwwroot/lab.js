@@ -361,10 +361,10 @@ function renderWorkloadCards(busy) {
   lab("lab-testing-time").textContent = choices.length ? t("selectedTime").replace("{count}", choices.length).replace("{range}", total.join("–")) : t("noTestsSelected");
   lab("lab-testing-time").title = t("estimateHelp");
 }
-Object.assign(labText.ru, {legacyCliNotice: "У штатного CLI 4.0.0 сообщение о готовности может задерживаться до остановки. Проверка завершится ошибкой, если готовность не подтверждена. Для повседневных проверок выберите 4.3.0."});
-Object.assign(labText.en, {legacyCliNotice: "The stock 4.0.0 CLI may hold its readiness message until shutdown. A check fails if readiness is not confirmed. Choose 4.3.0 for routine checks."});
+Object.assign(labText.ru, {winDivertVersionSupport: "Поддержка заявлена только для ProxyBridge WinDivert 4.3.0. Поддержка остальных версий не заявлена.", pendingVersion: "Версия определена по файлам. Готовность будет проверена при запуске."});
+Object.assign(labText.en, {winDivertVersionSupport: "Support is declared only for ProxyBridge WinDivert 4.3.0. Support for other versions is not claimed.", pendingVersion: "The version was identified from the files. Readiness will be checked when a run starts."});
 function productVersionNotice(observation) {
-  return observation?.product_version === "4.0.0" && observation?.adapter_id === "windivert-4.0-cli-v1" && observation?.cli_output_contract === "upstream" ? t("legacyCliNotice") : "";
+  return observation?.declared_contract === "v4.0.0" ? t("winDivertVersionSupport") : "";
 }
 function renderLab() {
   document.documentElement.lang = labLanguage;
@@ -378,7 +378,7 @@ function renderLab() {
   lab("find-installed-product").disabled = busy || !labState.csrf;
   lab("lab-discovered-builds").innerHTML = labState.discovery === null ? `<p>${t("noInstalled")}</p>` : (labState.discovery || []).map(item => `<button class="button secondary" type="button" data-installed-id="${html(item.id)}" ${busy ? "disabled" : ""}>${html(item.label)}</button>`).join("");
   const message = { KNOWN_BENCHMARK_FILES: "known", FILES_OBSERVED_COMPATIBILITY_PENDING: "pending", FILES_INCOMPLETE: "incomplete", FILES_UNREADABLE: "unreadable", UNSUPPORTED_BEFORE_4_0_0: "old" }[observation?.status];
-  lab("product-selection-status").textContent = observation ? `${observation.display_name || observation.product_label} (${observation.product_label}${observation.product_version?" · "+observation.product_version:""}): ${t(message || "failed")} ${labState.saved ? t("saved") : ""}` : t("noSelection");
+  lab("product-selection-status").textContent = observation ? `${observation.display_name || observation.product_label} (${observation.product_label}${observation.product_version?" · "+observation.product_version:""}): ${t(message === "pending" && observation.product_version ? "pendingVersion" : message || "failed")} ${labState.saved ? t("saved") : ""}` : t("noSelection");
   lab("product-version-notice").textContent = productVersionNotice(observation);
   lab("product-version-notice").hidden = !productVersionNotice(observation);
   lab("product-selection-details").hidden = !observation;

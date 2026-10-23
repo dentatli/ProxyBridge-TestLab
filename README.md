@@ -78,10 +78,10 @@ and 51 traffic scenarios grouped into 10 checks are implemented; see [traffic wo
 evidence and acceptance limits](docs/TRAFFIC_LAB.md). Real product checks require
 an administrator UI (`scripts/Start-TestLabUi.ps1 -Administrator`, after building).
 Driver file identity and owned cleanup remain mandatory. Product types are Driver WFP
-and WinDivert, with a minimum WinDivert version of 4.0.0 and separate CLI adapters
-for 4.0 and 4.1+. Official 4.3.0 passed a short local TCP RTT check on 2026-10-23;
-official 4.0.0 did not confirm CLI readiness within the deadline. These results do
-not establish acceptance of all scenarios or arbitrary product bundles. See the
+and WinDivert. Support is declared only for WinDivert 4.3.0; support for other
+versions is not claimed. Existing version adapters and saved builds are retained.
+Official 4.3.0 passed a short local TCP RTT check on 2026-10-23; this does not
+establish acceptance of all scenarios or arbitrary product bundles. See the
 [current local checkpoint](docs/LOCAL_APP_CHECKPOINT.md).
 
 The standalone harness and its technical backend are retained below. They are
