@@ -180,3 +180,8 @@
 .result-report-actions { margin:12px 0; }
 .result-observed { font-size:12px; color:#f5c36b; }
 @media(max-width:640px) { .result-stage { display:block; } .result-quick-metrics { grid-template-columns:repeat(2,minmax(0,1fr)); } }
+
+.result-metric-group { border-top:1px solid #385159; padding-top:12px; margin-top:12px; text-align:left; }
+.result-metric-group h5 { margin:0 0 8px; font-size:13px; color:#d5e5e8; }
+.result-metric-group .result-quick-metrics { margin-block:8px; }
+.result-metric-group small { color:var(--muted); font-size:11px; }

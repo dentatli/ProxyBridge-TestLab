@@ -20,6 +20,8 @@ Object.assign(labText.en,{
   suiteHelp:'Stages run sequentially. Failures remain in the report; the queue continues after verified isolation. Cancellation ends the workload and performs cleanup.',
   reportSoak:'Repeats one-minute intervals for the selected duration: bidirectional TCP, UDP and latency probes. Baseline and recovery are checked around the load. Traffic and resources are recorded per interval.'
 });
+Object.assign(labText.ru,{reportTrafficGroup:'Трафик',reportUdpGroup:'UDP',reportClientGroup:'ProxyBridge',reportPcGroup:'Весь ПК',reportLoadGroup:'Нагрузка и восстановление',reportCpuMean:'CPU, % ПК · среднее',reportPrivatePeak:'Private commit, МиБ · пик',reportResidentPeak:'RAM: рабочий набор, МиБ · пик',reportHandlesPeak:'Дескрипторы · пик',reportThreadsPeak:'Потоки · пик',reportPcCpu:'Общий CPU, % · среднее',reportPcHint:'Включает Windows, лабораторию и фоновые приложения.',reportSideBySide:'Значения A и B показаны отдельно. Прирост не рассчитывается.',reportDiffReasons:'Различия',reportDiffDuration:'длительность',reportDiffLoad:'нагрузка',reportDiffMode:'расположение получателя',reportDiffQueue:'состав очереди',reportDiffPosition:'позиция в очереди',reportDiffRuntime:'версия лаборатории',reportDiffMethod:'метод проверки',reportDiffMachine:'машина или ОС',reportDiffProduct:'тип или версия клиента',reportDiffOrigin:'получатель',reportDiffEnvironment:'параметры среды',reportDiffEvidence:'есть неуспешный или неподтверждённый этап',reportDiffMissing:'не хватает сведений об условиях',reportMissingValue:'Нет измерения'});
+Object.assign(labText.en,{reportTrafficGroup:'Traffic',reportUdpGroup:'UDP',reportClientGroup:'ProxyBridge',reportPcGroup:'Whole PC',reportLoadGroup:'Load and recovery',reportCpuMean:'CPU, % of PC · mean',reportPrivatePeak:'Private commit, MiB · peak',reportResidentPeak:'RAM: working set, MiB · peak',reportHandlesPeak:'Handles · peak',reportThreadsPeak:'Threads · peak',reportPcCpu:'Total CPU, % · mean',reportPcHint:'Includes Windows, the lab and background applications.',reportSideBySide:'A and B values are shown separately. No performance delta is calculated.',reportDiffReasons:'Differences',reportDiffDuration:'duration',reportDiffLoad:'load',reportDiffMode:'receiver location',reportDiffQueue:'queue selection',reportDiffPosition:'queue position',reportDiffRuntime:'lab version',reportDiffMethod:'test method',reportDiffMachine:'machine or OS',reportDiffProduct:'client type or version',reportDiffOrigin:'receiver',reportDiffEnvironment:'environment settings',reportDiffEvidence:'a stage failed or is unverified',reportDiffMissing:'condition evidence is missing',reportMissingValue:'Not measured'});
 let resultView='reports',resultPair={a:'',b:'',family:'',metric:'speed'},evidenceSelection=null,evidenceSequence=0,reportHasData=false,reportPairKey='',reportPairOptionsKey='';
 const trafficReportBuild=run=>labState.builds.find(build=>build.id===run.build_id)?.display_name||'ProxyBridge';
 function trafficReportDate(run){const date=new Date(run.started_at_utc);return Number.isNaN(date.valueOf())?'—':date.toLocaleString(labLanguage==='ru'?'ru-RU':'en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
@@ -50,11 +52,22 @@ function trafficReportMeasurements(row){
     .filter(([,value])=>typeof value==='number'&&Number.isFinite(value));
 }
 function trafficReportMetricMarkup(row){
-  const values=trafficReportMeasurements(row),primary=new Set(['trafficSent','trafficReceived','trafficP99','trafficUdpP99','trafficLoss','trafficCpu','trafficRam','trafficSystemCpu','trafficSystemRam','trafficCliHandles','trafficCliThreads']);
-  const integer=new Set(['trafficPeak','trafficCliHandles','trafficCliThreads','trafficTransactions','trafficConnectSamples',...Object.keys(trafficUdpCounters)]);
-  const markup=rows=>`<div class="result-quick-metrics">${rows.map(([name,value])=>`<span>${html(t(name))}<b>${number(value,integer.has(name)?0:2)}</b></span>`).join('')}</div>`;
-  const extra=values.filter(([key])=>!primary.has(key));
-  return markup(values.filter(([key])=>primary.has(key)))+(extra.length?`<details class="result-more-metrics"><summary>${t('reportAllMetrics')} (${values.length})</summary>${markup(extra)}</details>`:'');
+  const values=new Map(trafficReportMeasurements(row));
+  const integer=new Set(['trafficPeak','trafficCliHandles','trafficCliThreads','trafficTransactions',...Object.keys(trafficUdpCounters)]);
+  const labels={trafficCpu:'reportCpuMean',trafficRam:'reportPrivatePeak',trafficCliResident:'reportResidentPeak',trafficCliHandles:'reportHandlesPeak',trafficCliThreads:'reportThreadsPeak',trafficSystemCpu:'reportPcCpu'};
+  const groups=[
+    ['reportTrafficGroup',['trafficSent','trafficReceived','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficTransactions','trafficPeak']],
+    ['reportUdpGroup',['trafficUdpP99','trafficLoss',...Object.keys(trafficUdpCounters)]],
+    ['reportClientGroup',['trafficCpu','trafficRam','trafficCliResident','trafficCliRamDelta','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads']],
+    ['reportPcGroup',['trafficSystemCpu']],
+    ['reportLoadGroup',['trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx','trafficLoadWorstP99','trafficRecoveryP99Change']]
+  ];
+  const duplicate={trafficLoadTx:'trafficSent',trafficLoadRx:'trafficReceived',trafficLoadMinTx:'trafficSent',trafficLoadMinRx:'trafficReceived',trafficLoadWorstP99:'trafficP99'};
+  return groups.map(([group,keys])=>{
+    const rows=keys.filter(key=>values.has(key)&&!(key==='trafficTransactions'&&values.get(key)===0)&&!(duplicate[key]&&values.get(key)===values.get(duplicate[key])));
+    if(!rows.length)return '';
+    return `<section class="result-metric-group"><h5>${t(group)}</h5>${group==='reportPcGroup'?`<small>${t('reportPcHint')}</small>`:''}<div class="result-quick-metrics">${rows.map(key=>`<span>${html(t(labels[key]||key))}<b>${number(values.get(key),integer.has(key)?0:2)}</b></span>`).join('')}</div></section>`;
+  }).join('');
 }
 function trafficReportChronological(runs){
   const time=run=>{const value=Date.parse(run.started_at_utc);return Number.isFinite(value)?value:0;};
@@ -93,7 +106,7 @@ function renderConciseTrafficHistory(){
 function trafficReportConditionKey(run,row){
   const c=row?.conditions;
   if(!c||typeof c.local_runtime_sha256!=='string'||typeof c.origin_physical_memory_bytes!=='number')return null;
-  const skip=new Set(['build_sha256',...(c.runtime_mode==='local'?['remote_bundle_sha256','application_tls_sha256','application_ssh_sha256']:[])]);
+  const skip=new Set(['build_sha256','adapter_id','product_contract','product_version',...(c.runtime_mode==='local'?['remote_bundle_sha256','application_tls_sha256','application_ssh_sha256']:[])]);
   return JSON.stringify(Object.fromEntries(Object.keys(c).filter(key=>!skip.has(key)).sort().map(key=>[key,c[key]])));
 }
 function trafficReportComparable(a,ra,b,rb){
@@ -101,11 +114,32 @@ function trafficReportComparable(a,ra,b,rb){
   return !!key&&key===trafficReportConditionKey(b,rb)&&ra.duration===rb.duration&&ra.load===rb.load&&a.mode===b.mode&&
     trafficReportStatus(ra,a)==='PASS'&&trafficReportStatus(rb,b)==='PASS';
 }
+function trafficReportDifferences(a,ra,b,rb){
+  if(!ra||!rb)return [];
+  const reasons=new Set();
+  for(const [key,label] of [['duration','reportDiffDuration'],['load','reportDiffLoad']])if(ra?.[key]!==rb?.[key])reasons.add(label);
+  if(a.mode!==b.mode)reasons.add('reportDiffMode');
+  if(!trafficReportConditionKey(a,ra)||!trafficReportConditionKey(b,rb))reasons.add('reportDiffMissing');
+  const ignored=new Set(['build_sha256','adapter_id','product_contract','product_version',...(a.mode==='local'&&b.mode==='local'?['remote_bundle_sha256','application_tls_sha256','application_ssh_sha256']:[])]);
+  const labels={queue_profile_sha256:'reportDiffQueue',case_position_in_queue:'reportDiffPosition',local_runtime_sha256:'reportDiffRuntime',method:'reportDiffMethod',execution_model:'reportDiffMethod',resource_product_scope:'reportDiffMethod',session_state:'reportDiffMethod',off_control_scope:'reportDiffMethod',python_version:'reportDiffRuntime',windows_version:'reportDiffMachine',logical_cpus:'reportDiffMachine',windows_node_binding:'reportDiffMachine',cpu_model:'reportDiffMachine',windows_physical_memory_bytes:'reportDiffMachine',product_contract:'reportDiffProduct',adapter_id:'reportDiffProduct',product_version:'reportDiffProduct',host_binding:'reportDiffOrigin',origin_scope:'reportDiffOrigin',origin_logical_cpus:'reportDiffOrigin',origin_physical_memory_bytes:'reportDiffOrigin',remote_bundle_sha256:'reportDiffOrigin',runtime_mode:'reportDiffMode'};
+  const ca=ra?.conditions||{},cb=rb?.conditions||{};
+  for(const key of new Set([...Object.keys(ca),...Object.keys(cb)]))if(!ignored.has(key)&&JSON.stringify(ca[key])!==JSON.stringify(cb[key]))reasons.add(labels[key]||'reportDiffEnvironment');
+  if(trafficReportStatus(ra,a)!=='PASS'||trafficReportStatus(rb,b)!=='PASS')reasons.add('reportDiffEvidence');
+  return [...reasons];
+}
 function trafficReportMetric(row,key){
-  const m=row?.measurements?.find(value=>value.mode==='SOCKS5'&&value.complete&&value.route_verified);
-  if(!m)return null;
-  return key==='tx'?trafficMiB(m.overall?.tcp_tx_bytes_per_second):key==='rx'?trafficMiB(m.overall?.tcp_rx_bytes_per_second):key==='latency'?m.overall?.probe_latency?.p99_ms??m.overall?.connection_latency?.p99_ms:
-    key==='ram'?trafficMiB(m.resources?.product_cli?.counters?.private_bytes?.max):m.resources?.product_cli?.counters?.cpu_percent_of_pc?.mean;
+  const m=row?.measurements?.find(value=>value.mode==='SOCKS5');
+  if(key==='latency')return trafficMeasurementMetric(m,'trafficP99')??trafficMeasurementMetric(m,'trafficConnectP99');
+  return trafficMeasurementMetric(m,{tx:'trafficSent',rx:'trafficReceived',latency:'trafficP99',udpLatency:'trafficUdpP99',loss:'trafficLoss',udpSent:'trafficUdpSent',udpReceived:'trafficUdpReceived',ram:'trafficRam',cpu:'trafficCpu'}[key]);
+}
+function trafficReportComparisonPlot(ra,rb,key,label,comparable){
+  const va=trafficReportMetric(ra,key),vb=trafficReportMetric(rb,key);
+  const valid=value=>typeof value==='number'&&Number.isFinite(value)&&value>=0;
+  if(!valid(va)&&!valid(vb))return '';
+  const max=Math.max(...[va,vb].filter(valid),0.001),digits=key.startsWith('udp')&&key!=='udpLatency'?0:2;
+  const bars=[[va,'A'],[vb,'B']].map(([value,side])=>`<div><span>${side}</span><div>${valid(value)?`<i style="width:${(value/max*100).toFixed(2)}%"></i>`:''}</div><b title="${valid(value)?'':html(t('reportMissingValue'))}">${valid(value)?number(value,digits):'—'}</b></div>`).join('');
+  const delta=comparable&&valid(va)&&valid(vb)?`<small>${t('reportDelta')}: ${vb-va>0?'+':''}${number(vb-va)}${va>0?` (${number((vb-va)/va*100,1)}%)`:''}</small>`:'';
+  return `<section><strong>${html(t(label))}</strong><div class="result-bars">${bars}</div>${delta}</section>`;
 }
 function renderRunComparison(){
   const pairStamp=()=>JSON.stringify([trafficHistory,trafficCatalog,labState.builds,labLanguage,resultPair,trafficSnapshotUnavailable,trafficComparisonBlocked]);
@@ -113,7 +147,7 @@ function renderRunComparison(){
   if(stamp===reportPairKey)return;reportPairKey=stamp;
   if(trafficSnapshotUnavailable||trafficComparisonBlocked){reportPairOptionsKey='';lab('traffic-pair-selection').innerHTML='';lab('traffic-pair-overview').textContent=t('trafficHistoryUnavailable');return;}
   const options=trafficHistory.filter(run=>run.results?.length);
-  if(!options.some(run=>run.id===resultPair.a))resultPair.a=(options.find(run=>(run.cases?.length||0)>=20)||options[0])?.id||'';
+  if(!options.some(run=>run.id===resultPair.a))resultPair.a=options[0]?.id||'';
   reportPairKey=pairStamp();
   const optionKey=JSON.stringify([labLanguage,options.map(run=>[run.id,trafficReportBuild(run),run.state,run.cases?.length])]);
   if(optionKey!==reportPairOptionsKey){
@@ -130,18 +164,18 @@ function renderRunComparison(){
   const group=groups.find(item=>item.family.id===resultPair.family);
   const selectedRight=right.find(item=>item.family.id===resultPair.family);
   const stages=[...(group?.stages||[]),...(selectedRight?.stages||[]).filter(stage=>!group?.stages.some(other=>other.id===stage.id))];
-  const specs=resultPair.metric==='speed'?[['tx','trafficSent'],['rx','trafficReceived']]:resultPair.metric==='latency'?[['latency','trafficP99']]:[['cpu','trafficCpu'],['ram','trafficRam']];
+  const udp=resultPair.family==='udp';
+  const specs=resultPair.metric==='speed'?(udp?[['udpSent','trafficUdpSent'],['udpReceived','trafficUdpReceived']]:[['tx','trafficSent'],['rx','trafficReceived']]):resultPair.metric==='latency'?(udp?[['udpLatency','trafficUdpP99'],['loss','trafficLoss']]:[['latency','trafficP99']]):[['cpu','trafficCpu'],['ram','trafficRam']];
+  const stageReasons=stages.map(stage=>trafficReportDifferences(a,a.results?.find(row=>row.case_id===stage.id),b,b.results?.find(row=>row.case_id===stage.id)));
+  const commonReasons=(stageReasons[0]||[]).filter(reason=>stageReasons.every(reasons=>reasons.includes(reason)));
   lab('traffic-pair-overview').innerHTML=`<div class="result-family-buttons">${groups.map(item=>{
     const original=left.find(r=>r.family.id===item.family.id),other=right.find(r=>r.family.id===item.family.id);return `<button type="button" data-result-family="${html(item.family.id)}" aria-pressed="${item.family.id===resultPair.family}"><strong>${html(trafficFamilyName(item.family))}</strong><span>${original?trafficReportBadge(original.status):'—'} → ${other?trafficReportBadge(other.status):'—'}</span></button>`;
-  }).join('')}</div><div class="result-metric-switch">${['speed','latency','resources'].map(metric=>`<button type="button" data-result-metric="${metric}" aria-pressed="${resultPair.metric===metric}">${t({speed:'reportSpeed',latency:'reportLatency',resources:'reportResources'}[metric])}</button>`).join('')}</div><p class="result-hint">${t('reportScope')}</p>${stages.map(stage=>{
+  }).join('')}</div><div class="result-metric-switch">${['speed','latency','resources'].map(metric=>`<button type="button" data-result-metric="${metric}" aria-pressed="${resultPair.metric===metric}">${t({speed:'reportSpeed',latency:'reportLatency',resources:'reportResources'}[metric])}</button>`).join('')}</div><p class="result-hint">${t('reportScope')}</p>${commonReasons.length?`<p class="result-comparison-note">${html(t('reportDiffReasons')+': '+commonReasons.map(t).join(', ')+'. '+t('reportSideBySide'))}</p>`:''}${stages.map(stage=>{
     const ra=a.results?.find(row=>row.case_id===stage.id),rb=b.results?.find(row=>row.case_id===stage.id),ok=trafficReportComparable(a,ra,b,rb);
-    const plots=ok?specs.map(([key,label])=>{
-      const va=trafficReportMetric(ra,key),vb=trafficReportMetric(rb,key);
-      if(![va,vb].every(value=>typeof value==='number'&&Number.isFinite(value)&&value>=0))return '';
-      const max=Math.max(va,vb,0.001);
-      return `<section><strong>${html(t(label))}</strong><div class="result-bars">${[[va,'A'],[vb,'B']].map(([value,side])=>`<div><span>${side}</span><div><i style="width:${(value/max*100).toFixed(2)}%"></i></div><b>${number(value)}</b></div>`).join('')}</div><small>${t('reportDelta')}: ${vb-va>0?'+':''}${number(vb-va)}${va>0?` (${number((vb-va)/va*100,1)}%)`:''}</small></section>`;
-    }).join(''):'';
-    return `<article class="result-compare-stage"><header><strong>${html(trafficName(stage.id))}</strong><span>${trafficReportBadge(trafficReportStatus(ra,a))} → ${trafficReportBadge(trafficReportStatus(rb,b))}</span></header><p>${!ra||!rb?t('reportNoPair'):ok?t('reportComparable'):t('reportDifferent')}</p><div class="result-plots">${plots}</div></article>`;
+    const plots=specs.map(([key,label])=>trafficReportComparisonPlot(ra,rb,key,label,ok)).join('');
+    const reasons=trafficReportDifferences(a,ra,b,rb).filter(reason=>!commonReasons.includes(reason)).map(t).join(', ');
+    const note=!ra||!rb?t('reportNoPair'):ok?t('reportComparable'):reasons?`${t('reportDiffReasons')}: ${reasons}. ${t('reportSideBySide')}`:'';
+    return `<article class="result-compare-stage"><header><strong>${html(trafficName(stage.id))}</strong><span>${trafficReportBadge(trafficReportStatus(ra,a))} → ${trafficReportBadge(trafficReportStatus(rb,b))}</span></header>${note?`<p>${html(note)}</p>`:''}<div class="result-plots">${plots||`<p>${t('reportMissingValue')}</p>`}</div></article>`;
   }).join('')}`;
 }
 
