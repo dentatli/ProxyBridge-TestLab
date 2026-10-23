@@ -1,0 +1,126 @@
+"use strict";
+Object.assign(labText.ru,{tableAdd:'Добавить прогон',tableRemove:'Убрать столбец',tableRun:'Прогон',tableMetric:'Проверка / показатель',tableAll:'Все проверки',tableFilter:'Показать',tableConditions:'Условия',tableBase:'База',tableBest:'Лучшее',tableEqual:'Одинаково',tableHint:'До 4 прогонов. Лучшее выделяется только при одинаковых условиях и успешных этапах. Разница — к первому столбцу; при разных условиях она справочная.',tableRegion:'Таблица сравнения, прокручивается',tableOlder:'Загрузите этот отчёт из истории',tableMore:'Ещё отчёты',tableNeutral:'Справочная разница',tableDelta:'Разница к первому столбцу',tableNoNumeric:'Нет числового измерения'});
+Object.assign(labText.en,{tableAdd:'Add run',tableRemove:'Remove column',tableRun:'Run',tableMetric:'Check / metric',tableAll:'All checks',tableFilter:'Show',tableConditions:'Conditions',tableBase:'Baseline',tableBest:'Best',tableEqual:'Equal',tableHint:'Up to 4 runs. Best is highlighted only for matching conditions and passed stages. Differences are relative to the first column; unmatched conditions are descriptive.',tableRegion:'Scrollable comparison table',tableOlder:'Load this report from history',tableMore:'More reports',tableNeutral:'Descriptive difference',tableDelta:'Difference from first column',tableNoNumeric:'No numeric measurement'});
+
+const trafficTableMetricGroups=[
+  ['reportTrafficGroup',['trafficSent','trafficReceived','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficTransactions','trafficPeak']],
+  ['reportUdpGroup',['trafficUdpP99','trafficLoss',...Object.keys(trafficUdpCounters)]],
+  ['reportClientGroup',['trafficCpu','trafficRam','trafficCliResident','trafficCliRamDelta','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads']],
+  ['reportPcGroup',['trafficSystemCpu']],
+  ['reportLoadGroup',['trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx','trafficLoadWorstP99','trafficRecoveryP99Change']]
+];
+const trafficTableHigher=new Set(['trafficSent','trafficReceived','trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx']);
+const trafficTableLower=new Set(['trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficUdpP99','trafficLoss','trafficCpu','trafficRam','trafficCliResident','trafficCliRamDelta','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads','trafficSystemCpu','trafficLoadWorstP99','trafficRecoveryP99Change']);
+const trafficTableIntegers=new Set(['trafficTransactions','trafficPeak','trafficCliHandles','trafficCliThreads',...Object.keys(trafficUdpCounters)]);
+let trafficTableState={ids:[],family:'all'},trafficTableInitialized=false,trafficTableStamp='',trafficTableStructureKey='',trafficTableToolbarKey='';
+try{
+  const saved=JSON.parse(sessionStorage.getItem('testlab-comparison-table')||'null');
+  if(Array.isArray(saved?.ids)&&saved.ids.length){trafficTableState={ids:trafficTableNormalize(saved.ids),family:typeof saved.family==='string'?saved.family:'all'};trafficTableInitialized=true;}
+}catch{}
+function trafficTableNormalize(ids){
+  const seen=new Set(),result=[];
+  for(const value of ids.slice(0,4)){const id=typeof value==='string'&&value.length<128&&!seen.has(value)?value:'';result.push(id);if(id)seen.add(id);}
+  while(result.length<2)result.push('');
+  return result;
+}
+function trafficTableSave(){try{sessionStorage.setItem('testlab-comparison-table',JSON.stringify(trafficTableState));}catch{}}
+function trafficTableValue(row,key){return trafficMeasurementMetric(row?.measurements?.find(m=>m.mode==='SOCKS5'),key);}
+function trafficTableBest(runs,rows,key){
+  const values=rows.map(row=>trafficTableValue(row,key));
+  if(runs.length<2||rows.some((row,i)=>!row||trafficReportStatus(row,runs[i])!=='PASS')||values.some(value=>!Number.isFinite(value)))return [];
+  if(!runs.every((run,i)=>trafficReportComparable(runs[0],rows[0],run,rows[i])))return [];
+  const lower=trafficTableLower.has(key);
+  if(!lower&&!trafficTableHigher.has(key)||values.every(value=>value===values[0]))return [];
+  const displayed=values.map(value=>Number(value.toFixed(trafficTableIntegers.has(key)?0:2)));
+  if(displayed.every(value=>value===displayed[0]))return [];
+  const best=(lower?Math.min:Math.max)(...displayed);
+  return displayed.flatMap((value,i)=>value===best?[i]:[]);
+}
+function trafficTableDifference(value,base,comparable){
+  if(!Number.isFinite(value)||!Number.isFinite(base))return '';
+  const change=value-base,amount=Math.abs(change),digits=amount>0&&amount<0.01?4:2;
+  const percent=base>0?Math.abs(change)/base*100:null;
+  const relative=change===0?t('tableEqual'):`${change>0?'+':'−'}${number(amount,digits)}${percent!==null?` (${change>0?'+':'−'}${percent>0&&percent<0.01?'&lt;'+number(0.01,2):number(percent,2)}%)`:''}`;
+  return `<small class="comparison-cell-delta" title="${html(t(comparable?'tableDelta':'tableNeutral'))}">${relative}</small>`;
+}
+function trafficTableStage(run,id){return run?.results?.find(row=>row.case_id===id);}
+function trafficTableBody(runs,slots,families){
+  const span=slots.length+1,selected=runs.filter(Boolean);
+  if(!selected.length)return `<tr><td colspan="${span}">${t('reportChoose')}</td></tr>`;
+  let result='';
+  for(const family of families){
+    const stages=family.rows.filter(stage=>selected.some(run=>(run.cases||[]).some(row=>(row.id||row.Id)===stage.id)));
+    if(!stages.length)continue;
+    result+=`<tr class="comparison-family"><th colspan="${span}" scope="rowgroup">${html(trafficFamilyName(family))}</th></tr>`;
+    for(const stage of stages){
+      const rows=runs.map(run=>trafficTableStage(run,stage.id)),base=rows[0],baseRun=runs[0];
+      result+=`<tr class="comparison-stage"><th scope="row">${html(trafficName(stage.id))}</th>${runs.map((run,i)=>`<td>${run?trafficReportBadge(trafficReportStatus(rows[i],run)):'—'}${rows[i]?`<small>${html(t(rows[i].duration))} · ${html(t(rows[i].load))}</small>`:''}</td>`).join('')}</tr>`;
+      result+=`<tr class="comparison-conditions"><th scope="row">${t('tableConditions')}</th>${runs.map((run,i)=>{
+        if(!run||!rows[i])return '<td>—</td>';
+        const reasons=base&&baseRun?trafficReportDifferences(baseRun,base,run,rows[i]):[];
+        const label=i===0?t('tableBase'):!base?t('reportNoPair'):trafficReportComparable(baseRun,base,run,rows[i])?t('reportComparable'):reasons.map(t).join(', ')||t('reportUnknown');
+        return `<td>${html(label)}</td>`;
+      }).join('')}</tr>`;
+      let metricCount=0;
+      for(const [group,keys] of trafficTableMetricGroups){
+        const available=keys.filter(key=>rows.some(row=>Number.isFinite(trafficTableValue(row,key)))&&!(key==='trafficTransactions'&&rows.every(row=>!trafficTableValue(row,key))));
+        if(!available.length)continue;
+        result+=`<tr class="comparison-metric-group"><th colspan="${span}">${t(group)}</th></tr>`;
+        for(const key of available){
+          metricCount++;
+          // Blank columns do not participate; a missing selected stage blocks ranking.
+          const chosen=runs.flatMap((run,i)=>run?[i]:[]),best=slots.some((id,i)=>id&&!runs[i])?[]:trafficTableBest(chosen.map(i=>runs[i]),chosen.map(i=>rows[i]),key).map(i=>chosen[i]);
+          const labels={trafficCpu:'reportCpuMean',trafficRam:'reportPrivatePeak',trafficCliResident:'reportResidentPeak',trafficCliHandles:'reportHandlesPeak',trafficCliThreads:'reportThreadsPeak',trafficSystemCpu:'reportPcCpu'};
+          result+=`<tr><th scope="row">${html(t(labels[key]||key))}</th>${runs.map((run,i)=>{
+            const value=trafficTableValue(rows[i],key),valid=Number.isFinite(value),winner=best.includes(i);
+            const comparable=!!run&&!!baseRun&&trafficReportComparable(baseRun,base,run,rows[i]);
+            return `<td class="${winner?'comparison-best':''}">${valid?`<strong>${number(value,trafficTableIntegers.has(key)?0:2)}</strong>${winner?`<span class="comparison-best-label">✓ ${t('tableBest')}</span>`:''}${i>0?trafficTableDifference(value,trafficTableValue(base,key),comparable):''}`:'—'}</td>`;
+          }).join('')}</tr>`;
+        }
+      }
+      if(!metricCount)result+=`<tr><td colspan="${span}">${t('tableNoNumeric')}</td></tr>`;
+    }
+  }
+  return result||`<tr><td colspan="${span}">${t('reportNoPair')}</td></tr>`;
+}
+function renderRunComparison(){
+  if(typeof trafficReportChronological!=='function')return;
+  const options=trafficReportChronological(trafficHistory).filter(run=>run.results?.length);
+  if(!trafficTableInitialized&&options.length){trafficTableState.ids=trafficTableNormalize(options.slice(0,2).map(run=>run.id));trafficTableInitialized=true;}
+  const families=trafficFamilies(trafficCatalog);
+  if(trafficTableState.family!=='all'&&!families.some(f=>f.id===trafficTableState.family))trafficTableState.family='all';
+  const stamp=JSON.stringify([trafficHistory,trafficCatalog,labState.builds,labLanguage,trafficTableState,trafficSnapshotUnavailable,trafficComparisonBlocked]);
+  if(stamp===trafficTableStamp)return;trafficTableStamp=stamp;
+  const selection=lab('traffic-pair-selection'),overview=lab('traffic-pair-overview');
+  if(trafficSnapshotUnavailable||trafficComparisonBlocked){trafficTableStructureKey='';trafficTableToolbarKey='';selection.innerHTML='';overview.textContent=t('trafficHistoryUnavailable');return;}
+  const previous=lab('traffic-comparison-scroll'),top=previous?.scrollTop||0,left=previous?.scrollLeft||0;
+  const focus=document.activeElement?.dataset?.compareSlot,focusFamily=document.activeElement?.id==='traffic-table-family';
+  const slots=trafficTableNormalize(trafficTableState.ids),runs=slots.map(id=>options.find(run=>run.id===id));
+  const toolbarKey=JSON.stringify([labLanguage,slots.length,trafficHasMore,families.map(f=>f.id)]);
+  if(toolbarKey!==trafficTableToolbarKey){trafficTableToolbarKey=toolbarKey;selection.innerHTML=`<label><span>${t('tableFilter')}</span><select id="traffic-table-family"><option value="all">${t('tableAll')}</option>${families.map(f=>`<option value="${html(f.id)}" ${trafficTableState.family===f.id?'selected':''}>${html(trafficFamilyName(f))}</option>`).join('')}</select></label><button type="button" class="button secondary" data-compare-add ${slots.length>=4?'disabled':''}>＋ ${t('tableAdd')} (${slots.length}/4)</button>${trafficHasMore?`<button type="button" class="button secondary" data-compare-more>${t('tableMore')}</button>`:''}`;}
+  lab('traffic-table-family').value=trafficTableState.family;
+  const header=slots.map((id,i)=>`<th scope="col"><label><span>${t('tableRun')} ${i+1}</span><select data-compare-slot="${i}" aria-label="${html(t('tableRun'))} ${i+1}"><option value="">${t('reportChoose')}</option>${id&&!runs[i]?`<option value="${html(id)}" selected>${t('tableOlder')}</option>`:''}${options.map(run=>`<option value="${html(run.id)}" ${id===run.id?'selected':''} ${slots.some((other,j)=>j!==i&&other===run.id)?'disabled':''}>${html(trafficReportBuild(run))} · ${html(trafficReportDate(run))} · ${run.cases?.length||0} ${t('reportSteps')}</option>`).join('')}</select></label><div data-compare-meta="${i}"></div><button type="button" class="comparison-remove" data-compare-remove="${i}" ${slots.length<=2?'disabled':''} aria-label="${html(t('tableRemove'))} ${i+1}">× ${t('tableRemove')}</button></th>`).join('');
+  const structureKey=JSON.stringify([labLanguage,slots.length,options.map(run=>[run.id,trafficReportBuild(run),run.started_at_utc,run.cases?.length]),slots.filter((id,i)=>id&&!runs[i])]);
+  if(structureKey!==trafficTableStructureKey){trafficTableStructureKey=structureKey;overview.innerHTML=`<p class="result-hint">${t('tableHint')}</p><div id="traffic-comparison-scroll" class="comparison-table-scroll" role="region" aria-label="${html(t('tableRegion'))}" tabindex="0"><table class="comparison-matrix"><caption class="comparison-caption">${t('reportCompare')}</caption><colgroup><col class="comparison-label-column">${slots.map(()=>'<col>').join('')}</colgroup><thead><tr><th scope="col">${t('tableMetric')}</th>${header}</tr></thead><tbody></tbody></table></div>`;}
+  overview.querySelectorAll('[data-compare-slot]').forEach(select=>{const i=Number(select.dataset.compareSlot);select.value=slots[i];for(const option of select.options)option.disabled=!!option.value&&slots.some((id,j)=>j!==i&&id===option.value);});
+  overview.querySelectorAll('[data-compare-meta]').forEach(meta=>{const run=runs[Number(meta.dataset.compareMeta)];meta.innerHTML=run?`<strong>${html(trafficReportBuild(run))}</strong><small>${html(trafficReportDate(run))} · ${html(t(run.mode||'remote'))}</small>`:'';});
+  overview.querySelector('tbody').innerHTML=trafficTableBody(runs,slots,trafficTableState.family==='all'?families:families.filter(f=>f.id===trafficTableState.family));
+  const scroll=lab('traffic-comparison-scroll');scroll.scrollTop=top;scroll.scrollLeft=left;
+  if(focusFamily)lab('traffic-table-family').focus({preventScroll:true});
+  if(focus!==undefined)overview.querySelector(`[data-compare-slot="${CSS.escape(focus)}"]`)?.focus({preventScroll:true});
+}
+lab('traffic-pair-view').addEventListener('click',event=>{
+  if(event.target.closest('[data-compare-add]')&&trafficTableState.ids.length<4){trafficTableState.ids.push('');trafficTableSave();renderRunComparison();}
+  const remove=event.target.closest('[data-compare-remove]');
+  if(remove&&trafficTableState.ids.length>2){trafficTableState.ids.splice(Number(remove.dataset.compareRemove),1);trafficTableSave();renderRunComparison();}
+  if(event.target.closest('[data-compare-more]'))lab('traffic-history-more').click();
+});
+lab('traffic-pair-view').addEventListener('change',event=>{
+  if(event.target.id==='traffic-table-family')trafficTableState.family=event.target.value;
+  else if(event.target.dataset.compareSlot!==undefined){
+    const index=Number(event.target.dataset.compareSlot),value=event.target.value;
+    if(!Number.isInteger(index)||index<0||index>=trafficTableState.ids.length||value&&trafficTableState.ids.some((id,i)=>i!==index&&id===value))return;
+    trafficTableState.ids[index]=value;
+  }else return;
+  trafficTableSave();renderRunComparison();
+});

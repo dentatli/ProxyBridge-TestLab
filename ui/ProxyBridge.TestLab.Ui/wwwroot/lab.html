@@ -12,6 +12,7 @@
   <script src="/lab-traffic-families.js" defer></script>
   <script src="/lab-execution.js" defer></script>
   <script src="/lab-traffic.js" defer></script>
+  <script src="/lab-comparison-table.js" defer></script>
   <script src="/lab-traffic-results.js" defer></script>
   <script src="/lab-suites.js" defer></script>
 </head>
@@ -207,7 +208,7 @@
         <p id="traffic-history-warning" class="lab-warning" role="alert" hidden></p>
         <nav class="result-switch" aria-label="Results"><button type="button" data-result-view="reports" aria-pressed="true" data-i18n="reportRuns"></button><button type="button" data-result-view="compare" aria-pressed="false" data-i18n="reportCompare"></button></nav>
         <div id="traffic-report-view"><p id="traffic-download-status" role="status" aria-live="polite"></p><div id="traffic-history"></div><button id="traffic-history-more" class="button secondary" type="button" data-i18n="trafficMore" hidden></button></div>
-        <div id="traffic-pair-view" hidden><div id="traffic-pair-selection" class="result-pair-select"></div><div id="traffic-pair-overview"></div></div>
+        <div id="traffic-pair-view" hidden><div id="traffic-pair-selection" class="comparison-toolbar"></div><div id="traffic-pair-overview"></div></div>
         <details class="result-advanced" hidden inert><summary data-i18n="reportAdvanced"></summary>
         <h4 data-i18n="trafficCompare"></h4>
         <label><span data-i18n="trafficConditions"></span><select id="traffic-comparison-filter"><option value=""></option></select></label>
