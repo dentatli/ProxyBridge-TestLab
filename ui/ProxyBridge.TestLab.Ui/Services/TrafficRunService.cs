@@ -28,7 +28,7 @@ public sealed partial class TrafficRuntimeService
         try
         {
             var selected = await builds.RequestAsync(request.BuildId, Token);
-            if (selected.Contract != "driver") throw new InvalidOperationException("TRAFFIC_DRIVER_ADAPTER_REQUIRED");
+            if (selected.Contract is not ("driver" or "v4.0.0")) throw new InvalidOperationException("TRAFFIC_PRODUCT_ADAPTER_REQUIRED");
             AppStoragePaths.EnsureSecureDirectory(Root);
             var id = DateTimeOffset.UtcNow.ToString("yyyyMMdd-HHmmss") + "-" + Guid.NewGuid().ToString("N");
             var directory = Path.Combine(Root, id);
@@ -286,12 +286,13 @@ public sealed partial class TrafficRuntimeService
                 var observed = await lab.InspectAsync(selection, token);
                 if (!observed.GetProperty("files_observed").GetBoolean() || observed.GetProperty("status").GetString() == "UNSUPPORTED_BEFORE_4_0_0")
                     throw new InvalidOperationException("TRAFFIC_PRODUCT_FILES_OR_VERSION_UNSUPPORTED");
+                if (!observed.TryGetProperty("adapter_id", out var adapter) || adapter.ValueKind != JsonValueKind.String) throw new InvalidOperationException("TRAFFIC_VERSION_METADATA_REQUIRED");
                 var build = await lab.BindBuildAsync(selection, observed, token);
                 if (build.Id != request.BuildId) throw new InvalidOperationException("TRAFFIC_BUILD_CHANGED");
                 var python = LocalPythonRuntime.Resolve(app.RepositoryRoot);
                 if (!File.Exists(python)) throw new InvalidOperationException("TRAFFIC_PYTHON_311_REQUIRED");
                 var cli = Path.Combine(selection.InstallationDirectory, "ProxyBridge_CLI.exe");
-                var driver = BenchmarkLabService.ResolveDriverPath(selection);
+                var driver = selection.Contract == "driver" ? BenchmarkLabService.ResolveDriverPath(selection) : Path.Combine(selection.InstallationDirectory, "WinDivert64.sys");
                 var hashes = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var row in observed.GetProperty("components").EnumerateArray())
                 {
@@ -299,10 +300,11 @@ public sealed partial class TrafficRuntimeService
                     hashes[path] = row.GetProperty("sha256").GetString()!;
                 }
                 var sourceFiles = Directory.EnumerateFiles(Path.Combine(app.RepositoryRoot, "src", "trafficlab"), "*.py")
-                    .Concat(new[] { "scripts/Invoke-TrafficLabRun.ps1", "scripts/Assert-TrafficLabIdle.ps1", "modules/InterceptionState.psm1",
+                    .Concat(new[] { "scripts/Invoke-TrafficLabRun.ps1", "scripts/Assert-TrafficLabIdle.ps1", "scripts/Assert-WinDivertTrafficIdle.ps1", "modules/InterceptionState.psm1",
                         "modules/ProcessAdapter.psm1", "src/pb_service_query.cs", "src/pb_loaded_drivers.cs", "config/traffic-workloads.json", "vendor/traffic-dependencies.lock.json",
-                        "config/traffic-echo.proto", "bin/pb_console_host.exe", "bin/pb_wfp_state.exe" }
+                        "config/traffic-echo.proto", "config/product-cli-adapters.json", "bin/pb_console_host.exe", "bin/pb_wfp_state.exe" }
                         .Select(path => Path.Combine(app.RepositoryRoot, path))).Concat(TrafficDependencyFiles("win-x64")).Append(python).Append(typeof(TrafficRuntimeService).Assembly.Location);
+                if (selection.Contract == "v4.0.0") sourceFiles = sourceFiles.Concat(new[] { "bin/tools/windivert-2.2.2/windivertctl.exe", "bin/tools/windivert-2.2.2/WinDivert.dll" }.Select(path => Path.Combine(app.RepositoryRoot, path)));
                 foreach (var file in sourceFiles)
                 {
                     if (!File.Exists(file) || File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint)) throw new InvalidOperationException("TRAFFIC_LOCAL_ARTIFACT_MISSING_OR_REPARSE_POINT");
@@ -311,7 +313,8 @@ public sealed partial class TrafficRuntimeService
                 var localRuntimeHash = Hash(JsonSerializer.SerializeToUtf8Bytes(sourceFiles.Order(StringComparer.Ordinal)
                     .ToDictionary(path => Path.GetFileName(path), path => hashes[path], StringComparer.Ordinal)));
                 var binding = new { schema_version = 1, id, build_id = build.Id, build_sha256 = build.BundleSha256,
-                    local_runtime_sha256 = localRuntimeHash,
+                    local_runtime_sha256 = localRuntimeHash, product_contract = selection.Contract, adapter_id = adapter.GetString(),
+                    product_version = observed.GetProperty("product_version").GetString(),
                     host, runtime_mode = request.Mode, port = 42501, control_port = 42503, proxy_port = 42502, secret = payload.Secret,
                     remote_bundle_sha256 = payload.Bundle, root = app.RepositoryRoot, cli, driver, driver_sha256 = hashes[driver],
                     console_host = Path.Combine(app.RepositoryRoot, "bin", "pb_console_host.exe"), python, source_hashes = hashes,

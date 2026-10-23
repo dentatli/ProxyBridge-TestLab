@@ -121,13 +121,13 @@ function renderTraffic(){
   lab("traffic-plan").parentElement.hidden=!remote;
   lab("traffic-plan").disabled=busy||!labState.csrf;
   lab("traffic-apply").disabled=busy||!trafficState?.runtime?.plan;
-  lab("traffic-start").disabled=busy||remote&&trafficState?.runtime?.state==="APPLY_UNKNOWN"||!trafficState?.runtime?.administrator||!remote&&trafficState?.runtime?.local_preflight?.ready!==true||labState.observation?.declared_contract!=="driver"||!labState.observation?.build_id||!trafficCases().length||trafficEstimate()>300&&!lab("traffic-long-run").checked;
+  lab("traffic-start").disabled=busy||remote&&trafficState?.runtime?.state==="APPLY_UNKNOWN"||!trafficState?.runtime?.administrator||!remote&&trafficState?.runtime?.local_preflight?.ready!==true||!(labState.observation?.adapter_id||labState.observation?.declared_contract==="driver")||!labState.observation?.build_id||!trafficCases().length||trafficEstimate()>300&&!lab("traffic-long-run").checked;
   lab("traffic-stop").disabled=!active||trafficActionActive;
   lab("traffic-recovery-option").hidden=trafficState?.runtime?.supports_safe_continuation!==true;
   lab("traffic-continue-after-failure").disabled=busy||trafficState?.runtime?.supports_safe_continuation!==true;
   const plan=trafficState?.runtime?.plan;
   lab("traffic-runtime-status").textContent=remote?`${t("trafficReady")}: ${trafficState?.runtime?.state||"VALIDATION_REQUIRED"}`:t("trafficLocalRuntime");
-  const localIssues = remote ? [] : [...(trafficState?.runtime?.local_preflight?.errors||[]).map(t), ...(!trafficState?.runtime?.administrator?[t("trafficAdminHelp")]:[]), ...(labState.observation && labState.observation.declared_contract!=="driver"?[t("trafficDriverHelp")]:[])];
+  const localIssues = remote ? [] : [...(trafficState?.runtime?.local_preflight?.errors||[]).map(t), ...(!trafficState?.runtime?.administrator?[t("trafficAdminHelp")]:[]), ...(labState.observation && !labState.observation.adapter_id && labState.observation.declared_contract!=="driver"?[t("trafficAdapterHelp")]:[])];
   lab("traffic-runtime-help").hidden=remote?trafficState?.runtime?.state!=="APPLY_UNKNOWN":!localIssues.length;
   lab("traffic-runtime-help").textContent=remote?t("trafficApplyUnknown"):localIssues.join(" ");
   lab("traffic-runtime-plan").hidden=!remote||!plan;

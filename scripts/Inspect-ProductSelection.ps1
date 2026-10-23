@@ -1,4 +1,4 @@
-﻿[CmdletBinding()]
+[CmdletBinding()]
 param(
     [Parameter(Mandatory)][string]$InstallationDirectory,
     [Parameter(Mandatory)][ValidateSet('driver','v4.0.0')][string]$Contract,
@@ -76,19 +76,35 @@ if (Test-Path -LiteralPath $kitPath -PathType Leaf) {
     }
 }
 $olderVersion=$false
+$versions=[Collections.Generic.List[version]]::new()
 foreach ($component in $identity.components) {
     if ($component.id -in @('cli','core')) {
         foreach ($text in @($component.file_version,$component.product_version)) {
             if ($text -match '^\s*(\d+)\.(\d+)(?:\.(\d+))?') {
-                if ([int]$Matches[1] -lt 4) { $olderVersion=$true }
+                $patch=if($Matches[3]){[int]$Matches[3]}else{0}
+                $parsed=[version]::new([int]$Matches[1],[int]$Matches[2],$patch)
+                $versions.Add($parsed)
+                if ($parsed -lt [version]'4.0.0') { $olderVersion=$true }
             }
         }
     }
 }
+$detectedVersion=if($versions.Count){($versions|Sort-Object|Select-Object -First 1).ToString()}else{''}
+$versionEvidence=if($detectedVersion){'file-version-metadata'}else{'unavailable'}
+if($Contract -eq 'v4.0.0' -and -not $detectedVersion){
+    $adapters=Get-Content -LiteralPath (Join-Path $root 'config/product-cli-adapters.json') -Raw | ConvertFrom-Json
+    if($adapters.schema_version -ne 1 -or $adapters.minimum_version -ne '4.0.0'){throw 'PRODUCT_ADAPTER_CATALOG_INVALID'}
+    $cliHash=($identity.components|Where-Object id -eq 'cli').sha256
+    $coreHash=($identity.components|Where-Object id -eq 'core').sha256
+    $pair=@($adapters.known_cli_core_pairs|Where-Object {$_.cli_sha256 -ceq $cliHash -and $_.core_sha256 -ceq $coreHash})
+    if($pair.Count -eq 1){$detectedVersion=[string]$pair[0].version;$versionEvidence='official-release-component-hashes'}
+}
+$adapter=if($olderVersion){$null}elseif($Contract -eq 'driver'){'wfp-cli-v1'}elseif(-not $detectedVersion){$null}elseif([version]$detectedVersion -lt [version]'4.1.0'){'windivert-4.0-cli-v1'}else{'windivert-4.1-cli-v1'}
 $status=$(if ($olderVersion) {'UNSUPPORTED_BEFORE_4_0_0'} elseif (@($identity.components | Where-Object status -eq 'UNREADABLE').Count -gt 0) {'FILES_UNREADABLE'} elseif (-not $identity.files_observed) {'FILES_INCOMPLETE'} elseif ($recognized) {'KNOWN_BENCHMARK_FILES'} else {'FILES_OBSERVED_COMPATIBILITY_PENDING'})
 [ordered]@{
     schema_version=1;status=$status;observed_at_utc=$identity.observed_at_utc
-    declared_contract=$Contract;product_label=$(if ($Contract -eq 'v4.0.0') {'4.0.0'} else {'driver'})
+    declared_contract=$Contract;product_label=$(if ($Contract -eq 'v4.0.0') {'WinDivert'} else {'Driver WFP'})
+    product_version=$detectedVersion;adapter_id=$adapter;minimum_version='4.0.0';version_evidence=$versionEvidence;version_metadata_supported=($versions.Count -gt 0 -and -not $olderVersion)
     files_observed=$identity.files_observed;recognized_benchmark_files=$recognized
     cli_output_contract=$cliOutputContract
     supported_version_verified=$recognized;source_commit_verified=$false;runtime_ready=$false

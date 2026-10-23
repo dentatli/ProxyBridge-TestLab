@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "minimum_version": "4.0.0",
+  "known_cli_core_pairs": [
+    {
+      "version": "4.0.0",
+      "adapter_id": "windivert-4.0-cli-v1",
+      "cli_sha256": "a049e3d447c066540f93a9b8401d5e47836eecee673425384127aa753bdccb25",
+      "core_sha256": "f6284f0d22c7506814c45b7fedbc6e5a406203e2bc69e63af1cf49a55a51faeb",
+      "release_url": "https://github.com/InterceptSuite/ProxyBridge/releases/tag/v4.0.0",
+      "installer_sha256": "7f2465151b785c4e089cd0fed18465e4bd7ae6c922b4f645de9809441d64ef32"
+    }
+  ]
+}

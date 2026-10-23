@@ -177,6 +177,8 @@ Object.assign(labText.en, {
   noConfirmedDetails: "No confirmed metrics for this attempt. It is not replaced with a previous successful result.", noHistoryMatches: "No runs match the selected filters.", moreHistory: "Load earlier runs"
 });
 let labLanguage = localStorage.getItem("testlab-language") === "en" ? "en" : "ru";
+Object.assign(labText.ru,{trafficAdapterHelp:"Для выбранной версии не подтверждён формат CLI. Нужны файлы ProxyBridge 4.0.0 или новее с метаданными версии."});
+Object.assign(labText.en,{trafficAdapterHelp:"CLI format could not be identified. Select ProxyBridge 4.0.0 or later with version metadata."});
 Object.assign(labText.ru, {findInstalled:"Найти установленный ProxyBridge", noInstalled:"Установка с CLI и драйвером не найдена. Укажите папку ниже.", TRAFFIC_PYTHON_311_REQUIRED:"Нужен комплектный Python 3.11. Проверьте целостность приложения.", TRAFFIC_LOCAL_FILES_MISSING:"Не хватает файлов приложения. Проверьте целостность комплекта.", trafficAdminHelp:"Запустите Start.cmd и подтвердите запрос прав администратора.", trafficDriverHelp:"Для этих проверок нужна сборка с драйвером. Выберите её в разделе «Сборки»."});
 Object.assign(labText.en, {findInstalled:"Find installed ProxyBridge", noInstalled:"No installation with CLI and driver found. Enter its folder below.", TRAFFIC_PYTHON_311_REQUIRED:"Bundled Python 3.11 is required. Verify the application package.", TRAFFIC_LOCAL_FILES_MISSING:"Application files are missing. Verify the package.", trafficAdminHelp:"Run Start.cmd and accept the administrator prompt.", trafficDriverHelp:"These checks require a driver build. Select it under Builds."});
 let labState = { discovery: [], csrf: "", builds: [], buildError: null, reports: [], localRuns: [], localTransfers: [], transferUnreadable: 0, localUnreadable: 0, observation: null, saved: false, unreadable: 0, plan: null, planFailed: false, runControl: { administrator: false, run: null }, runError: null };
@@ -371,7 +373,7 @@ function renderLab() {
   lab("find-installed-product").disabled = busy || !labState.csrf;
   lab("lab-discovered-builds").innerHTML = labState.discovery === null ? `<p>${t("noInstalled")}</p>` : (labState.discovery || []).map(item => `<button class="button secondary" type="button" data-installed-id="${html(item.id)}" ${busy ? "disabled" : ""}>${html(item.label)}</button>`).join("");
   const message = { KNOWN_BENCHMARK_FILES: "known", FILES_OBSERVED_COMPATIBILITY_PENDING: "pending", FILES_INCOMPLETE: "incomplete", FILES_UNREADABLE: "unreadable", UNSUPPORTED_BEFORE_4_0_0: "old" }[observation?.status];
-  lab("product-selection-status").textContent = observation ? `${observation.display_name || observation.product_label} (${observation.product_label}): ${t(message || "failed")} ${labState.saved ? t("saved") : ""}` : t("noSelection");
+  lab("product-selection-status").textContent = observation ? `${observation.display_name || observation.product_label} (${observation.product_label}${observation.product_version?" · "+observation.product_version:""}): ${t(message || "failed")} ${labState.saved ? t("saved") : ""}` : t("noSelection");
   lab("product-selection-details").hidden = !observation;
   lab("product-selection-json").textContent = observation ? JSON.stringify(observation, null, 2) : "";
   if (observation && labState.saved) lab("product-selection-json").textContent = `${t("savedObservation")}\n${lab("product-selection-json").textContent}`;

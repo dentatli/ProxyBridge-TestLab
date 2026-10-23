@@ -17,7 +17,7 @@ public sealed class BenchmarkBuildCatalog(AppStoragePaths storage, DpapiSecretPr
 
     public static string Label(string? name, string contract)
     {
-        var value = string.IsNullOrWhiteSpace(name) ? contract == "v4.0.0" ? "4.0.0" : "driver" : name.Trim();
+        var value = string.IsNullOrWhiteSpace(name) ? contract == "v4.0.0" ? "WinDivert" : "Driver WFP" : name.Trim();
         if (value.Length > 64 || value.Any(char.IsControl)) throw new InvalidOperationException("INVALID_BUILD_NAME");
         return value;
     }
@@ -96,7 +96,7 @@ public sealed class BenchmarkBuildCatalog(AppStoragePaths storage, DpapiSecretPr
             var entries = await ReadAsync(token);
             return new { items = entries.OrderByDescending(entry => entry.ObservedAtUtc).Select(entry => new
             {
-                id = entry.Id, display_name = entry.DisplayName, contract = entry.Contract == "v4.0.0" ? "4.0.0" : "driver",
+                id = entry.Id, display_name = entry.DisplayName, contract = entry.Contract == "v4.0.0" ? "WinDivert" : "Driver WFP", contract_id = entry.Contract,
                 observed_at_utc = entry.ObservedAtUtc, saved_observation_only = true, runtime_ready = false
             }).ToArray() };
         }

@@ -5,6 +5,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 Import-Module (Join-Path $PSHOME 'Modules/Microsoft.PowerShell.Utility/Microsoft.PowerShell.Utility.psd1') -ErrorAction Stop
 $binding=Get-Content -LiteralPath $BindingPath -Raw | ConvertFrom-Json
+if ($binding.PSObject.Properties.Name -contains 'product_contract' -and $binding.product_contract -eq 'v4.0.0') {
+    & (Join-Path $binding.root 'scripts/Assert-WinDivertTrafficIdle.ps1') -BindingPath $BindingPath -RestoreOwnedDriver:$RestoreOwnedDriver
+    exit $LASTEXITCODE
+}
 Import-Module (Join-Path $binding.root 'modules/InterceptionState.psm1') -ErrorAction Stop
 $environment=[Collections.Generic.Dictionary[string,string]]::new([StringComparer]::OrdinalIgnoreCase)
 $environment['PB_PROXYBRIDGE_SERVICE']='ProxyBridgeDrv'

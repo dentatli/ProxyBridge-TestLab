@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$Version='0.3.0-local-preview.3',[string]$OutputRoot='', [string]$PythonDirectory='')
+param([string]$Version='0.3.0-local-preview.4',[string]$OutputRoot='', [string]$PythonDirectory='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -59,7 +59,8 @@ try {
     foreach($relative in $tracked) {Copy-PublicFile $relative}
     foreach($relative in @(
         'Run-WfpMatrix.ps1','LICENSE','scripts/Export-UiCatalog.ps1','scripts/Inspect-ProductSelection.ps1',
-        'scripts/Invoke-TrafficLabRun.ps1','scripts/Assert-TrafficLabIdle.ps1',
+        'scripts/Invoke-TrafficLabRun.ps1','scripts/Assert-TrafficLabIdle.ps1','scripts/Assert-WinDivertTrafficIdle.ps1',
+        'bin/tools/windivert-2.2.2/windivertctl.exe','bin/tools/windivert-2.2.2/WinDivert.dll','bin/tools/windivert-2.2.2/LICENSE',
         'packaging/Start-ProxyBridge-TestLab.ps1','packaging/Stop-ProxyBridge-TestLab.ps1','packaging/Repair-ProxyBridge-TestLab.ps1',
         'src/pb_service_query.cs','src/pb_loaded_drivers.cs','bin/pb_console_host.exe','bin/pb_wfp_state.exe'
     )) {Copy-PublicFile $relative}

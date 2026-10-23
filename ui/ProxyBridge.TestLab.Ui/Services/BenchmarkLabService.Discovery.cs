@@ -8,7 +8,7 @@ public sealed record InstalledProductRequest(string Id, string? DisplayName = nu
 
 public sealed partial class BenchmarkLabService
 {
-    private sealed record Installation(string Id, string Label, string Folder, string Driver);
+    private sealed record Installation(string Id, string Label, string Folder, string Driver, string Contract);
 
     private static Installation[] FindInstallations()
     {
@@ -48,11 +48,12 @@ public sealed partial class BenchmarkLabService
             {
                 if (!IsLocalPath(folder) || !File.Exists(Path.Combine(folder, "ProxyBridge_CLI.exe")) || !File.Exists(Path.Combine(folder, "ProxyBridgeCore.dll"))) continue;
                 var full = Path.GetFullPath(folder).TrimEnd('\\', '/');
-                var driver = ResolveDriverPath(new(full, "driver", null));
+                var contract = File.Exists(Path.Combine(full, "WinDivert.dll")) && File.Exists(Path.Combine(full, "WinDivert64.sys")) ? "v4.0.0" : "driver";
+                var driver = contract == "driver" ? ResolveDriverPath(new(full, "driver", null)) : Path.Combine(full, "WinDivert64.sys");
                 if (!File.Exists(driver)) continue;
                 AssertNoReparse(full); AssertNoReparse(driver);
                 var id = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(full.ToUpperInvariant() + "\n" + driver.ToUpperInvariant())));
-                result.Add(new(id, "ProxyBridge · " + Path.GetFileName(full), full, driver));
+                result.Add(new(id, (contract == "driver" ? "Driver WFP" : "WinDivert") + " · " + Path.GetFileName(full), full, driver, contract));
             }
             catch (Exception error) when (error is InvalidOperationException or IOException or UnauthorizedAccessException or ArgumentException) { }
         }
@@ -64,6 +65,6 @@ public sealed partial class BenchmarkLabService
     public async Task<System.Text.Json.JsonElement> SelectInstalledAsync(InstalledProductRequest request, CancellationToken token)
     {
         var item = FindInstallations().SingleOrDefault(item => item.Id == request.Id) ?? throw new InvalidOperationException("INSTALLATION_NOT_FOUND");
-        return await SelectAsync(new(item.Folder, "driver", item.Driver, request.DisplayName ?? "ProxyBridge"), token);
+        return await SelectAsync(new(item.Folder, item.Contract, item.Driver, request.DisplayName ?? "ProxyBridge"), token);
     }
 }

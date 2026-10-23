@@ -19,7 +19,7 @@ public sealed partial class TrafficRuntimeService
         }
         catch (InvalidOperationException) { errors.Add("TRAFFIC_PYTHON_311_REQUIRED"); }
         foreach (var file in new[] { "bin/pb_console_host.exe", "bin/pb_wfp_state.exe", "scripts/Invoke-TrafficLabRun.ps1",
-            "scripts/Assert-TrafficLabIdle.ps1", "config/traffic-workloads.json", "config/traffic-echo.proto", "vendor/traffic-dependencies.lock.json",
+            "scripts/Assert-TrafficLabIdle.ps1", "scripts/Assert-WinDivertTrafficIdle.ps1", "config/traffic-workloads.json", "config/traffic-echo.proto", "config/product-cli-adapters.json", "vendor/traffic-dependencies.lock.json",
             "modules/InterceptionState.psm1", "modules/ProcessAdapter.psm1", "src/pb_service_query.cs", "src/pb_loaded_drivers.cs",
             "src/trafficlab/runner.py", "src/trafficlab/local_runtime.py" })
             if (!File.Exists(Path.Combine(app.RepositoryRoot, file))) errors.Add("TRAFFIC_LOCAL_FILES_MISSING");

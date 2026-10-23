@@ -234,4 +234,4 @@ function Get-LoadedInterceptionDriverObservation {
     [pscustomobject]@{schema_version=1;observed_at_utc=[DateTime]::UtcNow.ToString('o');query_complete=$true;scope='loaded-driver-names';loaded_driver_count=$names.Count;driver_names_sha256=$digest;other_driver_names_sha256=$otherDigest;known_interception_drivers=$known;selected_driver_loaded=@($names | Where-Object { $_ -ieq 'ProxyBridgeDrv.sys' }).Count -gt 0;known_interception_driver_names_absent=$known.Count -eq 0;all_interception_absent_verified=$false}
 }
 
-Export-ModuleMember -Function Get-InterceptionStateSnapshot, Get-WfpServiceState, Get-LoadedInterceptionDriverObservation
+Export-ModuleMember -Function Get-InterceptionStateSnapshot, Get-WfpServiceState, Get-LoadedInterceptionDriverObservation, Get-WfpObjectObservation, Get-WinDivertHandleObservation
