@@ -7,8 +7,24 @@ namespace ProxyBridge.TestLab.Ui.Services;
 public sealed record ProductSelectionRequest(string InstallationDirectory, string Contract, string? DriverPath, string? DisplayName = null);
 
 /// <summary>Files-only selection and saved report display; never starts a benchmark or product.</summary>
-public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage, DpapiSecretProtector protector, BenchmarkBuildCatalog builds)
+public sealed partial class BenchmarkLabService(AppPaths paths, AppStoragePaths storage, DpapiSecretProtector protector, BenchmarkBuildCatalog builds)
 {
+    internal static string ResolveDriverPath(ProductSelectionRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.DriverPath)) return Path.GetFullPath(request.DriverPath);
+        var local = Path.Combine(Path.GetFullPath(request.InstallationDirectory), "ProxyBridgeDrv.sys");
+        if (File.Exists(local)) return local;
+        var registered = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\ProxyBridgeDrv", "ImagePath", null) as string;
+        if (registered is null) return local;
+        registered = registered.Trim().Trim('"');
+        if (registered.StartsWith(@"\??\", StringComparison.Ordinal)) registered = registered[4..];
+        if (registered.StartsWith(@"\SystemRoot\", StringComparison.OrdinalIgnoreCase)) registered = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), registered[12..]);
+        else if (registered.StartsWith(@"%SystemRoot%\", StringComparison.OrdinalIgnoreCase)) registered = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), registered[13..]);
+        else if (registered.StartsWith(@"System32\", StringComparison.OrdinalIgnoreCase)) registered = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), registered);
+        if (!IsLocalPath(registered) || !registered.EndsWith(".sys", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("INVALID_PRODUCT_SELECTION");
+        return Path.GetFullPath(registered);
+    }
+
     private readonly SemaphoreSlim _gate = new(1, 1);
     private string SelectionPath => Path.Combine(storage.ConfigRoot, "benchmark-selection.dpapi");
 
@@ -61,6 +77,7 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
 
     public async Task<JsonElement> SelectAsync(ProductSelectionRequest request, CancellationToken cancellationToken)
     {
+        if (request.Contract == "driver") request = request with { DriverPath = ResolveDriverPath(request) };
         var observed = await InspectAsync(request, cancellationToken);
         if (!observed.GetProperty("files_observed").GetBoolean() ||
             observed.GetProperty("status").GetString() == "UNSUPPORTED_BEFORE_4_0_0")

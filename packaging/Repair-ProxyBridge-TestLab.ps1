@@ -29,6 +29,8 @@ while ($pending.Count -gt 0) {
     $directoryPath = $pending.Pop()
     foreach ($item in @(Get-ChildItem -LiteralPath $directoryPath -Force)) {
         if ($item.Attributes -band [System.IO.FileAttributes]::ReparsePoint) { throw "PACKAGE_REPARSE_POINT_REFUSED: $($item.FullName)" }
+        $inside = $item.FullName.Substring($packageRoot.TrimEnd('\').Length + 1).Replace('\','/')
+        if ($item.PSIsContainer -and $inside -in @('artifacts/benchmark-launch','artifacts/local-route')) { continue }
         if ($item.PSIsContainer) { $pending.Push($item.FullName); continue }
         if ([string]::Equals($item.FullName, $sumsPath, [System.StringComparison]::OrdinalIgnoreCase)) { continue }
         $relative = $item.FullName.Substring($packageRoot.TrimEnd('\').Length + 1).Replace('\','/')

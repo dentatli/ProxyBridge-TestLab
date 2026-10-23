@@ -23,6 +23,7 @@ public sealed partial class TrafficRuntimeService
             request.Cases.Select(row => row.Id).Distinct().Count() != request.Cases.Length)
             throw new InvalidOperationException("TRAFFIC_CASE_SELECTION_INVALID");
         if (Estimate(request.Cases, request.ContinueAfterFailure) > 300 && !request.AllowLongRun) throw new InvalidOperationException("TRAFFIC_LONG_RUN_CONFIRMATION_REQUIRED");
+        if (request.Mode == "local") ValidateLocalFiles();
         if (!await _gate.WaitAsync(0, Token)) throw new InvalidOperationException("TRAFFIC_OPERATION_ACTIVE");
         try
         {
@@ -263,7 +264,7 @@ public sealed partial class TrafficRuntimeService
                     return await ExecutePreparedRunAsync(request, selection, directory, id, target.Host, payload, token);
                 });
         }
-        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException or OperationCanceledException or JsonException)
+        catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException or OperationCanceledException or JsonException or System.ComponentModel.Win32Exception or TimeoutException)
         {
             error = exception is InvalidOperationException && System.Text.RegularExpressions.Regex.IsMatch(exception.Message, "^[A-Z][A-Z0-9_]{0,100}$")
                 ? exception.Message : "TRAFFIC_RUN_OR_STORAGE_FAILED";
@@ -287,10 +288,10 @@ public sealed partial class TrafficRuntimeService
                     throw new InvalidOperationException("TRAFFIC_PRODUCT_FILES_OR_VERSION_UNSUPPORTED");
                 var build = await lab.BindBuildAsync(selection, observed, token);
                 if (build.Id != request.BuildId) throw new InvalidOperationException("TRAFFIC_BUILD_CHANGED");
-                var python = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Python", "Python311", "python.exe");
+                var python = LocalPythonRuntime.Resolve(app.RepositoryRoot);
                 if (!File.Exists(python)) throw new InvalidOperationException("TRAFFIC_PYTHON_311_REQUIRED");
                 var cli = Path.Combine(selection.InstallationDirectory, "ProxyBridge_CLI.exe");
-                var driver = selection.DriverPath ?? Path.Combine(selection.InstallationDirectory, "ProxyBridgeDrv.sys");
+                var driver = BenchmarkLabService.ResolveDriverPath(selection);
                 var hashes = new Dictionary<string,string>(StringComparer.OrdinalIgnoreCase);
                 foreach (var row in observed.GetProperty("components").EnumerateArray())
                 {

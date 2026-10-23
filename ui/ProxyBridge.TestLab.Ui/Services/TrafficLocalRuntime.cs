@@ -8,7 +8,7 @@ public sealed partial class TrafficRuntimeService
 {
     private async Task<JsonElement> WithLocalRuntimeAsync(string directory, Func<Payload, CancellationToken, Task<JsonElement>> execute)
     {
-        var python = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Python", "Python311", "python.exe");
+        var python = LocalPythonRuntime.Resolve(app.RepositoryRoot);
         if (!File.Exists(python)) throw new InvalidOperationException("TRAFFIC_PYTHON_311_REQUIRED");
         var sources = Directory.EnumerateFiles(Path.Combine(app.RepositoryRoot, "src", "trafficlab"), "*.py")
             .Concat(TrafficDependencyFiles("win-x64")).Append(Path.Combine(app.RepositoryRoot,"vendor","traffic-dependencies.lock.json"))
@@ -35,6 +35,7 @@ public sealed partial class TrafficRuntimeService
                 WorkingDirectory=app.RepositoryRoot, RedirectStandardInput=true, RedirectStandardOutput=true, RedirectStandardError=true };
             start.ArgumentList.Add("-u"); start.ArgumentList.Add("-m"); start.ArgumentList.Add(module);
             start.Environment["PYTHONPATH"] = Path.Combine(app.RepositoryRoot,"src");
+            start.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
             return start;
         }
         var prepare = PythonStart(python,"trafficlab.local_runtime");

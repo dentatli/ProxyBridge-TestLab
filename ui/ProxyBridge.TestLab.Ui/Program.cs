@@ -5,7 +5,7 @@ using ProxyBridge.TestLab.Ui.Hubs;
 using ProxyBridge.TestLab.Ui.Models;
 using ProxyBridge.TestLab.Ui.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions { Args = args, ContentRootPath = Directory.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot")) ? AppContext.BaseDirectory : null });
 var requestedRoot = builder.Configuration["RepositoryRoot"];
 var paths = new AppPaths(AppPaths.Discover(requestedRoot));
 var requestedStorageRoot = builder.Configuration["ConfigRoot"];
@@ -119,7 +119,7 @@ app.Use(async (context, next) =>
 
 var requestedWebRoot = builder.Configuration["webroot"];
 var uiWebRoot = string.IsNullOrWhiteSpace(requestedWebRoot)
-    ? Path.Combine(paths.RepositoryRoot, "ui", "ProxyBridge.TestLab.Ui", "wwwroot")
+    ? (Directory.Exists(Path.Combine(AppContext.BaseDirectory, "wwwroot")) ? Path.Combine(AppContext.BaseDirectory, "wwwroot") : Path.Combine(paths.RepositoryRoot, "ui", "ProxyBridge.TestLab.Ui", "wwwroot"))
     : Path.GetFullPath(requestedWebRoot, app.Environment.ContentRootPath);
 if (!Directory.Exists(uiWebRoot)) throw new InvalidOperationException("TESTLAB_UI_ASSETS_NOT_FOUND");
 var uiFiles = new PhysicalFileProvider(uiWebRoot);
@@ -223,6 +223,16 @@ api.MapPost("/lab/run/stop", async (BenchmarkStartRequest request, BenchmarkRunS
     try { return Results.Ok(await runs.RequestStopAsync(cancellationToken, request.PlanId)); }
     catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException or OperationCanceledException)
     { return Results.BadRequest(new { error = "GUI_STOP_NOT_QUEUED" }); }
+});
+
+api.MapGet("/lab/application", (AppPaths paths) => Results.Ok(new {
+    name = "ProxyBridge-TestLab", repository_root = paths.RepositoryRoot }));
+api.MapGet("/lab/discover", (BenchmarkLabService lab) => Results.Ok(lab.DiscoverInstalled()));
+api.MapPost("/lab/discover/select", async (InstalledProductRequest request, BenchmarkLabService lab, CancellationToken token) =>
+{
+    try { return Results.Ok(await lab.SelectInstalledAsync(request, token)); }
+    catch (Exception error) when (error is InvalidOperationException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception or OperationCanceledException)
+    { return Results.BadRequest(new { error = "BUILD_SELECTION_FAILED" }); }
 });
 
 api.MapPost("/lab/inspect", async (ProductSelectionRequest request, BenchmarkLabService lab, CancellationToken cancellationToken) =>

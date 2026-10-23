@@ -177,7 +177,9 @@ Object.assign(labText.en, {
   noConfirmedDetails: "No confirmed metrics for this attempt. It is not replaced with a previous successful result.", noHistoryMatches: "No runs match the selected filters.", moreHistory: "Load earlier runs"
 });
 let labLanguage = localStorage.getItem("testlab-language") === "en" ? "en" : "ru";
-let labState = { csrf: "", builds: [], buildError: null, reports: [], localRuns: [], localTransfers: [], transferUnreadable: 0, localUnreadable: 0, observation: null, saved: false, unreadable: 0, plan: null, planFailed: false, runControl: { administrator: false, run: null }, runError: null };
+Object.assign(labText.ru, {findInstalled:"Найти установленный ProxyBridge", noInstalled:"Установка с CLI и драйвером не найдена. Укажите папку ниже.", TRAFFIC_PYTHON_311_REQUIRED:"Нужен комплектный Python 3.11. Проверьте целостность приложения.", TRAFFIC_LOCAL_FILES_MISSING:"Не хватает файлов приложения. Проверьте целостность комплекта.", trafficAdminHelp:"Запустите Start.cmd и подтвердите запрос прав администратора.", trafficDriverHelp:"Для этих проверок нужна сборка с драйвером. Выберите её в разделе «Сборки»."});
+Object.assign(labText.en, {findInstalled:"Find installed ProxyBridge", noInstalled:"No installation with CLI and driver found. Enter its folder below.", TRAFFIC_PYTHON_311_REQUIRED:"Bundled Python 3.11 is required. Verify the application package.", TRAFFIC_LOCAL_FILES_MISSING:"Application files are missing. Verify the package.", trafficAdminHelp:"Run Start.cmd and accept the administrator prompt.", trafficDriverHelp:"These checks require a driver build. Select it under Builds."});
+let labState = { discovery: [], csrf: "", builds: [], buildError: null, reports: [], localRuns: [], localTransfers: [], transferUnreadable: 0, localUnreadable: 0, observation: null, saved: false, unreadable: 0, plan: null, planFailed: false, runControl: { administrator: false, run: null }, runError: null };
 labState.launches = [];
 labState.launchUnreadable = 0;
 labState.launchNextOffset = null;
@@ -366,6 +368,8 @@ function renderLab() {
   const observation = labState.observation;
   const busy = labActionActive || runActive() || remoteActionActive || !!remoteState?.busy;
   renderRemote(busy);
+  lab("find-installed-product").disabled = busy || !labState.csrf;
+  lab("lab-discovered-builds").innerHTML = labState.discovery === null ? `<p>${t("noInstalled")}</p>` : (labState.discovery || []).map(item => `<button class="button secondary" type="button" data-installed-id="${html(item.id)}" ${busy ? "disabled" : ""}>${html(item.label)}</button>`).join("");
   const message = { KNOWN_BENCHMARK_FILES: "known", FILES_OBSERVED_COMPATIBILITY_PENDING: "pending", FILES_INCOMPLETE: "incomplete", FILES_UNREADABLE: "unreadable", UNSUPPORTED_BEFORE_4_0_0: "old" }[observation?.status];
   lab("product-selection-status").textContent = observation ? `${observation.display_name || observation.product_label} (${observation.product_label}): ${t(message || "failed")} ${labState.saved ? t("saved") : ""}` : t("noSelection");
   lab("product-selection-details").hidden = !observation;
@@ -591,6 +595,24 @@ async function inspectSelection(save = false) {
   }
 }
 
+async function discoverInstalled(id = null) {
+  if (labActionActive || runActive() || !labState.csrf) return;
+  labActionActive = true; labState.buildError = null;
+  renderLab();
+  try {
+    const response = await fetch(id ? "/api/v1/lab/discover/select" : "/api/v1/lab/discover", id ? {
+      method: "POST", headers: { "Content-Type": "application/json", "X-TestLab-CSRF": labState.csrf },
+      body: JSON.stringify({id, displayName: lab("product-build-name").value.trim() || null})
+    } : {cache: "no-store"});
+    if (!response.ok) throw new Error("discovery");
+    const data = await response.json();
+    if (id) { labState.observation = data; labState.saved = true; labState.plan = null; inspectedInput = null; }
+    else labState.discovery = data.items.length ? data.items : null;
+  } catch { labState.buildError = "BUILD_SELECTION_FAILED"; }
+  finally { labActionActive = false; renderLab(); }
+  if (id && !labState.buildError) await loadLab();
+}
+
 async function changeBuild(action, id, name) {
   if (labActionActive || runActive() || !labState.csrf) return;
   labActionActive = true;
@@ -679,6 +701,8 @@ async function controlRun(stop = false) {
   finally { labActionActive = false; renderLab(); scheduleRunPoll(); }
 }
 
+lab("find-installed-product").addEventListener("click", () => discoverInstalled());
+lab("lab-discovered-builds").addEventListener("click", event => { const button = event.target.closest("[data-installed-id]"); if (button && !button.disabled) discoverInstalled(button.dataset.installedId); });
 lab("product-selection-form").addEventListener("submit", (event) => { event.preventDefault(); inspectSelection(); });
 lab("save-product-selection").addEventListener("click", () => inspectSelection(true));
 for (const id of ["product-folder", "product-contract", "product-driver-path", "product-build-name"]) lab(id).addEventListener("input", () => { inspectedInput = null; labState.observation = null; labState.saved = false; labState.plan = null; labState.planFailed = false; renderLab(); });

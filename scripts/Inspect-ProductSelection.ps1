@@ -29,7 +29,20 @@ function Assert-LocalSelectionPath([string]$Path) {
 
 $folder=Assert-LocalSelectionPath $InstallationDirectory
 if (-not (Test-Path -LiteralPath $folder -PathType Container)) { throw 'INSTALLATION_DIRECTORY_MISSING' }
-if (-not $DriverPath) { $DriverPath=Join-Path $folder 'ProxyBridgeDrv.sys' }
+if (-not $DriverPath) {
+    $DriverPath=Join-Path $folder 'ProxyBridgeDrv.sys'
+    if ($Contract -eq 'driver' -and -not (Test-Path -LiteralPath $DriverPath -PathType Leaf)) {
+        # Read installation configuration only; do not query/start the service.
+        $registered=Get-ItemPropertyValue -LiteralPath 'HKLM:\SYSTEM\CurrentControlSet\Services\ProxyBridgeDrv' -Name ImagePath -ErrorAction SilentlyContinue
+        if ($registered) {
+            $DriverPath=([string]$registered).Trim().Trim('"')
+            if ($DriverPath.StartsWith('\??\')) { $DriverPath=$DriverPath.Substring(4) }
+            if ($DriverPath.StartsWith('\SystemRoot\',[StringComparison]::OrdinalIgnoreCase)) { $DriverPath=Join-Path $env:SystemRoot $DriverPath.Substring(12) }
+            elseif ($DriverPath.StartsWith('%SystemRoot%\',[StringComparison]::OrdinalIgnoreCase)) { $DriverPath=Join-Path $env:SystemRoot $DriverPath.Substring(13) }
+            elseif ($DriverPath.StartsWith('System32\',[StringComparison]::OrdinalIgnoreCase)) { $DriverPath=Join-Path $env:SystemRoot $DriverPath }
+        }
+    }
+}
 $DriverPath=Assert-LocalSelectionPath $DriverPath
 $environment=[Collections.Generic.Dictionary[string,string]]::new([StringComparer]::OrdinalIgnoreCase)
 $environment['PB_PROXYBRIDGE_CLI_EXE']=Join-Path $folder 'ProxyBridge_CLI.exe'
@@ -47,10 +60,14 @@ foreach ($file in $files) {
 }
 $identity=Get-ProductBuildIdentity -Environment $environment -Contract $Contract
 $recognized=$false
+$cliOutputContract='upstream'
 $kitName=$(if ($Contract -eq 'driver') {'driver-63be0eb-testlab-cli'} else {'v4.0.0-release-testlab-cli'})
 $kitPath=Join-Path $root ('artifacts/product-builds/'+$kitName+'/product.env')
 if (Test-Path -LiteralPath $kitPath -PathType Leaf) {
     $known=Import-DotEnv -Path $kitPath
+    $cliComponent=@($identity.components | Where-Object id -eq 'cli')
+    if ($cliComponent.Count -eq 1 -and $known.ContainsKey('PB_EXPECTED_PROXYBRIDGE_CLI_SHA256') -and
+        $cliComponent[0].sha256 -ieq $known['PB_EXPECTED_PROXYBRIDGE_CLI_SHA256']) { $cliOutputContract='testlab-unbuffered-v1' }
     $keys=@{cli='PB_EXPECTED_PROXYBRIDGE_CLI_SHA256';core='PB_EXPECTED_PROXYBRIDGE_CORE_SHA256';driver='PB_EXPECTED_DRIVER_SHA256';'windivert-dll'='PB_EXPECTED_WINDIVERT_DLL_SHA256';'windivert-driver'='PB_EXPECTED_WINDIVERT_DRIVER_SHA256'}
     $recognized=$identity.files_observed
     foreach ($component in $identity.components) {
@@ -73,6 +90,7 @@ $status=$(if ($olderVersion) {'UNSUPPORTED_BEFORE_4_0_0'} elseif (@($identity.co
     schema_version=1;status=$status;observed_at_utc=$identity.observed_at_utc
     declared_contract=$Contract;product_label=$(if ($Contract -eq 'v4.0.0') {'4.0.0'} else {'driver'})
     files_observed=$identity.files_observed;recognized_benchmark_files=$recognized
+    cli_output_contract=$cliOutputContract
     supported_version_verified=$recognized;source_commit_verified=$false;runtime_ready=$false
     product_started=$false;traffic_generated=$false;driver_state_observed=$false
     scope='files-on-disk';components=$identity.components;bundle_sha256=$identity.bundle_sha256

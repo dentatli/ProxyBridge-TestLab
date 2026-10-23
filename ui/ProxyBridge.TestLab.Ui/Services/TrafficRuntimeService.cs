@@ -38,7 +38,7 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
                 _checked is null || DateTimeOffset.UtcNow - _checked > TimeSpan.FromMinutes(2) ? "VALIDATION_REQUIRED" : _state,
             error = ApplyCheckpoint.Pending && !_applyInFlight ? "TRAFFIC_APPLY_OUTCOME_UNKNOWN" : _error,
             plan = ApplyCheckpoint.Pending ? null : _plan, checkedAtUtc = _checked, run = _run, busy = _gate.CurrentCount == 0,
-            administrator = Administrator(), supports_safe_continuation = true };
+            administrator = Administrator(), local_preflight = LocalPreflight(), supports_safe_continuation = true };
     }
 
     private static bool Administrator()
@@ -159,7 +159,7 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
         finally { CryptographicOperations.ZeroMemory(secret); }
     }
 
-    private IEnumerable<string> TrafficDependencyFiles(string platform)
+    private IEnumerable<string> TrafficDependencyFiles(string platform, bool verifyContent = true)
     {
         using var document = JsonDocument.Parse(File.ReadAllBytes(Path.Combine(app.RepositoryRoot, "vendor", "traffic-dependencies.lock.json")));
         var data = document.RootElement;
@@ -173,7 +173,7 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
             if (!System.Text.RegularExpressions.Regex.IsMatch(name, @"\A[A-Za-z0-9_.-]+\.whl\z")) throw new InvalidOperationException("TRAFFIC_DEPENDENCY_NAME_INVALID");
             var path = Path.Combine(app.RepositoryRoot, "vendor", "traffic-wheelhouse", platform, name);
             if (!File.Exists(path) || File.GetAttributes(path).HasFlag(FileAttributes.ReparsePoint) || new FileInfo(path).Length != row.GetProperty("bytes").GetInt64() ||
-                Hash(File.ReadAllBytes(path)) != row.GetProperty("sha256").GetString()) throw new InvalidOperationException("TRAFFIC_DEPENDENCY_HASH_MISMATCH");
+                verifyContent && Hash(File.ReadAllBytes(path)) != row.GetProperty("sha256").GetString()) throw new InvalidOperationException("TRAFFIC_DEPENDENCY_HASH_MISMATCH");
             yield return path;
         }
     }

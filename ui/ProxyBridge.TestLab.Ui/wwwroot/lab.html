@@ -35,6 +35,8 @@
     <section id="connection" class="panel" data-lab-view="builds" aria-labelledby="builds-heading">
       <h2 id="builds-heading" tabindex="-1" data-i18n="connection">Сборки</h2>
       <p data-i18n="installationHelp">Выберите файлы установленного ProxyBridge. Проверка читает файлы, не запускает программу и не меняет драйвер.</p>
+      <button id="find-installed-product" class="button primary" type="button" data-i18n="findInstalled">Найти установленный ProxyBridge</button>
+      <div id="lab-discovered-builds" role="status" aria-live="polite"></div>
       <form id="product-selection-form">
         <div class="lab-fields">
           <label><span data-i18n="buildName">Название сборки</span><input id="product-build-name" type="text" maxlength="64" placeholder="актуал / бета" autocomplete="off"></label>
