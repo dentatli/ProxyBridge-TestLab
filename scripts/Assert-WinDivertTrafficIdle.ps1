@@ -20,12 +20,25 @@ if($RestoreOwnedDriver -and -not $loaded.known_interception_driver_names_absent)
         -not $claim.cli_ready -or -not $claim.cli_cleanup_verified -or $claim.driver_sha256 -ine $binding.driver_sha256 -or
         $processes.Count -ne 0 -or -not $loaded.query_complete -or
         @($loaded.known_interception_drivers | Where-Object {$_ -ine 'WinDivert64.sys'}).Count -ne 0){throw 'TRAFFIC_WINDIVERT_RESTORE_OWNERSHIP_NOT_CONFIRMED'}
+    # Driver teardown can finish after the owned CLI exits. Observe its bounded
+    # settlement before opening the reflect observer, which can keep it loaded.
+    $settleUntil=[DateTime]::UtcNow.AddSeconds(5)
+    while(-not $loaded.known_interception_driver_names_absent -and [DateTime]::UtcNow -lt $settleUntil){
+        Start-Sleep -Milliseconds 100
+        $loaded=Get-LoadedInterceptionDriverObservation -AllowProductRuntime
+    }
+    if(-not $loaded.known_interception_driver_names_absent){
     $ctl=Join-Path $binding.root 'bin/tools/windivert-2.2.2/windivertctl.exe'
     $dll=Join-Path (Split-Path -Parent $ctl) 'WinDivert.dll'
     $environment=[Collections.Generic.Dictionary[string,string]]::new([StringComparer]::OrdinalIgnoreCase)
     $environment['PB_WINDIVERT_CTL_EXE']=$ctl
-    $environment['PB_EXPECTED_WINDIVERT_CTL_SHA256']=[string]$binding.source_hashes.PSObject.Properties[$ctl].Value
-    $environment['PB_EXPECTED_WINDIVERT_OBSERVER_DLL_SHA256']=[string]$binding.source_hashes.PSObject.Properties[$dll].Value
+    function Get-BoundHash([string]$Path){
+        $matches=@($binding.source_hashes.PSObject.Properties|Where-Object {[string]::Equals([IO.Path]::GetFullPath($_.Name),[IO.Path]::GetFullPath($Path),[StringComparison]::OrdinalIgnoreCase)})
+        if($matches.Count -ne 1){throw 'TRAFFIC_OBSERVER_BINDING_NOT_UNIQUE'}
+        return [string]$matches[0].Value
+    }
+    $environment['PB_EXPECTED_WINDIVERT_CTL_SHA256']=Get-BoundHash $ctl
+    $environment['PB_EXPECTED_WINDIVERT_OBSERVER_DLL_SHA256']=Get-BoundHash $dll
     $handles=Get-WinDivertHandleObservation -Environment $environment -TimeoutMs 5000
     if(-not $handles.capture_complete -or $handles.observed_handle_count -ne 0){throw 'TRAFFIC_WINDIVERT_HANDLES_NOT_CLEAR'}
     $services=@(Get-CimInstance Win32_SystemDriver -OperationTimeoutSec 5 | Where-Object Name -match '^WinDivert')
@@ -38,9 +51,23 @@ if($RestoreOwnedDriver -and -not $loaded.known_interception_driver_names_absent)
     # Only restore the exact driver loaded from this attempt's bound files,
     # after its owned CLI exited cleanly and the observer found zero handles.
     # Do not delete/reconfigure services or stop foreign product processes.
-    Stop-Service -Name $service.Name -ErrorAction Stop
-    (Get-Service -Name $service.Name).WaitForStatus([ServiceProcess.ServiceControllerStatus]::Stopped,[TimeSpan]::FromSeconds(10))
+    try {
+        Stop-Service -Name $service.Name -ErrorAction Stop
+        $remaining=Get-Service -Name $service.Name -ErrorAction SilentlyContinue
+        if($remaining){$remaining.WaitForStatus([ServiceProcess.ServiceControllerStatus]::Stopped,[TimeSpan]::FromSeconds(10))}
+    } catch {
+        # The service may disappear while its already scheduled teardown wins
+        # this race. Only a fresh complete loaded-driver observation can accept it.
+        $settleUntil=[DateTime]::UtcNow.AddSeconds(5)
+        do {
+            $loaded=Get-LoadedInterceptionDriverObservation -AllowProductRuntime
+            if($loaded.query_complete -and $loaded.known_interception_driver_names_absent){break}
+            Start-Sleep -Milliseconds 100
+        } while([DateTime]::UtcNow -lt $settleUntil)
+        if(-not $loaded.query_complete -or -not $loaded.known_interception_driver_names_absent){throw}
+    }
     $loaded=Get-LoadedInterceptionDriverObservation -AllowProductRuntime
+    }
 }
 $wfp=Get-WfpServiceState -Name ProxyBridgeDrv -AllowProductRuntime
 $objects=Get-WfpObjectObservation -TimeoutMs 5000

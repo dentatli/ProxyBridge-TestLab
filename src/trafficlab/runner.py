@@ -25,6 +25,10 @@ def idle(binding_path: str, binding: dict[str, Any], restore_owned: bool = False
         arguments.append("-RestoreOwnedDriver")
     result = subprocess.run(arguments, capture_output=True, timeout=35, creationflags=subprocess.CREATE_NO_WINDOW)
     if result.returncode or len(result.stdout) > 16384:
+        atomic(str(Path(binding_path).parent / ('idle-failure-' + str(time.time_ns()) + '.json')),
+               {'exit_code': result.returncode, 'stdout': result.stdout[:16384].decode('utf-8-sig', errors='replace'),
+                'stderr': result.stderr[:16384].decode('utf-8-sig', errors='replace'),
+                'truncated': len(result.stdout) > 16384 or len(result.stderr) > 16384})
         raise ValueError("TRAFFIC_PRODUCT_OFF_NOT_VERIFIED")
     value = json.loads(result.stdout.decode("utf-8-sig"))
     if value.get("off_verified") is not True:

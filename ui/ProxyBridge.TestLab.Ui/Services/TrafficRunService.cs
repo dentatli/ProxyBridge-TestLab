@@ -305,6 +305,7 @@ public sealed partial class TrafficRuntimeService
                         "config/traffic-echo.proto", "config/product-cli-adapters.json", "bin/pb_console_host.exe", "bin/pb_wfp_state.exe" }
                         .Select(path => Path.Combine(app.RepositoryRoot, path))).Concat(TrafficDependencyFiles("win-x64")).Append(python).Append(typeof(TrafficRuntimeService).Assembly.Location);
                 if (selection.Contract == "v4.0.0") sourceFiles = sourceFiles.Concat(new[] { "bin/tools/windivert-2.2.2/windivertctl.exe", "bin/tools/windivert-2.2.2/WinDivert.dll" }.Select(path => Path.Combine(app.RepositoryRoot, path)));
+                sourceFiles = sourceFiles.Select(Path.GetFullPath).ToArray();
                 foreach (var file in sourceFiles)
                 {
                     if (!File.Exists(file) || File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint)) throw new InvalidOperationException("TRAFFIC_LOCAL_ARTIFACT_MISSING_OR_REPARSE_POINT");
