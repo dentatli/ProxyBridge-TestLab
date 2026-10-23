@@ -10,7 +10,7 @@ const trafficFamilyDefinitions=[
   {id:"mail",ru:"Почта: SMTP, IMAP и POP3",en:"Mail: SMTP, IMAP and POP3",families:["mail"],basic:["app-smtp","app-imap","app-pop3"]},
   {id:"messaging",ru:"Сообщения: MQTT и AMQP",en:"Messaging: MQTT and AMQP",families:["mqtt","amqp"],basic:["app-mqtt","app-amqp"]},
   {id:"stability",ru:"Стабильность и восстановление",en:"Stability and recovery",ids:["mixed","stability"],basic:["mixed"]},
-  {id:"soak",ru:"Длительный прогон 24/48/72 часа",en:"24/48/72-hour endurance",ids:["soak"]}
+  {id:"soak",ru:"Длительная стабильность",en:"Endurance",ids:["soak"]}
 ];
 function trafficFamilies(catalog){
   const cases=catalog?.cases||[];

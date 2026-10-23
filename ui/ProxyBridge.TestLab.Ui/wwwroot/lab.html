@@ -11,6 +11,7 @@
   <script src="/lab-remote.js" defer></script>
   <script src="/lab-traffic-families.js" defer></script>
   <script src="/lab-traffic.js" defer></script>
+  <script src="/lab-traffic-results.js" defer></script>
   <script src="/lab-suites.js" defer></script>
 </head>
 <body>
@@ -157,12 +158,6 @@
         <div class="lab-test-settings"><button id="traffic-plan" class="button secondary" type="button" data-i18n="trafficPrepare"></button><button id="traffic-apply" class="button primary" type="button" data-i18n="trafficApply" disabled></button></div>
         <p id="traffic-runtime-status" role="status" aria-live="polite"></p>
         <p id="traffic-runtime-help" role="alert" hidden></p><pre id="traffic-runtime-plan" hidden></pre>
-        <div class="lab-fields">
-          <label><span data-i18n="trafficSearch"></span><input id="traffic-search" type="search" maxlength="128" aria-describedby="traffic-search-help"></label>
-          <label><span data-i18n="trafficCategory"></span><select id="traffic-category"></select></label>
-        </div>
-        <p id="traffic-search-help" data-i18n="trafficSearchHelp"></p>
-        <p id="traffic-search-status" role="status" aria-live="polite"></p>
         <div id="traffic-cases"></div><p id="traffic-estimate" role="status"></p>
       </section>
       <p data-i18n="suiteHelp">Проверки и их этапы выполняются последовательно. После ошибки очередь останавливается, если не включено продолжение при подтверждённом восстановлении. Отмена сохраняет завершённые результаты и выполняет очистку.</p>
@@ -174,9 +169,6 @@
     <section id="launch" class="panel" data-lab-view="run" aria-labelledby="run-heading" hidden>
       <section id="traffic-run" class="lab-suite-catalog" hidden>
         <h3 data-i18n="trafficHeading"></h3><p data-i18n="trafficRunHelp"></p>
-        <label class="lab-run-option"><input id="traffic-long-run" type="checkbox"><span data-i18n="trafficLongRun"></span></label>
-        <div id="traffic-recovery-option" hidden><label class="lab-run-option"><input id="traffic-continue-after-failure" type="checkbox" checked><span data-i18n="trafficContinue"></span></label>
-        <p data-i18n="trafficContinueHelp"></p></div>
         <div id="traffic-selection-summary"></div>
         <p id="traffic-version-notice" role="note" hidden></p>
         <div class="lab-test-settings"><button id="traffic-start" type="button" class="button primary" data-i18n="trafficStart"></button><button id="traffic-stop" type="button" class="button secondary" data-i18n="trafficStop" disabled></button></div>
@@ -205,8 +197,12 @@
     </section>
     <section id="results" class="panel" data-lab-view="results" aria-labelledby="results-heading" hidden>
       <section id="traffic-results" class="lab-suite-catalog">
-        <h3 data-i18n="trafficResults"></h3><p data-i18n="trafficResultsHelp"></p>
+        <h2 id="results-heading" tabindex="-1" data-i18n="results">Результаты</h2>
         <p id="traffic-history-warning" class="lab-warning" role="alert" hidden></p>
+        <nav class="result-switch" aria-label="Results"><button type="button" data-result-view="reports" aria-pressed="true" data-i18n="reportRuns"></button><button type="button" data-result-view="compare" aria-pressed="false" data-i18n="reportCompare"></button></nav>
+        <div id="traffic-report-view"><div id="traffic-history"></div><button id="traffic-history-more" class="button secondary" type="button" data-i18n="trafficMore" hidden></button></div>
+        <div id="traffic-pair-view" hidden><div id="traffic-pair-selection" class="result-pair-select"></div><div id="traffic-pair-overview"></div></div>
+        <details class="result-advanced"><summary data-i18n="reportAdvanced"></summary>
         <h4 data-i18n="trafficCompare"></h4>
         <label><span data-i18n="trafficConditions"></span><select id="traffic-comparison-filter"><option value=""></option></select></label>
         <label><span data-i18n="trafficComparisonMode"></span><select id="traffic-comparison-mode"><option value="SOCKS5">SOCKS5</option><option value="OFF">OFF</option><option value="UNRULED">UNRULED</option></select></label>
@@ -215,14 +211,13 @@
         <details><summary data-i18n="trafficMetrics"></summary><div id="traffic-comparison-metrics" class="lab-test-settings"></div></details>
         <div id="traffic-comparison"></div>
         <button id="traffic-export-comparison" class="button secondary" type="button" data-i18n="trafficExportComparison" disabled></button>
-        <label><span data-i18n="trafficConditions"></span><select id="traffic-filter"><option value="all"></option></select></label>
-        <div id="traffic-history"></div>
         <button id="traffic-export-history" class="button secondary" type="button" data-i18n="trafficExportHistory" disabled></button>
         <p data-i18n="trafficExportHelp"></p>
         <p id="traffic-export-status" role="status" aria-live="polite"></p>
-        <button id="traffic-history-more" class="button secondary" type="button" data-i18n="trafficMore" hidden></button>
+        </details>
       </section>
-      <div class="lab-header"><h2 id="results-heading" tabindex="-1" data-i18n="results">Результаты</h2><button id="refresh-lab" class="button secondary" type="button" data-i18n="refresh">Обновить</button></div>
+      <details class="result-advanced"><summary data-i18n="reportArchive"></summary>
+      <div class="lab-header"><button id="refresh-lab" class="button secondary" type="button" data-i18n="refresh">Обновить</button></div>
       <nav class="lab-result-tabs" data-i18n-aria="resultSections" aria-label="Разделы результатов">
         <a href="/lab.html?page=results&amp;tab=compare" data-results-tab="compare" data-i18n="compareResults">Сравнение</a>
         <a href="/lab.html?page=results&amp;tab=history" data-results-tab="history" data-i18n="testHistory">История</a>
@@ -249,7 +244,12 @@
           <p data-i18n="historyHelp">Исторические сравнения 4.0.0 и driver.</p><div id="lab-reports"></div>
         </details>
       </div>
+      </details>
     </section>
   </main>
+  <dialog id="traffic-evidence-dialog" aria-labelledby="traffic-evidence-title">
+    <header class="evidence-header"><h3 id="traffic-evidence-title"></h3><button type="button" id="traffic-evidence-close" class="button secondary" data-i18n="reportClose"></button></header>
+    <div id="traffic-evidence-content"></div>
+  </dialog>
 </body>
 </html>

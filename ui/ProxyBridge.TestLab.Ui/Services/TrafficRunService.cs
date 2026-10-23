@@ -13,6 +13,8 @@ public sealed partial class TrafficRuntimeService
 
     public async Task<object> StartAsync(TrafficRunRequest request)
     {
+        // Retain the old request field for clients, but make verified continuation mandatory.
+        request = request with { ContinueAfterFailure = true, AllowLongRun = true };
         if (request.Mode is not ("local" or "remote")) throw new InvalidOperationException("TRAFFIC_MODE_INVALID");
         if (request.Mode == "remote" && ApplyCheckpoint.Pending) throw new InvalidOperationException("TRAFFIC_APPLY_RECHECK_REQUIRED");
         if (!Administrator()) throw new InvalidOperationException("TRAFFIC_ADMINISTRATOR_REQUIRED");
@@ -22,7 +24,6 @@ public sealed partial class TrafficRuntimeService
             row.Duration is not ("SHORT" or "NORMAL" or "LONG") || row.Load is not ("LOW" or "HIGH")) ||
             request.Cases.Select(row => row.Id).Distinct().Count() != request.Cases.Length)
             throw new InvalidOperationException("TRAFFIC_CASE_SELECTION_INVALID");
-        if (Estimate(request.Cases, request.ContinueAfterFailure) > 300 && !request.AllowLongRun) throw new InvalidOperationException("TRAFFIC_LONG_RUN_CONFIRMATION_REQUIRED");
         if (request.Mode == "local") ValidateLocalFiles();
         if (!await _gate.WaitAsync(0, Token)) throw new InvalidOperationException("TRAFFIC_OPERATION_ACTIVE");
         try

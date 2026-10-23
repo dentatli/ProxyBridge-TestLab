@@ -141,6 +141,10 @@ api.MapGet("/lab/traffic/catalog", (TrafficRuntimeService service) => Results.Ok
 api.MapGet("/lab/traffic/state", (TrafficRuntimeService service) => Results.Ok(new { runtime = service.State(), execution = service.Progress() }));
 api.MapGet("/lab/traffic/history", (int? skip, int? take, TrafficRuntimeService service) => Results.Ok(service.History(skip ?? 0, take ?? 10)));
 api.MapGet("/lab/traffic/comparison", (TrafficRuntimeService service) => Results.Ok(service.Comparison()));
+api.MapGet("/lab/traffic/attempts/{id}/evidence", (string id, string caseId, TrafficRuntimeService service) =>
+    TrafficAction(() => Task.FromResult(service.CaseEvidence(id, caseId))));
+api.MapGet("/lab/traffic/attempts/{id}/log", (string id, string caseId, string name, long? offset, TrafficRuntimeService service) =>
+    TrafficAction(() => Task.FromResult(service.EvidenceLog(id, caseId, name, offset ?? 0))));
 api.MapPost("/lab/traffic/plan", async (TrafficRuntimeService service) => await TrafficAction(async () => await service.PlanAsync()));
 api.MapPost("/lab/traffic/apply", async (TrafficRuntimeApplyRequest request, TrafficRuntimeService service) => await TrafficAction(() => service.ApplyAsync(request)));
 api.MapPost("/lab/traffic/start", async (TrafficRunRequest request, TrafficRuntimeService service) => await TrafficAction(() => service.StartAsync(request)));

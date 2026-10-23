@@ -3,14 +3,14 @@ Object.assign(labText.ru, {
   trafficHeading:"Трафик, скорость, нагрузка и стабильность", trafficScope:"Ubuntu 22.04. Транспортные и прикладные протоколы: HTTP, QUIC, DNS, SSH, почта и обмен сообщениями. Проверка данных и маршрута, потери UDP, CPU/RAM всей ОС и CPU/RAM/handles/threads отдельных процессов. Число соединений и скорость не доказывают максимальную ёмкость или ресурсы драйвера.",
   trafficPrepare:"Проверить / подготовить runtime", trafficApply:"Установить по этому плану", trafficStart:"Запустить выбранные проверки", trafficStop:"Остановить и очистить",
   trafficAdmin:"Для реальных проверок запустите scripts/Start-TestLabUi.ps1 -Administrator. При включённом UAC потребуется подтверждение.",
-  trafficLongRun:"Разрешаю выбранный набор более 5 минут, включая 24/48/72 часа", trafficRunHelp:"Используется выбранная сборка. Перед каждым тестом проверяются файлы, получатель, OFF и UNRULED. SOCKS5 требует подписанных свидетельств. Неудачная очистка прекращает очередь.",
+  trafficRunHelp:"Используется выбранная сборка. Перед каждым тестом проверяются файлы, получатель, OFF и UNRULED. SOCKS5 требует подписанных свидетельств. Неудачная очистка прекращает очередь.",
   trafficResults:"Проверки трафика: история и измерения", trafficResultsHelp:"Ошибки и отмены сохраняются отдельно. CPU процесса нормирован на все логические CPU; RAM процесса не является памятью драйвера. Разные параметры и получатели сравнивайте отдельно.", trafficConditions:"Тест и условия", trafficAll:"Все попытки", trafficNone:"Попыток пока нет", trafficReady:"Состояние runtime", trafficEstimate:"Оценка с подготовкой", trafficPhase:"Этап", trafficSent:"Отправка, MiB/s", trafficReceived:"Получение, MiB/s", trafficP99:"RTT p99, мс", trafficLoss:"Потери UDP, %", trafficConnections:"TCP завершено / предложено", trafficCpu:"CLI CPU, % ПК", trafficRam:"CLI private commit, MiB", trafficEmpty:"Измерений нет",trafficMinutes:"мин",trafficRouteOk:"Маршрут подтверждён",trafficRouteBad:"Маршрут не подтверждён",trafficApplicationEvidence:"Прикладной обмен",trafficTransactions:"Проверенных обменов",trafficErrors:"Ошибки",trafficSkippedStages:"Пропущено этапов"
 });
 Object.assign(labText.en, {
   trafficHeading:"Traffic, speed, load and stability", trafficScope:"Ubuntu 22.04. Transport and application protocols: HTTP, QUIC, DNS, SSH, mail and messaging. Data and route validation, UDP loss, whole-OS CPU/RAM and CPU/RAM/handles/threads of identified processes. Connection count and speed do not establish absolute capacity or driver resource use.",
   trafficPrepare:"Check / prepare runtime", trafficApply:"Install this exact plan", trafficStart:"Start selected checks", trafficStop:"Stop and clean up",
   trafficAdmin:"For real checks run scripts/Start-TestLabUi.ps1 -Administrator. With UAC enabled, Windows will request confirmation.",
-  trafficLongRun:"I authorize this selection exceeding 5 minutes, including 24/48/72 hours", trafficRunHelp:"Uses the selected build. Files, origin, OFF and UNRULED are checked before each case. SOCKS5 requires signed evidence. Failed cleanup stops the queue.",
+  trafficRunHelp:"Uses the selected build. Files, origin, OFF and UNRULED are checked before each case. SOCKS5 requires signed evidence. Failed cleanup stops the queue.",
   trafficResults:"Traffic checks: history and measurements", trafficResultsHelp:"Failures and cancellation are saved separately. Process CPU is normalized to all logical CPUs; process RAM is not driver memory. Compare different parameters and origins separately.", trafficConditions:"Case and conditions", trafficAll:"All attempts", trafficNone:"No attempts yet", trafficReady:"Runtime state", trafficEstimate:"Estimate including preparation", trafficPhase:"Stage", trafficSent:"Upload, MiB/s", trafficReceived:"Download, MiB/s", trafficP99:"RTT p99, ms", trafficLoss:"UDP loss, %", trafficConnections:"TCP completed / offered", trafficCpu:"CLI CPU, % of PC", trafficRam:"CLI private commit, MiB", trafficEmpty:"No measurements",trafficMinutes:"min",trafficRouteOk:"Route verified",trafficRouteBad:"Route unverified",trafficApplicationEvidence:"Application exchange",trafficTransactions:"Verified transactions",trafficErrors:"Errors",trafficSkippedStages:"Skipped stages"
 });
 labText.ru.remoteTestGate='Для сетевых измерений используйте каталог ниже. Перед каждым тестом контроллер проверяет обмен и маршрут; неподтверждённый маршрут сохраняется как ошибка.';
@@ -23,7 +23,6 @@ Object.assign(labText.ru,{trafficContinue:"Продолжать после ош�
 Object.assign(labText.en,{trafficContinue:"Continue after a failed case when recovery is verified",trafficContinueHelp:"After a case fails, the controller verifies CLI process exit (including after a crash), the driver being off, signed origin identity and no remaining connections. Cancellation, changed files, disconnection or unverified cleanup stop the queue. Failed cases retain FAIL.",trafficQueuePolicy:"Continue after failure",trafficRecovery:"Recovery check",trafficRecoveryOk:"Continuation allowed",trafficRecoveryBlocked:"Continuation blocked"});
 let trafficCatalog=null, trafficState=null, trafficHistory=[], trafficActionActive=false, trafficError="", trafficChoice={};
 let trafficCardsKey="", trafficHistoryKey="", trafficLoading=false;
-let trafficCategoryKey="";
 Object.assign(labText.ru,{trafficShown:"Показано",trafficHiddenSelected:"Скрыто фильтром",trafficNoMatches:"Подходящих проверок нет. Измените поиск или группу.",trafficSearch:"Найти протокол или этап",trafficCategory:"Проверки",trafficSearchHelp:"Выберите протокол и полноту проверки. Этапы выполняются последовательно; точный состав раскрывается в карточке. Фильтры сохраняют выбор.",trafficCategoriesAll:"Все проверки",trafficSelectedOnly:"Выбранные проверки",trafficSelected:"Выбрано проверок",trafficDepth:"Полнота",trafficDepth_BASIC:"Базовая",trafficDepth_STANDARD:"Стандартная",trafficDepth_FULL:"Полная",trafficDepth_CUSTOM:"Свой набор",trafficMixed:"Разные параметры",trafficFamilyStages:"Этапы и точный выбор",trafficStages:"Этапов",trafficFamilyHelp:"Общий результат относится только к выбранным этапам. Скорость, задержка и ошибки сохраняются отдельно для каждого этапа.",trafficSelectionReview:"Будут выполнены",trafficFamilyReport:"Итог выбранных этапов",trafficFamilyIncomplete:"Есть пропущенные, незавершённые или неподтверждённые этапы",trafficStageMissing:"Этап не записан",trafficPassed:"Прошло",trafficNoSelection:"Выберите хотя бы одну проверку."});
 Object.assign(labText.en,{trafficShown:"Shown",trafficHiddenSelected:"Hidden by filters",trafficNoMatches:"No matching checks. Change the search or group.",trafficSearch:"Find a protocol or stage",trafficCategory:"Checks",trafficSearchHelp:"Choose a protocol and coverage. Stages run sequentially; expand a card for the exact selection. Filters preserve your choices.",trafficCategoriesAll:"All checks",trafficSelectedOnly:"Selected checks",trafficSelected:"Selected checks",trafficDepth:"Coverage",trafficDepth_BASIC:"Basic",trafficDepth_STANDARD:"Standard",trafficDepth_FULL:"Full",trafficDepth_CUSTOM:"Custom",trafficMixed:"Mixed settings",trafficFamilyStages:"Stages and exact selection",trafficStages:"Stages",trafficFamilyHelp:"The overall result covers only the selected stages. Rate, latency and errors are retained separately for each stage.",trafficSelectionReview:"Will run",trafficFamilyReport:"Selected stage outcome",trafficFamilyIncomplete:"Some stages were skipped, unfinished or unverified",trafficStageMissing:"Stage not recorded",trafficPassed:"Passed",trafficNoSelection:"Select at least one check."});
 let trafficFamilyPreferences={};
@@ -31,18 +30,6 @@ try{trafficFamilyPreferences=JSON.parse(localStorage.getItem("testlab-traffic-fa
 if(!trafficFamilyPreferences||typeof trafficFamilyPreferences!=="object"||Array.isArray(trafficFamilyPreferences))trafficFamilyPreferences={};
 const trafficFamilyName=family=>family[labLanguage]||family.id;
 const trafficFamilyChoice=family=>trafficFamilySelection(family,trafficChoice,trafficFamilyPreferences[family.id]||{});
-function filterTrafficCards(){
-  const families=trafficFamilies(trafficCatalog),category=lab("traffic-category").value;
-  const words=lab("traffic-search").value.normalize("NFKC").trim().toLocaleLowerCase().split(/\s+/).filter(Boolean);
-  let shown=0,hiddenSelected=0;
-  for(const card of lab("traffic-cases").querySelectorAll("[data-traffic-card]")){
-    const family=families.find(item=>item.id===card.dataset.trafficCard),selected=trafficFamilyChoice(family).selected;
-    const haystack=[family.ru,family.en,...family.rows.flatMap(row=>[row.id,row.ru,row.en,row.application,row.family])].join(" ").normalize("NFKC").toLocaleLowerCase();
-    card.hidden=!(category==="all"||category==="selected"&&selected||category===family.id)||!words.every(word=>haystack.includes(word));
-    if(!card.hidden)shown++;else if(selected)hiddenSelected++;
-  }
-  lab("traffic-search-status").textContent=`${t("trafficShown")}: ${shown}/${families.length} · ${t("trafficSelected")}: ${families.filter(family=>trafficFamilyChoice(family).selected).length} · ${t("trafficStages")}: ${trafficCases().length} · ${t("trafficHiddenSelected")}: ${hiddenSelected}${shown?"":` · ${t("trafficNoMatches")}`}`;
-}
 let trafficComparison=[],trafficComparisonKey="",trafficNextSkip=0,trafficHasMore=false,trafficCompareChoice={builds:{},metrics:{}};
 let trafficHistoryLoadedAt=null,trafficComparisonLoadedAt=null,trafficSnapshotUnavailable=true;
 let trafficComparisonBlocked=false,trafficUnreadableHistory=false;
@@ -85,7 +72,7 @@ trafficCompareChoice.mode=['OFF','UNRULED','SOCKS5'].includes(trafficCompareChoi
 lab('traffic-comparison-mode').value=trafficCompareChoice.mode;
 const trafficCases=()=>trafficFamilies(trafficCatalog).flatMap(family=>family.rows.filter(row=>trafficChoice[row.id]?.selected).map(row=>({id:row.id,duration:trafficChoice[row.id].duration,load:trafficChoice[row.id].load})));
 const trafficCaseEstimate=row=>row.id==="soak"?({SHORT:24,NORMAL:48,LONG:72}[row.duration]*3600+300):({SHORT:6,NORMAL:30,LONG:120}[row.duration]*({"tcp-multistream":3,"loaded-rtt":3,"flow-rate":3,"mixed":3,"three-modes":3,"tcp-connections":5,"udp-connections":5,"udp-sweep":6,"stability":10}[row.id]||trafficCatalog?.cases.find(value=>value.id===row.id)?.payload_sizes?.length||1)+20);
-const trafficSafeContinue=()=>trafficState?.runtime?.supports_safe_continuation===true&&lab("traffic-continue-after-failure").checked;
+const trafficSafeContinue=()=>true;
 const trafficEstimate=(cases=trafficCases(),continueAfterFailure=trafficSafeContinue())=>cases.reduce((sum,row)=>sum+trafficCaseEstimate(row),0)+(continueAfterFailure?Math.max(0,cases.length-1)*20:0);
 function trafficLiveBytes(value){
   if(typeof value!=="number"||!Number.isFinite(value)||value<0)return "—";
@@ -109,7 +96,7 @@ function trafficFamilyCard(family,busy,expanded){
     <label>${t("duration")}<select data-traffic-duration="${family.id}" ${disabled}>${options(["SHORT","NORMAL","LONG"],choice.duration,value=>family.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[value]+" h":t(value))}</select></label>
     <label>${t("load")}<select data-traffic-load="${family.id}" ${disabled}>${options(["LOW","HIGH"],choice.load,t)}</select></label></div>
     <p>${t("trafficStages")}: ${choice.ids.length} / ${family.rows.length} · ${t("trafficEstimate")}: ≈ ${number(estimate/60,1)} ${t("trafficMinutes")}</p>
-    <details class="traffic-family-stages" data-family-stages="${family.id}" ${expanded?"open":""}><summary>${t("trafficFamilyStages")}</summary><p>${t("trafficFamilyHelp")}</p><ul>${family.rows.map(row=>`<li><label class="lab-test-toggle"><input type="checkbox" data-traffic-stage="${html(row.id)}" ${choice.selected&&choice.ids.includes(row.id)?"checked":""} ${disabled}>${html(row[labLanguage]||row.id)}${choice.selected&&choice.ids.includes(row.id)&&[choice.duration,choice.load].includes("MIXED")?` · ${html(trafficChoice[row.id].duration)} / ${html(trafficChoice[row.id].load)}`:""}</label></li>`).join("")}</ul></details></div>`;
+    <details class="traffic-family-stages" data-family-stages="${family.id}" ${expanded?"open":""}><summary>${t("trafficFamilyStages")}</summary><p>${t("trafficFamilyHelp")}</p><ul>${family.rows.map(row=>`<li><label class="lab-test-toggle"><input type="checkbox" data-traffic-stage="${html(row.id)}" ${choice.selected&&choice.ids.includes(row.id)?"checked":""} ${disabled}>${html(row[labLanguage]||row.id)}${choice.selected&&choice.ids.includes(row.id)&&[choice.duration,choice.load].includes("MIXED")?` · ${html(trafficChoice[row.id].duration)} / ${html(trafficChoice[row.id].load)}`:""}</label></li>`).join("")}</ul></details>${family.id==="soak"?`<p class="traffic-soak-help">${t("reportSoak")}</p>`:""}</div>`;
 }
 Object.assign(labText.ru,{trafficCliExitCode:"Код завершения CLI"});
 Object.assign(labText.en,{trafficCliExitCode:"CLI exit code"});
@@ -147,13 +134,11 @@ function renderTraffic(){
   lab("traffic-plan").parentElement.hidden=!remote;
   lab("traffic-plan").disabled=busy||!labState.csrf;
   lab("traffic-apply").disabled=busy||!trafficState?.runtime?.plan;
-  lab("traffic-start").disabled=busy||remote&&trafficState?.runtime?.state==="APPLY_UNKNOWN"||!trafficState?.runtime?.administrator||!remote&&trafficState?.runtime?.local_preflight?.ready!==true||!(labState.observation?.adapter_id||labState.observation?.declared_contract==="driver")||!labState.observation?.build_id||!trafficCases().length||trafficEstimate()>300&&!lab("traffic-long-run").checked;
+  lab("traffic-start").disabled=busy||remote&&trafficState?.runtime?.state==="APPLY_UNKNOWN"||!trafficState?.runtime?.administrator||!remote&&trafficState?.runtime?.local_preflight?.ready!==true||!(labState.observation?.adapter_id||labState.observation?.declared_contract==="driver")||!labState.observation?.build_id||!trafficCases().length;
   const versionNotice=!active?productVersionNotice(labState.observation):"";
   lab("traffic-version-notice").textContent=versionNotice;
   lab("traffic-version-notice").hidden=!versionNotice;
   lab("traffic-stop").disabled=!active||trafficActionActive;
-  lab("traffic-recovery-option").hidden=trafficState?.runtime?.supports_safe_continuation!==true;
-  lab("traffic-continue-after-failure").disabled=busy||trafficState?.runtime?.supports_safe_continuation!==true;
   const plan=trafficState?.runtime?.plan;
   lab("traffic-runtime-status").textContent=remote?`${t("trafficReady")}: ${trafficState?.runtime?.state||"VALIDATION_REQUIRED"}`:t("trafficLocalRuntime");
   const localIssues = remote ? [] : [...(trafficState?.runtime?.local_preflight?.errors||[]).map(t), ...(!trafficState?.runtime?.administrator?[t("trafficAdminHelp")]:[]), ...(labState.observation && !labState.observation.adapter_id && labState.observation.declared_contract!=="driver"?[t("trafficAdapterHelp")]:[])];
@@ -184,13 +169,6 @@ function renderTraffic(){
       if(value!==null){restoreFocus=`[${attribute}="${CSS.escape(value)}"]`;break;}
     }
   }
-  const categoryKey=JSON.stringify([trafficCatalog,labLanguage]);
-  if(trafficCatalog&&categoryKey!==trafficCategoryKey){
-    trafficCategoryKey=categoryKey;
-    const chosen=lab("traffic-category").value;
-    lab("traffic-category").innerHTML=`<option value="all">${t("trafficCategoriesAll")}</option><option value="selected">${t("trafficSelectedOnly")}</option>`+families.map(family=>`<option value="${family.id}">${html(trafficFamilyName(family))}</option>`).join("");
-    if([...lab("traffic-category").options].some(option=>option.value===chosen))lab("traffic-category").value=chosen;
-  }
   if(trafficCatalog&&cardsKey!==trafficCardsKey){
     const expanded=[...lab("traffic-cases").querySelectorAll("details[open]")].map(detail=>detail.dataset.familyStages);
     trafficCardsKey=cardsKey;
@@ -205,13 +183,13 @@ function renderTraffic(){
     const choice=reviewChoice(family);
     return `<li>${html(trafficFamilyName(family))} · ${t(`trafficDepth_${choice.profile}`)} · ${t("trafficStages")}: ${choice.ids.length} · ${choice.duration==="MIXED"?t("trafficMixed"):family.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[choice.duration]+" h":t(choice.duration)} / ${choice.load==="MIXED"?t("trafficMixed"):t(choice.load)}</li>`;
   }).join("")}</ul><p>${t("trafficEstimate")}: ≈ ${number(reviewEstimate/60,1)} ${t("trafficMinutes")}</p>`:`<p>${t("trafficNoSelection")}</p>`;
-  filterTrafficCards();
   if(restoreFocus){
     const control=lab("traffic-cases").querySelector(restoreFocus);
     if(control&&!control.disabled&&!control.closest("[hidden]"))control.focus({preventScroll:true});
   }
   renderTrafficHistory();
   renderTrafficComparison();
+  if(typeof renderRunComparison==="function")renderRunComparison();
   updateTrafficExportButtons();
   lab('traffic-history-warning').hidden=!trafficUnreadableHistory&&!trafficSnapshotUnavailable;
   lab('traffic-history-warning').textContent=trafficSnapshotUnavailable?t('trafficHistoryUnavailable'):t('trafficHistoryUnreadable');
@@ -255,23 +233,12 @@ function trafficMeasurementEvidence(measurement){
   const retained=session?(measurement.lifecycle?.capture_live_verified?'PASS':'UNVERIFIED'):measurement.lifecycle?.output_retention_ok===true?(measurement.lifecycle?.output_capture_file?.truncated?t('trafficCliOutputPrefix'):'PASS'):measurement.lifecycle?.output_retention_ok===false?'FAIL':'UNVERIFIED';
   return `<p>${t('trafficMeasurementState')}: ${t(`trafficMeasurement_${state}`)} · ${t('trafficStageCounts')}: ${number(measurement.workload_started_stage_count,0)} / ${number(recorded,0)} / ${number(measurement.planned_stage_count,0)}</p>${context?`<p>${t('trafficFailurePhase')}: ${t(`trafficFailure_${operation}`)}${context.stage?` · ${html(context.stage)}`:''}</p>`:''}<p>${t('trafficLossEvidence')}: ${loss}</p>${measurement.mode==='OFF'?'':`<p>${t(session?'trafficSessionReady':'trafficCliReady')}: ${readiness} · ${session?t('trafficSessionActive'):t('trafficCliCleanup')}: ${session?(measurement.lifecycle?.ack_verified?'PASS':'UNVERIFIED'):cleanup}</p><p>${t(session?'trafficSessionProfile':'trafficCliProfile')}: ${profile} · ${t(session?'trafficSessionOutput':'trafficCliOutput')}: ${html(retained)}</p>`}`;
 }
-function renderTrafficHistory(){
-  const filter=lab("traffic-filter").value;
-  const historyKey=JSON.stringify([trafficHistory,trafficCatalog,labLanguage,filter,labState.builds]);
-  if(historyKey===trafficHistoryKey)return;trafficHistoryKey=historyKey;
-  const keys=[...new Set(trafficHistory.flatMap(attempt=>(attempt.cases||[]).map(row=>`${row.Id||row.id}|${row.Duration||row.duration}|${row.Load||row.load}`)))];
-  lab("traffic-filter").innerHTML=`<option value="all">${t("trafficAll")}</option>`+keys.map(key=>`<option value="${html(key)}">${html(key.split("|").map((part,index)=>index===0?trafficName(part):part).join(" · "))}</option>`).join("");
-  if(keys.includes(filter)) lab("traffic-filter").value=filter;
-  const selected=lab("traffic-filter").value;
-  lab("traffic-history").innerHTML=trafficHistory.filter(attempt=>selected==="all"||(attempt.cases||[]).some(row=>`${row.Id||row.id}|${row.Duration||row.duration}|${row.Load||row.load}`===selected)).map(attempt=>{
-    const name=labState.builds.find(build=>build.id===attempt.build_id)?.display_name||attempt.build_id;
-    const rows=(attempt.results||[]).filter(row=>selected==="all"||`${row.case_id}|${row.duration}|${row.load}`===selected);
-    return `<article class="lab-test-card"><h4>${html(name||"")} · ${html(t(attempt.mode||"remote"))} · ${html(attempt.activity_observation==="UNCONFIRMED"?t("trafficActivityUnconfirmed"):attempt.state)} · ${html(attempt.id)}</h4>${attempt.activity_observation==="UNCONFIRMED"?`<p>${html(t("trafficActivityHelp"))}</p>`:""}<p>${html(attempt.error||"")}</p>${attempt.execution_model==="persistent-core-session-v1"?`<p>${t("trafficSession")} · PID ${number(attempt.queue_session?.pid,0)} · Start ${number(attempt.queue_session?.start_count,0)} / Stop ${number(attempt.queue_session?.stop_count,0)}</p>`:""}${attempt.continue_after_failure?`<p>${t("trafficQueuePolicy")}: ${t("trafficContinue")}</p>${(attempt.recovery_checks||[]).map(check=>`<p>${t("trafficRecovery")} · ${html(trafficName(check.case_id))}: ${check.safe_to_continue?t("trafficRecoveryOk"):t("trafficRecoveryBlocked")} · ${html(check.reason)}</p>`).join("")}`:""}${trafficHistoryFamilies(attempt,rows,selected,row=>`<details><summary>${html(trafficName(row.case_id))} · ${html(row.duration)} / ${html(row.load)} · ${row.complete?"PASS":row.skipped?"SKIPPED":row.cancelled?"CANCELLED":"FAIL"}</summary>${trafficFailureHelp(row)}${trafficCliExitMarkup(row)}<p>${t(row.cleanup_scope==="queue-final-off"?"trafficQueueCleanup":"trafficCleanup")}: ${row.cleanup_verified?"PASS":"UNVERIFIED"} · ${html((row.errors||[]).join(" · "))}</p>${trafficControlsMarkup(row)}${(row.measurements||[]).map(measurement=>{
+function trafficVerboseCase(row){return `${trafficFailureHelp(row)}${trafficCliExitMarkup(row)}<p>${t(row.cleanup_scope==="queue-final-off"?"trafficQueueCleanup":"trafficCleanup")}: ${row.cleanup_verified?"PASS":"UNVERIFIED"} · ${html((row.errors||[]).join(" · "))}</p>${trafficControlsMarkup(row)}${(row.measurements||[]).map(measurement=>{
       const cpu=measurement.resources?.product_cli?.counters?.cpu_percent_of_pc?.mean,ram=measurement.resources?.product_cli?.counters?.private_bytes?.max;
       return `<h5>${html(measurement.mode)} · ${measurement.route_verified?t("trafficRouteOk"):t("trafficRouteBad")}</h5>${trafficMeasurementEvidence(measurement)}${trafficResourceCoverageMarkup(measurement)}${trafficUdpObservationMarkup(measurement)}${trafficPhaseObservationMarkup(measurement)}${measurement.overall?.connection_latency?.count>0?`<p>${t("trafficConnectP50")}: ${number(measurement.overall.connection_latency.p50_ms)} · ${t("trafficConnectP95")}: ${number(measurement.overall.connection_latency.p95_ms)} · ${t("trafficConnectP99")}: ${number(measurement.overall.connection_latency.p99_ms)} · ${t("trafficConnectSamples")}: ${number(measurement.overall.connection_latency.count,0)}</p><p>${html(t("trafficConnectHelp"))}</p>`:""}<p>${t("trafficSkippedStages")}: ${measurement.skipped_stage_count||0} · ${html((measurement.schedule_errors||[]).join(" · "))}</p><p>${t("trafficCpu")}: ${number(cpu)} · ${t("trafficRam")}: ${number(typeof ram==="number"?ram/1048576:null)}</p><p>${t("trafficSystemCpu")}: ${number(measurement.resources?.windows_system?.counters?.cpu_percent_of_pc?.mean)} · ${t("trafficOriginCpu")}: ${number(measurement.resources?.origin_system?.counters?.cpu_percent_of_pc?.mean)}</p><div class="lab-table-scroll"><table><thead><tr>${["trafficPhase","trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficConnections","trafficPeak","trafficErrors"].map(key=>`<th>${t(key)}</th>`).join("")}</tr></thead><tbody>${measurement.stages.map(stage=>`<tr><td>${html(stage.phase)} · ${stage.complete?"PASS":"FAIL"}</td><td>${number(trafficMiB(stage.tcp_tx_bytes_per_second))}</td><td>${number(trafficMiB(stage.tcp_rx_bytes_per_second))}</td><td>${number(stage.probe_p99_ms)}</td><td>${number(stage.udp_latency?.p99_ms)}</td><td>${number(typeof stage.udp_loss_fraction==="number"?stage.udp_loss_fraction*100:null)}</td><td>${stage.tcp_completed}/${stage.tcp_offered}</td><td>${number(stage.tcp_active_peak)}</td><td>${html((stage.errors||[]).join(" · "))}</td></tr>`).join("")}</tbody></table></div>${measurement.stages.filter(stage=>stage.application).map(stage=>`<details><summary>${t("trafficApplicationEvidence")} · ${html(stage.application)}</summary><p>${t("trafficTransactions")}: ${stage.application_transactions||0} · ${t("trafficPayloadBytes")}: ${number(stage.application_payload_bytes,0)}</p><pre>${html(JSON.stringify({tls:stage.application_tls_sessions||[],protocol:stage.application_protocol_sessions||[],socket_errors:stage.application_socket_errors||[]},null,2))}</pre></details>`).join("")}`;
-    }).join("")||`<p>${t("trafficEmpty")}</p>`}</details>`)}</article>`;
-  }).join("")||`<p>${t("trafficNone")}</p>`;
-}
+    }).join("")||`<p>${t("trafficEmpty")}</p>`}`;}
+function renderTrafficHistory(){if(typeof renderConciseTrafficHistory==="function")renderConciseTrafficHistory();}
+
 const trafficMetrics=["trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficCpu","trafficRam","trafficSystemCpu","trafficSystemRam","trafficOriginCpu","trafficOriginRam","trafficPeak","trafficCliResident","trafficWorkerCpu","trafficWorkerRam","trafficOriginProcessCpu","trafficOriginProcessRam","trafficCliHandles","trafficCliThreads","trafficTransactions","trafficCliRamDelta","trafficCliResidentDelta","trafficOriginProcessRamDelta","trafficConnectP50","trafficConnectP95","trafficConnectP99","trafficConnectSamples","trafficUdpSent","trafficUdpReceived","trafficUdpDuplicates","trafficUdpReordered","trafficUdpInvalid","trafficUdpExpired","trafficUdpSendErrors","trafficLoadTx","trafficLoadRx","trafficLoadMinTx","trafficLoadMinRx","trafficLoadWorstP99","trafficRecoveryP99Change"];
 const trafficDefaultMetrics=new Set(["trafficSent","trafficReceived","trafficP99","trafficUdpP99","trafficLoss","trafficCpu","trafficCliResident","trafficSystemCpu","trafficOriginCpu"]);
 const trafficMetricSelected=key=>trafficCompareChoice.metrics[key]??trafficDefaultMetrics.has(key);
@@ -337,7 +304,7 @@ function trafficComparisonRows(){
   return trafficComparison.filter(row=>`${row.runtime_mode||"remote"}|${row.case_id}|${row.duration}|${row.load}|${row.condition_id}`===selected&&trafficCompareChoice.builds[row.build_id]!==false);
 }
 function trafficHistoryRows(){
-  const selected=lab('traffic-filter').value;
+  const selected="all";
   const matches=row=>selected==='all'||`${row.Id||row.id||row.case_id}|${row.Duration||row.duration}|${row.Load||row.load}`===selected;
   return trafficHistory.filter(attempt=>selected==='all'||(attempt.cases||[]).some(matches)).map(attempt=>({...attempt,
     cases:(attempt.cases||[]).filter(matches),results:(attempt.results||[]).filter(matches),
@@ -375,7 +342,7 @@ function exportTraffic(kind){
     if(!items.length){status.textContent=t('trafficExportUnavailable');return;}
     content=JSON.stringify({schema_version:1,scope:'loaded-history-pages-filtered-by-case',
       snapshot_loaded_at_utc:trafficHistoryLoadedAt,exported_at_utc:exportedAt,
-      filter:lab('traffic-filter').value,has_more_pages:trafficHasMore,next_skip:trafficNextSkip,
+      filter:"all",has_more_pages:trafficHasMore,next_skip:trafficNextSkip,
       unreadable_reports_observed:trafficUnreadableHistory,
       attempt_state_scope:'whole-queue; results and choices use the selected case filter',history_pagination_scope:'loaded-pages-across-requests; not an atomic snapshot',items},null,2)+'\n';
     type='application/json;charset=utf-8';extension='json';
@@ -420,7 +387,8 @@ lab("traffic-comparison-filter").addEventListener("change",()=>{renderTrafficCom
 lab('traffic-comparison-mode').addEventListener('change',()=>{
   trafficCompareChoice.mode=lab('traffic-comparison-mode').value;
   localStorage.setItem('testlab-traffic-comparison',JSON.stringify(trafficCompareChoice));
-  renderTrafficComparison();updateTrafficExportButtons();
+  renderTrafficComparison();
+  if(typeof renderRunComparison==="function")renderRunComparison();updateTrafficExportButtons();
 });
 lab("traffic-history-more").addEventListener("click",async()=>{
   lab("traffic-history-more").disabled=true;
@@ -448,7 +416,7 @@ async function trafficAction(action){
   if(trafficActionActive)return;
   trafficActionActive=true;trafficError="";renderTraffic();
   try{
-    const body=action==="apply"?{planId:trafficState.runtime.plan.planId}:action==="start"?{buildId:labState.observation.build_id,mode:lab("lab-mode").value,cases:trafficCases(),allowLongRun:lab("traffic-long-run").checked,continueAfterFailure:trafficSafeContinue()}:{};
+    const body=action==="apply"?{planId:trafficState.runtime.plan.planId}:action==="start"?{buildId:labState.observation.build_id,mode:lab("lab-mode").value,cases:trafficCases(),allowLongRun:true,continueAfterFailure:trafficSafeContinue()}:{};
     const response=await fetch(`/api/v1/lab/traffic/${action}`,{method:"POST",headers:{"Content-Type":"application/json","X-TestLab-CSRF":labState.csrf},body:JSON.stringify(body)});
     const data=await response.json();if(!response.ok)throw new Error(data.error||"TRAFFIC_REQUEST_FAILED");
   }catch(error){trafficError=error.message;}finally{trafficActionActive=false;await loadTraffic();}
@@ -478,11 +446,7 @@ lab("traffic-cases").addEventListener("change",event=>{
   renderTraffic();
 });
 for(const action of ["plan","apply","start","stop"])lab(`traffic-${action}`).addEventListener("click",()=>trafficAction(action));
-lab("traffic-continue-after-failure").addEventListener("change",renderTraffic);
-for(const id of ["traffic-long-run","lab-mode"])lab(id).addEventListener("change",renderTraffic);
-lab("traffic-filter").addEventListener("change",()=>{renderTrafficHistory();updateTrafficExportButtons();});
-lab("traffic-search").addEventListener("input",filterTrafficCards);
-lab("traffic-category").addEventListener("change",renderTraffic);
+lab("lab-mode").addEventListener("change",renderTraffic);
 const renderLabBeforeTraffic=renderLab;
 renderLab=function(){renderLabBeforeTraffic();renderTraffic();};
 loadTraffic();setInterval(()=>{if(!trafficActionActive)loadTraffic();},3000);
