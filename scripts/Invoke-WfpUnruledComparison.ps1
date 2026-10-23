@@ -15,10 +15,21 @@ param(
     [ValidateSet('SHARED','DISTINCT')][string]$DestinationMode = 'SHARED',
     [ValidateSet('LEGACY_RELAY','PACKET_CHANNEL')][string]$UdpCaptureMode = 'LEGACY_RELAY',
     [switch]$AllowProductRuntime,
-    [switch]$Resume
+    [switch]$Resume,
+    [ValidateSet('SHORT','NORMAL','LONG')][string]$Duration='',
+    [ValidateSet('LOW','HIGH')][string]$Load='',
+    [string]$CancellationPath=''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
+if ($Duration -or $Load) {
+    if (-not $Duration -or -not $Load -or $Resume -or $ComparisonMode -ne 'ROUTED' -or $UdpCaptureMode -ne 'LEGACY_RELAY') { throw 'UDP_WORKLOAD_REQUIRES_FRESH_ROUTED_SERIES' }
+    Import-Module (Join-Path (Split-Path -Parent $PSScriptRoot) 'modules/UdpWorkload.psm1')
+    $workload=Get-LocalUdpWorkload -Duration $Duration -Load $Load
+    if ($PacketCount -ne $workload.packet_count -or $IntervalMs -ne $workload.interval_ms -or $MessageSize -ne $workload.message_bytes -or
+        $WarmupPackets -ne $workload.warmup_per_stream -or $Streams -ne $workload.streams -or $PairCount -ne 1 -or
+        $DestinationMode -ne 'SHARED' -or $EvidenceLogMode -ne 'BUFFERED') { throw 'UDP_WORKLOAD_PARAMETERS_DIFFER' }
+}
 if (-not $AllowProductRuntime) { throw 'PRODUCT_RUNTIME_NOT_ALLOWED' }
 if ($Resume -and $UdpCaptureMode -eq 'PACKET_CHANNEL') { throw 'PACKET_CHANNEL_COMPARISON_REQUIRES_NEW_SERIES' }
 if ($ComparisonMode -eq 'LOGGING' -and ($Resume -or $Streams -ne 2 -or $DestinationMode -ne 'DISTINCT')) { throw 'LOGGING_REQUIRES_NEW_TWO_DESTINATION_SERIES' }
@@ -37,6 +48,7 @@ $EvidenceDirectory = (Resolve-Path -LiteralPath $EvidenceDirectory).Path
 $manifest = [ordered]@{schema_version=1;status='RUNNING';started_at_utc=[DateTime]::UtcNow.ToString('o');comparison_mode=$ComparisonMode;pair_count=$PairCount;packet_count=$PacketCount;interval_ms=$IntervalMs;message_size_bytes=$MessageSize;warmup_packets=$WarmupPackets;runs=@();error='';version_switch_ready=$false}
 $resumeSuffix = ''
 $manifest['stream_count'] = $Streams
+if ($Duration) { $manifest['workload_preset']=$workload;$manifest['profile']='SMOKE';$manifest['scenario_id']='udp_echo_local_v1' }
 $manifest['destination_mode'] = $DestinationMode
 $manifest['helper_log_flush_mode'] = $(if ($ComparisonMode -eq 'LOGGING') { 'PER_VARIANT' } else { $EvidenceLogMode })
 if ($Resume) {
@@ -50,7 +62,7 @@ if ($Resume) {
     }
     $expected = @()
     $onMode = $(if ($ComparisonMode -eq 'ROUTED') { 'PROXY' } else { 'UNRULED' })
-    for ($pair=1; $pair -le $PairCount; $pair++) {
+    :udpSeries for ($pair=1; $pair -le $PairCount; $pair++) {
         $order = $(if ($pair % 2 -eq 1) { @('OFF',$onMode) } else { @($onMode,'OFF') })
         foreach ($mode in $order) { $expected += [pscustomobject]@{pair=$pair;mode=$mode;name=('pair-{0:d2}-{1}' -f $pair,$mode.ToLowerInvariant())} }
     }
@@ -101,6 +113,9 @@ try {
         $onMode = $(if ($ComparisonMode -eq 'LOGGING') { 'BUFFERED' } elseif ($ComparisonMode -eq 'ROUTED') { 'PROXY' } else { 'UNRULED' })
         $order = $(if ($pair % 2 -eq 1) { @($baseMode,$onMode) } else { @($onMode,$baseMode) })
         foreach ($mode in $order) {
+            if ($CancellationPath -and (Test-Path -LiteralPath $CancellationPath -PathType Leaf)) {
+                $manifest.status='CANCELLED';$manifest['cancellation_requested']=$true;break udpSeries
+            }
             $name = 'pair-{0:d2}-{1}' -f $pair,$mode.ToLowerInvariant()
             if ($Resume -and @($manifest.runs | Where-Object { $_.pair -eq $pair -and $_.mode -eq $mode -and $_.status -eq 'COMPLETED' }).Count) { continue }
             if ($Resume) { $name += $resumeSuffix }
@@ -133,7 +148,7 @@ try {
             Save-Manifest
         }
     }
-    $manifest.status='COMPLETED'
+    if ($manifest.status -ne 'CANCELLED') { $manifest.status='COMPLETED' }
 } catch {
     $manifest.status='FAILED'
     $manifest.error=$_.Exception.Message
@@ -141,6 +156,7 @@ try {
     $manifest['completed_at_utc']=[DateTime]::UtcNow.ToString('o')
     Save-Manifest
 }
+if ($manifest.status -eq 'CANCELLED') { return }
 if ($manifest.status -ne 'COMPLETED') { throw $manifest.error }
 $reportScript = $(if ($ComparisonMode -eq 'LOGGING') { 'src/pb_udp_logging_report.py' } else { 'src/pb_unruled_comparison_report.py' })
 & $UdpProxyPythonPath (Join-Path (Split-Path -Parent $PSScriptRoot) $reportScript) --evidence-directory $EvidenceDirectory

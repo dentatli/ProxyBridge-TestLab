@@ -63,6 +63,10 @@ const labText = {
   }
 };
 Object.assign(labText.ru, {
+  findInstalled: "Найти установленный ProxyBridge", manualFolder: "Указать папку вручную", noInstalled: "Установка с CLI и драйвером не найдена. Укажите папку вручную.",
+  foundInstallation: "Найдена установка", pending: "Файлы найдены. Совместимость, маршрут и очистка будут проверены при запуске.",
+  exactConditions: "Точные условия и инструменты", latestConditions: "Последние попытки (различия условий будут отмечены)", conditionsGroup: "Условия",
+  allDurations: "Все длительности", allLoads: "Все нагрузки", dateFrom: "С даты", dateTo: "По дату",
   connection: "Сборки", launch: "Запуск", navigation: "Разделы лаборатории",
   openRun: "Открыть запуск", toTesting: "К тестированию", toRun: "К запуску",
   toResults: "Посмотреть результаты", changeTesting: "Изменить тестирование",
@@ -120,6 +124,10 @@ Object.assign(labText.ru, {
   noConfirmedDetails: "Подтверждённых показателей для этой попытки нет. Она не заменяется предыдущим успешным результатом.", noHistoryMatches: "Нет запусков по выбранным фильтрам.", moreHistory: "Загрузить более ранние запуски"
 });
 Object.assign(labText.en, {
+  findInstalled: "Find installed ProxyBridge", manualFolder: "Choose a folder manually", noInstalled: "No installation with CLI and driver found. Choose a folder manually.",
+  foundInstallation: "Installation found", pending: "Files found. Compatibility, route and cleanup will be verified at launch.",
+  exactConditions: "Exact conditions and tools", latestConditions: "Latest attempts (different conditions will be flagged)", conditionsGroup: "Conditions",
+  allDurations: "All durations", allLoads: "All loads", dateFrom: "From date", dateTo: "To date",
   connection: "Builds", launch: "Run", navigation: "Laboratory navigation",
   openRun: "Open run", toTesting: "Continue to testing", toRun: "Continue to run",
   toResults: "View results", changeTesting: "Change testing",
@@ -183,6 +191,10 @@ labState.launchUnreadable = 0;
 labState.launchNextOffset = null;
 labState.resultsUnavailable = false;
 labState.localConnections = [];
+labState.localUdp = [];
+labState.localLoaded = [];
+labState.loadedUnreadable = 0;
+labState.udpUnreadable = 0;
 labState.connectionUnreadable = 0;
 let inspectedInput = null;
 let labActionActive = false;
@@ -193,7 +205,31 @@ const t = (key) => labText[labLanguage][key];
 const html = (value) => String(value ?? "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;").replaceAll("'", "&#39;");
 const number = (value, digits = 2) => typeof value === "number" && Number.isFinite(value) ? value.toLocaleString(labLanguage, { minimumFractionDigits: digits, maximumFractionDigits: digits }) : "—";
 const runActive = () => !!labState.runControl.run && !labState.runControl.run.terminal || !!labState.runControl.suite && !labState.runControl.suite.terminal;
-const testTitle = scenario => t({ tcp_rtt: "rtt", tcp_transfer: "transfer", tcp_rtt_three_modes: "threeModesRtt", tcp_connections: "connectionsTest", tcp_loaded_rtt: "loadedRtt", udp_echo: "udp" }[scenario]) || t("scenario");
+const isTransfer = scenario => ["tcp_transfer", "tcp_upload", "tcp_download"].includes(scenario);
+const testTitle = scenario => t({ tcp_rtt: "rtt", tcp_transfer: "transfer", tcp_upload: "uploadTest", tcp_download: "downloadTest", tcp_rtt_three_modes: "threeModesRtt", tcp_connections: "connectionsTest", tcp_loaded_rtt: "loadedRtt", udp_echo: "udp", udp_connections: "udpConnections", mixed_soak: "mixedSoak" }[scenario]) || t("scenario");
+Object.assign(labText.ru, {
+  previousAttempt: "Предыдущий запуск", loadedPresetHelp: "Задержка измеряется во время подтверждённой передачи данных. Отдельно проверяются отправка и скачивание; нагрузка задаёт лимит фоновой передачи. Сокеты наблюдаются во время теста, предельная скорость не измеряется.",
+  loadedPushP95: "Отправка: RTT SOCKS5 p95, мс", loadedPullP95: "Скачивание: RTT SOCKS5 p95, мс", loadedPushOff: "Отправка: прямой RTT p95, мс", loadedPullOff: "Скачивание: прямой RTT p95, мс",
+  udpPresetHelp: "Проверяются данные, источник ответа и потери. После 100 прогревочных обменов на сокет; один запрос в полёте на сокет. Высокая нагрузка: два сокета к одному получателю. Темп зависит от RTT и журналирования, это не предельная скорость.",
+  udpStreams: "Сокетов", echoRate: "Ответов в секунду", udpDefect: "Обнаружена подмена источника UDP-ответа. Допустимые измерения показаны отдельно; корректность не подтверждена.",
+  uploadTest: "Отправка TCP", downloadTest: "Скачивание TCP",
+  unavailableTests: "Недоступные тесты", udpConnections: "Соединения UDP: нагрузка и восстановление", mixedSoak: "Длительная смешанная работа",
+  LOCAL_CONTROLLER_PENDING: "Локальный запуск с настройками, отменой и проверенными результатами ещё не подключён",
+  LOCAL_DEPENDENCIES_MISSING: "Не найдены необходимые компоненты",
+  filesOnlyPrerequisites: "Проверяется наличие файлов. Идентичность драйвера, маршрут, данные и очистка проверяются контроллером при запуске."
+});
+Object.assign(labText.en, {
+  previousAttempt: "Previous attempt", loadedPresetHelp: "Latency during a verified concurrent transfer. Upload and download are checked separately; load sets the background sender cap. Socket observation overlaps the test; not maximum throughput.",
+  loadedPushP95: "Upload: SOCKS5 RTT p95, ms", loadedPullP95: "Download: SOCKS5 RTT p95, ms", loadedPushOff: "Upload: direct RTT p95, ms", loadedPullOff: "Download: direct RTT p95, ms",
+  udpPresetHelp: "Verifies data, reply source and loss. Excludes 100 warmup echoes per socket; one request in flight per socket. High load uses two sockets to one receiver. Rate includes RTT and logging; this is not maximum throughput.",
+  udpStreams: "Sockets", echoRate: "Replies per second", udpDefect: "UDP reply source substitution observed. Allowed measurements are shown separately; correctness has not passed.",
+  uploadTest: "TCP upload", downloadTest: "TCP download",
+  unavailableTests: "Unavailable tests", udpConnections: "UDP connections: load and recovery", mixedSoak: "Long mixed workload",
+  LOCAL_CONTROLLER_PENDING: "Local execution with settings, cancellation and verified results is not connected yet",
+  LOCAL_DEPENDENCIES_MISSING: "Required components are missing",
+  filesOnlyPrerequisites: "Checks file presence. The controller verifies driver identity, route, data and cleanup at launch."
+});
+const runModeName = mode => mode === "OFF" ? t("offMode") : mode === "UNRULED" ? t("unruledMode") : "SOCKS5";
 Object.assign(labText.ru, {
   duration: "Длительность", load: "Нагрузка", SHORT: "Быстро", NORMAL: "Обычно", LONG: "Долго", LOW: "Низкая", HIGH: "Высокая",
   WORKLOAD: "Выбранный профиль", legacyWorkload: "Прежние короткие проверки",
@@ -245,20 +281,23 @@ function selectedWorkloads() {
 }
 function workloadName(preset) { return preset ? `${t(preset.duration)} · ${t(preset.load)}` : t("legacyWorkload"); }
 function workloadMinutes(scenario, preset) {
+  if (scenario === "tcp_loaded_rtt") return preset.duration === "LONG" ? [12,18] : preset.duration === "NORMAL" ? [5,8] : [3,5];
   if (scenario === "tcp_connections") return preset.duration === "LONG" ? [15,25] : preset.duration === "NORMAL" ? [5,10] : [3,6];
   const three = scenario === "tcp_rtt_three_modes";
   return preset.duration === "LONG" ? (three ? [8,15] : [6,12]) : preset.duration === "NORMAL" ? (three ? [4,7] : [3,6]) : (three ? [2,4] : [1,4]);
 }
 function workloadDescription(scenario, preset) {
   if (!preset) return "";
+  if (scenario === "tcp_loaded_rtt") return `${t("senderLimit")}: ${preset.load === "HIGH" ? 64 : 8}. ${t("measurementsPerPath")}: ${{SHORT:128,NORMAL:1500,LONG:6000}[preset.duration]}. ${t("loadedPresetHelp")}`;
+  if (scenario === "udp_echo") return `${t("udpStreams")}: ${preset.load === "HIGH" ? 2 : 1}; ${t("measurementsPerPath")}: ${{SHORT:128,NORMAL:1500,LONG:6000}[preset.duration]} × ${preset.load === "HIGH" ? 2 : 1}. ${t("udpPresetHelp")}`;
   if (scenario === "tcp_connections") return `${t("connectionLevels")}: ${preset.load === "HIGH" ? "64 → 256 → 640" : "8 → 32 → 64"}. ${t("connectionHold")}: ${{SHORT:8,NORMAL:32,LONG:120}[preset.duration]}. ${t("connectionPresetHelp")}`;
   const seconds = { SHORT: 8, NORMAL: 32, LONG: 120 }[preset.duration];
   const rate = preset.load === "HIGH" ? 64 : 8;
   const echoes = { SHORT: [128,256], NORMAL: [1500,3000], LONG: [6000,12000] }[preset.duration][preset.load === "HIGH" ? 1 : 0];
-  return scenario === "tcp_transfer" ? `${t("perConnectionMiB")}: ${seconds * rate}; ${t("senderLimit")}: ${rate}. ${t("transferPresetHelp")}` : `${t("measurementsPerPath")}: ${echoes}; ${t("pauseAfterReply")}: ${preset.load === "HIGH" ? 10 : 20}. ${t("rttPresetHelp")}`;
+  return isTransfer(scenario) ? `${t("perConnectionMiB")}: ${seconds * rate}; ${t("senderLimit")}: ${rate}. ${t("transferPresetHelp")}` : `${t("measurementsPerPath")}: ${echoes}; ${t("pauseAfterReply")}: ${preset.load === "HIGH" ? 10 : 20}. ${t("rttPresetHelp")}`;
 }
 function selectedTests() { return [...document.querySelectorAll("[data-lab-test]:checked")].map(node => node.dataset.labTest); }
-function setSelectedTests(tests) { document.querySelectorAll("[data-lab-test]").forEach(node => { node.checked = tests.includes(node.dataset.labTest); }); }
+function setSelectedTests(tests) { document.querySelectorAll("[data-lab-test]").forEach(node => { node.checked = tests.includes(node.dataset.labTest) || tests.includes("tcp_transfer") && isTransfer(node.dataset.labTest); }); }
 function visibleSuite() {
   const { suite, run } = labState.runControl;
   return suite && (!run || suite.tests.some(test => test.planId === run.planId) || new Date(suite.startedAtUtc) >= new Date(run.startedAtUtc)) ? suite : null;
@@ -317,6 +356,7 @@ function saveTestingChoice() {
   catch { /* Navigation still preserves the in-memory choice. */ }
 }
 function acceptRunControl(control) {
+  if (Array.isArray(control.catalog)) labState.catalog = control.catalog;
   const previousSuite = labState.runControl.suite, nextSuite = control.suite;
   if (Object.hasOwn(control, "suite") && (!previousSuite || !nextSuite ||
     (previousSuite.planId === nextSuite.planId ? new Date(nextSuite.updatedAtUtc) >= new Date(previousSuite.updatedAtUtc) && !(previousSuite.terminal && !nextSuite.terminal) : new Date(nextSuite.startedAtUtc) >= new Date(previousSuite.startedAtUtc)))) labState.runControl.suite = nextSuite;
@@ -336,6 +376,11 @@ function selectionInput() {
 
 function renderWorkloadCards(busy) {
   document.querySelectorAll("[data-lab-test], [data-test-duration], [data-test-load]").forEach(node => { node.disabled = busy; });
+  document.querySelectorAll("[data-lab-test]").forEach(node => {
+    const capability = labState.catalog?.find(item => item.id === node.dataset.labTest);
+    node.disabled = busy || !capability?.prerequisitesPresent;
+    node.title = capability?.reason ? t(capability.reason) : t("filesOnlyPrerequisites");
+  });
   document.querySelectorAll("[data-workload-description]").forEach(node => {
     const scenario = node.dataset.workloadDescription;
     const checkbox = document.querySelector(`[data-lab-test="${scenario}"]`);
@@ -345,7 +390,7 @@ function renderWorkloadCards(busy) {
     const card = node.closest(".lab-test-card");
     card.classList.toggle("is-selected", checkbox.checked);
     card.querySelector(".lab-test-settings").hidden = !checkbox.checked;
-    duration.disabled = load.disabled = busy || !checkbox.checked;
+    duration.disabled = load.disabled = checkbox.disabled || !checkbox.checked;
     node.hidden = !checkbox.checked;
     node.textContent = workloadDescription(scenario, preset);
     const time = card.querySelector("[data-workload-time]");
@@ -356,6 +401,11 @@ function renderWorkloadCards(busy) {
   const total = choices.reduce((sum, choice) => { const minutes = workloadMinutes(choice.scenario, choice); return [sum[0]+minutes[0], sum[1]+minutes[1]]; }, [0,0]);
   lab("lab-testing-time").textContent = choices.length ? t("selectedTime").replace("{count}", choices.length).replace("{range}", total.join("–")) : t("noTestsSelected");
   lab("lab-testing-time").title = t("estimateHelp");
+  const prerequisites = lab("lab-prerequisites");
+  prerequisites.textContent = (labState.catalog || []).filter(item => selectedTests().includes(item.id) && item.reason)
+    .map(item => `${testTitle(item.id)}: ${t(item.reason)}${item.missing.length ? ` (${item.missing.join(", ")})` : ""}`).join(" · ") || t("filesOnlyPrerequisites");
+  lab("lab-unavailable-tests").textContent = (labState.catalog || []).filter(item => !item.controllerSupported)
+    .map(item => `${testTitle(item.id)}: ${t(item.reason)}`).join(" · ");
 }
 function renderLab() {
   document.documentElement.lang = labLanguage;
@@ -365,6 +415,9 @@ function renderLab() {
   lab("driver-path-label").hidden = lab("product-contract").value !== "driver";
   const observation = labState.observation;
   const busy = labActionActive || runActive();
+  lab("find-installed-product").disabled = busy || !labState.csrf;
+  lab("lab-discovered-builds").innerHTML = labState.discovery === null ? `<p>${t("noInstalled")}</p>` : (labState.discovery || []).map(item =>
+    `<div class="lab-build-row"><span>${html(item.label)}</span><button class="button secondary" data-installation-id="${html(item.id)}" ${busy ? "disabled" : ""}>${t("chooseBuild")}</button></div>`).join("");
   const message = { KNOWN_BENCHMARK_FILES: "known", FILES_OBSERVED_COMPATIBILITY_PENDING: "pending", FILES_INCOMPLETE: "incomplete", FILES_UNREADABLE: "unreadable", UNSUPPORTED_BEFORE_4_0_0: "old" }[observation?.status];
   lab("product-selection-status").textContent = observation ? `${observation.display_name || observation.product_label} (${observation.product_label}): ${t(message || "failed")} ${labState.saved ? t("saved") : ""}` : t("noSelection");
   lab("product-selection-details").hidden = !observation;
@@ -382,7 +435,8 @@ function renderLab() {
   lab("lab-build-error").textContent = labState.buildError ? t(labState.buildError) : "";
   lab("lab-build-error").hidden = !labState.buildError;
   lab("lab-launch-status").textContent = t(lab("lab-mode").value === "local" ? "manualLocal" : "manualRemote");
-  lab("prepare-lab-launch").disabled = busy || !labState.csrf || !labState.saved || !selectedTests().length;
+  lab("prepare-lab-launch").disabled = busy || !labState.csrf || !labState.saved || !selectedTests().length ||
+    selectedTests().some(id => !labState.catalog?.find(item => item.id === id)?.prerequisitesPresent);
   lab("lab-mode").disabled = busy;
   renderWorkloadCards(busy);
   const plan = labState.plan;
@@ -395,10 +449,15 @@ function renderLab() {
   lab("stop-lab-run").disabled = labActionActive || !labState.csrf || !runActive() || (suite && !suite.terminal ? suite.cancellationRequested : run?.cancellationRequested);
   lab("lab-run-help").textContent = guiPlan || runActive() ? t(labState.runControl.administrator ? "runHelp" : "adminHelp") : plan?.status === "PLAN_PREPARED" ? t("manualHelp") : "";
   const stopNote = run?.cancellationRequested ? !run.terminal ? t("stoppingHelp") : run.status === "COMPLETED" ? t("completedAfterStop") : "" : "";
-  lab("lab-run-status").textContent = run ? `${t(run.status) || t("FAILED")}. ${t("progress")}: ${number(run.completedRuns, 0)}/${number(run.totalRuns, 0)}${run.currentDirection ? ` · ${t(run.currentDirection === "push" ? "upload" : "download")}` : ""}${run.currentMode ? ` · ${run.currentMode === "OFF" ? t("direct") : "SOCKS5"}` : ""}. ${stopNote}${run.reason ? t(run.reason) || t("WRAPPER_OR_EVIDENCE_NOT_CONFIRMED") : ""}` : "";
+  lab("lab-run-status").textContent = run ? `${t(run.status) || t("FAILED")}. ${t("progress")}: ${number(run.completedRuns, 0)}/${number(run.totalRuns, 0)}${run.currentDirection ? ` · ${t(run.currentDirection === "push" ? "upload" : "download")}` : ""}${run.currentMode ? ` · ${runModeName(run.currentMode)}` : ""}. ${stopNote}${run.reason ? t(run.reason) || t("WRAPPER_OR_EVIDENCE_NOT_CONFIRMED") : ""}` : "";
   if (suite) {
-    const childStatus = !suite.terminal && run && suite.tests[suite.currentTest - 1]?.planId === run.planId ? ` · ${t("progress")}: ${number(run.completedRuns, 0)}/${number(run.totalRuns, 0)}${run.currentDirection ? ` · ${t(run.currentDirection === "push" ? "upload" : "download")}` : ""}${run.currentMode ? ` · ${run.currentMode === "OFF" ? t("direct") : "SOCKS5"}` : ""}` : "";
+    const childStatus = !suite.terminal && run && suite.tests[suite.currentTest - 1]?.planId === run.planId ? ` · ${t("progress")}: ${number(run.completedRuns, 0)}/${number(run.totalRuns, 0)}${run.currentDirection ? ` · ${t(run.currentDirection === "push" ? "upload" : "download")}` : ""}${run.currentMode ? ` · ${runModeName(run.currentMode)}` : ""}` : "";
     lab("lab-run-status").textContent = `${t(suite.status) || t("FAILED")}. ${t("suiteProgress")}: ${suite.completedTests}/${suite.tests.length}${!suite.terminal && suite.currentTest ? ` · ${t("currentTest")}: ${testTitle(suite.tests[suite.currentTest - 1].scenario)}` : ""}${childStatus}. ${suite.reason ? t(suite.reason) || t("SUITE_LAUNCH_NOT_CONFIRMED") : ""}${suite.cancellationRequested && !suite.terminal ? t("stoppingHelp") : ""}`;
+  }
+  const shownAttempt = suite || run;
+  if (shownAttempt?.terminal) {
+    if (plan && plan.plan_id !== shownAttempt.planId) lab("lab-run-status").textContent = "";
+    else lab("lab-run-status").textContent = `${t("previousAttempt")} · ${new Date(shownAttempt.startedAtUtc).toLocaleString(labLanguage)} · ${shownAttempt.buildName || ""}. ${lab("lab-run-status").textContent}`;
   }
   lab("lab-run-error").textContent = labState.runError ? t(labState.runError) || t("GUI_RUN_NOT_STARTED") : "";
   lab("lab-global-run").hidden = !runActive() && labState.runError !== "pollFailed";
@@ -414,7 +473,7 @@ function renderLab() {
   lab("lab-plan-status").textContent = labState.planFailed ? t("planFailed") :
     plan?.status === "PLAN_PREPARED" ? `${t(plan.suite ? "suitePrepared" : "planPrepared")} ${t(plan.profile) || plan.profile}. ${t("planMinutes")}: ${plan.estimated_minutes}.` :
     plan?.status === "PLAN_BLOCKED" ? t(plan.reason) || t("planFailed") : "";
-  lab("scenario-description").textContent = selectedTests().length ? selectedTests().map(scenario => t(scenario === "tcp_connections" ? "connectionScope" : scenario === "tcp_transfer" ? "transferHelp" : "rttHelp")).join(" ") : t("noTestsSelected");
+  lab("scenario-description").textContent = selectedTests().length ? [...new Set(selectedTests().map(scenario => t(scenario === "udp_echo" ? "udpHelp" : scenario === "tcp_loaded_rtt" ? "loadedPresetHelp" : scenario === "tcp_connections" ? "connectionScope" : isTransfer(scenario) ? "transferHelp" : "rttHelp")))].join(" ") : t("noTestsSelected");
   lab("lab-reports").innerHTML = labState.reports.length ? labState.reports.map(reportMarkup).join("") : `<p>${t("empty")}</p>`;
   if (labState.unreadable) lab("lab-reports").insertAdjacentHTML("beforeend", `<p>${t("badReports")}</p>`);
   renderSavedResults();
@@ -439,11 +498,11 @@ function localRunMarkup(run) {
 }
 
 function localTransferMarkup(run) {
-  const title = `<h3>${t("transfer")} · ${html(reportBuildName(run))} · ${html(run.workload_preset ? workloadName(run.workload_preset) : run.profile)}</h3>`;
+  const title = `<h3>${testTitle(run.scenario)} · ${html(reportBuildName(run))} · ${html(run.workload_preset ? workloadName(run.workload_preset) : run.profile)}</h3>`;
   const stamp = `<p>${html(new Date(run.created_at_utc).toLocaleString(labLanguage))}</p>`;
   if (run.correctness !== "PASS" || !run.direction_metrics)
     return `<article class="lab-report">${title}${stamp}<p>${run.status === "CANCELLED" ? t("cancelledHistory") : t("localNotConfirmed")}</p></article>`;
-  const directions = ["push", "pull"].map(direction => {
+  const directions = ["push", "pull"].filter(direction => run.direction_metrics[direction]).map(direction => {
     const metrics = run.direction_metrics[direction];
     return `<h4>${t(direction === "push" ? "upload" : "download")}</h4>
       <div class="lab-table-scroll"><table><thead><tr><th>${t("metric")}</th><th>${t("direct")}</th><th>SOCKS5</th></tr></thead><tbody>
@@ -454,6 +513,18 @@ function localTransferMarkup(run) {
       </tbody></table></div>`;
   }).join("");
   return `<article class="lab-report">${title}${stamp}<p>${t("localPass")} · ${t("limited")}</p>${directions}<p>${t("verifiedVolume")}: ${number(run.verified_payload_bytes / 1048576, 0)}.</p><p>${run.workload_preset ? html(workloadDescription(run.scenario, run.workload_preset)) : t("transferLocalScope")}</p></article>`;
+}
+
+function localUdpMarkup(run) {
+  if (!confirmedMetrics(run) || !run.udp_metrics) return `<p>${t("noConfirmedDetails")}</p>`;
+  const rows = resultMetrics.udp_echo.map(metric => `<tr><th>${t(metric[1])}</th><td>${number(metric[2](run), metric[3])}</td></tr>`).join("");
+  return `${run.correctness === "SOURCE_ENDPOINT_MISMATCH" ? `<p class="lab-warning">${t("udpDefect")}</p>` : `<p>${t("localPass")}</p>`}<div class="lab-table-scroll"><table><tbody>${rows}</tbody></table></div><p>${html(workloadDescription("udp_echo",run.workload_preset))}</p><p>${t("resourceHelp")}</p>`;
+}
+
+function localLoadedMarkup(run) {
+  if (!confirmedMetrics(run) || !run.loaded_metrics) return `<p>${t("noConfirmedDetails")}</p>`;
+  const rows = resultMetrics.tcp_loaded_rtt.map(metric => `<tr><th>${t(metric[1])}</th><td>${number(metric[2](run), metric[3])}</td></tr>`).join("");
+  return `<p>${t("localPass")}</p><div class="lab-table-scroll"><table><tbody>${rows}</tbody></table></div><p>${t("loadedPresetHelp")}</p><p>${t("resourceHelp")}</p>`;
 }
 
 function localConnectionMarkup(run) {
@@ -513,6 +584,10 @@ async function loadLab() {
     labState.reports = data.reports.items;
     labState.localRuns = data.local_runs?.items || [];
     labState.localTransfers = data.local_transfers?.items || [];
+    labState.localUdp = data.local_udp?.items || [];
+    labState.localLoaded = data.local_loaded?.items || [];
+    labState.loadedUnreadable = data.local_loaded?.unreadable || 0;
+    labState.udpUnreadable = data.local_udp?.unreadable || 0;
     labState.localConnections = data.local_connections?.items || [];
     labState.connectionUnreadable = data.local_connections?.unreadable || 0;
     labState.transferUnreadable = data.local_transfers?.unreadable || 0;
@@ -585,6 +660,24 @@ async function inspectSelection(save = false) {
     if (inspectionFailed) lab("product-selection-status").textContent = t("failed");
     else if (save) await loadLab();
   }
+}
+
+async function discoverInstalled(id = null) {
+  if (labActionActive || runActive() || !labState.csrf) return;
+  labActionActive = true; labState.buildError = null;
+  renderLab();
+  try {
+    const response = await fetch(id ? "/api/v1/lab/discover/select" : "/api/v1/lab/discover", id ? {
+      method: "POST", headers: { "Content-Type": "application/json", "X-TestLab-CSRF": labState.csrf },
+      body: JSON.stringify({id, displayName: lab("product-build-name").value.trim() || null})
+    } : {cache: "no-store"});
+    if (!response.ok) throw new Error("discovery");
+    const data = await response.json();
+    if (id) { labState.observation = data; labState.saved = true; labState.plan = null; inspectedInput = null; }
+    else labState.discovery = data.items.length ? data.items : null;
+  } catch { labState.buildError = "BUILD_SELECTION_FAILED"; }
+  finally { labActionActive = false; renderLab(); }
+  if (id && !labState.buildError) await loadLab();
 }
 
 async function changeBuild(action, id, name) {
@@ -690,6 +783,11 @@ lab("start-lab-run").addEventListener("click", () => controlRun());
 lab("stop-lab-run").addEventListener("click", () => controlRun(true));
 lab("lab-language").addEventListener("change", () => { labLanguage = lab("lab-language").value; localStorage.setItem("testlab-language", labLanguage); renderLab(); });
 lab("refresh-lab").addEventListener("click", loadLab);
+lab("find-installed-product").addEventListener("click", () => discoverInstalled());
+lab("lab-discovered-builds").addEventListener("click", event => {
+  const button = event.target.closest("[data-installation-id]");
+  if (button) discoverInstalled(button.dataset.installationId);
+});
 document.querySelectorAll("[data-lab-page]").forEach(link => link.addEventListener("click", event => {
   if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) return;
   event.preventDefault();

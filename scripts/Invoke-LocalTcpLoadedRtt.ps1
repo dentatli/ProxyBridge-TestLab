@@ -7,15 +7,25 @@ param(
     [string]$PythonPath='',
     [switch]$Resume,
     [switch]$DiagnosticPull,
-    [switch]$ProxyNoDelay
+    [switch]$ProxyNoDelay,
+    [ValidateSet('SHORT','NORMAL','LONG')][string]$Duration='',
+    [ValidateSet('LOW','HIGH')][string]$Load='',
+    [string]$CancellationPath=''
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 if ($DiagnosticPull -and ($Resume -or $Profile -ne 'STANDARD')) { throw 'TCP_DIAGNOSTIC_REQUIRES_NEW_STANDARD_RUN' }
 $root=Split-Path -Parent $PSScriptRoot
+$preset=$null
+if ($Duration -or $Load) {
+    if (-not $Duration -or -not $Load -or $Resume -or $DiagnosticPull -or $Profile -ne 'SMOKE' -or -not $ProxyNoDelay) { throw 'LOADED_RTT_WORKLOAD_REQUIRES_FRESH_CONTROLLED_SERIES' }
+    Import-Module (Join-Path $root 'modules/LoadedRttWorkload.psm1')
+    $preset=Get-LoadedRttWorkload -Duration $Duration -Load $Load
+}
 foreach ($name in @('Env','ProductBuild','RuntimeEnvironment','InterceptionState','ProxyBridgeCli','ProcessAdapter','ProxyBridgeEvidence')) { Import-Module (Join-Path $root ('modules/'+$name+'.psm1')) }
 if (-not $EnvPath) { $EnvPath=Join-Path $root 'artifacts/product-builds/driver-63be0eb-testlab-cli/product.env' }
-if (-not $PythonPath) { $PythonPath=Join-Path $env:USERPROFILE '.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe' }
+Import-Module (Join-Path $root 'modules/LocalRuntime.psm1')
+if (-not $PythonPath) { $PythonPath=Get-LocalPythonExecutable -Root $root }
 $client=Join-Path $root 'bin/tcp-rtt/pb_tcp_rtt_client.exe'
 $receiver=Join-Path $root 'src/pb_net_endpoint.py'
 $buildReceipt=Join-Path $root 'bin/tcp-rtt/build-receipt.json'
@@ -53,10 +63,12 @@ $transferBytes=$(if ($Profile -eq 'SMOKE') {134217728L} else {8589934592L})
 $rateLimit=$(if ($Profile -eq 'SMOKE') {8388608L} else {67108864L})
 $messageBytes=512
 $pauseMs=20
+if ($preset) { $echoCount=$preset.echo_count;$warmup=$preset.warmup_count;$rateLimit=$preset.rate_limit_bytes_per_s;$transferBytes=$preset.transfer_bytes }
 $manifest=[ordered]@{schema_version=1;status='RUNNING';profile=$Profile;scenario_id='tcp_loaded_echo_rtt_v1';started_at_utc=[DateTime]::UtcNow.ToString('o');pair_count=$pairs;echo_count=$echoCount;warmup_count=$warmup;message_bytes=$messageBytes;pause_ms=$pauseMs;transfer_bytes=$transferBytes;rate_limit_bytes_per_s=$rateLimit;runs=@();error='';version_switch_ready=$false}
 if ($DiagnosticPull) { $manifest['diagnostic_only']=$true }
 if ($ProxyNoDelay) { $manifest['proxy_accepted_tcp_nodelay']=$true }
 if ($ProxyNoDelay -and -not $DiagnosticPull) { $manifest['tcp_fixture_revision']='accepted_nodelay_v1' }
+if ($preset) { $manifest['workload_preset']=$preset }
 $helperStopTimeoutMs=15000
 function Write-Json($value,[string]$path) { $value | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $path -Encoding UTF8 }
 function Save-Manifest { Write-Json $manifest (Join-Path $EvidenceDirectory 'comparison-manifest.json') }
@@ -152,6 +164,11 @@ function Invoke-TcpRun([string]$direction,[string]$mode,[string]$directory) {
             $diagnosticConfig | Add-Member -NotePropertyName proxy_base_helper_sha256 -NotePropertyValue (Get-FileHash (Join-Path $root 'src/pb_controlled_tcp_proxy.py')).Hash
             if (-not $DiagnosticPull) { $diagnosticConfig | Add-Member -NotePropertyName tcp_fixture_revision -NotePropertyValue 'accepted_nodelay_v1' }
             Write-Json $diagnosticConfig (Join-Path $directory 'benchmark-config.json')
+        }
+        if ($preset) {
+            $savedConfig=Get-Content -Raw -LiteralPath (Join-Path $directory 'benchmark-config.json') | ConvertFrom-Json
+            $savedConfig | Add-Member -NotePropertyName loaded_workload_preset -NotePropertyValue $preset
+            Write-Json $savedConfig (Join-Path $directory 'benchmark-config.json')
         }
         $workload={
             param($cli)
@@ -249,7 +266,7 @@ function Invoke-TcpRun([string]$direction,[string]$mode,[string]$directory) {
             $sink={param($value) Write-Json $value (Join-Path $directory 'cli-lifecycle.json')}.GetNewClosure()
             $lifecycle=Invoke-ProxyBridgeCliLifecycle -Plan $cliPlan -ProcessAdapter $adapter -AllowProductRuntime -Workload $workload -EvidenceSink $sink
             if (-not $lifecycle.ready -or -not $lifecycle.graceful_stop -or $lifecycle.forced_stop -or -not $lifecycle.post_stop_verified -or $lifecycle.process_result.exit_code -ne 0) { throw 'TCP_CLI_LIFECYCLE_FAILED' }
-            $records=@(ConvertFrom-ProxyBridgeTextLines -Lines @($lifecycle.process_result.stdout -split '\r?\n') -DefaultTimestampUtc ([DateTime]::Parse($lifecycle.started_at_utc)))
+            $records=@(ConvertFrom-ProxyBridgeCapturedOutput -ProcessResult $lifecycle.process_result -EvidenceDirectory $directory -Environment $environment -DefaultTimestampUtc ([DateTime]::Parse($lifecycle.started_at_utc)))
             Write-Json $records (Join-Path $directory 'route-observations.json')
         } else { $null=& $workload $null }
         $receipt.status='COMPLETED'
@@ -340,10 +357,13 @@ Write-Host $(if ($DiagnosticPull) {'Отдельная диагностика do
 Write-Host ('Результаты / Results: '+$EvidenceDirectory)
 Save-Manifest
 try {
-    foreach ($direction in @('push','pull')) {
+    :loadedSeries foreach ($direction in @('push','pull')) {
         for ($pair=1;$pair -le $pairs;$pair++) {
             $order=$(if ($pair % 2) { @('OFF','PROXY') } else { @('PROXY','OFF') })
             foreach ($mode in $order) {
+                if ($CancellationPath -and (Test-Path -LiteralPath $CancellationPath -PathType Leaf)) {
+                    $manifest.status='CANCELLED';$manifest['cancellation_requested']=$true;break loadedSeries
+                }
                 if ($DiagnosticPull -and ($direction -ne 'pull' -or $pair -ne 1 -or $mode -ne 'PROXY')) { continue }
                 $name='{0}-pair-{1:d2}-{2}' -f $direction,$pair,$mode.ToLowerInvariant()
                 $existing=@($manifest.runs | Where-Object {$_.direction -eq $direction -and $_.pair -eq $pair -and $_.mode -eq $mode})
@@ -357,9 +377,10 @@ try {
             }
         }
     }
-    $manifest.status='COMPLETED'
+    if ($manifest.status -ne 'CANCELLED') { $manifest.status='COMPLETED' }
 } catch { $manifest.status='FAILED';$manifest.error=$(if ($_.Exception.Message) { $_.Exception.Message } else { 'TCP_LOADED_RTT_SERIES_FAILED_WITHOUT_DETAIL' }) }
 finally { $manifest['completed_at_utc']=[DateTime]::UtcNow.ToString('o');Save-Manifest }
+if ($manifest.status -eq 'CANCELLED') { return }
 if ($manifest.status -ne 'COMPLETED') { throw $manifest.error }
 if ($DiagnosticPull) { Write-Host 'Диагностический run завершён / Diagnostic run completed; no paired comparison';return }
 & $PythonPath (Join-Path $root 'src/pb_tcp_loaded_rtt_report.py') --evidence-directory $EvidenceDirectory

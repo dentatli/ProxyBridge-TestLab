@@ -5,6 +5,14 @@ namespace ProxyBridge.TestLab.Ui.Services;
 
 public static class BenchmarkWorkload
 {
+    public static JsonElement? ResolveScenario(string root, string? scenario, string? duration, string? load) => scenario switch
+    {
+        "tcp_connections" => ConnectionWorkload.Resolve(duration, load),
+        "udp_echo" => UdpWorkload.Resolve(root, duration, load),
+        "tcp_loaded_rtt" => LoadedRttWorkload.Resolve(duration, load),
+        _ => Resolve(root, duration, load)
+    };
+
     public static JsonElement? Resolve(string root, string? duration, string? load)
     {
         if (duration is null && load is null) return null;

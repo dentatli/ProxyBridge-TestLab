@@ -5,6 +5,9 @@ using ProxyBridge.TestLab.Ui.Models;
 using ProxyBridge.TestLab.Ui.Services;
 
 var builder = WebApplication.CreateBuilder(args);
+// Python helpers inherit this process-only setting; installed application files
+// stay immutable while reports and launch inputs use their dedicated roots.
+Environment.SetEnvironmentVariable("PYTHONDONTWRITEBYTECODE", "1", EnvironmentVariableTarget.Process);
 var requestedRoot = builder.Configuration["RepositoryRoot"];
 var paths = new AppPaths(AppPaths.Discover(requestedRoot));
 var requestedStorageRoot = builder.Configuration["ConfigRoot"];
@@ -110,7 +113,10 @@ app.Use(async (context, next) =>
     await next();
 });
 
-app.UseDefaultFiles();
+var defaultFiles = new DefaultFilesOptions();
+defaultFiles.DefaultFileNames.Clear();
+defaultFiles.DefaultFileNames.Add("lab.html");
+app.UseDefaultFiles(defaultFiles);
 app.UseStaticFiles(new StaticFileOptions
 {
     OnPrepareResponse = context => context.Context.Response.Headers.CacheControl = "no-cache"
@@ -118,8 +124,20 @@ app.UseStaticFiles(new StaticFileOptions
 
 var api = app.MapGroup("/api/v1");
 
+api.MapGet("/lab/discover", (BenchmarkLabService lab) => Results.Ok(lab.DiscoverInstalled()));
+api.MapPost("/lab/discover/select", async (InstalledProductRequest request, BenchmarkLabService lab, BenchmarkRunService runs, CancellationToken token) =>
+{
+    try
+    {
+        if (runs.HasActiveRun) return Results.BadRequest(new { error = "REAL_RUN_ALREADY_ACTIVE" });
+        return Results.Ok(await lab.SelectInstalledAsync(request, token));
+    }
+    catch (Exception error) when (error is InvalidOperationException or IOException or UnauthorizedAccessException or JsonException or OperationCanceledException or System.ComponentModel.Win32Exception)
+    { return Results.BadRequest(new { error = "BUILD_SELECTION_FAILED" }); }
+});
+
 api.MapGet("/lab/state", async (BenchmarkLabService lab, BenchmarkBuildCatalog builds, BenchmarkRunService runs, RequestTokenService tokens, CancellationToken cancellationToken) =>
-    Results.Ok(new { csrf_token = tokens.Token, selection = await lab.GetSelectionAsync(cancellationToken), builds = await builds.PublicAsync(cancellationToken), reports = lab.GetReports(), local_runs = lab.GetLocalRttReports(), local_transfers = lab.GetLocalTransferReports(), local_connections = lab.GetLocalConnectionReports(), launch_history = lab.GetLaunchAttempts(), run_control = runs.State() }));
+    Results.Ok(new { csrf_token = tokens.Token, selection = await lab.GetSelectionAsync(cancellationToken), builds = await builds.PublicAsync(cancellationToken), reports = lab.GetReports(), local_runs = lab.GetLocalRttReports(), local_transfers = lab.GetLocalTransferReports(), local_udp = lab.GetLocalUdpReports(), local_loaded = lab.GetLocalLoadedRttReports(), local_connections = lab.GetLocalConnectionReports(), launch_history = lab.GetLaunchAttempts(), run_control = runs.State() }));
 
 api.MapPost("/lab/build/select", async (BenchmarkBuildRequest request, BenchmarkBuildCatalog builds, BenchmarkLabService lab, BenchmarkRunService runs, CancellationToken token) =>
 {
@@ -144,9 +162,9 @@ api.MapGet("/lab/history", (int offset, BenchmarkLabService lab) =>
     offset is >= 0 and <= 1000000 ? Results.Ok(lab.GetLaunchAttempts(offset)) : Results.BadRequest(new { error = "HISTORY_OFFSET_INVALID" }));
 api.MapGet("/lab/history/{id}", (string id, BenchmarkLabService lab) =>
 {
-    if (!System.Text.RegularExpressions.Regex.IsMatch(id, "^(lab-tcp_(rtt|rtt_three_modes|transfer|connections)-smoke-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}|tcp-rtt-three-modes-smoke-[0-9]{8}-[0-9]{6}-[a-f0-9]{6})$"))
+    if (!System.Text.RegularExpressions.Regex.IsMatch(id, "^(lab-(tcp_(rtt|rtt_three_modes|transfer|upload|download|connections|loaded_rtt)|udp_echo)-smoke-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}|tcp-rtt-three-modes-smoke-[0-9]{8}-[0-9]{6}-[a-f0-9]{6})$"))
         return Results.BadRequest(new { error = "HISTORY_ID_INVALID" });
-    return Results.Ok(id.StartsWith("lab-tcp_connections-", StringComparison.Ordinal) ? lab.GetLocalConnectionReports(id) : id.StartsWith("lab-tcp_transfer-", StringComparison.Ordinal) ? lab.GetLocalTransferReports(id) : lab.GetLocalRttReports(id));
+    return Results.Ok(id.StartsWith("lab-tcp_loaded_rtt-", StringComparison.Ordinal) ? lab.GetLocalLoadedRttReports(id) : id.StartsWith("lab-udp_echo-", StringComparison.Ordinal) ? lab.GetLocalUdpReports(id) : id.StartsWith("lab-tcp_connections-", StringComparison.Ordinal) ? lab.GetLocalConnectionReports(id) : new[] { "lab-tcp_transfer-", "lab-tcp_upload-", "lab-tcp_download-" }.Any(prefix => id.StartsWith(prefix, StringComparison.Ordinal)) ? lab.GetLocalTransferReports(id) : lab.GetLocalRttReports(id));
 });
 api.MapPost("/lab/run/start", async (BenchmarkStartRequest request, BenchmarkRunService runs, CancellationToken cancellationToken) =>
 {
@@ -461,7 +479,7 @@ app.MapFallback(async context =>
     }
 
     context.Response.ContentType = "text/html; charset=utf-8";
-    await context.Response.SendFileAsync(Path.Combine(app.Environment.WebRootPath, "index.html"));
+    await context.Response.SendFileAsync(Path.Combine(app.Environment.WebRootPath, "lab.html"));
 });
 
 app.Run();

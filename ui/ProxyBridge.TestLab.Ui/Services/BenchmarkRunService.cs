@@ -33,7 +33,8 @@ public sealed class BenchmarkRunService(AppPaths paths, BenchmarkLabService lab,
         using var identity = WindowsIdentity.GetCurrent();
         return new WindowsPrincipal(identity).IsInRole(WindowsBuiltInRole.Administrator);
     }
-    public object State() => new { administrator = IsAdmin(), automatic_scenarios = new[] { "tcp_rtt", "tcp_transfer", "tcp_rtt_three_modes", "tcp_connections" }, run = _view, suite = _suite };
+    public object State() => new { administrator = IsAdmin(), automatic_scenarios = BenchmarkLocalCatalog.AutomaticScenarios,
+        catalog = BenchmarkLocalCatalog.Inspect(paths.RepositoryRoot), run = _view, suite = _suite };
     public bool HasActiveRun => _view is { Terminal: false } || _suite is { Terminal: false };
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -105,22 +106,20 @@ public sealed class BenchmarkRunService(AppPaths paths, BenchmarkLabService lab,
             var plan = document.RootElement;
             var scenario = plan.GetProperty("scenario").GetString();
             if (plan.GetProperty("id").GetString() != id || plan.GetProperty("contract").GetString() != "driver" ||
-                plan.GetProperty("mode").GetString() != "local" || scenario is not ("tcp_rtt" or "tcp_transfer" or "tcp_rtt_three_modes" or "tcp_connections") ||
+                plan.GetProperty("mode").GetString() != "local" || scenario is not ("tcp_rtt" or "tcp_transfer" or "tcp_upload" or "tcp_download" or "tcp_rtt_three_modes" or "tcp_connections" or "udp_echo" or "tcp_loaded_rtt") ||
                 plan.GetProperty("profile").GetString() != "SMOKE") throw new InvalidOperationException("AUTOMATIC_SCENARIO_PENDING");
             if (plan.TryGetProperty("workload_preset", out var workload) && workload.ValueKind != JsonValueKind.Null)
             {
-                JsonElement? expectedWorkload = scenario == "tcp_connections" ? ConnectionWorkload.Resolve(workload.GetProperty("duration").GetString(), workload.GetProperty("load").GetString()) : BenchmarkWorkload.Resolve(paths.RepositoryRoot, workload.GetProperty("duration").GetString(), workload.GetProperty("load").GetString());
+                JsonElement? expectedWorkload = BenchmarkWorkload.ResolveScenario(paths.RepositoryRoot, scenario, workload.GetProperty("duration").GetString(), workload.GetProperty("load").GetString());
                 if (expectedWorkload is null || !BenchmarkWorkload.Matches(workload, expectedWorkload.Value)) throw new InvalidOperationException("INVALID_PLAN");
             }
             // The request selects only a server-created id. Recheck the current saved selection, not browser paths.
             var selection = await lab.ReadSavedRequestAsync(cancellationToken) ?? throw new InvalidOperationException("SELECTION_REQUIRED");
-            var expected = Path.Combine(paths.RepositoryRoot, "artifacts", "product-builds", "driver-63be0eb-testlab-cli");
-            if (selection.Contract != "driver" || !string.Equals(Path.GetFullPath(selection.InstallationDirectory).TrimEnd('\\', '/'), expected, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException("SELECTION_CHANGED_PREPARE_AGAIN");
-            if (!string.IsNullOrWhiteSpace(selection.DriverPath) && !string.Equals(Path.GetFullPath(selection.DriverPath), Path.Combine(expected, "ProxyBridgeDrv.sys"), StringComparison.OrdinalIgnoreCase))
+            if (selection.Contract != "driver" || !plan.TryGetProperty("selection_binding", out var selectionBinding) ||
+                selectionBinding.GetString() != BenchmarkLabService.SelectionBinding(selection))
                 throw new InvalidOperationException("SELECTION_CHANGED_PREPARE_AGAIN");
             var observation = await lab.InspectAsync(selection, cancellationToken);
-            if (!observation.GetProperty("recognized_benchmark_files").GetBoolean() ||
+            if (!observation.GetProperty("files_observed").GetBoolean() ||
                 observation.GetProperty("bundle_sha256").GetString() != plan.GetProperty("bundle_sha256").GetString())
                 throw new InvalidOperationException("SELECTION_CHANGED_PREPARE_AGAIN");
             string? buildId = null, buildName = null;
@@ -137,7 +136,7 @@ public sealed class BenchmarkRunService(AppPaths paths, BenchmarkLabService lab,
                 throw new InvalidOperationException("PLAN_ALREADY_USED_PREPARE_AGAIN");
             Directory.CreateDirectory(directory);
             var now = DateTimeOffset.UtcNow;
-            _view = new(id, "STARTING", now, now, 0, scenario == "tcp_transfer" ? 4 : scenario == "tcp_rtt_three_modes" ? 3 : 2, null, false, null, null, false, Scenario: scenario, BuildId: buildId, BuildName: buildName,
+            _view = new(id, "STARTING", now, now, 0, BenchmarkLocalCatalog.TotalRuns(scenario), null, false, null, null, false, Scenario: scenario, BuildId: buildId, BuildName: buildName,
                 WorkloadPreset: plan.TryGetProperty("workload_preset", out var preset) && preset.ValueKind != JsonValueKind.Null ? preset.Clone() : null);
             Save(_view);
             _execution = Task.Run(() => ExecuteAsync(id));
@@ -186,15 +185,15 @@ public sealed class BenchmarkRunService(AppPaths paths, BenchmarkLabService lab,
             using var document = ReadJson(Path.Combine(Root, id + ".json"));
             var plan = document.RootElement.Deserialize<BenchmarkSuitePlan>(Json) ?? throw new InvalidOperationException("INVALID_PLAN");
             if (plan.Id != id || plan.Mode != "local" || plan.Contract != "driver" || plan.Tests is null ||
-                plan.Tests.Length is < 1 or > 4 || plan.Tests.Select(item => item.Scenario).Distinct().Count() != plan.Tests.Length ||
+                plan.Tests.Length is < 1 or > 8 || plan.Tests.Select(item => item.Scenario).Distinct().Count() != plan.Tests.Length ||
                 plan.BuildId != BenchmarkBuildCatalog.Identity("driver", plan.BundleSha256)) throw new InvalidOperationException("INVALID_PLAN");
             foreach (var test in plan.Tests)
             {
-                if (!ValidId(test.PlanId) || test.Scenario is not ("tcp_rtt" or "tcp_transfer" or "tcp_rtt_three_modes" or "tcp_connections") ||
-                    test.TotalRuns != (test.Scenario == "tcp_transfer" ? 4 : test.Scenario == "tcp_rtt_three_modes" ? 3 : 2)) throw new InvalidOperationException("INVALID_PLAN");
+                if (!ValidId(test.PlanId) || test.Scenario is not ("tcp_rtt" or "tcp_transfer" or "tcp_upload" or "tcp_download" or "tcp_rtt_three_modes" or "tcp_connections" or "udp_echo" or "tcp_loaded_rtt") ||
+                    test.TotalRuns != (BenchmarkLocalCatalog.TotalRuns(test.Scenario))) throw new InvalidOperationException("INVALID_PLAN");
                 var file = Path.Combine(Root, test.PlanId + ".json");
                 using var child = ReadJson(file);
-                JsonElement? expectedWorkload = test.Scenario == "tcp_connections" ? ConnectionWorkload.Resolve(test.Duration, test.Load) : BenchmarkWorkload.Resolve(paths.RepositoryRoot, test.Duration, test.Load);
+                JsonElement? expectedWorkload = BenchmarkWorkload.ResolveScenario(paths.RepositoryRoot, test.Scenario, test.Duration, test.Load);
                 var childHasWorkload = child.RootElement.TryGetProperty("workload_preset", out var childWorkload) && childWorkload.ValueKind != JsonValueKind.Null;
                 if (expectedWorkload is null ? childHasWorkload : !childHasWorkload || !BenchmarkWorkload.Matches(expectedWorkload.Value, childWorkload))
                     throw new InvalidOperationException("INVALID_PLAN");
@@ -311,14 +310,15 @@ public sealed class BenchmarkRunService(AppPaths paths, BenchmarkLabService lab,
         for (var index = 0; index < items.Length; index++)
         {
             var item = items[index];
-            if (!ValidId(item.PlanId) || item.Scenario is not ("tcp_rtt" or "tcp_transfer" or "tcp_rtt_three_modes" or "tcp_connections"))
+            if (!ValidId(item.PlanId) || item.Scenario is not ("tcp_rtt" or "tcp_transfer" or "tcp_upload" or "tcp_download" or "tcp_rtt_three_modes" or "tcp_connections" or "udp_echo" or "tcp_loaded_rtt"))
                 throw new InvalidOperationException("INVALID_PLAN");
             if (item.Status != "PENDING" || Directory.Exists(Control(item.PlanId))) continue;
             AssertLocal(Control(item.PlanId));
             Directory.CreateDirectory(Control(item.PlanId));
             var now = DateTimeOffset.UtcNow;
-            Save(new(item.PlanId, "CANCELLED", now, now, 0, item.Scenario == "tcp_transfer" ? 4 : item.Scenario == "tcp_rtt_three_modes" ? 3 : 2, null, true, null,
-                "SUITE_TEST_NOT_STARTED", true, Scenario: item.Scenario, BuildId: buildId, BuildName: buildName));
+            var workload = BenchmarkWorkload.ResolveScenario(paths.RepositoryRoot, item.Scenario, item.Duration, item.Load);
+            Save(new(item.PlanId, "CANCELLED", now, now, 0, BenchmarkLocalCatalog.TotalRuns(item.Scenario), null, true, null,
+                "SUITE_TEST_NOT_STARTED", true, Scenario: item.Scenario, BuildId: buildId, BuildName: buildName, WorkloadPreset: workload));
             items[index] = item with { Status = "CANCELLED" };
         }
         return items;
@@ -351,6 +351,11 @@ public sealed class BenchmarkRunService(AppPaths paths, BenchmarkLabService lab,
             if (finalEvidence is not null) ReadProgress(id, finalEvidence);
             var outcome = ReadOutcome(finalEvidence, process.ExitCode);
             if (finalEvidence is null) outcome = ("FAILED", ReadPrecheckFailure(id));
+            else if (outcome.Status == "FAILED" && outcome.Reason is "EVIDENCE_NOT_CONFIRMED" or "WORKLOAD_OR_CLEANUP_FAILED")
+            {
+                var code = ReadPrecheckFailure(id);
+                if (code != "WRAPPER_PRECHECK_OR_START_FAILED") outcome = ("FAILED", code);
+            }
             await UpdateAsync(id, state => state with { Status = outcome.Status, Reason = outcome.Reason,
                 ExitCode = process.ExitCode, Terminal = true, CurrentMode = null, CurrentDirection = null });
         }
@@ -386,7 +391,7 @@ public sealed class BenchmarkRunService(AppPaths paths, BenchmarkLabService lab,
             var mode = current.ValueKind == JsonValueKind.Undefined ? null : current.GetProperty("mode").GetString();
             var direction = current.ValueKind != JsonValueKind.Undefined && current.TryGetProperty("direction", out var value) ? value.GetString() : null;
             _gate.Wait();
-            try { if (_view?.PlanId == id) { _view = _view with { CompletedRuns = completed, CurrentMode = mode is "OFF" or "PROXY" ? mode : null, CurrentDirection = direction is "push" or "pull" ? direction : null, UpdatedAtUtc = DateTimeOffset.UtcNow }; Save(_view); } }
+            try { if (_view?.PlanId == id) { _view = _view with { CompletedRuns = completed, CurrentMode = mode is "OFF" or "PROXY" or "UNRULED" ? mode : null, CurrentDirection = direction is "push" or "pull" ? direction : null, UpdatedAtUtc = DateTimeOffset.UtcNow }; Save(_view); } }
             finally { _gate.Release(); }
         }
         catch (Exception error) when (error is IOException or JsonException or KeyNotFoundException or InvalidOperationException) { }
@@ -416,7 +421,12 @@ public sealed class BenchmarkRunService(AppPaths paths, BenchmarkLabService lab,
         {
             using var manifest = ReadJson(Path.Combine(directory, "comparison-manifest.json"));
             if (exit == 0 && manifest.RootElement.GetProperty("status").GetString() == "CANCELLED") return ("CANCELLED", null);
-            if (exit != 0 || manifest.RootElement.GetProperty("status").GetString() != "COMPLETED") return ("FAILED", "WORKLOAD_OR_CLEANUP_FAILED");
+            if (exit != 0 || manifest.RootElement.GetProperty("status").GetString() != "COMPLETED")
+            {
+                var error = manifest.RootElement.TryGetProperty("error", out var value) ? value.GetString() : null;
+                var code = Regex.Match(error ?? "", "^[A-Z][A-Z0-9_]{3,127}").Value.TrimEnd('_');
+                return ("FAILED", code.Length > 3 ? code : "WORKLOAD_OR_CLEANUP_FAILED");
+            }
             using var report = ReadJson(Path.Combine(directory, "comparison-report.json"));
             if (report.RootElement.GetProperty("status").GetString() != "LIMITED_COMPARISON" || report.RootElement.GetProperty("errors").GetArrayLength() != 0)
                 return ("FAILED", "EVIDENCE_NOT_CONFIRMED");
@@ -435,6 +445,8 @@ public sealed class BenchmarkRunService(AppPaths paths, BenchmarkLabService lab,
             var text = File.ReadAllText(file);
             foreach (var reason in new[] { "LAB_REBOOT_REQUIRED_AFTER_RECORDED_4_0_0", "LAB_REBOOT_REQUIRED_AFTER_INTERRUPTED_RUN", "LAB_OTHER_REAL_RUN_ACTIVE_OR_LEASE_UNAVAILABLE" })
                 if (text.Contains(reason, StringComparison.Ordinal)) return reason;
+            var code = Regex.Match(text, @"\b(?:TCP|CONNECTION|UDP|CLI|LOCAL|LAB|HEADLESS)_[A-Z0-9_]{3,100}\b").Value;
+            if (!string.IsNullOrEmpty(code)) return code.TrimEnd('_');
         }
         catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException) { }
         return "WRAPPER_PRECHECK_OR_START_FAILED";

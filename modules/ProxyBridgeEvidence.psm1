@@ -178,7 +178,7 @@ function ConvertFrom-ProxyBridgeTerminalCapture {
     $python = ''
     if ($Environment.ContainsKey('PB_TERMINAL_PYTHON_EXE')) { $python = [string]$Environment['PB_TERMINAL_PYTHON_EXE'] }
     else {
-        foreach ($relative in @('bin/protocol-worker/runtime/python/python.exe','bin/dev-venv/Scripts/python.exe')) {
+        foreach ($relative in @('bin/runtime/python/python.exe','bin/protocol-worker/runtime/python/python.exe','bin/dev-venv/Scripts/python.exe')) {
             $candidate = Join-Path $root $relative
             if (Test-Path -LiteralPath $candidate -PathType Leaf) { $python=$candidate; break }
         }
@@ -213,4 +213,20 @@ function ConvertFrom-ProxyBridgeTerminalCapture {
     } catch { $failure.reason='TERMINAL_DECODER_FAILED'; return $failure }
 }
 
-Export-ModuleMember -Function ConvertFrom-ProxyBridgeTextLines, Import-ProxyBridgeTextEvidence, Find-ProxyBridgeFlowEvidence, ConvertFrom-ProxyBridgeTerminalCapture
+function ConvertFrom-ProxyBridgeCapturedOutput {
+    [CmdletBinding()]
+    param([Parameter(Mandatory)]$ProcessResult,[Parameter(Mandatory)][string]$EvidenceDirectory,
+        [System.Collections.IDictionary]$Environment=@{},[datetime]$DefaultTimestampUtc=([datetime]::MinValue))
+    if ($ProcessResult.PSObject.Properties['output_format'] -and $ProcessResult.output_format -eq 'terminal-vt-merged') {
+        $decoded=ConvertFrom-ProxyBridgeTerminalCapture -RawText ([string]$ProcessResult.stdout) -EvidenceDirectory $EvidenceDirectory -Environment $Environment -DefaultTimestampUtc $DefaultTimestampUtc
+        if ($decoded.status -ne 'DECODED_OBSERVATIONS') { throw 'CLI_TERMINAL_OBSERVATIONS_UNAVAILABLE' }
+        # Preserve raw lifecycle output and the decoder's explicit incomplete
+        # event-stream/order flags. Route observations still require owned
+        # socket and controlled receiver/proxy evidence at the caller.
+        [IO.File]::WriteAllText((Join-Path $EvidenceDirectory 'terminal-observations.json'),($decoded | ConvertTo-Json -Depth 12),[Text.UTF8Encoding]::new($false))
+        return @($decoded.records)
+    }
+    return @(ConvertFrom-ProxyBridgeTextLines -Lines @([string]$ProcessResult.stdout -split '\r?\n') -DefaultTimestampUtc $DefaultTimestampUtc)
+}
+
+Export-ModuleMember -Function ConvertFrom-ProxyBridgeTextLines, Import-ProxyBridgeTextEvidence, Find-ProxyBridgeFlowEvidence, ConvertFrom-ProxyBridgeTerminalCapture, ConvertFrom-ProxyBridgeCapturedOutput

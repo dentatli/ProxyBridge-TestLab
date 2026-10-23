@@ -17,11 +17,13 @@ public sealed class BenchmarkLaunchPlanService(AppPaths paths, BenchmarkLabServi
     private static readonly Dictionary<string, (string Controller, string Profile, string Minutes)> Scenarios = new()
     {
         ["tcp_transfer"] = ("Invoke-LocalTcpBenchmark.ps1", "SMOKE", "2–4"),
+        ["tcp_upload"] = ("Invoke-LocalTcpBenchmark.ps1", "SMOKE", "1–3"),
+        ["tcp_download"] = ("Invoke-LocalTcpBenchmark.ps1", "SMOKE", "1–3"),
         ["tcp_rtt"] = ("Invoke-LocalTcpRtt.ps1", "SMOKE", "1–3"),
         ["tcp_rtt_three_modes"] = ("Invoke-LocalTcpRtt.ps1", "SMOKE", "2–4"),
         ["tcp_connections"] = ("Invoke-LocalTcpConnections.ps1", "SMOKE", "3–6"),
         ["tcp_loaded_rtt"] = ("Invoke-LocalTcpLoadedRtt.ps1", "SMOKE", "2–5"),
-        ["udp_echo"] = ("Invoke-LocalUdpSoak.ps1", "MULTI_TARGET", "5–20")
+        ["udp_echo"] = ("Invoke-LocalUdpBenchmark.ps1", "SMOKE", "1–4")
     };
 
     public async Task<object> PrepareAsync(BenchmarkPlanRequest request, CancellationToken cancellationToken)
@@ -29,8 +31,11 @@ public sealed class BenchmarkLaunchPlanService(AppPaths paths, BenchmarkLabServi
         if (request.Mode is not ("local" or "remote") || string.IsNullOrWhiteSpace(request.Scenario) || !Scenarios.TryGetValue(request.Scenario, out var scenario))
             return Blocked("INVALID_SCENARIO");
         if (request.Mode == "remote") return Blocked("REMOTE_CONTROLLER_PENDING");
-        var workload = request.Scenario == "tcp_connections" ? ConnectionWorkload.Resolve(request.Duration, request.Load) : BenchmarkWorkload.Resolve(paths.RepositoryRoot, request.Duration, request.Load);
-        if (workload is not null && request.Scenario is not ("tcp_rtt" or "tcp_rtt_three_modes" or "tcp_transfer" or "tcp_connections")) return Blocked("LAB_WORKLOAD_INVALID");
+        var capability = BenchmarkLocalCatalog.Inspect(paths.RepositoryRoot).Single(item => item.Id == request.Scenario);
+        if (capability.ControllerSupported && !capability.PrerequisitesPresent) return Blocked(capability.Reason!);
+        var workload = BenchmarkWorkload.ResolveScenario(paths.RepositoryRoot, request.Scenario, request.Duration, request.Load);
+        if (request.Scenario is "tcp_upload" or "tcp_download" or "udp_echo" or "tcp_loaded_rtt" && workload is null) return Blocked("LAB_WORKLOAD_INVALID");
+        if (workload is not null && request.Scenario is not ("tcp_rtt" or "tcp_rtt_three_modes" or "tcp_transfer" or "tcp_upload" or "tcp_download" or "tcp_connections" or "udp_echo" or "tcp_loaded_rtt")) return Blocked("LAB_WORKLOAD_INVALID");
         var minutes = workload is null ? scenario.Minutes : request.Duration switch
         {
             "LONG" => request.Scenario == "tcp_rtt_three_modes" ? "8–15" : "6–12",
@@ -38,38 +43,61 @@ public sealed class BenchmarkLaunchPlanService(AppPaths paths, BenchmarkLabServi
             _ => request.Scenario == "tcp_rtt_three_modes" ? "2–4" : "1–4"
         };
         if (request.Scenario == "tcp_connections") minutes = request.Duration == "LONG" ? "15–25" : request.Duration == "NORMAL" ? "5–10" : "3–6";
+        if (request.Scenario == "tcp_loaded_rtt") minutes = request.Duration == "LONG" ? "12–18" : request.Duration == "NORMAL" ? "5–8" : "3–5";
         var selection = await lab.ReadSavedRequestAsync(cancellationToken);
         if (selection is null) return Blocked("SELECTION_REQUIRED");
         var observation = await lab.InspectAsync(selection, cancellationToken);
         if (!observation.GetProperty("files_observed").GetBoolean()) return Blocked("SELECTED_FILES_CHANGED");
-        if (!observation.GetProperty("recognized_benchmark_files").GetBoolean()) return Blocked("COMPATIBILITY_PENDING");
         if (selection.Contract != "driver") return Blocked("LEGACY_REBOOT_PREFLIGHT_REQUIRED");
-
-        // A copied kit is not sufficient: existing controllers bind receipts and configured absolute paths.
-        var kit = Path.Combine(paths.RepositoryRoot, "artifacts", "product-builds", "driver-63be0eb-testlab-cli");
-        var driver = Path.Combine(kit, "ProxyBridgeDrv.sys");
-        if (!string.Equals(Path.GetFullPath(selection.InstallationDirectory).TrimEnd('\\', '/'), kit, StringComparison.OrdinalIgnoreCase) ||
-            (!string.IsNullOrWhiteSpace(selection.DriverPath) && !string.Equals(Path.GetFullPath(selection.DriverPath), driver, StringComparison.OrdinalIgnoreCase)))
-            return Blocked("RELOCATED_KIT_PENDING");
+        if (observation.GetProperty("status").GetString() == "UNSUPPORTED_BEFORE_4_0_0") return Blocked("COMPATIBILITY_PENDING");
 
         var script = Path.Combine(paths.RepositoryRoot, "scripts", scenario.Controller);
         var entry = Path.Combine(paths.RepositoryRoot, "scripts", "Invoke-PlannedBenchmark.ps1");
         var host = Path.Combine(paths.RepositoryRoot, "scripts", "Invoke-BenchmarkControllerHost.ps1");
-        var env = Path.Combine(kit, "product.env");
         var root = Path.Combine(paths.RepositoryRoot, "artifacts", "benchmark-launch");
-        foreach (var path in new[] { script, entry, host, env, root }) AssertNoReparse(path);
         var id = "plan-" + Guid.NewGuid().ToString("N");
+        var input = Path.Combine(root, id + "-input");
+        var env = Path.Combine(input, "product.env");
+        foreach (var path in new[] { script, entry, host, env, root }) AssertNoReparse(path);
+        // Freeze observed files from the selected installation. This binds
+        // identity; the existing runtime/route/data/cleanup gates establish compatibility.
+        AppStoragePaths.EnsureSecureDirectory(input);
+        var environment = new Dictionary<string, string>
+        {
+            ["PB_PROXYBRIDGE_CLI_EXE"] = Path.Combine(Path.GetFullPath(selection.InstallationDirectory), "ProxyBridge_CLI.exe"),
+            ["PB_DRIVER_PATH"] = BenchmarkLabService.ResolveDriverPath(selection),
+            ["PB_PROXYBRIDGE_SERVICE"] = "ProxyBridgeDrv",
+            ["PB_PROXYBRIDGE_CLI_VARIANT"] = observation.GetProperty("cli_output_contract").GetString()!
+        };
+        foreach (var component in observation.GetProperty("components").EnumerateArray())
+        {
+            var key = component.GetProperty("id").GetString() switch { "cli" => "PB_EXPECTED_PROXYBRIDGE_CLI_SHA256", "core" => "PB_EXPECTED_PROXYBRIDGE_CORE_SHA256", "driver" => "PB_EXPECTED_DRIVER_SHA256", _ => throw new InvalidOperationException("INVALID_PRODUCT_SELECTION") };
+            environment.Add(key, component.GetProperty("sha256").GetString()!);
+        }
+        await File.WriteAllLinesAsync(env, environment.Select(pair => pair.Key + "=" + pair.Value), new System.Text.UTF8Encoding(false), cancellationToken);
         var build = await lab.BindBuildAsync(selection, observation, cancellationToken);
+        var dependencyCatalog = Path.Combine(paths.RepositoryRoot, "config", "local-controller-dependencies.json");
+        AssertNoReparse(dependencyCatalog);
+        if (new FileInfo(dependencyCatalog).Length > 65536) throw new InvalidOperationException("LAB_DEPENDENCY_CATALOG_INVALID");
+        using var dependencyDocument = JsonDocument.Parse(await File.ReadAllTextAsync(dependencyCatalog, cancellationToken));
+        var dependencyFiles = dependencyDocument.RootElement.GetProperty("files").EnumerateArray().Select(value => value.GetString()!).ToArray();
+        if (dependencyDocument.RootElement.GetProperty("schema_version").GetInt32() != 1 || dependencyFiles.Length is < 1 or > 100 ||
+            dependencyFiles.Distinct(StringComparer.Ordinal).Count() != dependencyFiles.Length ||
+            dependencyFiles.Any(file => !System.Text.RegularExpressions.Regex.IsMatch(file, "^(modules/[A-Za-z0-9]+\\.psm1|src/pb_[a-z0-9_]+\\.(py|cs|c)|scripts/Invoke-[A-Za-z0-9]+\\.ps1)$")))
+            throw new InvalidOperationException("LAB_DEPENDENCY_CATALOG_INVALID");
+        var dependencyHashes = dependencyFiles.ToDictionary(file => file, file => { var path = Path.Combine(paths.RepositoryRoot, file); AssertNoReparse(path); return Hash(path); });
         var plan = new
         {
             schema_version = 1, id, contract = "driver", mode = request.Mode, scenario = request.Scenario,
             profile = scenario.Profile, controller_file = scenario.Controller,
             controller_sha256 = Hash(script), entry_sha256 = Hash(entry), host_sha256 = Hash(host), env_sha256 = Hash(env),
+            dependency_catalog_sha256 = Hash(dependencyCatalog), dependency_hashes = dependencyHashes,
             bundle_sha256 = observation.GetProperty("bundle_sha256").GetString(),
+            selection_binding = BenchmarkLabService.SelectionBinding(selection), environment_contract = "selected-installation-v1",
             build_id = build.Id, build_name_at_run = build.DisplayName,
             created_at_utc = DateTimeOffset.UtcNow, preparation_scope = "files-on-disk", runtime_ready = false
             ,workload_preset = workload, workload_catalog_sha256 = workload is null || request.Scenario == "tcp_connections" ? null : Hash(Path.Combine(paths.RepositoryRoot, "config", "benchmark-workloads.json")),
-            workload_module_sha256 = workload is null ? null : Hash(Path.Combine(paths.RepositoryRoot, "modules", request.Scenario == "tcp_connections" ? "ConnectionLoad.psm1" : "BenchmarkWorkload.psm1")),
+            workload_module_sha256 = workload is null ? null : Hash(Path.Combine(paths.RepositoryRoot, "modules", request.Scenario == "tcp_connections" ? "ConnectionLoad.psm1" : request.Scenario == "udp_echo" ? "UdpWorkload.psm1" : request.Scenario == "tcp_loaded_rtt" ? "LoadedRttWorkload.psm1" : "BenchmarkWorkload.psm1")),
             connection_proxy_sha256 = request.Scenario == "tcp_connections" ? Hash(Path.Combine(paths.RepositoryRoot, "src", "pb_controlled_tcp_proxy.py")) : null,
             connection_report_sha256 = request.Scenario == "tcp_connections" ? Hash(Path.Combine(paths.RepositoryRoot, "src", "pb_tcp_connections_report.py")) : null
         };
@@ -86,15 +114,15 @@ public sealed class BenchmarkLaunchPlanService(AppPaths paths, BenchmarkLabServi
             profile = workload is null ? scenario.Profile : "WORKLOAD", workload_preset = workload, estimated_minutes = minutes, command,
             build_id = build.Id, build_name = build.DisplayName,
             runtime_ready = false, product_started = false, traffic_generated = false,
-            controller_checks_required = true, gui_launch_supported = request.Scenario is "tcp_rtt" or "tcp_transfer" or "tcp_rtt_three_modes" or "tcp_connections"
+            controller_checks_required = true, gui_launch_supported = request.Scenario is "tcp_rtt" or "tcp_transfer" or "tcp_upload" or "tcp_download" or "tcp_rtt_three_modes" or "tcp_connections"
         };
     }
 
     public async Task<object> PrepareSuiteAsync(BenchmarkSuiteRequest request, CancellationToken token)
     {
-        if (request.Scenarios is null || request.Scenarios.Length is < 1 or > 4 ||
+        if (request.Scenarios is null || request.Scenarios.Length is < 1 or > 8 ||
             request.Scenarios.Distinct(StringComparer.Ordinal).Count() != request.Scenarios.Length ||
-            request.Scenarios.Any(item => item is not ("tcp_rtt" or "tcp_transfer" or "tcp_rtt_three_modes" or "tcp_connections")) ||
+            request.Scenarios.Any(item => item is not ("tcp_rtt" or "tcp_transfer" or "tcp_upload" or "tcp_download" or "tcp_rtt_three_modes" or "tcp_connections" or "udp_echo" or "tcp_loaded_rtt")) ||
             (request.Tests is not null && (request.Tests.Any(test => test is null) || request.Tests.Length != request.Scenarios.Length ||
                 !request.Tests.Select(test => test.Scenario).Order().SequenceEqual(request.Scenarios.Order()))))
             return Blocked("SUITE_SELECTION_INVALID");
@@ -103,7 +131,7 @@ public sealed class BenchmarkLaunchPlanService(AppPaths paths, BenchmarkLabServi
         string? buildId = null, buildName = null, bundle = null;
         var minutes = 0;
         var minimumMinutes = 0;
-        foreach (var scenario in new[] { "tcp_rtt", "tcp_transfer", "tcp_rtt_three_modes", "tcp_connections" }.Where(request.Scenarios.Contains))
+        foreach (var scenario in new[] { "tcp_rtt", "tcp_transfer", "tcp_upload", "tcp_download", "tcp_rtt_three_modes", "tcp_connections", "udp_echo", "tcp_loaded_rtt" }.Where(request.Scenarios.Contains))
         {
             var choice = request.Tests?.Single(test => test.Scenario == scenario);
             var prepared = JsonSerializer.SerializeToElement(await PrepareAsync(new(request.Mode, scenario, choice?.Duration, choice?.Load), token));
@@ -117,7 +145,7 @@ public sealed class BenchmarkLaunchPlanService(AppPaths paths, BenchmarkLabServi
             bundle = currentBundle;
             buildId = prepared.GetProperty("build_id").GetString()!;
             buildName ??= prepared.GetProperty("build_name").GetString()!;
-            tests.Add(new(id, scenario, Hash(file), scenario == "tcp_transfer" ? 4 : scenario == "tcp_rtt_three_modes" ? 3 : 2, choice?.Duration, choice?.Load));
+            tests.Add(new(id, scenario, Hash(file), BenchmarkLocalCatalog.TotalRuns(scenario), choice?.Duration, choice?.Load));
             var estimate = prepared.GetProperty("estimated_minutes").GetString()!.Split('–');
             minimumMinutes += int.Parse(estimate[0], System.Globalization.CultureInfo.InvariantCulture);
             minutes += int.Parse(estimate[1], System.Globalization.CultureInfo.InvariantCulture);

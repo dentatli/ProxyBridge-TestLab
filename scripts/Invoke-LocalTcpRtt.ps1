@@ -32,7 +32,8 @@ $pairedDriver=$ProductContract -eq 'driver' -and -not [string]::IsNullOrWhiteSpa
 if ($ThreeModes -and ($ProductContract -ne 'driver' -or $Profile -ne 'SMOKE' -or $LegacyRttDirectory -or $LegacyIdleDirectory -or $LegacySmokeDirectory)) { throw 'TCP_THREE_MODES_REQUIRES_DRIVER_SMOKE_WITHOUT_VERSION_REFERENCE' }
 if ($LegacyRttDirectory -and (-not $pairedDriver -or $Profile -ne 'STANDARD')) { throw 'TCP_VERSION_DRIVER_REQUIRES_STANDARD_AND_LEGACY_RTT_REFERENCE' }
 if (-not $EnvPath) { $EnvPath=Join-Path $root ('artifacts/product-builds/'+$(if ($ProductContract -eq 'driver') {'driver-63be0eb'} else {'v4.0.0-release'})+'-testlab-cli/product.env') }
-if (-not $PythonPath) { $PythonPath=Join-Path $env:USERPROFILE '.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe' }
+Import-Module (Join-Path $root 'modules/LocalRuntime.psm1')
+if (-not $PythonPath) { $PythonPath=Get-LocalPythonExecutable -Root $root }
 $client=Join-Path $root 'bin/tcp-rtt/pb_tcp_rtt_client.exe'
 $receiver=Join-Path $root 'src/pb_net_endpoint.py'
 $buildReceipt=Join-Path $root 'bin/tcp-rtt/build-receipt.json'
@@ -409,7 +410,7 @@ function Invoke-TcpRun([string]$mode,[string]$directory) {
             $sink={param($value) & $writeJsonCommand $value (Join-Path $directory 'cli-lifecycle.json')}.GetNewClosure()
             $lifecycle=Invoke-ProxyBridgeCliLifecycle -Plan $cliPlan -ProcessAdapter $adapter -AllowProductRuntime -Workload $workload -EvidenceSink $sink
             if (-not $lifecycle.ready -or -not $lifecycle.graceful_stop -or $lifecycle.forced_stop -or -not $lifecycle.post_stop_verified -or $lifecycle.process_result.exit_code -ne 0) { throw 'TCP_CLI_LIFECYCLE_FAILED' }
-            $records=@(ConvertFrom-ProxyBridgeTextLines -Lines @($lifecycle.process_result.stdout -split '\r?\n') -DefaultTimestampUtc ([DateTime]::Parse($lifecycle.started_at_utc)))
+            $records=@(ConvertFrom-ProxyBridgeCapturedOutput -ProcessResult $lifecycle.process_result -EvidenceDirectory $directory -Environment $environment -DefaultTimestampUtc ([DateTime]::Parse($lifecycle.started_at_utc)))
             Write-Json $records (Join-Path $directory 'route-observations.json')
         } else { $null=& $workload $null }
         $receipt.status='COMPLETED'

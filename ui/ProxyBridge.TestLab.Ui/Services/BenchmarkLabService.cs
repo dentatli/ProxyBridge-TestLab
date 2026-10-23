@@ -7,8 +7,26 @@ namespace ProxyBridge.TestLab.Ui.Services;
 public sealed record ProductSelectionRequest(string InstallationDirectory, string Contract, string? DriverPath, string? DisplayName = null);
 
 /// <summary>Files-only selection and saved report display; never starts a benchmark or product.</summary>
-public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage, DpapiSecretProtector protector, BenchmarkBuildCatalog builds)
+public sealed partial class BenchmarkLabService(AppPaths paths, AppStoragePaths storage, DpapiSecretProtector protector, BenchmarkBuildCatalog builds)
 {
+    internal static string ResolveDriverPath(ProductSelectionRequest request)
+    {
+        if (!string.IsNullOrWhiteSpace(request.DriverPath)) return Path.GetFullPath(request.DriverPath);
+        var local = Path.Combine(Path.GetFullPath(request.InstallationDirectory), "ProxyBridgeDrv.sys");
+        if (File.Exists(local)) return local;
+        var registered = Microsoft.Win32.Registry.GetValue(@"HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Services\ProxyBridgeDrv", "ImagePath", null) as string;
+        if (registered is null) return local;
+        registered = registered.Trim().Trim('"');
+        if (registered.StartsWith(@"\??\", StringComparison.Ordinal)) registered = registered[4..];
+        if (registered.StartsWith(@"\SystemRoot\", StringComparison.OrdinalIgnoreCase)) registered = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), registered[12..]);
+        else if (registered.StartsWith(@"%SystemRoot%\", StringComparison.OrdinalIgnoreCase)) registered = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), registered[13..]);
+        else if (registered.StartsWith(@"System32\", StringComparison.OrdinalIgnoreCase)) registered = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), registered);
+        if (!IsLocalPath(registered) || !registered.EndsWith(".sys", StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("INVALID_PRODUCT_SELECTION");
+        return Path.GetFullPath(registered);
+    }
+
+    internal static string SelectionBinding(ProductSelectionRequest request) => Convert.ToHexStringLower(SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(
+        request.Contract + "\n" + Path.GetFullPath(request.InstallationDirectory).TrimEnd('\\', '/').ToUpperInvariant() + "\n" + ResolveDriverPath(request).ToUpperInvariant())));
     private readonly SemaphoreSlim _gate = new(1, 1);
     private string SelectionPath => Path.Combine(storage.ConfigRoot, "benchmark-selection.dpapi");
 
@@ -328,9 +346,11 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
         var unreadable = 0;
         if (!Directory.Exists(root)) return new { items, unreadable };
         if (IsReparse(root)) return new { items, unreadable = 1 };
-        foreach (var directory in Directory.EnumerateDirectories(root, "lab-tcp_transfer-smoke-*").Where(directory => evidenceId is null || Path.GetFileName(directory) == evidenceId).OrderDescending().Take(evidenceId is null ? 50 : 1))
+        foreach (var directory in new[] { "tcp_transfer", "tcp_upload", "tcp_download" }.SelectMany(scenario => Directory.EnumerateDirectories(root, "lab-" + scenario + "-smoke-*")).Where(directory => evidenceId is null || Path.GetFileName(directory) == evidenceId).OrderByDescending(Directory.GetCreationTimeUtc).Take(evidenceId is null ? 150 : 1))
         {
             var id = Path.GetFileName(directory);
+            var scenario = id.StartsWith("lab-tcp_upload-", StringComparison.Ordinal) ? "tcp_upload" : id.StartsWith("lab-tcp_download-", StringComparison.Ordinal) ? "tcp_download" : "tcp_transfer";
+            var selectedDirections = scenario == "tcp_upload" ? new[] { "push" } : scenario == "tcp_download" ? ["pull"] : ["push", "pull"];
             try
             {
                 using var manifestDocument = ReadBoundedJson(Path.Combine(directory, "comparison-manifest.json"));
@@ -342,7 +362,8 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
                     manifest.GetProperty("product_label").GetString() != "driver" || manifest.GetProperty("transfer_bytes").GetInt64() != volume ||
                     manifest.GetProperty("rate_limit_bytes_per_s").GetInt64() != rate || manifest.GetProperty("pair_count").GetInt32() != 1 ||
                     manifest.GetProperty("tcp_shutdown_policy").GetString() != "data-transfer-only-v1" ||
-                    manifest.GetProperty("shutdown_mode").GetString() != "rude")
+                    manifest.GetProperty("shutdown_mode").GetString() != "rude" ||
+                    !manifest.GetProperty("directions").EnumerateArray().Select(value => value.GetString()).SequenceEqual(selectedDirections))
                     throw new InvalidOperationException("LOCAL_TRANSFER_PROFILE_UNSUPPORTED");
                 var created = DateTimeOffset.Parse(manifest.GetProperty("started_at_utc").GetString()!);
                 var status = manifest.GetProperty("status").GetString();
@@ -357,13 +378,13 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
                         using var reportDocument = ReadBoundedJson(Path.Combine(directory, "comparison-report.json"));
                         var report = reportDocument.RootElement;
                         if (report.GetProperty("status").GetString() != "LIMITED_COMPARISON" || report.GetProperty("errors").GetArrayLength() != 0 ||
-                            report.GetProperty("runs").GetArrayLength() != 4 || report.GetProperty("pairs").GetArrayLength() != 2 ||
-                            manifest.GetProperty("runs").GetArrayLength() != 4 || !string.IsNullOrEmpty(manifest.GetProperty("error").GetString()) ||
+                            report.GetProperty("runs").GetArrayLength() != selectedDirections.Length * 2 || report.GetProperty("pairs").GetArrayLength() != selectedDirections.Length ||
+                            manifest.GetProperty("runs").GetArrayLength() != selectedDirections.Length * 2 || !string.IsNullOrEmpty(manifest.GetProperty("error").GetString()) ||
                             !report.GetProperty("transfer_only").GetBoolean() || report.GetProperty("normal_tcp_close_verified").GetBoolean())
                             throw new InvalidOperationException("LOCAL_TRANSFER_REPORT_NOT_CONFIRMED");
                         var values = new Dictionary<string, JsonElement>();
                         string? bundle = null;
-                        var expectedNames = new[] { "push-pair-01-off", "push-pair-01-proxy", "pull-pair-01-off", "pull-pair-01-proxy" };
+                        var expectedNames = selectedDirections.SelectMany(direction => new[] { direction + "-pair-01-off", direction + "-pair-01-proxy" }).ToArray();
                         var index = 0;
                         foreach (var run in report.GetProperty("runs").EnumerateArray())
                         {
@@ -407,7 +428,7 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
                             values.Add(direction + "-" + mode, result);
                         }
                         var directions = new Dictionary<string, object>();
-                        foreach (var direction in new[] { "push", "pull" })
+                        foreach (var direction in selectedDirections)
                         {
                             var pairs = report.GetProperty("pairs").EnumerateArray().Where(pair => pair.GetProperty("direction").GetString() == direction).ToArray();
                             if (pairs.Length != 1 || pairs[0].GetProperty("pair").GetInt32() != 1) throw new InvalidOperationException("LOCAL_TRANSFER_PAIR_INVALID");
@@ -429,20 +450,20 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
                 }
                 items.Add(new
                 {
-                    id, created_at_utc = created, contract = "driver", scenario = "tcp_transfer", profile = workload is null ? "SMOKE" : "WORKLOAD", workload_preset = workload,
+                    id, created_at_utc = created, contract = "driver", scenario, profile = workload is null ? "SMOKE" : "WORKLOAD", workload_preset = workload,
                     build = ReportBuild(directory, confirmed ? verifiedBundle : null, buildBindings),
                     attempt_status = status, terminal = status is "COMPLETED" or "FAILED" or "CANCELLED",
                     conditions_key = confirmed ? conditionsKey : null,
                     status = confirmed ? "LIMITED_COMPARISON" : status is "FAILED" or "CANCELLED" ? status : "INCONCLUSIVE",
                     correctness = confirmed ? "PASS" : "NOT_CONFIRMED", direction_metrics = metrics,
-                    verified_payload_bytes = confirmed ? volume * 4 : (long?)null, normal_tcp_close_verified = false,
+                    verified_payload_bytes = confirmed ? volume * selectedDirections.Length * 2 : (long?)null, normal_tcp_close_verified = false,
                     saved_evidence_only = true, runtime_state_observed = false
                 });
             }
             catch (Exception error) when (IsSavedReportError(error))
             {
                 unreadable++;
-                items.Add(UnreadableLocalAttempt(directory, "tcp_transfer", buildBindings));
+                items.Add(UnreadableLocalAttempt(directory, scenario, buildBindings));
             }
         }
         return new { items, unreadable };
@@ -500,7 +521,7 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
                         foreach (var cohort in cohorts)
                         {
                             var requested = cohort.GetProperty("requested_connections").GetInt32();
-                            if (requested is < 1 or > 640 || cohort.GetProperty("status").GetString() != "MEASURED" || cohort.GetProperty("errors").GetArrayLength() != 0 ||
+                            if (requested is < 1 or > 840 || cohort.GetProperty("status").GetString() != "MEASURED" || cohort.GetProperty("errors").GetArrayLength() != 0 ||
                                 cohort.GetProperty("successful_connections").GetInt32() != requested || cohort.GetProperty("confirmed_concurrent_connections").GetInt32() != requested) confirmed = false;
                             var pc = cohort.GetProperty("pc");
                             var cpu = mode == "PROXY" ? pc.GetProperty("proxybridge_cli").GetProperty("cpu_pct_machine_mean").GetDouble() : (double?)null;
@@ -555,7 +576,7 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
                 var workload = SavedWorkload(plan);
                 if (plan.GetProperty("id").GetString() != job.PlanId || plan.GetProperty("contract").GetString() != "driver" ||
                     plan.GetProperty("mode").GetString() != "local" || plan.GetProperty("profile").GetString() != "SMOKE" ||
-                    scenario is not ("tcp_rtt" or "tcp_transfer" or "tcp_rtt_three_modes" or "tcp_connections")) throw new InvalidOperationException("HISTORY_PLAN_INVALID");
+                    scenario is not ("tcp_rtt" or "tcp_transfer" or "tcp_upload" or "tcp_download" or "tcp_rtt_three_modes" or "tcp_connections" or "udp_echo" or "tcp_loaded_rtt")) throw new InvalidOperationException("HISTORY_PLAN_INVALID");
                 var buildId = BenchmarkBuildCatalog.Identity("driver", plan.GetProperty("bundle_sha256").GetString()!);
                 if (plan.TryGetProperty("build_id", out var storedId) && storedId.GetString() != buildId)
                     throw new InvalidOperationException("HISTORY_BUILD_INVALID");
@@ -581,6 +602,7 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
                     contract = "driver", scenario, profile = workload is null ? "SMOKE" : "WORKLOAD", workload_preset = workload, status = job.Status, terminal = job.Terminal,
                     evidence_id = evidenceId,
                     not_started = job.Reason == "SUITE_TEST_NOT_STARTED",
+                    failure_code = job.Reason is not null && System.Text.RegularExpressions.Regex.IsMatch(job.Reason, "^[A-Z][A-Z0-9_]{3,127}$") ? job.Reason : null,
                     build = new { id = buildId, name_at_run = name, plan_id = job.PlanId, identity_scope = "planned-files" },
                     correctness = "NOT_CONFIRMED", saved_evidence_only = true
                 });
@@ -598,7 +620,8 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
     private JsonElement? SavedWorkload(JsonElement data)
     {
         if (!data.TryGetProperty("workload_preset", out var workload) || workload.ValueKind == JsonValueKind.Null) return null;
-        JsonElement? expected = workload.TryGetProperty("method", out var method) && method.GetString() == "tcp-connection-load-v1" ? ConnectionWorkload.Resolve(workload.GetProperty("duration").GetString(), workload.GetProperty("load").GetString()) : BenchmarkWorkload.Resolve(paths.RepositoryRoot, workload.GetProperty("duration").GetString(), workload.GetProperty("load").GetString());
+        var scenario = workload.GetProperty("method").GetString() switch { "tcp-connection-load-v1" => "tcp_connections", "controlled-udp-workload-v1" => "udp_echo", "controlled-loaded-rtt-v1" => "tcp_loaded_rtt", _ => "tcp_rtt" };
+        JsonElement? expected = BenchmarkWorkload.ResolveScenario(paths.RepositoryRoot, scenario, workload.GetProperty("duration").GetString(), workload.GetProperty("load").GetString());
         if (expected is null || !BenchmarkWorkload.Matches(workload, expected.Value)) throw new InvalidOperationException("LOCAL_WORKLOAD_INVALID");
         return workload.Clone();
     }
@@ -632,7 +655,7 @@ public sealed class BenchmarkLabService(AppPaths paths, AppStoragePaths storage,
                     plan.GetProperty("contract").GetString() != "driver" || plan.GetProperty("mode").GetString() != "local" ||
                     plan.GetProperty("profile").GetString() != "SMOKE") continue;
                 var scenario = plan.GetProperty("scenario").GetString();
-                if (scenario is not ("tcp_rtt" or "tcp_transfer" or "tcp_rtt_three_modes" or "tcp_connections")) continue;
+                if (scenario is not ("tcp_rtt" or "tcp_transfer" or "tcp_upload" or "tcp_download" or "tcp_rtt_three_modes" or "tcp_connections" or "udp_echo" or "tcp_loaded_rtt")) continue;
                 var bundle = plan.GetProperty("bundle_sha256").GetString()!;
                 var identity = BenchmarkBuildCatalog.Identity("driver", bundle);
                 if (plan.TryGetProperty("build_id", out var buildId) && buildId.GetString() != identity) continue;

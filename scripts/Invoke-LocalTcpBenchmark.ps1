@@ -18,13 +18,15 @@ param(
     [string]$DriverTransferDirectory='',
     [string]$CancellationPath='',
     [ValidateSet('SHORT','NORMAL','LONG')][string]$Duration='',
-    [ValidateSet('LOW','HIGH')][string]$Load=''
+    [ValidateSet('LOW','HIGH')][string]$Load='',
+    [ValidateSet('both','push','pull')][string]$Direction='both'
 )
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 $presetMode=[bool]($Duration -or $Load)
 $workload=$null
+if ($Direction -ne 'both' -and (-not $presetMode -or -not $TransferOnly -or $ProductContract -ne 'driver' -or $Resume)) { throw 'TCP_SINGLE_DIRECTION_REQUIRES_FRESH_DRIVER_WORKLOAD' }
 if ($presetMode) {
     if (-not $Duration -or -not $Load -or $ProductContract -ne 'driver' -or $Profile -ne 'SMOKE' -or -not $TransferOnly -or $Resume -or $LegacyIdleDirectory -or $LegacyTransferDirectory -or $DriverSmokeDirectory -or $DriverTransferDirectory -or $DiagnosticRudeShutdown -or $DiagnosticGracefulShutdown -or $DiagnosticHalfCloseFixture -or $DiagnosticCloseMetadata) { throw 'TCP_WORKLOAD_REQUIRES_FRESH_DRIVER_DATA_ONLY' }
     Import-Module (Join-Path $root 'modules/BenchmarkWorkload.psm1')
@@ -49,9 +51,10 @@ $legacyStage=$(if ($repeatLegacy) {'transfer_data_standard_v1'} elseif ($Transfe
 $shutdownMode=$(if ($DiagnosticRudeShutdown -or $TransferOnly) {'rude'} else {'graceful'})
 if ($CancellationPath -and ($ProductContract -ne 'driver' -or $Profile -ne 'SMOKE' -or -not $TransferOnly -or $Resume -or $shutdownDiagnostic)) { throw 'TCP_CANCEL_REQUIRES_FRESH_DRIVER_DATA_SMOKE' }
 $consoleVerbosity=$(if ($DiagnosticGracefulShutdown) {6} else {1})
-$directions=$(if ($shutdownDiagnostic) {@('push')} else {@('push','pull')})
+$directions=$(if ($shutdownDiagnostic) {@('push')} elseif ($Direction -ne 'both') {@($Direction)} else {@('push','pull')})
 if (-not $EnvPath) { $EnvPath=Join-Path $root ('artifacts/product-builds/'+$(if ($ProductContract -eq 'driver') {'driver-63be0eb'} else {'v4.0.0-release'})+'-testlab-cli/product.env') }
-if (-not $PythonPath) { $PythonPath=Join-Path $env:USERPROFILE '.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe' }
+Import-Module (Join-Path $root 'modules/LocalRuntime.psm1')
+if (-not $PythonPath) { $PythonPath=Get-LocalPythonExecutable -Root $root }
 $tool=Join-Path $root 'bin/tools/ctstraffic-2.0.3.9'
 $client=Join-Path $tool 'ctsTraffic.exe'
 $receiver=Join-Path $tool 'ctsTrafficReceiver.exe'
@@ -176,7 +179,7 @@ $rate=$(if ($Profile -eq 'SMOKE') {8388608} else {67108864})
 if ($repeatDriver -or $repeatLegacy) { $bytes=2147483648 } # Same bounded transfer in both repeated version stages.
 if ($presetMode) { $bytes=$workload.transfer_bytes;$rate=$workload.rate_limit_bytes_per_s }
 $nativeTimeoutMs=$(if ($presetMode) {$workload.native_timeout_ms} else {120000})
-$manifest=[ordered]@{schema_version=1;status='RUNNING';profile=$Profile;started_at_utc=[DateTime]::UtcNow.ToString('o');pair_count=$pairs;transfer_bytes=$bytes;rate_limit_bytes_per_s=$rate;connections=1;buffer_bytes=65536;verify='data';directions=@('push','pull');runs=@();error='';version_switch_ready=$false}
+$manifest=[ordered]@{schema_version=1;status='RUNNING';profile=$Profile;started_at_utc=[DateTime]::UtcNow.ToString('o');pair_count=$pairs;transfer_bytes=$bytes;rate_limit_bytes_per_s=$rate;connections=1;buffer_bytes=65536;verify='data';directions=@();runs=@();error='';version_switch_ready=$false}
 if ($ProductContract -eq 'v4.0.0') { $manifest['product_contract']=$ProductContract;$manifest['readiness_only']=$true;$manifest['legacy_transfer_stage']=$legacyStage;$manifest['legacy_idle_directory']=$LegacyIdleDirectory }
 if ($shutdownDiagnostic) { $manifest['diagnostic_only']=$true;$manifest['shutdown_mode']=$shutdownMode;$manifest['console_verbosity']=$consoleVerbosity;$manifest['directions']=@('push');$manifest['readiness_only']=$false }
 if ($DiagnosticHalfCloseFixture) { $manifest['tcp_fixture_revision']='halfclose_diagnostic_v1' }
@@ -414,7 +417,7 @@ function Invoke-TcpRun([string]$mode,[string]$direction,[string]$directory) {
             $sink={param($value) & $writeJsonCommand $value (Join-Path $directory 'cli-lifecycle.json')}.GetNewClosure()
             $lifecycle=Invoke-ProxyBridgeCliLifecycle -Plan $cliPlan -ProcessAdapter $adapter -AllowProductRuntime -Workload $workload -EvidenceSink $sink
             if (-not $lifecycle.ready -or -not $lifecycle.graceful_stop -or $lifecycle.forced_stop -or -not $lifecycle.post_stop_verified -or $lifecycle.process_result.exit_code -ne 0) { throw 'TCP_CLI_LIFECYCLE_FAILED' }
-            $records=@(ConvertFrom-ProxyBridgeTextLines -Lines @($lifecycle.process_result.stdout -split '\r?\n') -DefaultTimestampUtc ([DateTime]::Parse($lifecycle.started_at_utc)))
+            $records=@(ConvertFrom-ProxyBridgeCapturedOutput -ProcessResult $lifecycle.process_result -EvidenceDirectory $directory -Environment $environment -DefaultTimestampUtc ([DateTime]::Parse($lifecycle.started_at_utc)))
             Write-Json $records (Join-Path $directory 'route-observations.json')
         } else { $null=& $workload $null }
         $receipt.status='COMPLETED'
@@ -579,7 +582,7 @@ try {
                 if ($name -eq $retryOriginalName) { $name+=$retrySuffix }
                 $entry=[ordered]@{direction=$direction;pair=$pair;mode=$mode;directory=$name;status='RUNNING'}
                 $manifest.runs+=$entry;Save-Manifest
-                Write-Host ('['+$manifest.runs.Count+'/'+$(if ($shutdownDiagnostic) {1} else {$pairs*4})+'] '+$name)
+                Write-Host ('['+$manifest.runs.Count+'/'+$(if ($shutdownDiagnostic) {1} else {$pairs*$directions.Count*2})+'] '+$name)
                 Invoke-TcpRun $mode $direction (Join-Path $EvidenceDirectory $name)
                 $entry.status='COMPLETED';Save-Manifest
             }

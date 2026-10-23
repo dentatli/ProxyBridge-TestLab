@@ -20,7 +20,6 @@ function New-ProxyBridgeCliPlan {
     if ($ProductProfileContract -eq 'v4.0.0' -or [string]::IsNullOrWhiteSpace($ReadyRegex)) { $ReadyRegex = '(?m)^ProxyBridge is running\. Press Ctrl\+C to stop\.\r?$' }
     if ($StopTimeoutMs -gt 60000) { throw 'CLI_STOP_TIMEOUT_EXCEEDS_60000_MS' }
     if ($ReadinessTimeoutMs -lt 1 -or $StopTimeoutMs -lt 1 -or $ActualPathTimeoutMs -lt 1 -or $ReadyStableMs -lt 0) { throw 'CLI_TIMEOUT_CONFIGURATION_INVALID' }
-    if ([string]::IsNullOrWhiteSpace($ReadyRegex) -and $ReadyStableMs -lt 1) { throw 'CLI_READINESS_SIGNAL_REQUIRED' }
     if (-not [string]::IsNullOrWhiteSpace($ReadyRegex)) {
         try { $null = [regex]::new($ReadyRegex, [System.Text.RegularExpressions.RegexOptions]::IgnoreCase) }
         catch { throw 'CLI_READINESS_REGEX_INVALID' }

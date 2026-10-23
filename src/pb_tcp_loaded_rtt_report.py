@@ -141,6 +141,14 @@ def evaluate_loaded_run(path):
                   direction=direction, load_overlap=overlap, load_connection_id=client['ConnectionId'],
                   load_verified_payload_bytes=int(client[sent]), load_transfer_ms=transfer_ms,
                   load_useful_mbit_per_s=load['transfer_bytes']*8/(transfer_ms*1000) if transfer_ms > 0 else None)
+    if cfg.get('loaded_workload_preset') is not None:
+        from pb_workload import valid_loaded_workload
+        preset = cfg['loaded_workload_preset']
+        if (not valid_loaded_workload(preset) or
+                any(cfg.get(key) != preset[key] for key in ('echo_count', 'warmup_count', 'message_bytes', 'pause_ms')) or
+                any(load.get(key) != preset[key] for key in ('transfer_bytes', 'rate_limit_bytes_per_s'))):
+            errors.append('Loaded RTT preset or observed traffic differs')
+            result.update(status='INCONCLUSIVE', correctness='INCONCLUSIVE')
     if socket_observation is not None:
         result['diagnostic_socket_observation'] = socket_observation
     return result
@@ -155,6 +163,10 @@ def run_report(path):
 
 def comparison(path):
     manifest = read(path/'comparison-manifest.json'); runs = []; conditions = []; errors = []; pairs = []
+    if manifest.get('workload_preset') is not None:
+        from pb_workload import valid_loaded_workload
+        if not valid_loaded_workload(manifest['workload_preset']):
+            errors.append('LOADED_RTT_WORKLOAD_INVALID')
     if manifest.get('diagnostic_only'):
         errors.append('Isolated diagnostic is not a paired comparison')
     if manifest.get('proxy_accepted_tcp_nodelay') and manifest.get('tcp_fixture_revision') != 'accepted_nodelay_v1':
@@ -165,6 +177,8 @@ def comparison(path):
                 report['mode'] != entry['mode'] or report['direction'] != entry['direction']):
             errors.append(entry['directory']+': loaded measurement not confirmed')
         cfg = {k:v for k,v in report['config'].items() if k not in ('run_id','receiver_pid','proxy_pid','sampler_pid','load')}
+        if cfg.get('loaded_workload_preset') != manifest.get('workload_preset'):
+            errors.append(entry['directory']+': loaded workload differs from manifest')
         load = {k:v for k,v in report['config']['load'].items() if k not in ('direction','receiver_pid')}
         if (bool(cfg.get('proxy_accepted_tcp_nodelay')) != bool(manifest.get('proxy_accepted_tcp_nodelay')) or
                 cfg.get('tcp_fixture_revision') != manifest.get('tcp_fixture_revision')):

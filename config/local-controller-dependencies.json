@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "files": [
+    "scripts/Invoke-WfpLocalRouteProbe.ps1", "scripts/Invoke-WfpUnruledComparison.ps1",
+    "modules/Env.psm1", "modules/ProductBuild.psm1", "modules/RuntimeEnvironment.psm1",
+    "modules/InterceptionState.psm1", "modules/PnpDriver.psm1", "modules/ProxyBridgeCli.psm1",
+    "modules/ProcessAdapter.psm1", "modules/ProxyBridgeEvidence.psm1", "modules/LocalTcpDirectEvidence.psm1",
+    "modules/LocalRuntime.psm1", "modules/BenchmarkWorkload.psm1", "modules/ConnectionLoad.psm1",
+    "modules/UdpWorkload.psm1", "modules/LoadedRttWorkload.psm1",
+    "src/pb_service_query.cs", "src/pb_loaded_drivers.cs", "src/pb_net_client.c",
+    "src/pb_net_endpoint.py", "src/pb_pc_sampler.py", "src/pb_controlled_tcp_proxy.py",
+    "src/pb_controlled_udp_proxy.py", "src/pb_tcp_nodelay_diagnostic.py", "src/pb_proactor_close_guard.py",
+    "src/pb_tcp_benchmark_report.py", "src/pb_tcp_data_scope.py", "src/pb_tcp_rtt_report.py",
+    "src/pb_tcp_three_mode_report.py", "src/pb_tcp_loaded_rtt_report.py", "src/pb_tcp_connections_report.py",
+    "src/pb_udp_benchmark_report.py", "src/pb_unruled_comparison_report.py", "src/pb_terminal_decode.py", "src/pb_workload.py"
+  ]
+}

@@ -29,3 +29,16 @@ def check_rtt_workload(config, errors):
         errors.append('RTT workload preset or measured parameters differ')
     if config.get('live_socket_observation_policy') != 'owned-socket-snapshot-before-measurement-v1':
         errors.append('Preset requires owned socket observation before measurement')
+
+
+def valid_loaded_workload(value):
+    try:
+        echoes = {'SHORT': 128, 'NORMAL': 1500, 'LONG': 6000}[value['duration']]
+        rate = {'LOW': 8388608, 'HIGH': 67108864}[value['load']]
+        seconds = ((echoes + 100) * 20 + 999) // 1000 + 20
+        return value == dict(method='controlled-loaded-rtt-v1', duration=value['duration'], load=value['load'],
+                             echo_count=echoes, warmup_count=100, message_bytes=512, pause_ms=20,
+                             rate_limit_bytes_per_s=rate, transfer_bytes=seconds*rate,
+                             nominal_transfer_seconds=seconds, pair_count=1)
+    except (KeyError, TypeError):
+        return False

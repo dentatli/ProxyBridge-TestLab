@@ -41,12 +41,13 @@ if ($TrafficMode -eq 'OFF' -and ($Protocol -ne 'UDP' -or -not $UdpBenchmark)) { 
 if ($Protocol -eq 'UDP' -and ($ProxyType -ne 'SOCKS5' -or ($TrafficMode -eq 'RULES' -and $Actions -contains 'DIRECT'))) { throw 'UDP_PROBE_SUPPORTS_SOCKS5_PROXY_OR_UNRULED_ONLY' }
 if ($UdpBenchmark -and ($Protocol -ne 'UDP' -or $ProxyType -ne 'SOCKS5' -or $Actions.Count -ne 1 -or ($TrafficMode -eq 'RULES' -and $Actions[0] -ne 'PROXY'))) { throw 'BENCHMARK_REQUIRES_UDP_SOCKS5_PROXY_OR_UNRULED' }
 $root = Split-Path -Parent $PSScriptRoot
-foreach ($module in @('Env','ProductBuild','RuntimeEnvironment','InterceptionState','PnpDriver','ProxyBridgeCli','ProcessAdapter','ProxyBridgeEvidence')) { Import-Module (Join-Path $root ('modules/' + $module + '.psm1')) }
+foreach ($module in @('Env','ProductBuild','RuntimeEnvironment','InterceptionState','PnpDriver','ProxyBridgeCli','ProcessAdapter','ProxyBridgeEvidence','LocalTcpDirectEvidence')) { Import-Module (Join-Path $root ('modules/' + $module + '.psm1')) }
 if (Test-Path -LiteralPath $EvidenceDirectory) { throw 'PROBE_REQUIRES_NEW_EVIDENCE_DIRECTORY' }
 $null = New-Item -ItemType Directory -Path $EvidenceDirectory
 $EvidenceDirectory = (Resolve-Path -LiteralPath $EvidenceDirectory).Path
 $environment = Import-DotEnv -Path $EnvPath
-$python = Join-Path $root 'bin/dev-venv/Scripts/python.exe'
+Import-Module (Join-Path $root 'modules/LocalRuntime.psm1')
+$python = Get-LocalPythonExecutable -Root $root
 if ($environment.ContainsKey('PB_LOCAL_PYTHON_EXE')) { $python = $environment['PB_LOCAL_PYTHON_EXE'] }
 $receiverPython = ''
 $client = Join-Path $root 'bin/pb_net_client.exe'
@@ -261,6 +262,40 @@ try {
                     }
                 }
                 Start-Sleep -Milliseconds 1000
+            } elseif ($Protocol -eq 'TCP' -and $action -eq 'DIRECT' -and $TrafficMode -eq 'RULES') {
+                # This is a route readiness probe, not an RTT measurement. Hold
+                # the receiver reply to observe the owned relay/receiver tuples.
+                $clientPlan.arguments += @('--endpoint-behavior','delay','--behavior-delay-ms','2000')
+                $timeoutIndex = [Array]::IndexOf($clientPlan.arguments, '--timeout-ms')
+                $clientPlan.arguments[$timeoutIndex+1] = '6000'
+                $clientPlan.timeout_ms = 10000
+                $native = $null
+                $snapshots = [Collections.Generic.List[object]]::new()
+                try {
+                    $native = & $processAdapter.StartProcess $clientPlan
+                    $clock = [Diagnostics.Stopwatch]::StartNew()
+                    $probe = & $processAdapter.ProbeActualPath $native 2000 25
+                    if ($probe.status -ne 'PATH_OBTAINED' -or $probe.actual_path -ine $client) { throw 'DIRECT_CLIENT_PATH_NOT_VERIFIED' }
+                    $native.actual_path = $probe.actual_path
+                    $native.actual_path_probe_status = $probe.status
+                    $native.actual_path_probe_attempts = $probe.attempts
+                    $native.actual_path_probe_elapsed_ms = $probe.elapsed_ms
+                    while ($native.session.IsRunning -and $clock.ElapsedMilliseconds -lt $clientPlan.timeout_ms) {
+                        $connections = @(Get-NetTCPConnection -State Established -ErrorAction Stop | Where-Object {
+                            $_.OwningProcess -in @($native.pid,$ownedCli.pid,$workers[0].process.Id)
+                        } | Select-Object OwningProcess,LocalAddress,LocalPort,RemoteAddress,RemotePort)
+                        $snapshots.Add([ordered]@{observed_at_utc=[DateTime]::UtcNow.ToString('o');connections=$connections})
+                        if ($native.session.WaitForExit(50)) { break }
+                    }
+                    if ($native.session.IsRunning) { $native.timed_out=$true; & $processAdapter.KillProcess $native }
+                    $result = & $processAdapter.GetProcessResult $native
+                    Save-ProbeJson @($snapshots.ToArray()) ($testId + '-tcp-ownership.json')
+                } finally {
+                    if ($null -ne $native) {
+                        try { if (& $processAdapter.IsRunning $native) { & $processAdapter.KillProcess $native } }
+                        finally { & $processAdapter.DisposeProcess $native }
+                    }
+                }
             } else { $result = Invoke-ProcessPlan -Plan $clientPlan -ProcessAdapter $processAdapter -AllowProductRuntime }
             $result | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath (Join-Path $EvidenceDirectory ($testId + '-process.json')) -Encoding UTF8
             $results += [pscustomobject]@{action=$action;test_id=$testId;destination_port=$port;pid=$result.pid;exit_code=$result.exit_code;timed_out=$result.timed_out}
@@ -287,7 +322,7 @@ try {
         }
     }
     $stdout = $lifecycle.process_result.stdout
-    $records = @(ConvertFrom-ProxyBridgeTextLines -Lines @($stdout -split '\r?\n') -DefaultTimestampUtc ([DateTime]::Parse($lifecycle.started_at_utc)))
+    $records = @(ConvertFrom-ProxyBridgeCapturedOutput -ProcessResult $lifecycle.process_result -EvidenceDirectory $EvidenceDirectory -Environment $environment -DefaultTimestampUtc ([DateTime]::Parse($lifecycle.started_at_utc)))
     Save-ProbeJson $records 'route-observations.json'
     $receiver = @(Get-Content $receiverLog | ConvertFrom-Json)
     $proxy = @(Get-Content $proxyLog | ConvertFrom-Json)
@@ -311,6 +346,7 @@ try {
             }
             $payloadVerified = $false
             $socketVerified = $false
+            $directSocketPath = 'UNCONFIRMED'
             $routeVerified = $false
             $unexpectedProxyPath = $false
             $clientCheckPassed = $false
@@ -332,7 +368,13 @@ try {
                         $routeVerified = @($records | Where-Object { $_.event -eq 'ROUTE_DECISION' -and $_.pid -eq $case.pid -and $_.destination_ip -eq '127.0.0.1' -and $_.destination_port -eq $destinationPort -and $_.action -eq 'DIRECT' }).Count -gt 0
                         if ($TrafficMode -eq 'OFF') { $routeVerified = $receipt.product_off_verified }
                         if ($Protocol -eq 'TCP') {
-                            $unexpectedProxyPath = @($proxy | Where-Object { $_.event -eq 'OUTBOUND_CONNECTED' -and $_.destination_port -eq $destinationPort -and $_.outbound_peer_ip -eq '127.0.0.1' -and $_.outbound_peer_port -eq $destinationPort -and $_.outbound_local_ip -eq $received[0].remote_ip -and $_.outbound_local_port -eq $received[0].remote_port }).Count -gt 0
+                            $unexpectedProxyPath = @($proxy | Where-Object { $_.event -eq 'OUTBOUND_CONNECTED' -and $_.destination_port -eq $destinationPort }).Count -gt 0
+                            if ($TrafficMode -eq 'RULES') {
+                                $ownership = @(Get-Content -Raw -LiteralPath (Join-Path $EvidenceDirectory ($case.test_id + '-tcp-ownership.json')) | ConvertFrom-Json)
+                                $directSocketPath = Test-LocalTcpDirectSocketPath -Client $row -Received $received[0] -Snapshots $ownership -ClientPid $case.pid -CliPid $lifecycle.pid -ReceiverPid $workers[0].process.Id -ProxyPort ($BasePort+2) -Routes $records
+                                $socketVerified = $directSocketPath -in @('CLIENT_SOCKET','CORE_RELAY')
+                                $routeVerified = $socketVerified
+                            }
                         } else {
                             $unexpectedProxyPath = @($proxyRows | Where-Object { $_.event -eq 'UDP_OUTBOUND_DATAGRAM' -and $_.destination_ip -eq '127.0.0.1' -and $_.destination_port -eq $destinationPort -and $_.payload_sha256 -eq $row.payload_sha256 -and $_.bytes -eq $row.bytes_sent }).Count -gt 0
                         }
@@ -359,7 +401,7 @@ try {
                 }
             }
             $passed = $payloadVerified -and $clientCheckPassed -and $socketVerified -and $routeVerified -and -not $unexpectedProxyPath -and ($TrafficMode -eq 'OFF' -or $lifecycle.process_result.output_capture_complete)
-            $receipt.cases.Add([ordered]@{sequence=$(if ($null -ne $row) {$row.sequence} else {0});name_ru=$(if ($TrafficMode -eq 'OFF') {'Напрямую, ProxyBridge выключен'} elseif ($TrafficMode -eq 'UNRULED') {'ProxyBridge включён, приложение вне правил'} elseif ($case.action -eq 'DIRECT') {"Прямое $Protocol-соединение"} else {"$Protocol через локальный $ProxyType"});name_en=$(if ($TrafficMode -eq 'OFF') {'Direct, ProxyBridge stopped'} elseif ($TrafficMode -eq 'UNRULED') {'ProxyBridge running, application outside rules'} elseif ($case.action -eq 'DIRECT') {"Direct $Protocol connection"} else {"$Protocol through local $ProxyType"});action=$case.action;client_pid=$case.pid;payload_verified=$payloadVerified;client_check_passed=$clientCheckPassed;client_result=$clientResult;socket_path_verified=$socketVerified;product_route_observed=($TrafficMode -ne 'OFF' -and $routeVerified);mode_state_verified=$routeVerified;unexpected_proxy_path=$unexpectedProxyPath;response_source_mismatch=$responseSourceMismatch;status=$(if ($passed) {'ROUTE_OBSERVED'} elseif ($payloadVerified -and $socketVerified -and $routeVerified -and $responseSourceMismatch -and $lifecycle.process_result.output_capture_complete) {'SOURCE_ENDPOINT_MISMATCH'} elseif ($payloadVerified -and $routeVerified -and $unexpectedProxyPath) {'ROUTE_MISMATCH'} else {'INCONCLUSIVE'})})
+            $receipt.cases.Add([ordered]@{sequence=$(if ($null -ne $row) {$row.sequence} else {0});name_ru=$(if ($TrafficMode -eq 'OFF') {'Напрямую, ProxyBridge выключен'} elseif ($TrafficMode -eq 'UNRULED') {'ProxyBridge включён, приложение вне правил'} elseif ($case.action -eq 'DIRECT') {"Прямое $Protocol-соединение"} else {"$Protocol через локальный $ProxyType"});name_en=$(if ($TrafficMode -eq 'OFF') {'Direct, ProxyBridge stopped'} elseif ($TrafficMode -eq 'UNRULED') {'ProxyBridge running, application outside rules'} elseif ($case.action -eq 'DIRECT') {"Direct $Protocol connection"} else {"$Protocol through local $ProxyType"});action=$case.action;client_pid=$case.pid;payload_verified=$payloadVerified;client_check_passed=$clientCheckPassed;client_result=$clientResult;socket_path_verified=$socketVerified;direct_socket_path=$directSocketPath;product_route_observed=($TrafficMode -ne 'OFF' -and $routeVerified);mode_state_verified=$routeVerified;unexpected_proxy_path=$unexpectedProxyPath;response_source_mismatch=$responseSourceMismatch;status=$(if ($passed) {'ROUTE_OBSERVED'} elseif ($payloadVerified -and $socketVerified -and $routeVerified -and $responseSourceMismatch -and $lifecycle.process_result.output_capture_complete) {'SOURCE_ENDPOINT_MISMATCH'} elseif ($payloadVerified -and $routeVerified -and $unexpectedProxyPath) {'ROUTE_MISMATCH'} else {'INCONCLUSIVE'})})
         }
     }
     $expectedCases = $(if ($UdpBenchmark) { $BenchmarkPacketCount } else { $Actions.Count })

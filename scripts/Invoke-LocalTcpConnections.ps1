@@ -14,7 +14,8 @@ $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
 foreach ($name in @('Env','ProductBuild','RuntimeEnvironment','InterceptionState','ProxyBridgeCli','ProcessAdapter','ProxyBridgeEvidence','ConnectionLoad')) { Import-Module (Join-Path $root ('modules/'+$name+'.psm1')) }
 if (-not $EnvPath) { $EnvPath=Join-Path $root 'artifacts/product-builds/driver-63be0eb-testlab-cli/product.env' }
-if (-not $PythonPath) { $PythonPath=Join-Path $env:USERPROFILE '.cache/codex-runtimes/codex-primary-runtime/dependencies/python/python.exe' }
+Import-Module (Join-Path $root 'modules/LocalRuntime.psm1')
+if (-not $PythonPath) { $PythonPath=Get-LocalPythonExecutable -Root $root }
 $environment=Import-DotEnv $EnvPath
 $observationEnvironment=Import-DotEnv $EnvPath
 # Use the same pinned, list-only observer as the existing three-mode controller.
@@ -260,7 +261,7 @@ function Invoke-ConnectionMode($Mode,$Directory) {
             $sink={param($value) & $writeCommand $value (Join-Path $context.directory 'cli-lifecycle.json')}.GetNewClosure()
             $lifecycle=Invoke-ProxyBridgeCliLifecycle -Plan $plan -ProcessAdapter $adapter -AllowProductRuntime -Workload $workload -EvidenceSink $sink
             if (-not $lifecycle.ready -or -not $lifecycle.graceful_stop -or $lifecycle.forced_stop -or -not $lifecycle.post_stop_verified -or $lifecycle.process_result.exit_code -ne 0) { throw 'CONNECTION_CLI_LIFECYCLE_FAILED' }
-            $records=@(ConvertFrom-ProxyBridgeTextLines -Lines @($lifecycle.process_result.stdout -split '\r?\n') -DefaultTimestampUtc ([DateTime]::Parse($lifecycle.started_at_utc)))
+            $records=@(ConvertFrom-ProxyBridgeCapturedOutput -ProcessResult $lifecycle.process_result -EvidenceDirectory $directory -Environment $environment -DefaultTimestampUtc ([DateTime]::Parse($lifecycle.started_at_utc)))
             Write-ConnectionJson $records (Join-Path $Directory 'route-observations.json')
         } else { & $workload $null }
         if ($receipt.status -ne 'CANCELLED') { $receipt.status='COMPLETED' }

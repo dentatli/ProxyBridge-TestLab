@@ -64,34 +64,47 @@ if ($plan.schema_version -ne 1 -or $plan.id -ne $PlanId -or $plan.contract -ne '
     $plan.preparation_scope -ne 'files-on-disk' -or $plan.runtime_ready) { throw 'LAB_PLAN_CONTRACT_INVALID' }
 $controllers=@{
     tcp_transfer=@('Invoke-LocalTcpBenchmark.ps1','SMOKE')
+    tcp_upload=@('Invoke-LocalTcpBenchmark.ps1','SMOKE')
+    tcp_download=@('Invoke-LocalTcpBenchmark.ps1','SMOKE')
     tcp_rtt=@('Invoke-LocalTcpRtt.ps1','SMOKE')
     tcp_rtt_three_modes=@('Invoke-LocalTcpRtt.ps1','SMOKE')
     tcp_connections=@('Invoke-LocalTcpConnections.ps1','SMOKE')
     tcp_loaded_rtt=@('Invoke-LocalTcpLoadedRtt.ps1','SMOKE')
-    udp_echo=@('Invoke-LocalUdpSoak.ps1','MULTI_TARGET')
+    udp_echo=@('Invoke-LocalUdpBenchmark.ps1','SMOKE')
 }
 if (-not $controllers.ContainsKey([string]$plan.scenario)) { throw 'LAB_PLAN_SCENARIO_INVALID' }
 $definition=$controllers[[string]$plan.scenario]
 if ($plan.controller_file -ne $definition[0] -or $plan.profile -ne $definition[1]) { throw 'LAB_PLAN_CONTROLLER_INVALID' }
 $controller=Join-Path $PSScriptRoot $definition[0]
-$kit=Join-Path $root 'artifacts/product-builds/driver-63be0eb-testlab-cli'
-$envPath=Join-Path $kit 'product.env'
+$envPath=Join-Path $root ('artifacts/benchmark-launch/'+$PlanId+'-input/product.env')
+if (-not $plan.PSObject.Properties['environment_contract'] -or $plan.environment_contract -ne 'selected-installation-v1') { throw 'LAB_PLAN_REQUIRES_NEW_PREPARATION' }
 Assert-Hash $controller $plan.controller_sha256
 Assert-Hash $PSCommandPath $plan.entry_sha256
 $controllerHost=Join-Path $PSScriptRoot 'Invoke-BenchmarkControllerHost.ps1'
 Assert-Hash $controllerHost $plan.host_sha256
 Assert-Hash $envPath $plan.env_sha256
+$dependencyCatalog=Join-Path $root 'config/local-controller-dependencies.json'
+Assert-Hash $dependencyCatalog $plan.dependency_catalog_sha256
+$dependencies=Read-Json $dependencyCatalog
+if ($dependencies.schema_version -ne 1 -or $dependencies.files.Count -lt 1 -or $dependencies.files.Count -gt 100 -or
+    @($plan.dependency_hashes.PSObject.Properties).Count -ne $dependencies.files.Count -or
+    @($dependencies.files | Select-Object -Unique).Count -ne $dependencies.files.Count) { throw 'LAB_DEPENDENCY_CATALOG_INVALID' }
+foreach ($relative in $dependencies.files) {
+    if ($relative -cnotmatch '^(modules/[A-Za-z0-9]+\.psm1|src/pb_[a-z0-9_]+\.(py|cs|c)|scripts/Invoke-[A-Za-z0-9]+\.ps1)$' -or
+        -not $plan.dependency_hashes.PSObject.Properties[$relative]) { throw 'LAB_DEPENDENCY_CATALOG_INVALID' }
+    Assert-Hash (Join-Path $root $relative) $plan.dependency_hashes.$relative
+}
 $workload=$null
 if ($plan.scenario -eq 'tcp_connections' -and (-not $plan.PSObject.Properties['workload_preset'] -or $null -eq $plan.workload_preset)) { throw 'LAB_WORKLOAD_INVALID' }
 if ($plan.PSObject.Properties['workload_preset'] -and $null -ne $plan.workload_preset) {
-    if ($plan.scenario -notin @('tcp_transfer','tcp_rtt','tcp_rtt_three_modes','tcp_connections')) { throw 'LAB_WORKLOAD_INVALID' }
+    if ($plan.scenario -notin @('tcp_transfer','tcp_upload','tcp_download','tcp_rtt','tcp_rtt_three_modes','tcp_connections','udp_echo','tcp_loaded_rtt')) { throw 'LAB_WORKLOAD_INVALID' }
     $catalogPath=Join-Path $root 'config/benchmark-workloads.json'
-    $modulePath=Join-Path $root $(if ($plan.scenario -eq 'tcp_connections') {'modules/ConnectionLoad.psm1'} else {'modules/BenchmarkWorkload.psm1'})
+    $modulePath=Join-Path $root $(if ($plan.scenario -eq 'tcp_connections') {'modules/ConnectionLoad.psm1'} elseif ($plan.scenario -eq 'udp_echo') {'modules/UdpWorkload.psm1'} elseif ($plan.scenario -eq 'tcp_loaded_rtt') {'modules/LoadedRttWorkload.psm1'} else {'modules/BenchmarkWorkload.psm1'})
     if ($plan.scenario -ne 'tcp_connections') { Assert-Hash $catalogPath $plan.workload_catalog_sha256 }
     else { Assert-Hash (Join-Path $root 'src/pb_controlled_tcp_proxy.py') $plan.connection_proxy_sha256;Assert-Hash (Join-Path $root 'src/pb_tcp_connections_report.py') $plan.connection_report_sha256 }
     Assert-Hash $modulePath $plan.workload_module_sha256
     Import-Module $modulePath
-    $workload=$(if ($plan.scenario -eq 'tcp_connections') {Get-ConnectionLoadPreset -Duration $plan.workload_preset.duration -Load $plan.workload_preset.load} else {Get-BenchmarkWorkload -Duration $plan.workload_preset.duration -Load $plan.workload_preset.load})
+    $workload=$(if ($plan.scenario -eq 'tcp_connections') {Get-ConnectionLoadPreset -Duration $plan.workload_preset.duration -Load $plan.workload_preset.load} elseif ($plan.scenario -eq 'udp_echo') {Get-LocalUdpWorkload -Duration $plan.workload_preset.duration -Load $plan.workload_preset.load} elseif ($plan.scenario -eq 'tcp_loaded_rtt') {Get-LoadedRttWorkload -Duration $plan.workload_preset.duration -Load $plan.workload_preset.load} else {Get-BenchmarkWorkload -Duration $plan.workload_preset.duration -Load $plan.workload_preset.load})
     if (@($plan.workload_preset.PSObject.Properties).Count -ne $workload.Count) { throw 'LAB_WORKLOAD_INVALID' }
     foreach ($key in $workload.Keys) {
         if (-not $plan.workload_preset.PSObject.Properties[$key] -or [string]$plan.workload_preset.$key -cne [string]$workload[$key]) { throw 'LAB_WORKLOAD_INVALID' }
@@ -100,12 +113,11 @@ if ($plan.PSObject.Properties['workload_preset'] -and $null -ne $plan.workload_p
 Import-Module (Join-Path $root 'modules/Env.psm1')
 Import-Module (Join-Path $root 'modules/ProductBuild.psm1')
 $environment=Import-DotEnv $envPath
-if ($environment['PB_PROXYBRIDGE_CLI_EXE'] -ine (Join-Path $kit 'ProxyBridge_CLI.exe') -or
-    $environment['PB_DRIVER_PATH'] -ine (Join-Path $kit 'ProxyBridgeDrv.sys') -or
-    $environment['PB_PROXYBRIDGE_SERVICE'] -ne 'ProxyBridgeDrv' -or
-    $environment['PB_PROXYBRIDGE_SOURCE_COMMIT'] -ne '63be0ebf9bec92bfba95ef3d6729c375aa9af84e' -or
-    $environment['PB_PROXYBRIDGE_CLI_VARIANT'] -ne 'testlab-unbuffered-v1' -or $environment['PB_PROXYBRIDGE_EXE']) { throw 'LAB_PLAN_KIT_CONFIGURATION_CHANGED' }
-foreach ($component in @('ProxyBridge_CLI.exe','ProxyBridgeCore.dll','ProxyBridgeDrv.sys')) { Assert-NoReparse (Join-Path $kit $component) }
+if ($environment['PB_PROXYBRIDGE_SERVICE'] -ne 'ProxyBridgeDrv' -or
+    $environment['PB_PROXYBRIDGE_CLI_VARIANT'] -notin @('upstream','testlab-unbuffered-v1') -or
+    $environment.ContainsKey('PB_PROXYBRIDGE_EXE') -or $environment.Count -ne 7) { throw 'LAB_PLAN_KIT_CONFIGURATION_CHANGED' }
+$installation=[IO.Path]::GetDirectoryName($environment['PB_PROXYBRIDGE_CLI_EXE'])
+foreach ($component in @($environment['PB_PROXYBRIDGE_CLI_EXE'],(Join-Path $installation 'ProxyBridgeCore.dll'),$environment['PB_DRIVER_PATH'])) { Assert-NoReparse $component }
 $identity=Get-ProductBuildIdentity -Environment $environment -Contract driver
 if (-not $identity.files_verified -or $identity.bundle_sha256 -ne $plan.bundle_sha256) { throw 'LAB_PLAN_SELECTED_KIT_CHANGED' }
 if ($Phase -eq 'Inspect') {
@@ -189,7 +201,7 @@ try {
     $null=New-Item -ItemType Directory -Path $attemptRoot -ErrorAction Stop
     $arguments=@('-NoProfile','-NonInteractive','-ExecutionPolicy','Bypass','-File',$controllerHost,'-Scenario',[string]$plan.scenario,'-Profile',[string]$plan.profile,'-EnvPath',$envPath,'-EvidenceDirectory',$evidence)
     if ($workload) { $arguments+=@('-Duration',[string]$workload.duration,'-Load',[string]$workload.load) }
-    if ($plan.scenario -in @('tcp_rtt','tcp_transfer','tcp_rtt_three_modes','tcp_connections')) {
+    if ($plan.scenario -in @('tcp_rtt','tcp_transfer','tcp_upload','tcp_download','tcp_rtt_three_modes','tcp_connections','udp_echo','tcp_loaded_rtt')) {
         $cancelPath=Join-Path $root ('artifacts/benchmark-launch/'+$PlanId+'-control/cancel.request')
         Assert-NoReparse $cancelPath
         $arguments+=@('-CancellationPath',$cancelPath)

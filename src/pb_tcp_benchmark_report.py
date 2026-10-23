@@ -180,6 +180,11 @@ def run_report(path):
 
 def comparison(directory):
     manifest=read(directory/'comparison-manifest.json')
+    directions = manifest.get('directions', ['push', 'pull'])
+    if directions not in (['push'], ['pull'], ['push', 'pull']):
+        raise ValueError('TRANSFER_DIRECTIONS_INVALID')
+    if directions != ['push', 'pull'] and (manifest.get('workload_preset') is None or manifest.get('transfer_only') is not True):
+        raise ValueError('SINGLE_DIRECTION_REQUIRES_CONTROLLED_WORKLOAD')
     if manifest.get('diagnostic_only'):
         raise ValueError('Isolated shutdown diagnostics cannot be used as paired comparisons')
     runs=[];errors=[];conditions=[]
@@ -194,7 +199,7 @@ def comparison(directory):
             errors.append(entry['directory']+': requested traffic differs')
         conditions.append((config,report['bundle_sha256'],report['other_driver_names_sha256']))
         runs.append(dict(**entry,report=report))
-    if manifest['status']!='COMPLETED' or len(runs)!=manifest['pair_count']*4 or any(c!=conditions[0] for c in conditions[1:]):
+    if manifest['status']!='COMPLETED' or len(runs)!=manifest['pair_count']*len(directions)*2 or any(c!=conditions[0] for c in conditions[1:]):
         errors.append('Series incomplete or tool/traffic/product/driver conditions differ')
     if manifest.get('transfer_only') or any(r['report'].get('transfer_only') for r in runs):
         if manifest.get('workload_preset') is not None:
@@ -224,7 +229,7 @@ def comparison(directory):
     if len({r['report']['connection_id'] for r in runs})!=len(runs):
         errors.append('Connection IDs reused between runs')
     pairs=[]
-    for direction in ('push','pull'):
+    for direction in directions:
         for number in range(1,manifest['pair_count']+1):
             group=[r for r in runs if r['direction']==direction and r['pair']==number]
             if [r['mode'] for r in group] != (['OFF','PROXY'] if number%2 else ['PROXY','OFF']):
@@ -255,7 +260,7 @@ def comparison(directory):
            'Измеренный средний темп короткой передачи может отличаться от настройки; это не проверка жёсткого лимита / A short-transfer observed average can differ from the setting; strict rate-limit enforcement is not evaluated.', '',
            '| Направление / Direction | Режим / Mode | Мбит/с / Mbit/s | CPU CLI, % ПК | Private RAM CLI, MiB |','|---|---|---:|---:|---:|']
     if not errors:
-        for direction in ('push','pull'):
+        for direction in directions:
             for mode in ('OFF','PROXY'):
                 group=[r['report'] for r in runs if r['direction']==direction and r['mode']==mode]
                 cpu=statistics.median(r['pc']['proxybridge_cli']['cpu_pct_machine_mean'] for r in group) if mode=='PROXY' else None

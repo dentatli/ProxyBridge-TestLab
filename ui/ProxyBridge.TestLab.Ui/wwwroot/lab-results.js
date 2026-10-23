@@ -36,6 +36,31 @@ resultMetrics.tcp_rtt_three_modes = [...resultMetrics.tcp_rtt,
 // UNRULED belongs exclusively to the separate three-mode test.
 resultMetrics.tcp_rtt = resultMetrics.tcp_rtt.filter(([id]) => !id.startsWith("unruled"));
 resultMetrics.tcp_transfer = resultMetrics.tcp_transfer.filter(([id]) => !id.startsWith("unruled"));
+resultMetrics.tcp_upload = resultMetrics.tcp_transfer.filter(([id]) => id.includes("upload"));
+resultMetrics.tcp_download = resultMetrics.tcp_transfer.filter(([id]) => id.includes("download"));
+resultMetrics.udp_echo = [
+  ["direct_p50", "directP50", row => row.udp_metrics?.off.p50_ms, 3],
+  ["direct_p95", "directP95", row => row.udp_metrics?.off.p95_ms, 3],
+  ["direct_p99", "directP99", row => row.udp_metrics?.off.p99_ms, 3],
+  ["p50", "rttP50", row => row.udp_metrics?.proxy.p50_ms, 3],
+  ["p95", "rttP95", row => row.udp_metrics?.proxy.p95_ms, 3],
+  ["p99", "rttP99", row => row.udp_metrics?.proxy.p99_ms, 3],
+  ["cpu", "cpuMean", row => row.udp_metrics?.proxy.cpu_pct_machine, 3],
+  ["ram", "ramMean", row => row.udp_metrics?.proxy.private_mib, 2],
+  ["rate", "echoRate", row => row.udp_metrics?.proxy.packets_per_s, 1]
+];
+resultMetrics.tcp_loaded_rtt = ["push", "pull"].flatMap(direction => {
+  const prefix = direction === "push" ? "upload" : "download";
+  const rtt = ["off", "proxy"].flatMap(mode => ["p50", "p95", "p99"].map(quantile => {
+    const key = `loaded_${direction}_${mode}_${quantile}`;
+    for (const language of ["ru", "en"]) labText[language][key] = `${labText[language][prefix]}: ${labText[language][mode === "off" ? "offMode" : "proxy"] || "SOCKS5"} · RTT ${quantile}, ${labText[language].milliseconds}`;
+    return [key, key, row => row.loaded_metrics?.[direction]?.[mode]?.[quantile + "_ms"], 3];
+  }));
+  return [...rtt,
+    [`loaded_${direction}_cpu`, prefix + "Cpu", row => row.loaded_metrics?.[direction]?.proxy?.cpu_pct_machine, 3],
+    [`loaded_${direction}_ram`, prefix + "Ram", row => row.loaded_metrics?.[direction]?.proxy?.private_mib, 2]];
+});
+function confirmedMetrics(row) { return row?.terminal && (row.correctness === "PASS" || row.performance_confirmed === true && row.correctness === "SOURCE_ENDPOINT_MISMATCH"); }
 function connectionCohort(row, mode, phase = "load") {
   return row.modes?.find(entry => entry.mode === mode)?.cohorts.filter(entry => entry.phase === phase).at(-1);
 }
@@ -54,11 +79,11 @@ const rttResultGroups = [
 ];
 function resultGroups(scenario) {
   const metrics = resultMetrics[scenario];
-  return ["tcp_transfer","tcp_connections"].includes(scenario) ? [[null, metrics]] : rttResultGroups.map(([label, ids]) =>
+  return isTransfer(scenario) || ["tcp_connections", "udp_echo", "tcp_loaded_rtt"].includes(scenario) ? [[null, metrics]] : rttResultGroups.map(([label, ids]) =>
     [label, ids.map(id => metrics.find(metric => metric[0] === id)).filter(Boolean)]);
 }
 function resultMetricLabel(metric, scenario) {
-  if (["tcp_transfer","tcp_connections"].includes(scenario)) return metric[1];
+  if (isTransfer(scenario) || ["tcp_connections", "udp_echo", "tcp_loaded_rtt"].includes(scenario)) return metric[1];
   const id = metric[0];
   if (id.endsWith("p50") || id === "p50") return "latencyP50";
   if (["p95", "direct_p95", "unruled_p95"].includes(id)) return "latencyP95";
@@ -70,6 +95,10 @@ function resultMetricLabel(metric, scenario) {
 let resultChoices = { builds: null, scenario: "tcp_rtt", workload: "LEGACY", metrics: { tcp_rtt: ["direct_p95", "unruled_p95", "p95", "cpu", "ram"], tcp_transfer: ["direct_upload", "unruled_upload", "upload", "direct_download", "unruled_download", "download", "upload_cpu", "download_cpu", "upload_ram", "download_ram"] } };
 resultChoices.metrics.tcp_rtt_three_modes = ["direct_p95", "unruled_p95", "p95", "unruled_added_p95", "unruled_cpu", "cpu", "unruled_ram", "ram"];
 resultChoices.metrics.tcp_connections = resultMetrics.tcp_connections.map(metric => metric[0]);
+resultChoices.metrics.tcp_upload = resultMetrics.tcp_upload.map(metric => metric[0]);
+resultChoices.metrics.tcp_download = resultMetrics.tcp_download.map(metric => metric[0]);
+resultChoices.metrics.udp_echo = ["direct_p95", "p95", "cpu", "ram", "rate"];
+resultChoices.metrics.tcp_loaded_rtt = resultMetrics.tcp_loaded_rtt.filter(([id]) => id.endsWith("p95") || id.endsWith("cpu") || id.endsWith("ram")).map(([id]) => id);
 const historyOpen = new Set();
 const extraReports = new Map(), extraLaunches = new Map(), detailsLoading = new Set(), detailsErrors = new Set();
 let resultEpoch = 0, moreHistoryActive = false;
@@ -91,7 +120,7 @@ function renderResultViews() {
 
 function resultRows() {
   const jobs = new Map([...extraLaunches.values(), ...labState.launches].map(job => [job.plan_id, job]));
-  const sources = new Map([...labState.localRuns, ...labState.localTransfers, ...labState.localConnections].map(row => [row.id, row]));
+  const sources = new Map([...labState.localRuns, ...labState.localTransfers, ...labState.localConnections, ...labState.localUdp, ...labState.localLoaded].map(row => [row.id, row]));
   extraReports.forEach((row, id) => { if (!sources.has(id)) sources.set(id, row); });
   const rows = [...sources.values()].map(source => {
     const job = jobs.get(source.build?.plan_id);
@@ -100,7 +129,7 @@ function resultRows() {
     return { ...source, terminal: job.terminal, created_at_utc: job.created_at_utc,
       profile: job.profile, workload_preset: job.workload_preset ?? source.workload_preset,
       status: job.status === "COMPLETED" ? source.status : job.status,
-      correctness: job.status === "COMPLETED" ? source.correctness : "NOT_CONFIRMED" };
+      correctness: job.status === "COMPLETED" ? source.correctness : "NOT_CONFIRMED", failure_code: job.failure_code };
   });
   rows.push(...jobs.values());
   const current = labState.runControl.run;
@@ -122,6 +151,7 @@ function resultBuilds(rows) {
   return [...builds.values()].sort((a, b) => a.display_name.localeCompare(b.display_name, labLanguage));
 }
 function resultStatus(row) {
+  if (row.correctness === "SOURCE_ENDPOINT_MISMATCH") return t("udpDefect");
   if (row.not_started) return t("SUITE_TEST_NOT_STARTED");
   if (!row.terminal) return t(row.status) || t("RUNNING");
   if (row.correctness === "PASS") return `${t("localPass")} · ${t("limited")}`;
@@ -137,6 +167,12 @@ function renderSavedResults() {
   if (!resultChoices.workload) resultChoices.workload = "LEGACY";
   lab("comparison-workload").innerHTML = `<option value="LEGACY">${t("legacyWorkload")}</option>` + ["SHORT","NORMAL","LONG"].flatMap(duration => ["LOW","HIGH"].map(load => `<option value="${duration}:${load}">${t(duration)} · ${t(load)}</option>`)).join("");
   lab("comparison-workload").value = resultChoices.workload;
+  const conditionKeys = [...new Set(rows.filter(row => row.scenario === resultChoices.scenario && row.conditions_key &&
+    (row.workload_preset ? `${row.workload_preset.duration}:${row.workload_preset.load}` : "LEGACY") === resultChoices.workload).map(row => row.conditions_key))];
+  const previousCondition = lab("comparison-condition").value;
+  lab("comparison-condition").innerHTML = `<option value="all">${t("latestConditions")}</option>` +
+    conditionKeys.map((key, index) => `<option value="${html(key)}">${t("conditionsGroup")} ${index+1} · ${html(key.slice(0, 12))}</option>`).join("");
+  if (conditionKeys.includes(previousCondition)) lab("comparison-condition").value = previousCondition;
   lab("comparison-builds").innerHTML = builds.length ? builds.map(build => `<label><input type="checkbox" data-comparison-build="${html(build.id)}" ${(resultChoices.builds || []).includes(build.id) ? "checked" : ""}><span>${html(build.display_name)} (${html(build.contract)})</span></label>`).join("") : `<p>${t("noBuilds")}</p>`;
   lab("comparison-metrics").innerHTML = resultGroups(resultChoices.scenario).filter(([, metrics]) => metrics.length).map(([label, metrics]) =>
     `<div class="lab-metric-group">${label ? `<h3>${t(label)}</h3>` : ""}<div>${metrics.map(metric => `<label><input type="checkbox" data-comparison-metric="${metric[0]}" ${resultChoices.metrics[resultChoices.scenario].includes(metric[0]) ? "checked" : ""}><span>${t(resultMetricLabel(metric, resultChoices.scenario))}</span></label>`).join("")}</div></div>`).join("");
@@ -152,7 +188,12 @@ function renderComparison(rows, builds) {
   const selected = builds.filter(build => (resultChoices.builds || []).includes(build.id));
   const metrics = resultMetrics[resultChoices.scenario].filter(([id]) => resultChoices.metrics[resultChoices.scenario].includes(id));
   if (!selected.length || !metrics.length) { output.innerHTML = `<p>${t("selectComparison")}</p>`; return; }
-  const latest = selected.map(build => rows.find(row => row.build?.id === build.id && row.scenario === resultChoices.scenario && (row.workload_preset ? `${row.workload_preset.duration}:${row.workload_preset.load}` : "LEGACY") === resultChoices.workload));
+  const condition = lab("comparison-condition").value;
+  // An attempt without confirmed conditions may belong to this group: retain
+  // it conservatively, so a failure/cancellation never reveals an old success.
+  const latest = selected.map(build => rows.find(row => row.build?.id === build.id && row.scenario === resultChoices.scenario &&
+    (row.workload_preset ? `${row.workload_preset.duration}:${row.workload_preset.load}` : "LEGACY") === resultChoices.workload &&
+    (condition === "all" || !row.conditions_key || row.conditions_key === condition)));
   latest.forEach(row => { if (row?.terminal && row.status === "COMPLETED" && row.evidence_id && row.id.startsWith("launch-")) loadHistoryDetails(row.evidence_id); });
   const columns = selected.map((build, index) => {
     const row = latest[index];
@@ -164,10 +205,10 @@ function renderComparison(rows, builds) {
     const heading = label ? `<tr class="lab-metric-heading"><th colspan="${selected.length + 1}">${t(label)}</th></tr>` : "";
     return heading + selectedMetrics.map(metric => {
       const [, , value, digits] = metric;
-      return `<tr><th scope="row">${t(resultMetricLabel(metric, resultChoices.scenario))}</th>${latest.map(row => `<td>${row?.terminal && row.correctness === "PASS" ? number(value(row), digits) : "—"}</td>`).join("")}</tr>`;
+      return `<tr><th scope="row">${t(resultMetricLabel(metric, resultChoices.scenario))}</th>${latest.map(row => `<td>${confirmedMetrics(row) ? number(value(row), digits) : "—"}</td>`).join("")}</tr>`;
     }).join("");
   }).join("");
-  const keys = new Set(latest.filter(row => row?.correctness === "PASS").map(row => row.conditions_key || "unknown"));
+  const keys = new Set(latest.filter(confirmedMetrics).map(row => row.conditions_key || "unknown"));
   const warning = keys.size > 1 || keys.has("unknown") ? `<p class="lab-warning">${t("conditionsDiffer")}</p>` : "";
   const active = labState.runControl.run;
   const activeNote = active && !active.terminal && active.scenario === resultChoices.scenario && selected.some(build => build.id === active.buildId) ? `<p>${t("newMeasurementRunning")}</p>` : "";
@@ -178,8 +219,13 @@ function renderComparison(rows, builds) {
 }
 function renderHistory(rows = resultRows()) {
   const build = lab("history-build").value, scenario = lab("history-scenario").value, status = lab("history-status").value;
+  const duration = lab("history-duration").value, load = lab("history-load").value;
+  const from = lab("history-from").value, to = lab("history-to").value;
   const matches = row => {
     if (build !== "all" && row.build?.id !== build || scenario !== "all" && row.scenario !== scenario) return false;
+    if (duration !== "all" && (row.workload_preset?.duration || "LEGACY") !== duration || load !== "all" && row.workload_preset?.load !== load) return false;
+    const day = new Date(row.created_at_utc).toLocaleDateString("sv-SE");
+    if (from && day < from || to && day > to) return false;
     if (status === "all") return true;
     if (status === "running") return !row.terminal;
     if (status === "cancelled") return row.status === "CANCELLED";
@@ -188,18 +234,18 @@ function renderHistory(rows = resultRows()) {
   };
   const filtered = rows.filter(matches);
   lab("history-count").textContent = `${t("historyShown")}: ${number(filtered.length, 0)} / ${number(rows.length, 0)}`;
-  const warning = labState.localUnreadable || labState.transferUnreadable || labState.connectionUnreadable || labState.launchUnreadable ? `<p class="lab-warning">${t("historyIncomplete")}</p>` : "";
+  const warning = labState.localUnreadable || labState.transferUnreadable || labState.connectionUnreadable || labState.udpUnreadable || labState.loadedUnreadable || labState.launchUnreadable ? `<p class="lab-warning">${t("historyIncomplete")}</p>` : "";
   lab("lab-test-history").innerHTML = labState.resultsUnavailable ? `<p>${t("unavailable")}</p>` : filtered.map(row => {
     const name = testTitle(row.scenario);
-    const details = row.scenario === "tcp_connections" && !row.id.startsWith("launch-") ? localConnectionMarkup(row) : row.mode_metrics ? localRunMarkup(row) : row.direction_metrics ? localTransferMarkup(row) : `<p>${row.evidence_id && detailsLoading.has(row.evidence_id) ? t("checking") : t("noConfirmedDetails")}</p>`;
-    return `<details class="lab-history-entry" data-history-id="${html(row.id)}" ${row.terminal && row.evidence_id ? `data-evidence-id="${html(row.evidence_id)}"` : ""} ${historyOpen.has(row.id) ? "open" : ""}><summary>${html(reportBuildName(row))} · ${name} · ${html(workloadName(row.workload_preset))}<small>${html(new Date(row.created_at_utc).toLocaleString(labLanguage))} · ${html(resultStatus(row))}</small></summary>${details}</details>`;
+    const details = row.scenario === "tcp_loaded_rtt" && !row.id.startsWith("launch-") ? localLoadedMarkup(row) : row.scenario === "udp_echo" && !row.id.startsWith("launch-") ? localUdpMarkup(row) : row.scenario === "tcp_connections" && !row.id.startsWith("launch-") ? localConnectionMarkup(row) : row.mode_metrics ? localRunMarkup(row) : row.direction_metrics ? localTransferMarkup(row) : `<p>${row.evidence_id && detailsLoading.has(row.evidence_id) ? t("checking") : t("noConfirmedDetails")}</p>`;
+    return `<details class="lab-history-entry" data-history-id="${html(row.id)}" ${row.terminal && row.evidence_id ? `data-evidence-id="${html(row.evidence_id)}"` : ""} ${historyOpen.has(row.id) ? "open" : ""}><summary>${html(reportBuildName(row))} · ${name} · ${html(workloadName(row.workload_preset))}<small>${html(new Date(row.created_at_utc).toLocaleString(labLanguage))} · ${html(resultStatus(row))}</small></summary>${details}${row.failure_code ? `<p>${html(t(row.failure_code) || t("localNotConfirmed"))}</p><details><summary>${t("details")}</summary><code>${html(row.failure_code)}</code></details>` : ""}</details>`;
   }).join("") + warning || `<p>${t("noHistoryMatches")}</p>`;
   lab("history-more").hidden = labState.launchNextOffset === null;
   lab("history-more").disabled = moreHistoryActive;
 }
 async function loadHistoryDetails(id) {
-  if (detailsLoading.has(id) || detailsErrors.has(id) || extraReports.has(id) || !/^(lab-tcp_(rtt|transfer|connections|rtt_three_modes)-smoke-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}|tcp-rtt-three-modes-smoke-[0-9]{8}-[0-9]{6}-[a-f0-9]{6})$/.test(id)) return;
-  if ([...labState.localRuns, ...labState.localTransfers, ...labState.localConnections].some(row => row.id === id)) return;
+  if (detailsLoading.has(id) || detailsErrors.has(id) || extraReports.has(id) || !/^(lab-(tcp_(rtt|transfer|upload|download|connections|rtt_three_modes|loaded_rtt)|udp_echo)-smoke-[0-9]{8}-[0-9]{6}-[a-f0-9]{8}|tcp-rtt-three-modes-smoke-[0-9]{8}-[0-9]{6}-[a-f0-9]{6})$/.test(id)) return;
+  if ([...labState.localRuns, ...labState.localTransfers, ...labState.localConnections, ...labState.localUdp, ...labState.localLoaded].some(row => row.id === id)) return;
   const epoch = resultEpoch;
   const keepOpen = resultRows().some(row => row.evidence_id === id && historyOpen.has(row.id));
   detailsLoading.add(id);
@@ -230,6 +276,8 @@ async function moreHistory() {
   finally { moreHistoryActive = false; renderSavedResults(); }
 }
 function setupResults() {
+  lab("history-scenario").value = "all";
+  lab("comparison-condition").addEventListener("change", () => renderComparison(resultRows(), resultBuilds(resultRows())));
   lab("comparison-workload").addEventListener("change", () => {
     resultChoices.workload = lab("comparison-workload").value;
     saveResultChoices(); renderSavedResults();
@@ -255,7 +303,7 @@ function setupResults() {
   lab("comparison-scenario").addEventListener("change", () => { resultChoices.scenario = lab("comparison-scenario").value; saveResultChoices(); renderSavedResults(); });
   lab("comparison-builds").addEventListener("change", () => { resultChoices.builds = [...document.querySelectorAll("[data-comparison-build]:checked")].map(node => node.dataset.comparisonBuild); saveResultChoices(); renderComparison(resultRows(), resultBuilds(resultRows())); });
   lab("comparison-metrics").addEventListener("change", () => { resultChoices.metrics[resultChoices.scenario] = [...document.querySelectorAll("[data-comparison-metric]:checked")].map(node => node.dataset.comparisonMetric); saveResultChoices(); renderComparison(resultRows(), resultBuilds(resultRows())); });
-  for (const id of ["history-build", "history-scenario", "history-status"]) lab(id).addEventListener("change", () => renderHistory());
+  for (const id of ["history-build", "history-scenario", "history-status", "history-duration", "history-load", "history-from", "history-to"]) lab(id).addEventListener("change", () => renderHistory());
   lab("lab-test-history").addEventListener("toggle", event => {
     const node = event.target;
     if (!node.isConnected || !node.matches("details[data-history-id]")) return;

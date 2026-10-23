@@ -14,7 +14,8 @@ Assert-Equal 2000 $defaultPlan.actual_path_timeout_ms 'actual path probe default
 Assert-Equal 25 $defaultPlan.actual_path_probe_interval_ms 'actual path probe interval must be within the required range'
 $plan = New-ProxyBridgeCliPlan -ExecutablePath $cliPath -ProfilePath 'C:\Fixture\one.pbprofile' -ReadyRegex 'fixture ready' -ReadyStableMs 25 -ReadinessTimeoutMs 100 -StopTimeoutMs 100 -ActualPathTimeoutMs 50
 Assert-Throws { New-ProxyBridgeCliPlan -ExecutablePath $cliPath -ProfilePath 'C:\Fixture\one.pbprofile' -ReadyRegex '[' } 'CLI_READINESS_REGEX_INVALID' 'invalid configured readiness regex must fail before process start'
-Assert-Throws { New-ProxyBridgeCliPlan -ExecutablePath $cliPath -ProfilePath 'C:\Fixture\one.pbprofile' -ReadyRegex '' -ReadyStableMs 0 } 'CLI_READINESS_SIGNAL_REQUIRED' 'empty readiness regex requires a stable-process window'
+$defaultReadyPlan = New-ProxyBridgeCliPlan -ExecutablePath $cliPath -ProfilePath 'C:\Fixture\one.pbprofile' -ReadyRegex '' -ReadyStableMs 0
+Assert-True ('ProxyBridge is running. Press Ctrl+C to stop.' -match $defaultReadyPlan.readiness_regex) 'empty regex must select the mandatory CLI startup signal, including without a stability window'
 Assert-Throws { New-ProxyBridgeCliPlan -ExecutablePath $cliPath -ProfilePath 'C:\Fixture\one.pbprofile' -ReadyRegex 'fixture' -ActualPathTimeoutMs 0 } 'CLI_TIMEOUT_CONFIGURATION_INVALID' 'actual path timeout must be positive'
 
 $readinessEvidence = [System.Collections.Generic.List[object]]::new()
@@ -29,8 +30,9 @@ Assert-Equal 1 $readinessEvidence[0].actual_path_probe_attempts 'immediate path 
 
 $stablePlan = New-ProxyBridgeCliPlan -ExecutablePath $cliPath -ProfilePath 'C:\Fixture\one.pbprofile' -ReadyRegex '' -ReadyStableMs 25 -ReadinessTimeoutMs 100 -StopTimeoutMs 100
 $stableAdapter = New-MockProcessAdapter -Ready $false -StableReady $true -GracefulStop $true -ActualPath $cliPath
-$stableResult = Invoke-ProxyBridgeCliLifecycle -Plan $stablePlan -ProcessAdapter $stableAdapter -Workload { 'stable fallback' }
-Assert-True $stableResult.ready 'empty readiness regex may use stable-process fallback'
+Assert-Throws { Invoke-ProxyBridgeCliLifecycle -Plan $stablePlan -ProcessAdapter $stableAdapter -Workload { throw 'WORKLOAD_MUST_NOT_START' } } 'CLI_READINESS_TIMEOUT' 'a stable process without its startup signal must not start the workload'
+Assert-Equal 1 $stableAdapter.state.stop_count 'missing default startup signal must stop the process'
+Assert-Equal 1 $stableAdapter.state.dispose_count 'missing default startup signal must dispose the process'
 
 $delayedEvidence = [System.Collections.Generic.List[object]]::new()
 $delayedAdapter = New-MockProcessAdapter -Ready $true -GracefulStop $true -ActualPathProbeSequence @('', '', $cliPath)
