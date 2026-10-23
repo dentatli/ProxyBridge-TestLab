@@ -1,5 +1,7 @@
 # TCP DIRECT benchmark checkpoint — 2026-10-23
 
+Продолжение завершено: [полные результаты](TCP_DIRECT_BENCHMARK_RESULTS_2026-10-23.md). WRONG_ROUTE объяснён DIRECT-only watchlist0; новый mixed-rule benchmark и длительная передача проверены. Ниже сохранена историческая остановка по лимиту.
+
 USER запросил лабораторный benchmark изменения TCP DIRECT.
 Работа остановлена по правилу: usage primary used95%, remaining5%.
 Новых прогонов/исследований после порога не начинать до доступного лимита.

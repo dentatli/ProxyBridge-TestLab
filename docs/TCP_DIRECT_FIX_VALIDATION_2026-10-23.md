@@ -1,5 +1,7 @@
 # TCP DIRECT: минимальное исправление и проверка — 2026-10-23
 
+Дополнительно выполнен [before/after benchmark](TCP_DIRECT_BENCHMARK_RESULTS_2026-10-23.md):48 runs; численные результаты, ресурсные различия и ограничения приведены отдельно.
+
 Причина: `prepare_tcp_connection` определял DIRECT, но не передавал action
 в `CONNECTION_CONFIG`. `connection_handler` всегда выбирал proxy; config0
 означает первый доступный proxy. Это отдельный дефект Core, не исторический

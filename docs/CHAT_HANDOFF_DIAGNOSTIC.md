@@ -1,5 +1,7 @@
 # Передача чату диагностики TCP / WinDbg
 
+TCP benchmark завершён: [результаты2026-10-23](TCP_DIRECT_BENCHMARK_RESULTS_2026-10-23.md). 48 runs:43 008 echo replies +1.5GiB ctsTraffic data verified. DIRECT route fix подтверждён, paced-p99 нестабилен, Core upload cycles/MiB+32%, download−82%; не заявлять равномерного уменьшения ресурсов. Оба trial восстановлены Stopped/Disabled; product340bdc8/driver не менялись, PR нет.
+
 Benchmark TCP DIRECT остановлен при remaining5%: [checkpoint2026-10-23](TCP_DIRECT_BENCHMARK_CHECKPOINT_2026-10-23.md). Подтверждённых performance результатов нет; baseline gate WRONG_ROUTE требует разбора. PB-SUT восстановлен Stopped/Disabled.
 
 TCP DIRECT исправлен в отдельной ветке от driver: [проверка 2026-10-23](TCP_DIRECT_FIX_VALIDATION_2026-10-23.md). Core build и native gate11/11 PASS; штатный Lab DIRECT остаётся INCONCLUSIVE из-за проверки source port. Driver восстановлен Stopped/Disabled; PR нет.
