@@ -10,6 +10,7 @@ import json
 import os
 import secrets
 import signal
+import socket
 import time
 from pathlib import Path
 from typing import Any
@@ -30,6 +31,7 @@ class Agent:
         self.configuration_path: Path | None = None
         self.applications: Any = None
         self.identity_mode = 'remote'
+        self.origin_udp_receive_buffer: dict[str, int] | None = None
 
     def identity(self) -> dict[str, Any]:
         if self.configuration_path is None:
@@ -130,6 +132,8 @@ class Agent:
             await writer.drain()
             if request["task"] == "metrics":
                 result = {key: value for key, value in row.items() if key not in ("udp_flows", "_inflight_transfers")}
+                if self.origin_udp_receive_buffer is not None:
+                    result['origin_udp_receive_buffer'] = self.origin_udp_receive_buffer
                 # Completed counters remain unchanged. Include validated payload in
                 # live transfers exactly once, while their connections are open.
                 inflight = row.get('_inflight_transfers', {}).values()
@@ -317,6 +321,30 @@ class DatagramAgent(asyncio.DatagramProtocol):
         pass
 
 
+LOCAL_ORIGIN_UDP_RECEIVE_BUFFER = 4 * 1024 * 1024
+
+
+async def create_origin_datagram_endpoint(loop, agent: Agent, bind: str, port: int):
+    # Local WFP and WinDivert use the same receiver and the same signed metrics.
+    # Absorb input while identity/resource queries occupy the origin event loop.
+    if agent.identity_mode != 'local-windows-v1':
+        return await loop.create_datagram_endpoint(lambda: DatagramAgent(agent), local_addr=(bind, port))
+    udp_socket = socket.socket(socket.AF_INET6 if ':' in bind else socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        udp_socket.setsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF, LOCAL_ORIGIN_UDP_RECEIVE_BUFFER)
+        effective = udp_socket.getsockopt(socket.SOL_SOCKET, socket.SO_RCVBUF)
+        if effective < LOCAL_ORIGIN_UDP_RECEIVE_BUFFER:
+            raise ValueError('TRAFFIC_ORIGIN_UDP_RECEIVE_BUFFER_INSUFFICIENT')
+        udp_socket.bind((bind, port))
+        udp_socket.setblocking(False)
+        endpoint = await loop.create_datagram_endpoint(lambda: DatagramAgent(agent), sock=udp_socket)
+    except BaseException:
+        udp_socket.close()
+        raise
+    agent.origin_udp_receive_buffer = {'requested_bytes': LOCAL_ORIGIN_UDP_RECEIVE_BUFFER, 'effective_bytes': effective}
+    return endpoint
+
+
 async def serve(config: dict[str, Any]) -> None:
     secret = bytes.fromhex(config["secret"])
     agent = Agent(secret, config.get("max_connections", 2048))
@@ -329,7 +357,7 @@ async def serve(config: dict[str, Any]) -> None:
         raise ValueError("TRAFFIC_AGENT_CONFIG_INVALID")
     loop = asyncio.get_running_loop()
     server = await asyncio.start_server(agent.tcp, bind, port, limit=MAX_LINE + 1)
-    transport, _ = await loop.create_datagram_endpoint(lambda: DatagramAgent(agent), local_addr=(bind, port))
+    transport, _ = await create_origin_datagram_endpoint(loop, agent, bind, port)
     control_port = config.get("control_port", 42503)
     control = await asyncio.start_server(lambda reader, writer: agent.tcp(reader, writer, True), bind, control_port, limit=MAX_LINE + 1)
     from trafficlab.proxy import SocksProxy, ProxyDatagram
