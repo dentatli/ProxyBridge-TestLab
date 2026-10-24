@@ -26,7 +26,7 @@ const labText = {
     rttHelp: "Время запроса и полного ответа внутри TCP-соединения. Это прикладной RTT, не ICMP ping.",
     loadedHelp: "TCP RTT одновременно с контролируемой передачей данных; учитывается подтверждённое перекрытие нагрузки.",
     udpHelp: "Проверяются данные, источник ответа и UDP RTT. Известные ошибки отображаются отдельно от доступных измерений.",
-    empty: "Сохранённых сравнений версий пока нет.", unavailable: "Историю не удалось прочитать.", limited: "Ограниченно сопоставимо", metric: "Показатель", upload: "Отправка", download: "Скачивание", direct: "напрямую", paired: "Изменение к прямому, %", cpu: "CPU CLI, % ПК", ram: "Private RAM CLI, MiB",
+    empty: "Сохранённых сравнений версий пока нет.", unavailable: "Историю не удалось прочитать.", limited: "Ограниченно сопоставимо", metric: "Показатель", upload: "Отправка", download: "Скачивание", direct: "напрямую", paired: "Изменение к прямому, %", cpu: "CPU процесса клиента, % ПК", ram: "Process committed memory, MiB",
     rateLimit: "Темп ограничен 64 MiB/s; по три пары на направление. Это не максимальная производительность.", closeIssue: "4.0.0: ранее обнаружен сброс при штатном закрытии TCP. Этот профиль проверяет данные без ожидания FIN; исправление не проверено.",
     scope: "Разные загрузки одной VM; фон мог меняться. CPU и память относятся к процессу клиента, не к драйверу. Исходные результаты сохранены.", addition: "Добавка к прямому RTT, мс", rttScope: "Три пары, 1000 измеренных обменов и 200 прогревочных на прогон. Разности квантилей не являются задержкой каждого отдельного пакета.", badReports: "Некоторые отчёты недоступны."
   },
@@ -57,12 +57,14 @@ const labText = {
     rttHelp: "Request and complete reply within a TCP connection. Application RTT, not ICMP ping.",
     loadedHelp: "TCP RTT during verified concurrent data transfer, with confirmed load overlap.",
     udpHelp: "Checks data, reply source and UDP RTT. Known correctness defects are shown separately from available measurements.",
-    empty: "No saved version comparisons yet.", unavailable: "Could not read saved comparisons.", limited: "Limited comparability", metric: "Metric", upload: "Upload", download: "Download", direct: "direct", paired: "Paired change vs direct, %", cpu: "CLI CPU, % machine", ram: "CLI private RAM, MiB",
+    empty: "No saved version comparisons yet.", unavailable: "Could not read saved comparisons.", limited: "Limited comparability", metric: "Metric", upload: "Upload", download: "Download", direct: "direct", paired: "Paired change vs direct, %", cpu: "Client process CPU, % of PC", ram: "Process committed memory, MiB",
     rateLimit: "Sender rate capped at 64 MiB/s; three pairs per direction. This is not maximum performance.", closeIssue: "4.0.0: normal TCP close reset previously observed. This profile verifies data without waiting for FIN; a fix is not verified.",
     scope: "Different boots of one VM; background activity may differ. CPU/RAM belong to the CLI, not the driver. Original results preserved.", addition: "Added RTT vs direct, ms", rttScope: "Three pairs, 1000 measured echoes and 200 warmup echoes per run. Quantile differences are not per-packet overhead measurements.", badReports: "Some reports could not be read."
   }
 };
 Object.assign(labText.ru, {
+  productWfp: "WFP (драйвер)", productWinDivert: "WinDivert",
+  ram: "Выделенная память процесса, МиБ",
   machineSetup: "Машина и настройка", connection: "Сборки", launch: "Запуск", navigation: "Разделы лаборатории",
   openRun: "Открыть запуск", toTesting: "К выбору проверок", toRun: "К запуску",
   toResults: "Посмотреть результаты", changeTesting: "Изменить проверки",
@@ -95,21 +97,21 @@ Object.assign(labText.ru, {
   threeModesConditions: "Три режима: по 128 измерений после 200 прогревочных, 512 байт, пауза 20 мс; один короткий цикл OFF → UNRULED → SOCKS5.",
   threeModesScope: "Проверка готовности трёх путей в фиксированном порядке. Снимок сокетов исключён из измеряемого окна. Разницы относятся к этой короткой серии и не доказывают влияние продукта при длительной или высокой нагрузке.",
   unruledAddedP95: "Без правила: добавка к RTT при выключенном ProxyBridge p95, мс",
-  unruledCpu: "Без правила: CPU CLI, среднее, % ПК", unruledRam: "Без правила: Private RAM CLI, среднее, MiB",
+  unruledCpu: "Без правила: CPU процесса, среднее, % ПК", unruledRam: "Без правила: выделенная память, среднее, МиБ",
   allBuilds: "Все сборки", allTests: "Все тесты", allStatuses: "Все статусы", runStatus: "Статус",
   latestOnlyHelp: "Последний запуск каждой сборки. Ошибки и отмена не заменяются прежним успешным результатом.",
-  comparisonScope: "Текущие локальные короткие проверки. CPU/RAM относятся к процессу CLI. Это просмотр сохранённых измерений; полная сопоставимость условий между сборками пока не подтверждена.",
+  comparisonScope: "Сохранённые локальные измерения. CPU и память относятся к процессу клиента; сопоставимость условий проверяется отдельно.",
   rttP50: "RTT SOCKS5 p50, мс", rttP95: "RTT SOCKS5 p95, мс", rttP99: "RTT SOCKS5 p99, мс",
   directP50: "ProxyBridge выключен: RTT напрямую p50, мс", directP95: "ProxyBridge выключен: RTT напрямую p95, мс", directP99: "ProxyBridge выключен: RTT напрямую p99, мс",
   unruledP50: "ProxyBridge работает, без правила: RTT напрямую p50, мс", unruledP95: "ProxyBridge работает, без правила: RTT напрямую p95, мс", unruledP99: "ProxyBridge работает, без правила: RTT напрямую p99, мс",
   addedP95: "Добавка SOCKS5 к RTT при выключенном ProxyBridge p95, мс",
   directModesHelp: "Три режима: ProxyBridge выключен → напрямую; ProxyBridge работает, приложение вне его правил → напрямую; приложение по правилу → SOCKS5. В этой TCP-серии измерены только первый и третий режимы. Второй пока не измерен и показан как «—», не как ноль.",
-  cpuMean: "CPU CLI, среднее, % ПК", ramMean: "Private RAM CLI, среднее, MiB",
+  cpuMean: "CPU процесса, среднее, % ПК", ramMean: "Выделенная память процесса, среднее, МиБ",
   uploadRate: "Отправка SOCKS5, Мбит/с", downloadRate: "Скачивание SOCKS5, Мбит/с",
   directUpload: "ProxyBridge выключен: отправка напрямую, Мбит/с", directDownload: "ProxyBridge выключен: скачивание напрямую, Мбит/с",
   unruledUpload: "ProxyBridge работает, без правила: отправка напрямую, Мбит/с", unruledDownload: "ProxyBridge работает, без правила: скачивание напрямую, Мбит/с",
-  uploadCpu: "Отправка: CPU CLI, среднее, % ПК", downloadCpu: "Скачивание: CPU CLI, среднее, % ПК",
-  uploadRam: "Отправка: Private RAM CLI, среднее, MiB", downloadRam: "Скачивание: Private RAM CLI, среднее, MiB",
+  uploadCpu: "Отправка: CPU процесса, среднее, % ПК", downloadCpu: "Получение: CPU процесса, среднее, % ПК",
+  uploadRam: "Отправка: выделенная память, среднее, МиБ", downloadRam: "Получение: выделенная память, среднее, МиБ",
   latestUnavailable: "Актуальность результатов не подтверждена: часть истории запусков недоступна. Обновите данные.",
   selectComparison: "Выберите сборки и показатели для таблицы.", noMeasurements: "Нет измерений",
   conditionsDiffer: "Параметры или инструменты измерения различаются либо не подтверждены. Значения можно просмотреть рядом; разница не доказывает улучшение сборки.",
@@ -120,6 +122,7 @@ Object.assign(labText.ru, {
   noConfirmedDetails: "Подтверждённых показателей для этой попытки нет. Она не заменяется предыдущим успешным результатом.", noHistoryMatches: "Нет запусков по выбранным фильтрам.", moreHistory: "Загрузить более ранние запуски"
 });
 Object.assign(labText.en, {
+  productWfp: "WFP driver", productWinDivert: "WinDivert",
   machineSetup: "Machine setup", connection: "Builds", launch: "Run", navigation: "Laboratory navigation",
   openRun: "Open run", toTesting: "Continue to testing", toRun: "Continue to run",
   toResults: "View results", changeTesting: "Change testing",
@@ -152,21 +155,21 @@ Object.assign(labText.en, {
   threeModesConditions: "Three modes: 128 measurements after 200 warmup echoes each, 512 bytes, 20 ms pause; one short OFF → UNRULED → SOCKS5 cycle.",
   threeModesScope: "Fixed-order three-path readiness check. Socket observation finishes before measurement. Differences describe this short series and do not prove product impact under prolonged or high load.",
   unruledAddedP95: "Unruled: added RTT vs ProxyBridge off p95, ms",
-  unruledCpu: "Unruled: CLI CPU, mean, % machine", unruledRam: "Unruled: CLI private RAM, mean, MiB",
+  unruledCpu: "Unruled: process CPU, mean, % of PC", unruledRam: "Unruled: committed memory, mean, MiB",
   allBuilds: "All builds", allTests: "All tests", allStatuses: "All statuses", runStatus: "Status",
   latestOnlyHelp: "Latest attempt for each build. Failed or cancelled attempts are not replaced with an older success.",
-  comparisonScope: "Current local short checks. CPU/RAM belong to the CLI process. These are saved measurements; full comparability across builds has not been established.",
+  comparisonScope: "Saved local measurements. CPU and memory describe the client process; matching conditions are checked separately.",
   rttP50: "SOCKS5 RTT p50, ms", rttP95: "SOCKS5 RTT p95, ms", rttP99: "SOCKS5 RTT p99, ms",
   directP50: "ProxyBridge off: direct RTT p50, ms", directP95: "ProxyBridge off: direct RTT p95, ms", directP99: "ProxyBridge off: direct RTT p99, ms",
   unruledP50: "ProxyBridge running, no matching rule: direct RTT p50, ms", unruledP95: "ProxyBridge running, no matching rule: direct RTT p95, ms", unruledP99: "ProxyBridge running, no matching rule: direct RTT p99, ms",
   addedP95: "Added SOCKS5 RTT vs ProxyBridge off p95, ms",
   directModesHelp: "Three modes: ProxyBridge off → direct; ProxyBridge running, application outside its rules → direct; application routed by a rule → SOCKS5. This TCP series measured only the first and third modes. The second has not been measured and is shown as ‘—’, not zero.",
-  cpuMean: "CLI CPU, mean, % machine", ramMean: "CLI private RAM, mean, MiB",
+  cpuMean: "Process CPU, mean, % of PC", ramMean: "Process committed memory, mean, MiB",
   uploadRate: "SOCKS5 upload, Mbit/s", downloadRate: "SOCKS5 download, Mbit/s",
   directUpload: "ProxyBridge off: direct upload, Mbit/s", directDownload: "ProxyBridge off: direct download, Mbit/s",
   unruledUpload: "ProxyBridge running, no matching rule: direct upload, Mbit/s", unruledDownload: "ProxyBridge running, no matching rule: direct download, Mbit/s",
-  uploadCpu: "Upload: CLI CPU, mean, % machine", downloadCpu: "Download: CLI CPU, mean, % machine",
-  uploadRam: "Upload: CLI private RAM, mean, MiB", downloadRam: "Download: CLI private RAM, mean, MiB",
+  uploadCpu: "Upload: process CPU, mean, % of PC", downloadCpu: "Download: process CPU, mean, % of PC",
+  uploadRam: "Upload: committed memory, mean, MiB", downloadRam: "Download: committed memory, mean, MiB",
   latestUnavailable: "Latest results cannot be established: part of launch history is unavailable. Refresh the data.",
   selectComparison: "Select builds and metrics for the table.", noMeasurements: "No measurements",
   conditionsDiffer: "Measurement parameters or tools differ or are unconfirmed. Values may be viewed side by side; a difference does not prove a build improvement.",
@@ -177,10 +180,10 @@ Object.assign(labText.en, {
   noConfirmedDetails: "No confirmed metrics for this attempt. It is not replaced with a previous successful result.", noHistoryMatches: "No runs match the selected filters.", moreHistory: "Load earlier runs"
 });
 let labLanguage = localStorage.getItem("testlab-language") === "en" ? "en" : "ru";
-Object.assign(labText.ru,{trafficAdapterHelp:"Для выбранной версии не подтверждён формат CLI. Нужны файлы ProxyBridge 4.0.0 или новее с метаданными версии."});
-Object.assign(labText.en,{trafficAdapterHelp:"CLI format could not be identified. Select ProxyBridge 4.0.0 or later with version metadata."});
-Object.assign(labText.ru, {findInstalled:"Найти установленный ProxyBridge", noInstalled:"Установка с CLI и драйвером не найдена. Укажите папку ниже.", TRAFFIC_PYTHON_311_REQUIRED:"Нужен комплектный Python 3.11. Проверьте целостность приложения.", TRAFFIC_LOCAL_FILES_MISSING:"Не хватает файлов приложения. Проверьте целостность комплекта.", trafficAdminHelp:"Запустите Start.cmd и подтвердите запрос прав администратора.", trafficDriverHelp:"Для этих проверок нужна сборка с драйвером. Выберите её в разделе «Сборки»."});
-Object.assign(labText.en, {findInstalled:"Find installed ProxyBridge", noInstalled:"No installation with CLI and driver found. Enter its folder below.", TRAFFIC_PYTHON_311_REQUIRED:"Bundled Python 3.11 is required. Verify the application package.", TRAFFIC_LOCAL_FILES_MISSING:"Application files are missing. Verify the package.", trafficAdminHelp:"Run Start.cmd and accept the administrator prompt.", trafficDriverHelp:"These checks require a driver build. Select it under Builds."});
+Object.assign(labText.ru,{trafficAdapterHelp:"Для выбранной сборки не подтверждён способ управления. Поддержка WinDivert заявлена только для 4.3.0."});
+Object.assign(labText.en,{trafficAdapterHelp:"The selected build has no verified control adapter. Declared WinDivert support is limited to 4.3.0."});
+Object.assign(labText.ru, {findInstalled:"Найти установленный ProxyBridge", noInstalled:"Подходящая установка ProxyBridge не найдена. Укажите папку сборки ниже.", TRAFFIC_PYTHON_311_REQUIRED:"Нужен комплектный Python 3.11. Проверьте целостность приложения.", TRAFFIC_LOCAL_FILES_MISSING:"Не хватает файлов приложения. Проверьте целостность комплекта.", trafficAdminHelp:"Запустите Start.cmd и подтвердите запрос прав администратора.", trafficDriverHelp:"Для этих проверок нужна сборка с драйвером. Выберите её в разделе «Сборки»."});
+Object.assign(labText.en, {findInstalled:"Find installed ProxyBridge", noInstalled:"No suitable ProxyBridge installation was found. Select the build folder below.", TRAFFIC_PYTHON_311_REQUIRED:"Bundled Python 3.11 is required. Verify the application package.", TRAFFIC_LOCAL_FILES_MISSING:"Application files are missing. Verify the package.", trafficAdminHelp:"Run Start.cmd and accept the administrator prompt.", trafficDriverHelp:"These checks require a driver build. Select it under Builds."});
 let labState = { discovery: [], csrf: "", builds: [], buildError: null, reports: [], localRuns: [], localTransfers: [], transferUnreadable: 0, localUnreadable: 0, observation: null, saved: false, unreadable: 0, plan: null, planFailed: false, runControl: { administrator: false, run: null }, runError: null };
 labState.launches = [];
 labState.launchUnreadable = 0;
@@ -209,7 +212,7 @@ Object.assign(labText.ru, {
   estimateHelp: "Оценка включает все прогоны и подготовку. Фактическое время зависит от задержки и планировщика Windows.",
   workloadScope: "Профиль задаёт объём обмена и интенсивность. Время зависит от задержки и планировщика Windows. CPU/RAM относятся к процессу ProxyBridge; память драйвера и ватты не измеряются.",
   LAB_WORKLOAD_INVALID: "Настройки профиля недопустимы. Подготовьте новый набор.",
-  comparisonScope: "Сохранённые локальные измерения при выбранных условиях. CPU/RAM относятся к процессу CLI; полная сопоставимость машин и условий между сборками отдельно не подтверждена.",
+  comparisonScope: "Сохранённые локальные измерения. CPU и память относятся к процессу клиента; сопоставимость условий проверяется отдельно.",
   directModesHelp: "Сравнение напрямую при выключенном ProxyBridge и через SOCKS5. Влияние приложения вне правил проверяется отдельным тестом «Три режима».",
   SUITE_SELECTION_INVALID: "Выберите доступные тесты и настройки для каждого."
 });
@@ -231,7 +234,7 @@ Object.assign(labText.en, {
   estimateHelp: "Estimate includes all runs and setup. Actual time depends on latency and Windows scheduling.",
   workloadScope: "The profile defines exchange volume and intensity. Elapsed time depends on latency and Windows scheduling. CPU/RAM refer to the ProxyBridge process; driver memory and watts are not measured.",
   LAB_WORKLOAD_INVALID: "Invalid workload settings. Prepare a new suite.",
-  comparisonScope: "Saved local measurements for selected conditions. CPU/RAM refer to the CLI process; full machine and condition comparability across builds is not separately established.",
+  comparisonScope: "Saved local measurements. CPU and memory describe the client process; matching conditions are checked separately.",
   directModesHelp: "Direct traffic with ProxyBridge off versus SOCKS5. Unruled application overhead is measured in the separate Three modes test.",
   SUITE_SELECTION_INVALID: "Select supported tests and settings for each."
 });

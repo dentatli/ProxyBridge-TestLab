@@ -44,7 +44,7 @@
       <form id="product-selection-form">
         <div class="lab-fields">
           <label><span data-i18n="buildName">Название сборки</span><input id="product-build-name" type="text" maxlength="64" placeholder="актуал / бета" autocomplete="off"></label>
-          <label><span data-i18n="version">Версия</span><select id="product-contract"><option value="driver">Driver WFP</option><option value="v4.0.0">WinDivert</option></select></label>
+          <label><span data-i18n="version">Версия</span><select id="product-contract"><option value="driver" data-i18n="productWfp">WFP (драйвер)</option><option value="v4.0.0" data-i18n="productWinDivert">WinDivert</option></select></label>
           <label><span data-i18n="folder">Папка ProxyBridge</span><input id="product-folder" type="text" placeholder="C:\Program Files\ProxyBridge" autocomplete="off" required></label>
           <label id="driver-path-label"><span data-i18n="driverPath">Файл драйвера, если находится в другой папке</span><input id="product-driver-path" type="text" placeholder="C:\Windows\System32\drivers\ProxyBridgeDrv.sys" autocomplete="off"></label>
         </div>
@@ -236,7 +236,7 @@
         <fieldset class="lab-choices"><legend data-i18n="metric">Показатель</legend><div id="comparison-metrics"></div></fieldset>
         <div id="comparison-table"></div>
         <p class="lab-warning" data-i18n="latestOnlyHelp">Последний запуск каждой сборки. Ошибки и отмена не заменяются прежним успешным результатом.</p>
-        <p data-i18n="comparisonScope">Текущие локальные короткие проверки. CPU/RAM относятся к CLI. Таблица показывает сохранённые измерения; полная сопоставимость условий между сборками пока не подтверждена.</p>
+        <p data-i18n="comparisonScope">Текущие локальные короткие проверки. CPU и память относятся к процессу клиента. Таблица показывает сохранённые измерения; полная сопоставимость условий между сборками пока не подтверждена.</p>
       </div>
       <div id="lab-history-view" hidden>
         <div class="lab-fields">
