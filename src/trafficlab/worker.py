@@ -405,8 +405,10 @@ def main() -> int:
         temporary.replace(arguments.output)
         print(json_bytes({"complete": report["complete"], "task": report["task"], "elapsed_seconds": report["elapsed_seconds"]}).decode(), flush=True)
         return 0 if report["complete"] else 1
-    except (OSError, ValueError, KeyError):
-        print("TRAFFIC_WORKER_CONFIGURATION_OR_RUNTIME_ERROR", flush=True)
+    except (OSError, ValueError, KeyError) as error:
+        code = str(error) if isinstance(error, ValueError) and str(error).startswith(('TRAFFIC_', 'APPLICATION_')) else type(error).__name__
+        import sys
+        print("TRAFFIC_WORKER_CONFIGURATION_OR_RUNTIME_ERROR:" + code, file=sys.stderr, flush=True)
         return 2
 
 

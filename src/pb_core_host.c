@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <wchar.h>
+#include <tlhelp32.h>
 
 typedef UINT32 (*ADD_PROXY)(int, const char *, UINT16, const char *, const char *, BOOL);
 typedef UINT32 (*ADD_RULE)(const char *, const char *, const char *, const char *, int, int, UINT32, BOOL);
@@ -22,6 +23,33 @@ static CRITICAL_SECTION output_lock;
 static volatile LONG stopping = 0;
 static DWORD worker_pid;
 static UINT64 direct_count, proxy_count, blocked_count;
+// Isolated SSH/SFTP workers are direct children of the queue's Python worker.
+// Check live parent, executable and creation times; never accept an arbitrary PID/name.
+static BOOL owned_worker(DWORD pid) {
+    HANDLE snapshot, parent, child;
+    PROCESSENTRY32W entry;
+    BOOL found = FALSE, owned = FALSE;
+    WCHAR parent_path[32768], child_path[32768];
+    DWORD parent_size = 32768, child_size = 32768;
+    FILETIME pc, pe, pk, pu, cc, ce, ck, cu;
+    if (pid == worker_pid) return TRUE;
+    snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+    if (snapshot == INVALID_HANDLE_VALUE) return FALSE;
+    memset(&entry, 0, sizeof(entry)); entry.dwSize = sizeof(entry);
+    if (Process32FirstW(snapshot, &entry)) do {
+        if (entry.th32ProcessID == pid) { found = entry.th32ParentProcessID == worker_pid; break; }
+    } while (Process32NextW(snapshot, &entry));
+    CloseHandle(snapshot);
+    if (!found) return FALSE;
+    parent = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, worker_pid);
+    child = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, FALSE, pid);
+    if (parent && child && GetProcessTimes(parent, &pc, &pe, &pk, &pu) && GetProcessTimes(child, &cc, &ce, &ck, &cu) &&
+        CompareFileTime(&cc, &pc) >= 0 && QueryFullProcessImageNameW(parent, 0, parent_path, &parent_size) &&
+        QueryFullProcessImageNameW(child, 0, child_path, &child_size) && !_wcsicmp(parent_path, child_path)) owned = TRUE;
+    if (parent) CloseHandle(parent);
+    if (child) CloseHandle(child);
+    return owned;
+}
 static void log_message(const char *message) {
     const unsigned char *p = (const unsigned char *)message;
     unsigned n = 0;
@@ -33,7 +61,7 @@ static void log_message(const char *message) {
 }
 static void connection(const char *process, DWORD pid, const char *ip, UINT16 port, const char *route) {
     (void)process; (void)ip; (void)port;
-    if (pid != worker_pid) return;
+    if (!owned_worker(pid)) return;
     EnterCriticalSection(&output_lock);
     if (strstr(route, "Proxy") || strstr(route, "SOCKS") || strstr(route, "proxy")) proxy_count++;
     else if (strstr(route, "Direct") || strstr(route, "DIRECT")) direct_count++;
