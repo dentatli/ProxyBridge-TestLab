@@ -1,8 +1,8 @@
 "use strict";
 // Presentation uses confirmed runner milestones; it never supplies execution evidence.
 const trafficQueueText={
-  ru:{preparation:"Подготовка",environment:"Подготовка машины",baseline:"Исходное состояние",client:"Работоспособность клиента",cleanup:"Завершение",product:"Клиент остановлен",origin:"Получатель освобождён",WAIT:"В очереди",RUNNING:"Выполняется",PASS:"Успешно",PROVISIONAL:"Успешно",FAIL:"Ошибка",MIXED:"Частично успешно",CANCELLED:"Отменено",SKIP:"Пропущено",UNKNOWN:"Не подтверждено",FINISHED:"Проверка завершена",STOPPING:"Завершение и очистка",completed:"Завершено",logs:"Результаты и логи",provisional:"Итог подтвердится после очистки"},
-  en:{preparation:"Preparation",environment:"Machine preparation",baseline:"Initial state",client:"Client readiness",cleanup:"Finishing",product:"Client stopped",origin:"Receiver released",WAIT:"Queued",RUNNING:"Running",PASS:"Passed",PROVISIONAL:"Passed",FAIL:"Failed",MIXED:"Partially passed",CANCELLED:"Cancelled",SKIP:"Skipped",UNKNOWN:"Unverified",FINISHED:"Run finished",STOPPING:"Finishing and cleanup",completed:"Completed",logs:"Results and logs",provisional:"Final result follows cleanup"}
+  ru:{preparation:"Подготовка",environment:"Подготовка машины",baseline:"Исходное состояние",client:"Работоспособность клиента",cleanup:"Завершение",product:"Клиент остановлен",origin:"Получатель освобождён",WAIT:"В очереди",RUNNING:"Выполняется",PASS:"Успешно",PROVISIONAL:"Успешно",FAIL:"Ошибка",MIXED:"Частично успешно",CANCELLED:"Отменено",SKIP:"Пропущено",UNKNOWN:"Не подтверждено",NOTSTARTED:"Проверки не запущены",blocked:"Запуск заблокирован: не подтверждено исходное состояние клиента.",FINISHED:"Проверка завершена",STOPPING:"Завершение и очистка",completed:"Завершено",logs:"Результаты и логи",provisional:"Итог подтвердится после очистки"},
+  en:{preparation:"Preparation",environment:"Machine preparation",baseline:"Initial state",client:"Client readiness",cleanup:"Finishing",product:"Client stopped",origin:"Receiver released",WAIT:"Queued",RUNNING:"Running",PASS:"Passed",PROVISIONAL:"Passed",FAIL:"Failed",MIXED:"Partially passed",CANCELLED:"Cancelled",SKIP:"Skipped",UNKNOWN:"Unverified",NOTSTARTED:"Checks not started",blocked:"Start blocked: the initial client state is unverified.",FINISHED:"Run finished",STOPPING:"Finishing and cleanup",completed:"Completed",logs:"Results and logs",provisional:"Final result follows cleanup"}
 };
 const trafficQueueLabel=key=>trafficQueueText[labLanguage]?.[key]||trafficQueueText.en[key]||key;
 const trafficQueueIcons={WAIT:"○",RUNNING:"●",PASS:"✓",PROVISIONAL:"✓",FAIL:"×",MIXED:"◐",CANCELLED:"—",SKIP:"—",UNKNOWN:"?"};
@@ -63,7 +63,7 @@ function trafficQueueModel(execution,catalog){
   ]});
   for(const group of groups)group.status=trafficQueueAggregate(group.rows);
   const measured=groups.slice(1,-1).flatMap(group=>group.rows);
-  return {id:run.id,active,groups,completed:measured.filter(row=>!["WAIT","RUNNING","UNKNOWN"].includes(row.status)).length,total:requested.length,finishing,passed:measured.filter(row=>row.status==="PASS").length,failed:measured.filter(row=>row.status==="FAIL").length};
+  return {id:run.id,active,groups,blocked:!active&&queue?.preparation_failed===true,offUnverified:run.error==="TRAFFIC_PRODUCT_OFF_NOT_VERIFIED",skipped:measured.filter(row=>row.status==="SKIP").length,completed:measured.filter(row=>["PASS","PROVISIONAL","FAIL"].includes(row.status)).length,total:requested.length,finishing,passed:measured.filter(row=>row.status==="PASS").length,failed:measured.filter(row=>row.status==="FAIL").length};
 }
 
 function renderTrafficExecution(execution){
@@ -87,13 +87,13 @@ function renderTrafficExecution(execution){
     // Links added after initial page binding participate in normal lab navigation.
     container.querySelector("a").addEventListener("click",event=>{event.preventDefault();navigateLab("results");});
   }
-  container.querySelector("[data-queue-overview]").textContent=`${model.active?(model.finishing?trafficQueueLabel("STOPPING"):trafficQueueLabel("RUNNING")):trafficQueueLabel("FINISHED")} · ${model.completed}/${model.total}${!model.active?` · ${trafficQueueLabel("PASS")}: ${model.passed} · ${trafficQueueLabel("FAIL")}: ${model.failed}`:""}`;
+  container.querySelector("[data-queue-overview]").textContent=`${model.active?(model.finishing?trafficQueueLabel("STOPPING"):trafficQueueLabel("RUNNING")):trafficQueueLabel(model.blocked?"NOTSTARTED":"FINISHED")} · ${model.completed}/${model.total}${!model.active?` · ${trafficQueueLabel("PASS")}: ${model.passed} · ${trafficQueueLabel("FAIL")}: ${model.failed}${model.skipped?` · ${trafficQueueLabel("SKIP")}: ${model.skipped}`:""}`:""}${model.blocked&&model.offUnverified?` · ${trafficQueueLabel("blocked")}`:""}`;
   for(const group of model.groups){
     const card=container.querySelector(`[data-queue-card="${CSS.escape(group.id)}"]`);
     card.dataset.status=group.status;card.classList.toggle("is-current",group.current);
     card.open=Object.hasOwn(trafficQueuePreferences,group.id)?trafficQueuePreferences[group.id]:group.current;
     card.querySelector(".traffic-queue-status").textContent=`${trafficQueueIcons[group.status]} ${trafficQueueLabel(group.current?"RUNNING":group.status)}`;
-    card.querySelector(".traffic-queue-count").textContent=`${group.rows.filter(row=>!["WAIT","RUNNING","UNKNOWN"].includes(row.status)).length}/${group.rows.length}`;
+    card.querySelector(".traffic-queue-count").textContent=`${group.rows.filter(row=>["PASS","PROVISIONAL","FAIL"].includes(row.status)).length}/${group.rows.length}`;
     for(const row of group.rows){
       const element=card.querySelector(`[data-queue-stage="${CSS.escape(row.id)}"]`);
       element.dataset.status=row.status;
