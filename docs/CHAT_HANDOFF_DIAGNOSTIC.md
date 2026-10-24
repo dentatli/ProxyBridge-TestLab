@@ -1,5 +1,10 @@
 # Передача чату диагностики TCP / WinDbg
 
+**Актуально24октября:** [единый driver4da324e, сборка, установка и выбор в лаборатории](PRODUCT_INTEGRATION_2026-10-24.md).
+UDP/TCP DIRECT слиты по разрешению USER; прежние ветки архивированы.
+USER сам выполняет новый лабораторный прогон; старые результаты ниже относятся
+к указанным в них отдельным версиям.
+
 TCP benchmark завершён: [результаты2026-10-23](TCP_DIRECT_BENCHMARK_RESULTS_2026-10-23.md). 48 runs:43 008 echo replies +1.5GiB ctsTraffic data verified. DIRECT route fix подтверждён, paced-p99 нестабилен, Core upload cycles/MiB+32%, download−82%; не заявлять равномерного уменьшения ресурсов. Оба trial восстановлены Stopped/Disabled; product340bdc8/driver не менялись, PR нет.
 
 Benchmark TCP DIRECT остановлен при remaining5%: [checkpoint2026-10-23](TCP_DIRECT_BENCHMARK_CHECKPOINT_2026-10-23.md). Подтверждённых performance результатов нет; baseline gate WRONG_ROUTE требует разбора. PB-SUT восстановлен Stopped/Disabled.
