@@ -1,5 +1,6 @@
 """The real local receiver works; a capped buffer cannot silently run a test."""
 import asyncio
+import os
 import unittest
 from unittest.mock import AsyncMock, Mock, patch
 from trafficlab.agent import Agent, create_origin_datagram_endpoint, LOCAL_ORIGIN_UDP_RECEIVE_BUFFER
@@ -7,6 +8,7 @@ from trafficlab.worker import udp_flow
 
 
 class OriginBufferTests(unittest.IsolatedAsyncioTestCase):
+    @unittest.skipUnless(os.name == 'nt', 'Local Windows profile; remote OS buffer limits differ')
     async def test_local_receiver_keeps_signed_udp_validation(self):
         agent = Agent(b'x' * 32)
         agent.identity_mode = 'local-windows-v1'

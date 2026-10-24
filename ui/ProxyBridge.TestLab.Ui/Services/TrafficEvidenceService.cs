@@ -23,7 +23,7 @@ public sealed partial class TrafficRuntimeService
     {
         // Fixed allowlist; never enumerate profiles, bindings, keys, DPAPI archives or arbitrary paths.
         var names = new[] { "session.console.jsonl", caseId + ".report.json" }
-            .Concat(new[] { "OFF-control", "UNRULED-control", "OFF", "UNRULED", "SOCKS5" }
+            .Concat(new[] { "OFF-control", "UNRULED-control", "LAB-CAPACITY-control", "OFF", "UNRULED", "SOCKS5" }
                 .SelectMany(mode => new[] { $"{caseId}.{mode}.console.jsonl", $"{caseId}.{mode}.raw.json", $"{caseId}.{mode}.raw.json.stages.jsonl" }));
         return names.Where(name => File.Exists(Path.Combine(directory, name)));
     }

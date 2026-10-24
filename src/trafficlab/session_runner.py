@@ -17,6 +17,7 @@ from trafficlab.runner import idle, ownership, validate_route
 from trafficlab.schedule import OriginMetricsChannel, atomic, origin_metrics, run
 from trafficlab.worker import cancelled
 from trafficlab.wfp_device import device
+from trafficlab.udp_capacity import CAPACITY_ERROR, capacity_candidate, run_capacity_control
 
 MODEL = 'persistent-core-session-v1'
 
@@ -212,6 +213,19 @@ def execute(binding_path: str, directory: Path) -> int:
                         item['rule_change'] = state
                         row['measurements'].append(item)
                         row['errors'].extend(code for code in item['errors'] if code not in row['errors'])
+                        candidate = capacity_candidate(measured_job, catalog, measured) if mode == 'SOCKS5' else None
+                        if candidate is not None and not cancelled(binding):
+                            safe = isolation(binding, session, {**channel_job, 'run_id':job['run_id']})
+                            control = run_capacity_control(measured_job, catalog, candidate,
+                                str(directory / (case['case_id'] + '.LAB-CAPACITY-control.raw.json')), progress)
+                            control['isolation_before'] = safe
+                            row['controls'].append(control)
+                            if control['laboratory_limited']:
+                                row['environment_limited'] = True
+                                row['errors'].append(CAPACITY_ERROR)
+                                item['errors'].append(CAPACITY_ERROR)
+                                item['measurement_state'] = 'LABORATORY_LIMITED'
+                                item['product_result_confirmed'] = False
                 row['case_isolation'] = isolation(binding, session, {**channel_job, 'run_id': job['run_id']})
                 row['case_isolation_verified'] = True
                 expected = 3 if case['case_id'] == 'three-modes' else 1

@@ -28,6 +28,7 @@ let resultView='reports',evidenceSelection=null,evidenceSequence=0,reportHasData
 const trafficReportBuild=run=>labState.builds.find(build=>build.id===run.build_id)?.display_name||'ProxyBridge';
 function trafficReportDate(run){const date=new Date(run.started_at_utc);return Number.isNaN(date.valueOf())?'—':date.toLocaleString(labLanguage==='ru'?'ru-RU':'en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
 function trafficReportStatus(row,attempt){
+  if(!row?.cancelled&&row?.cleanup_verified!==false&&(row?.environment_limited||row?.errors?.includes('TRAFFIC_LAB_UDP_CAPACITY_UNVERIFIED')))return 'UNVERIFIED';
   if(attempt?.activity_observation==='UNCONFIRMED')return 'UNVERIFIED';
   if(!row)return ['PREPARING','RUNNING'].includes(attempt?.state)?'RUNNING':'MISSING';
   return row.complete&&row.cleanup_verified?'PASS':row.skipped?'SKIPPED':row.cancelled?'CANCELLED':trafficWorkloadComplete(row)?'UNVERIFIED':'FAIL';
@@ -38,6 +39,7 @@ function trafficReportCounts(run){
   return {passed,failed,other:Math.max(0,(run.cases?.length||0)-passed-failed)};
 }
 function trafficReportReason(row,attempt){
+  if(trafficReportStatus(row,attempt)==='UNVERIFIED'&&(row?.environment_limited||row?.errors?.includes('TRAFFIC_LAB_UDP_CAPACITY_UNVERIFIED')))return labLanguage==='ru'?'Стенд не выдержал нагрузку; результат клиента не подтверждён':'Lab capacity exceeded; product result unverified';
   const status=trafficReportStatus(row,attempt),errors=row?.errors||[],measure=row?.measurements?.find(item=>item.mode==='SOCKS5');
   if(status==='PASS')return t('reportOk');
   if(status==='UNVERIFIED'&&trafficWorkloadComplete(row)&&attempt?.activity_observation!=='UNCONFIRMED')return labLanguage==='ru'?'Измерения успешны; завершение не подтверждено':'Measurements passed; finalization unverified';
