@@ -10,6 +10,7 @@ public sealed partial class TrafficRuntimeService
     {
         var python = LocalPythonRuntime.Resolve(app.RepositoryRoot);
         if (!File.Exists(python)) throw new InvalidOperationException("TRAFFIC_PYTHON_311_REQUIRED");
+        await PrepareLocalFirewallAsync(python, directory);
         var sources = Directory.EnumerateFiles(Path.Combine(app.RepositoryRoot, "src", "trafficlab"), "*.py")
             .Concat(TrafficDependencyFiles("win-x64")).Append(Path.Combine(app.RepositoryRoot,"vendor","traffic-dependencies.lock.json"))
             .Append(python).Concat(Directory.EnumerateFiles(Path.GetDirectoryName(python)!, "*.dll"))

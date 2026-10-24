@@ -328,7 +328,8 @@ public sealed partial class TrafficRuntimeService
                 if (selection.Contract == "v4.0.0") sourceFiles = sourceFiles.Concat(new[] { "bin/tools/windivert-2.2.2/windivertctl.exe", "bin/tools/windivert-2.2.2/WinDivert.dll" }.Select(path => Path.Combine(app.RepositoryRoot, path)));
                 if (request.Mode == "local") sourceFiles = sourceFiles.Concat(new[] {
                     Path.Combine(app.RepositoryRoot, "bin", "pb_core_host.exe"),
-                    Path.Combine(app.RepositoryRoot, "scripts", "Set-TrafficWfpDevice.ps1") });
+                    Path.Combine(app.RepositoryRoot, "scripts", "Set-TrafficWfpDevice.ps1"),
+                    Path.Combine(app.RepositoryRoot, "scripts", "Initialize-LocalFirewall.ps1") });
                 sourceFiles = sourceFiles.Select(Path.GetFullPath).ToArray();
                 foreach (var file in sourceFiles)
                 {
