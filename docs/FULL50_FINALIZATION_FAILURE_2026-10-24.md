@@ -33,3 +33,15 @@ SHA256 установленной32 и текущего source совпали д
 Сохранённые попытка/reports/raw/console не изменены. Новых сетевых прогонов, установки/остановки драйверов, изменений продукта или лабораторного кода не было. Не запускать следующую очередь, полагаясь на старый OFF: текущее состояние требует штатной проверки/восстановления с сохранением ownership gates.
 
 Рекомендуемое отдельное исправление лаборатории: ограниченный повтор наблюдения при CIM timeout без обхода проверок; сохранять первопричину cleanup; разделить исход измерений и финальную системную проверку, в том числе для старых reports. Успешные measurements при неподтверждённом OFF нельзя выдавать за полностью аттестованный PASS. Ошибку состояния системы показывать отдельно, не50 раз как ошибку трафика. Продуктовый UDP ownership и лабораторный QUIC association остаются отдельными задачами.
+
+## Минимальное исправление выполнено — preview.33
+
+По следующему запросу пользователя внесён source `25b6fb2b2b9a362f762be90a42c2176b5a75a934`:
+
+- Только CIM query в ветке owned WinDivert restoration повторяется один раз при HRESULT0x40004, после250мс; каждый запрос ограничен5с. Частичные строки не используются. Остальные ошибки/ownership gates не повторяются и не обходятся. Внешний timeout idle увеличен35→45с, чтобы вместить повтор вместе с существующими settlement/observers/stop bounds.
+- Перед финальными gates сохраняется отдельное `workload_complete` в report и presentation queue. Общий complete/PASS по-прежнему требует OFF, graceful exit, полного capture и immutable files. В queue evidence сохраняется первичный cleanup_error без произвольного exception text.
+- История и визуализация очереди отличают неуспешное измерение от неподтверждённого итога. Для старых queue-final-off reports исход восстанавливается только в UI из полного ожидаемого набора успешных measurements, при case isolation=true, без errors/cancel/skip. Исходные файлы не переписываются. Семейства без ошибок измерений показываются INCOMPLETE, этапы UNVERIFIED, причина «Измерения успешны; завершение не подтверждено»; полного PASS и ранжирования неподтверждённых результатов нет.
+
+Проверено без сети/продуктовых запусков: ephemeral actual PowerShell retry AST (timeout→success, timeout×2, access denied, partial rows); actual Python finalization AST (cleanup=true/false); JS по двум реальным saved full50: старый38PASS/12FAIL сохранён, новый12FAIL/38UNVERIFIED, execution queue тот же12/38. Missing/ошибка capture/isolation/cancel/skip guards прошли. Временные проверки только ignored `artifacts/cleanup-fix`, tracked автотестов не добавлено.
+
+Пакет33 собран .NET publish,1479 SHA matched. Установлен вместо32 только при active=false/busy=false штатным package Stop; новый controller5178 администратор, active=false/busy=false. Browser подтверждает12 ошибок/38не завершено, отдельную непроверенную очистку, статус и причину TCP; console errors/warnings пусты. Screenshot `artifacts/cleanup-fix/preview33.png`. Нагрузок/новой диагностики не запускали, оставшийся WinDivert не останавливали; готовность системы OFF этим не подтверждена. UDP/QUIC причины остаются отдельным scope. Source push/remote25b6fb2 подтверждены.
