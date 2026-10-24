@@ -10,6 +10,7 @@ import time
 from typing import Any
 
 from trafficlab.protocol import ID, MAX_LINE, json_bytes, mac
+from trafficlab.quic_proxy import QuicRoutes
 
 
 def fingerprint(flow_id: str, peer: list[Any]) -> int:
@@ -30,6 +31,7 @@ class SocksProxy:
         self.application_dns_port: int | None = None
         self.quic_ports: set[int] = set()
         self.application_connections: dict[tuple[str, int], dict[str, Any]] = {}
+        self.quic = QuicRoutes(agent.max_connections)
 
     def observe_application(self, run_id: str, flow_id: str, peer: list[Any]) -> None:
         connection = self.application_connections.get(tuple(peer))
@@ -52,19 +54,28 @@ class SocksProxy:
             "tcp_origin_fingerprint": "0" * 64, "udp_sent": 0, "udp_received": 0, "udp_flows": 0,
             "udp_origin_fingerprint": "0" * 64, "samples": []})
 
-    def observe_quic(self, run_id: str, flow_id: str, peer: list[Any]) -> None:
+    def quic_association(self, peer: list[Any]) -> dict[str, Any] | None:
+        return next((association for association in self.associations.values()
+                     if list(association['transport'].get_extra_info('sockname')[:2]) == peer), None)
+
+    def observe_quic_cid(self, peer: list[Any], port: int, original_cid: bytes, cid: bytes, retired: bool) -> None:
+        association = self.quic_association(peer)
+        if association is not None:
+            self.quic.server_cid(association, port, original_cid, cid, retired)
+
+    def observe_quic(self, run_id: str, flow_id: str, peer: list[Any], port: int, original_cid: bytes) -> None:
         # The origin authenticates decrypted application bytes before binding opaque UDP to a run.
-        for association in self.associations.values():
-            if list(association['transport'].get_extra_info('sockname')[:2]) != peer:
-                continue
+        association = self.quic_association(peer)
+        if association is not None:
             username = association['username']
-            if association.get('quic_identity') is not None or not (run_id == username or run_id.startswith(username + '.')):
+            route = self.quic.connection(association, port, original_cid)
+            if route is None or route['identity'] is not None or not ID.fullmatch(run_id) or not ID.fullmatch(flow_id) or not (run_id == username or run_id.startswith(username + '.')):
                 raise ValueError('SOCKS_QUIC_IDENTITY_INVALID')
             counters = self.counters(run_id)
-            association.update(quic_identity=(run_id, flow_id), run_id=run_id)
+            route['identity'] = (run_id, flow_id)
             counters['udp_flows'] += 1
-            counters['udp_sent'] += association.get('quic_sent', 0)
-            counters['udp_received'] += association.get('quic_received', 0)
+            counters['udp_sent'] += route['sent']
+            counters['udp_received'] += route['received']
             counters['udp_origin_fingerprint'] = f"{int(counters['udp_origin_fingerprint'],16) ^ fingerprint(flow_id,peer):064x}"
             return
 
@@ -197,6 +208,7 @@ class SocksProxy:
             if counters is not None:
                 counters["tcp_active"] -= 1
             if association is not None:
+                self.quic.forget(association)
                 for key in association["keys"]:
                     self.associations.pop(key, None)
                 association["transport"].close()
@@ -228,15 +240,10 @@ class SocksProxy:
             association["client"] = client
             data = packet[6 + size:]
             if port in self.quic_ports:
-                if association.get('quic_port', port) != port or association.get('run_id') and not association.get('quic_identity'):
-                    return
-                association['quic_port'] = port
-                association['quic_sent'] = association.get('quic_sent', 0) + 1
-                if association.get('quic_identity'):
-                    self.counters(association['run_id'])['udp_sent'] += 1
+                route = self.quic.packet(association, port, data)
+                if route['identity'] is not None:
+                    self.counters(route['identity'][0])['udp_sent'] += 1
                 association['transport'].sendto(data, ('127.0.0.1', port))
-                return
-            if association.get('quic_port'):
                 return
             if port == self.application_dns_port:
                 from trafficlab.application_wire import dns_decode, validate
@@ -298,11 +305,9 @@ class RelayDatagram(asyncio.DatagramProtocol):
             return
         try:
             if sender[1] in self.proxy.quic_ports:
-                if association.get('quic_port') != sender[1]:
-                    return
-                association['quic_received'] = association.get('quic_received', 0) + 1
-                if association.get('quic_identity'):
-                    self.proxy.counters(association['run_id'])['udp_received'] += 1
+                route = self.proxy.quic.packet(association, sender[1], packet, reply=True)
+                if route['identity'] is not None:
+                    self.proxy.counters(route['identity'][0])['udp_received'] += 1
                 response = b'\0\0\0' + self.proxy.wire_address(next(iter(sorted(self.proxy.addresses - {'127.0.0.1'} or self.proxy.addresses))), sender[1]) + packet
                 association['ingress'].sendto(response, association['client'])
                 return

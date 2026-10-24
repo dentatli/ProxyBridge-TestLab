@@ -1,11 +1,43 @@
 """QUIC framing and all-flow evidence boundaries, without network or product execution."""
 import unittest
+from types import SimpleNamespace
 from trafficlab.protocol import MAX_LINE
 from trafficlab.quic_wire import append_body, h3_headers
 from trafficlab.routes import stage_route
+from trafficlab.proxy import SocksProxy, fingerprint
 
 
 class QuicSafetyTests(unittest.TestCase):
+    def test_shared_association_binds_counters_only_to_authenticated_connections(self):
+        rows = {}
+        agent = SimpleNamespace(max_connections=4, metrics=lambda run: rows.setdefault(run, {}))
+        proxy = SocksProxy(agent, 42501, ['127.0.0.1'])
+        peer = ['127.0.0.1', 50000]
+        association = {'username': 'queue', 'run_id': 'queue.previous-udp',
+                       'transport': SimpleNamespace(get_extra_info=lambda name: peer)}
+        proxy.associations[('127.0.0.1', 12345)] = association
+        for port, cid, run, flow, sent in [(42520, b'client01', 'queue.http3', 'flow-a', 7),
+                                          (42520, b'client02', 'queue.http3', 'flow-b', 9),
+                                          (42521, b'client01', 'queue.quic', 'flow-c', 11)]:
+            key = (id(association), port, cid)
+            route = {'key': key, 'identity': None, 'sent': sent, 'received': 3,
+                     'server_ids': set(), 'client_ids': set()}
+            proxy.quic.routes[key] = route
+            with self.assertRaisesRegex(ValueError, 'IDENTITY_INVALID'):
+                proxy.observe_quic('another-queue.run', flow, peer, port, cid)
+            self.assertIsNone(route['identity'])
+            proxy.observe_quic(run, flow, peer, port, cid)
+            with self.assertRaisesRegex(ValueError, 'IDENTITY_INVALID'):
+                proxy.observe_quic(run, flow, peer, port, cid)
+        self.assertEqual(rows['queue.http3']['proxy']['udp_flows'], 2)
+        self.assertEqual(rows['queue.http3']['proxy']['udp_sent'], 16)
+        self.assertEqual(rows['queue.quic']['proxy']['udp_sent'], 11)
+        expected = fingerprint('flow-a', peer) ^ fingerprint('flow-b', peer)
+        self.assertEqual(int(rows['queue.http3']['proxy']['udp_origin_fingerprint'], 16), expected)
+        self.assertNotIn('queue.previous-udp', rows)
+        proxy.quic.forget(association)
+        self.assertFalse(proxy.quic.routes)
+
     def test_body_limit_before_append(self):
         body = bytearray(b'a' * MAX_LINE)
         with self.assertRaisesRegex(ValueError, 'BODY_TOO_LARGE'):

@@ -12,7 +12,7 @@ enable()
 from aioquic.asyncio import serve
 from aioquic.asyncio.protocol import QuicConnectionProtocol
 from aioquic.quic.configuration import QuicConfiguration
-from aioquic.quic.events import ConnectionTerminated, StreamDataReceived, StreamReset
+from aioquic.quic.events import ConnectionIdIssued, ConnectionIdRetired, ConnectionTerminated, StreamDataReceived, StreamReset
 from aioquic.h3.connection import H3Connection
 from aioquic.h3.events import HeadersReceived, DataReceived
 
@@ -26,7 +26,7 @@ class QuicOrigin:
             idle_timeout=5, max_data=262144, max_stream_data=16384, supported_versions=[1])
         configuration.load_cert_chain(self.origins.certificate, self.origins.key)
         return await serve(bind, port, configuration=configuration,
-            create_protocol=lambda *args, **kwargs: OriginProtocol(*args, owner=self, kind=kind, **kwargs), retry=True)
+            create_protocol=lambda *args, **kwargs: OriginProtocol(*args, owner=self, kind=kind, port=port, **kwargs), retry=True)
 
     def close(self):
         for protocol in list(self.protocols):
@@ -35,9 +35,10 @@ class QuicOrigin:
 
 
 class OriginProtocol(QuicConnectionProtocol):
-    def __init__(self, *args, owner, kind, **kwargs):
+    def __init__(self, *args, owner, kind, port, **kwargs):
         super().__init__(*args, **kwargs)
         self.owner, self.kind = owner, kind
+        self.port = port
         self.peer, self.identity, self.row = None, None, None
         self.bodies, self.headers = {}, {}
         self.profile = None
@@ -91,7 +92,7 @@ class OriginProtocol(QuicConnectionProtocol):
         if self.identity is None:
             self.identity, self.row = pair, row
             row['active'] += 1
-            self.owner.origins.agent.proxy.observe_quic(*pair, self.peer)
+            self.owner.origins.agent.proxy.observe_quic(*pair, self.peer, self.port, self._quic.original_destination_connection_id)
         self.profile = profile
         row['rx_bytes'] += len(payload)
         if profile == MULTIPLEX_PROFILE:
@@ -133,6 +134,10 @@ class OriginProtocol(QuicConnectionProtocol):
         if not self.admitted:
             return
         try:
+            if isinstance(event, (ConnectionIdIssued, ConnectionIdRetired)):
+                self.owner.origins.agent.proxy.observe_quic_cid(self.peer, self.port,
+                    self._quic.original_destination_connection_id, event.connection_id, isinstance(event, ConnectionIdRetired))
+                return
             if isinstance(event, StreamReset):
                 raise ValueError('APPLICATION_QUIC_STREAM_RESET')
             if self.http:
