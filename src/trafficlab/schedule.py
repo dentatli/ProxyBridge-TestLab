@@ -14,7 +14,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
-from trafficlab.protocol import json_bytes
+from trafficlab.protocol import json_bytes, verify_mac
 from trafficlab.metrics import SummaryWindow
 from trafficlab.routes import stage_route
 from trafficlab.resources import ResourceWindow, process_sample, system_sample
@@ -81,21 +81,35 @@ def origin_metrics(job: dict[str, Any]) -> dict[str, Any]:
             raise
 
 
+def verified_origin_snapshot(job: dict[str, Any], snapshot: dict[str, Any]) -> dict[str, Any]:
+    value = dict(snapshot)
+    authentication = value.pop('authentication')
+    context = bytes.fromhex(authentication['context_hex'])
+    request = json.loads(context[64:])
+    if request.get('run_id') != job['run_id'] or request.get('task') != 'metrics':
+        raise ValueError('TRAFFIC_ORIGIN_SNAPSHOT_SCOPE_INVALID')
+    verify_mac(bytes.fromhex(job['secret']), b'result:', context + json_bytes(value), authentication['proof'])
+    validate_origin_identity(job, value)
+    return value
+
+
+def validate_origin_identity(job: dict[str, Any], result: dict[str, Any]) -> None:
+    expected = job.get('remote_bundle_sha256')
+    if expected and (not result.get('identity', {}).get('verified') or result['identity'].get('bundle_sha256') != expected):
+        raise ValueError('TRAFFIC_REMOTE_ARTIFACT_IDENTITY_CHANGED')
+    for field, name, error in (('application_tls_sha256', 'tls_certificate_sha256', 'APPLICATION_TLS_IDENTITY_CHANGED'),
+                              ('application_ssh_sha256', 'ssh_host_key_sha256', 'APPLICATION_SSH_HOST_KEY_CHANGED')):
+        if job.get(field) and result.get('identity', {}).get('application', {}).get(name) != job[field]:
+            raise ValueError(error)
+
+
 def _origin_metrics(job: dict[str, Any], connection: socket.socket | None = None) -> dict[str, Any]:
     binding = {**job, "seconds": 0.05, "port": job.get("control_port", 42503)}
     binding.pop("test_proxy", None)
     sock, stream, context, _ready = connect(binding, "metrics", str(uuid.uuid4()), connection=connection)
     try:
         result = read_result(job, stream, context)
-        expected = job.get("remote_bundle_sha256")
-        if expected and (not result.get("identity", {}).get("verified") or result["identity"].get("bundle_sha256") != expected):
-            raise ValueError("TRAFFIC_REMOTE_ARTIFACT_IDENTITY_CHANGED")
-        certificate = job.get("application_tls_sha256")
-        if certificate and result.get("identity", {}).get("application", {}).get("tls_certificate_sha256") != certificate:
-            raise ValueError("APPLICATION_TLS_IDENTITY_CHANGED")
-        ssh_key = job.get('application_ssh_sha256')
-        if ssh_key and result.get('identity', {}).get('application', {}).get('ssh_host_key_sha256') != ssh_key:
-            raise ValueError('APPLICATION_SSH_HOST_KEY_CHANGED')
+        validate_origin_identity(job, result)
         return result
     finally:
         stream.close()
@@ -269,7 +283,9 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
             publish_progress(state='RUNNING',stage=stage['phase'],index=index,stage_run_id=stage_job['run_id'],
                              operation=context['operation'],live_origin=None)
             if any(workload.get("application") for workload in stage["workloads"]):
-                origin_metrics(stage_job)  # Register the session before native DNS encodes its opaque run tag.
+                registration = origin_metrics(stage_job)  # Register before native DNS encodes its opaque run tag.
+                if isolated_worker:
+                    stage_job['_isolated_origin_evidence'] = registration
             with observations_lock:
                 current["job"] = stage_job
             phase_started = time.perf_counter()

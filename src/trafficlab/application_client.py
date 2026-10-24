@@ -321,8 +321,9 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
 
 
 def execute_application(job: dict[str, Any]) -> dict[str, Any]:
-    from trafficlab.schedule import origin_metrics
-    origin = origin_metrics(job)
+    from trafficlab.schedule import origin_metrics, verified_origin_snapshot
+    origin = (verified_origin_snapshot(job, job['isolated_origin_evidence'])
+              if 'isolated_origin_evidence' in job else origin_metrics(job))
     job = {**job, "application_identity": origin.get("identity", {}).get("application", {})}
     started = time.perf_counter()
     with concurrent.futures.ThreadPoolExecutor(max_workers=job["connections"]) as pool:

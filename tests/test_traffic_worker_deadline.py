@@ -8,6 +8,8 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 from trafficlab.bounded_worker import execute_bounded
+from trafficlab.protocol import json_bytes, mac
+from trafficlab.schedule import verified_origin_snapshot
 
 
 class WorkerDeadlineTests(unittest.TestCase):
@@ -47,3 +49,17 @@ class WorkerDeadlineTests(unittest.TestCase):
 
     def test_cancel_stops_the_owned_worker(self):
         self.exercise(True)
+
+    def test_child_accepts_only_signed_identity_for_its_stage(self):
+        job = {'run_id':'stage-ssh', 'secret':'12' * 32, 'application_ssh_sha256':'pinned-key'}
+        value = {'identity':{'application':{'ssh_host_key_sha256':'pinned-key'}}}
+        context = b'a' * 64 + json_bytes({'run_id':job['run_id'], 'task':'metrics'})
+        snapshot = {**value, 'authentication':{'context_hex':context.hex(),
+            'proof':mac(bytes.fromhex(job['secret']), b'result:', context + json_bytes(value))}}
+        self.assertEqual(verified_origin_snapshot(job, snapshot), value)
+        with self.assertRaisesRegex(ValueError, 'SNAPSHOT_SCOPE_INVALID'):
+            verified_origin_snapshot({**job, 'run_id':'another-stage'}, snapshot)
+        with self.assertRaisesRegex(ValueError, 'AUTHENTICATION_FAILED'):
+            verified_origin_snapshot(job, {**snapshot, 'identity':{}})
+        with self.assertRaisesRegex(ValueError, 'HOST_KEY_CHANGED'):
+            verified_origin_snapshot({**job, 'application_ssh_sha256':'another-key'}, snapshot)

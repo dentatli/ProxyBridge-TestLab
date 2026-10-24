@@ -47,7 +47,10 @@ def execute_bounded(job: dict[str, Any]) -> dict[str, Any]:
     with tempfile.TemporaryDirectory(prefix='worker-private-', dir=job['_worker_directory']) as directory:
         root = Path(directory)
         request, output = root / 'job-private.json', root / 'result.json'
-        request.write_text(json.dumps({k: v for k, v in job.items() if not k.startswith('_')}), encoding='utf-8')
+        payload = {k: v for k, v in job.items() if not k.startswith('_')}
+        if '_isolated_origin_evidence' in job:
+            payload['isolated_origin_evidence'] = job['_isolated_origin_evidence']
+        request.write_text(json.dumps(payload), encoding='utf-8')
         # No credentials in arguments. The temporary directory inherits attempt ACLs.
         with (root / 'stderr.log').open('w+b') as stderr:
             process = subprocess.Popen([sys.executable, '-B', '-m', 'trafficlab.worker', '--job', str(request),
