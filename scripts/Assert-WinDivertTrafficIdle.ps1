@@ -43,7 +43,17 @@ if($RestoreOwnedDriver -and -not $loaded.known_interception_driver_names_absent)
     $environment['PB_EXPECTED_WINDIVERT_OBSERVER_DLL_SHA256']=Get-BoundHash $dll
     $handles=Get-WinDivertHandleObservation -Environment $environment -TimeoutMs 5000
     if(-not $handles.capture_complete -or $handles.observed_handle_count -ne 0){throw 'TRAFFIC_WINDIVERT_HANDLES_NOT_CLEAR'}
-    $services=@(Get-CimInstance Win32_SystemDriver -OperationTimeoutSec 5 | Where-Object Name -match '^WinDivert')
+    # Retry only an incomplete WMI enumeration, never an ownership or safety failure.
+    # Discard partial rows: only a fresh successful query may authorize restoration.
+    for($queryAttempt=0;$queryAttempt -lt 2;$queryAttempt++) {
+        try {
+            $services=@(Get-CimInstance Win32_SystemDriver -OperationTimeoutSec 5 -ErrorAction Stop | Where-Object Name -match '^WinDivert')
+            break
+        } catch {
+            if($queryAttempt -ne 0 -or $_.FullyQualifiedErrorId -notlike 'HRESULT 0x40004,*'){throw}
+            Start-Sleep -Milliseconds 250
+        }
+    }
     if($services.Count -ne 1){throw 'TRAFFIC_WINDIVERT_SERVICE_NOT_UNIQUE'}
     $service=$services[0]
     $path=([string]$service.PathName).Trim().Trim('"')

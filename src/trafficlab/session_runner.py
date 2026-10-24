@@ -101,7 +101,7 @@ def execute(binding_path: str, directory: Path) -> int:
         # Presentation only. A UI snapshot must never change execution or evidence gates.
         queue_view.update(phase=phase, **updates)
         queue_view['results'] = [{key: row.get(key) for key in
-            ('case_id', 'duration', 'load', 'complete', 'cancelled', 'skipped', 'case_isolation_verified')} for row in results
+            ('case_id', 'duration', 'load', 'complete', 'workload_complete', 'cancelled', 'skipped', 'case_isolation_verified')} for row in results
             if row.get('elapsed_seconds') is not None or row.get('skipped')]
         try:
             atomic(str(directory / 'queue-state.json'), queue_view)
@@ -251,6 +251,8 @@ def execute(binding_path: str, directory: Path) -> int:
         except Exception as exception:
             error = error or 'TRAFFIC_CLEANUP_OR_REBOOT_REQUIRED'
             queue_evidence['cleanup_exception_type'] = type(exception).__name__
+            queue_evidence['cleanup_error'] = (str(exception) if isinstance(exception, ValueError)
+                                               and str(exception).startswith('TRAFFIC_') else 'TRAFFIC_CLEANUP_CHECK_FAILED')
         graceful = session is None or session.evidence.get('cleanup_verified') is True
         capture_ok = session is None or (session.evidence.get('capture_complete') is True and session.evidence.get('output_retention_ok') is True)
         if not graceful:
@@ -269,6 +271,8 @@ def execute(binding_path: str, directory: Path) -> int:
                 results.append({**case, 'complete': False, 'cancelled': stopped, 'skipped': True,
                     'errors': ['SKIPPED_AFTER_CANCEL' if stopped else 'SKIPPED_AFTER_FAILURE'], 'measurements': []})
         for row in results:
+            # Preserve the case outcome; final OFF remains a separate mandatory gate.
+            row['workload_complete'] = row['complete']
             row['cleanup_verified'] = cleanup
             row['cleanup_scope'] = 'queue-final-off'
             row['complete'] = row['complete'] and cleanup and graceful and capture_ok and immutable_ok

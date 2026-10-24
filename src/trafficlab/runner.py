@@ -23,7 +23,7 @@ def idle(binding_path: str, binding: dict[str, Any], restore_owned: bool = False
     arguments = ["powershell.exe", "-NoProfile", "-NonInteractive", "-ExecutionPolicy", "Bypass", "-File", str(script), "-BindingPath", binding_path]
     if restore_owned:
         arguments.append("-RestoreOwnedDriver")
-    result = subprocess.run(arguments, capture_output=True, timeout=35, creationflags=subprocess.CREATE_NO_WINDOW)
+    result = subprocess.run(arguments, capture_output=True, timeout=45, creationflags=subprocess.CREATE_NO_WINDOW)
     if result.returncode or len(result.stdout) > 16384:
         atomic(str(Path(binding_path).parent / ('idle-failure-' + str(time.time_ns()) + '.json')),
                {'exit_code': result.returncode, 'stdout': result.stdout[:16384].decode('utf-8-sig', errors='replace'),

@@ -40,6 +40,16 @@ function trafficFamilySelection(family,choices,preference={}){
   };
   return {selected:!!selected.length,ids,profile,duration:common("duration",["SHORT","NORMAL","LONG"],"SHORT"),load:common("load",["LOW","HIGH"],"LOW")};
 }
+function trafficWorkloadComplete(row){
+  if(!row||row.skipped||row.cancelled||(row.errors||[]).length)return false;
+  if(typeof row.workload_complete==='boolean')return row.workload_complete;
+  if(row.complete===true)return true;
+  // Older queue reports overwrote complete on final OFF failure. Read evidence,
+  // without modifying history or granting the missing cleanup gate.
+  const modes=row.case_id==='three-modes'?['OFF','UNRULED','SOCKS5']:['SOCKS5'];
+  return row.cleanup_scope==='queue-final-off'&&row.cleanup_verified===false&&row.case_isolation_verified===true&&
+    row.measurements?.length===modes.length&&modes.every(mode=>row.measurements.some(item=>item.mode===mode&&item.complete===true));
+}
 function trafficFamilyReportGroups(catalog,requested,results){
   const expected=requested.map(row=>({id:row.id||row.Id,duration:row.duration||row.Duration,load:row.load||row.Load}));
   // Include historic IDs even when they are no longer present in the current catalog.
@@ -49,7 +59,7 @@ function trafficFamilyReportGroups(catalog,requested,results){
     const ids=new Set(family.rows.map(row=>row.id)),stages=expected.filter(row=>ids.has(row.id));
     const rows=stages.map(stage=>results.find(row=>row.case_id===stage.id&&row.duration===stage.duration&&row.load===stage.load));
     const passed=rows.filter(row=>row?.complete===true&&row.cleanup_verified===true).length;
-    const failed=rows.some(row=>row&&!row.complete&&!row.skipped&&!row.cancelled);
+    const failed=rows.some(row=>row&&!trafficWorkloadComplete(row)&&!row.skipped&&!row.cancelled);
     const status=failed?"FAIL":rows.some(row=>row?.cancelled)?"CANCELLED":passed===stages.length?"PASS":"INCOMPLETE";
     return {family,stages,rows,passed,status};
   }).filter(group=>group.stages.length);

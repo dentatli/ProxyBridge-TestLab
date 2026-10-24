@@ -30,7 +30,7 @@ function trafficReportDate(run){const date=new Date(run.started_at_utc);return N
 function trafficReportStatus(row,attempt){
   if(attempt?.activity_observation==='UNCONFIRMED')return 'UNVERIFIED';
   if(!row)return ['PREPARING','RUNNING'].includes(attempt?.state)?'RUNNING':'MISSING';
-  return row.complete&&row.cleanup_verified?'PASS':row.skipped?'SKIPPED':row.cancelled?'CANCELLED':row.complete?'UNVERIFIED':'FAIL';
+  return row.complete&&row.cleanup_verified?'PASS':row.skipped?'SKIPPED':row.cancelled?'CANCELLED':trafficWorkloadComplete(row)?'UNVERIFIED':'FAIL';
 }
 function trafficReportBadge(status){const names={ru:{PASS:'Успешно',FAIL:'Ошибка',FAILED:'С ошибками',COMPLETE:'Завершён',CANCELLED:'Отменён',RUNNING:'Выполняется',PREPARING:'Подготовка',SKIPPED:'Пропущен',MISSING:'Нет результата',INCOMPLETE:'Не завершён',UNVERIFIED:'Не подтверждено'}};return `<span class="result-badge status-${html(status.toLowerCase())}">${html(names[labLanguage]?.[status]||status)}</span>`;}
 function trafficReportCounts(run){
@@ -40,6 +40,7 @@ function trafficReportCounts(run){
 function trafficReportReason(row,attempt){
   const status=trafficReportStatus(row,attempt),errors=row?.errors||[],measure=row?.measurements?.find(item=>item.mode==='SOCKS5');
   if(status==='PASS')return t('reportOk');
+  if(status==='UNVERIFIED'&&trafficWorkloadComplete(row)&&attempt?.activity_observation!=='UNCONFIRMED')return labLanguage==='ru'?'Измерения успешны; завершение не подтверждено':'Measurements passed; finalization unverified';
   if(status==='CANCELLED')return t('reportCancelled');
   if(['SKIPPED','MISSING'].includes(status))return t('reportSkipped');
   if(errors.includes('TRAFFIC_UDP_LOSS_THRESHOLD_EXCEEDED'))return t('reportLoss')+(typeof measure?.overall?.udp_loss_fraction==='number'?`: ${number(measure.overall.udp_loss_fraction*100,1)}%`:'');
