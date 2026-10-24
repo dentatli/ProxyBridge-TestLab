@@ -20,6 +20,6 @@
 
 Финальная44 сохраняет тот же проверенный Python/backend, уточняет только отображение UNVERIFIED в карточке всего прогона и при выполнении; только capacity-only результат со штатным завершением может быть нейтральным. Cleanup/capture/immutable/data errors и отмена не маскируются. Node VM check на реальномWFP43report подтвердил statusUNVERIFIED/failed0/other1; отрицательные cleanup/identity/capture/data/cancellation cases PASS. Новых tracked UI tests нет. LAB-CAPACITY-control raw доступен через существующий fixed evidence allowlist, private bindings/keys не раскрываются.
 
-Проверенные44 Python/backend совпадения с43 будут проверены при упаковке; повторять успешные product gates только ради UI не требуется. Документация исправляет прежнюю ошибку о64 LOW flows; rates/profiles сами не менялись.
+Установлена44/sourceb5f8da5, controlleradmin5178/PID10476,1486SHA matched. Все44 Python-модуля байт-в-байт совпали с проверенной43; backend source не менялся, изменения44 только UI/version/docs. Повторные product gates только ради UI не запускались. API подтвердилidle, выбранныйWFP4da324e сохранён, ProxyBridgeDrvStopped/0productprocesses. Evidence API показывает LAB-CAPACITY-control raw277715bytes в allowlist. Подтверждены прежние cleanup обоих gates. Документация исправляет прежнюю ошибку о64 LOW flows; rates/profiles сами не менялись.
 
 Уточнение прежнего диагностического отчёта: фактический LOW каталог содержит8/32/**128**, а HIGH64/256/640. Прежнее упоминание64 как следующего LOW этапа было ошибкой описания; каталог и сохранённые выборы не менялись.
