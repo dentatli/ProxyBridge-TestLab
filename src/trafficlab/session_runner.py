@@ -16,6 +16,7 @@ from trafficlab.metrics import summary
 from trafficlab.runner import idle, ownership, validate_route
 from trafficlab.schedule import OriginMetricsChannel, atomic, origin_metrics, run
 from trafficlab.worker import cancelled
+from trafficlab.wfp_device import device
 
 MODEL = 'persistent-core-session-v1'
 
@@ -153,6 +154,8 @@ def execute(binding_path: str, directory: Path) -> int:
         channel = OriginMetricsChannel(channel_job)
         channel.__enter__()
         channel_job['_origin_metrics_channel'] = channel
+        immutable(binding)
+        queue_evidence['device_start'] = device(binding_path, binding, 'Enable')
         session = CoreSession(binding, directory)
         session.__enter__()
         queue_evidence['start_count'] = 1
@@ -245,6 +248,8 @@ def execute(binding_path: str, directory: Path) -> int:
             channel.__exit__(None, None, None)
         try:
             exited = session is None or session.evidence.get('exit_verified') is True
+            if exited:
+                queue_evidence['device_restore'] = device(binding_path, binding, 'Disable')
             final_off = idle(binding_path, binding, session is not None and exited)
             cleanup = exited and final_off['off_verified'] is True
             queue_evidence['off_after'] = final_off
