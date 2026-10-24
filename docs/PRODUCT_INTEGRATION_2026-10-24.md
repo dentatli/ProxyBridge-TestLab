@@ -46,6 +46,15 @@ reboot не запрашивался. Физический PB-SUT этим эт�
 Build ID `build-e513fd527f8310ac13b0782bd45800af2e00c69735e2ec76b6df23c63a33c633`.
 Bundle SHA256 `8d0c92ee45031cd1eef6bf49a5e84392d083945d4e95560a9b21e4c5b6ce7b68`.
 Повторное чтение подтвердило выбор; controller busy=false/active=false.
+После попытки `20261024-171408-a5ac866bf16846c88dfa3f19d958ebbc` исправлен
+DriverPath выбранного build: вместо SYS из release указан установленный SYS
+в DriverStore. Файлы имеют одинаковый hash, но guard требует также совпадение
+пути с SCM. Попытка остановилась до Core Start/трафика; её raw reports сохранены.
+После исправления штатный Assert-TrafficLabIdle.ps1 вернул exit0,
+off_verified=true/file_verified=true. Build ID и bundle hash не изменились;
+карта путей обновлена в каталоге через API. Сетевые тесты не запускались.
+Evidence: `idle-installed-path-result.json`, `lab-selection-installed-path.json`
+рядом с release. Эта проверка закрывает только причину ошибки подготовки.
 Статус VALIDATION_REQUIRED: файлы выбраны, но совместимость и новый full50
 ещё должен проверить USER. Не подменять этот результат прежними UDP/TCP gates.
 Новые диагностические socketpair trials не запускались: выбрана интеграция
