@@ -70,3 +70,27 @@ Product и local-origin cleanup=true, Start1/Stop1, force kill=false, capture co
 Ignored `artifacts/full50-review/`: evidence-summary.json (12cases, flow counts и SHA256 raw), frozen-proxy-gates.json, reproduce-frozen-proxy.py, udp-log-signatures.json, official-source.json (tag/commit/blob SHA), публичные reference C sources. Частные binding/secret/DPAPI/key/captures не коммитить. По3 исходным файлам frozen proxy/worker/DNS wire сверены manifest SHA, attempt и raw хеши сохранены. Подробные private original reports остаются в каталоге исходного attempt.
 
 Следующий отдельный scope: исправление лабораторного proxy accounting и короткая проверка UDP→QUIC/смены QUIC-порта/нескольких соединений без перезапуска Core. Отдельно — решение о работе над продуктовым UDP ownership; WFP и старые kernel findings не подмешивать. Нельзя объявить исправленными7UDP или5QUIC без новых различающих проверок.
+
+## Подтверждение последним пользовательским прогоном preview.34
+
+Attempt **20261024-052436-3d540d047e65404d921b9364493e5d2f**, 24 октября05:24:38–06:01:38UTC (10:24–11:01 местное), WinDivert4.3.0, NORMAL/LOW: **38PASS/12FAIL/0SKIP cases**. SHA256 attempt `8b28dd193b90d47ecdcd40a9f15bde17da88189e5b362d8ce12a80e990e2f4b1`. Product build SHA тот же `a49b056f21f9ca8a4e8f290c622badaab9f5808986ef242e8fa9f5d2699c5884`. Набор12 ошибок и их коды совпадают с исходным прогоном.
+
+**Сбой завершения не повторился:** общий error только `TRAFFIC_CASE_FAILED`; cleanup_verified=true, local_origin_cleanup_verified=true, off_after.off_verified=true, loaded query complete/names absent=true, product processes0. PID5596, Start1/Stop1, exit_verified=true, forced_stop=false, capture_complete/output_retention=true, child exit0. Idle-failure файлов нет. Это подтверждает успешное завершение данного прогона, но не доказывает, что ветка повторного CIM-запроса была задействована. Все50 case isolation=true,11 переходов после ошибок safe_to_continue=true.
+
+Счётчики ниже относятся к первому неуспешному внутреннему этапу, без успешных baseline/recovery:
+
+| Сценарий | Прокси отправил/получил ответов | Работники подтвердили |
+| --- | ---: | ---: |
+| udp-connected |11501/11501|2894|
+| udp-unconnected |11507/11507|2897|
+| udp-sweep |11503/11503|2895|
+| udp-connections,8flows |22975/22975|2924|
+| app-dns-udp |4/4|0|
+| mixed |11578/11578|2918|
+| stability |11564/11564|2893|
+
+У udp-connected подтверждения по четырём работникам10/19/24/2841; invalid24/43/64/8476. У udp-connections однопоточные baseline2879/2879 и recovery2880/2880 успешны. В DNS3timeout и1APPLICATION_DNS_RESPONSE_INVALID. В mixed/stability пять TCPflows успешны, UDPчасть провалена. Origin reply errors=0, одна общая UDPassociation. Это повторяет сохранённую сигнатуру ранее разобранного reply ownership WinDivert4.3; новых изменений продукта или различающего product A/B не было. Invalid counters не содержат отдельной причины каждого отброшенного пакета.
+
+HTTP3/QUIC пять FAIL: app-http3, app-http3-multiplex, app-http3-payload-sweep, app-quic, app-quic-multiplex. QUIC datagrams sent16/18/18/16/20 по сценариям, received0 в каждом, origin UDP received0. У каждого4PROXY/0DIRECT events, поэтому отсутствие правила не объясняет остановку до origin. SHA proxy.py в immutable34 `3ebfb0294ef4926b002ba45aaa983683dd20c8568e136c8d6ce5899393d874e5` совпадает с ранее разобранным/reproduced frozen18. Ограничения UDP→QUIC/порта/второй identity ещё не исправлялись. Это лабораторная причина текущих пяти отказов; работоспособность QUIC продукта после её устранения остаётся непроверенной.
+
+Как прежде,16 внутренних подэтапов не стартовали: udp-sweep5, udp-connections2, HTTP3payloadsweep2, stability7. Полный запуск50cases не означает полный внутренний охват. Сохранён bounded evidence-summary с SHA всех12 raw в ignored `artifacts/full50-review/latest34/evidence-summary.json`. Исходные private reports/captures неизменны; при разборе новых сетевых/продуктовых запусков, исправлений кода и системных действий не выполнялось. Следующий scope прежний: lab association/identity accounting, затем короткая различающая проверка; продуктовый UDPownership отдельно.
