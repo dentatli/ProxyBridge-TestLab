@@ -50,9 +50,9 @@ def ssh_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                           ssh_cipher=conn.get_extra_info('send_cipher'), ssh_version=conn.get_extra_info('server_version'))
             connection_latency.add((time.perf_counter() - started) * 1000)
             if kind == 'ssh':
-                process = await conn.create_process('testlab-echo', encoding=None)
+                process = await asyncio.wait_for(conn.create_process('testlab-echo', encoding=None), 2)
             else:
-                sftp = await conn.start_sftp_client(sftp_version=3)
+                sftp = await asyncio.wait_for(conn.start_sftp_client(sftp_version=3), 2)
                 result['sftp_version'] = sftp.version
             deadline, next_send, sequence = time.perf_counter() + job['seconds'], time.perf_counter(), 0
             while time.perf_counter() < deadline and not cancelled(job):
@@ -102,7 +102,12 @@ def ssh_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
         finally:
             if conn is not None:
                 conn.close()
-                await conn.wait_closed()
+                try:
+                    await asyncio.wait_for(conn.wait_closed(), 2)
+                except asyncio.TimeoutError:
+                    conn.abort()
+                    result['complete'] = result['close_verified'] = False
+                    result['errors'].append('TimeoutError:APPLICATION_SSH_CLOSE_TIMEOUT')
             sock.close()
     try:
         asyncio.run(execute())

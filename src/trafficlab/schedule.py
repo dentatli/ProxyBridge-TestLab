@@ -19,6 +19,7 @@ from trafficlab.metrics import SummaryWindow
 from trafficlab.routes import stage_route
 from trafficlab.resources import ResourceWindow, process_sample, system_sample
 from trafficlab.worker import cancelled, connect, execute, read_result
+from trafficlab.bounded_worker import execute_bounded
 
 
 def atomic(path: str, value: Any) -> None:
@@ -184,6 +185,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
     monitor_stop = threading.Event()
     observations_lock = threading.Lock()
     current: dict[str, Any] = {"job": job, "origin": None}
+    isolated_worker = any(workload.get('application') in ('ssh', 'sftp') for stage in stages for workload in stage['workloads'])
     progress_lock = threading.Lock()
     progress_state: dict[str, Any] = {'run_id':job['run_id'], 'state':'PREPARING', 'total':len(stages),
                                      'stage_run_id':None, 'live_origin':None}
@@ -199,7 +201,14 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
     def monitor() -> None:
         while not monitor_stop.is_set():
             stamp = time.perf_counter() - started
-            samples = {"worker": process_sample(os.getpid()), "windows_system" if os.name == "nt" else "worker_system": system_sample()}
+            samples = {"windows_system" if os.name == "nt" else "worker_system": system_sample()}
+            if isolated_worker:
+                with observations_lock:
+                    child = dict(current['job'].get('_worker_process', {}))
+                if child.get('pid') and not child.get('finished'):
+                    samples['worker'] = process_sample(child['pid'], child['path'])
+            else:
+                samples['worker'] = process_sample(os.getpid())
             for role, binding in job.get("resource_processes", {}).items():
                 samples[role] = process_sample(int(binding["pid"]), binding.get("path"))
             with observations_lock:
@@ -254,6 +263,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 report["skipped_stage_count"] += 1
                 continue
             stage_job = {**job, "run_id": f"{job['run_id']}.{index}"}
+            if isolated_worker:
+                stage_job.update(_worker_directory=str(Path(output).parent), _worker_process={})
             context = {"operation":"REGISTERING_SESSION", "stage":stage['phase'], "index":index}
             publish_progress(state='RUNNING',stage=stage['phase'],index=index,stage_run_id=stage_job['run_id'],
                              operation=context['operation'],live_origin=None)
@@ -266,7 +277,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 context['operation'] = 'RUNNING_WORKLOAD'
                 publish_progress(operation=context['operation'])
                 report['workload_started_stage_count'] += 1
-                futures = [pool.submit(execute, {**stage_job, **workload}) for workload in stage["workloads"]]
+                futures = [pool.submit(execute_bounded if workload.get('application') in ('ssh', 'sftp') else execute,
+                                       {**stage_job, **workload}) for workload in stage["workloads"]]
                 results = [future.result() for future in futures]
             context['operation'] = 'COLLECTING_EVIDENCE'
             publish_progress(operation=context['operation'])

@@ -179,6 +179,39 @@ public sealed partial class TrafficRuntimeService
         foreach (var name in new[] { "results", "recovery_checks" })
             if (row.TryGetProperty(name,out var array) && array.ValueKind != JsonValueKind.Array)
                 throw new InvalidOperationException("TRAFFIC_HISTORY_UNREADABLE");
+        // A killed runner can leave individual reports but no final aggregate.
+        // Recover only a read-time view; final capture/cleanup are still unverified.
+        if (row.GetProperty("state").GetString() is "FAILED" or "INTERRUPTED" &&
+            !row.TryGetProperty("results", out _) && row.TryGetProperty("error", out var failure) &&
+            failure.GetString() is "TRAFFIC_RUNNER_REPORT_MISSING" or "TRAFFIC_RUN_OR_STORAGE_FAILED")
+        {
+            var partial = new List<JsonElement>();
+            foreach (var choice in row.GetProperty("cases").EnumerateArray())
+            {
+                string? Choice(string name) => (choice.TryGetProperty(name,out var lower)?lower:choice.GetProperty(char.ToUpperInvariant(name[0])+name[1..])).GetString();
+                var id = Choice("id")!;
+                if (id.Length > 128 || id.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-')) continue;
+                var reportPath = Path.Combine(directory, id + ".report.json");
+                if (!File.Exists(reportPath) || File.GetAttributes(reportPath).HasFlag(FileAttributes.ReparsePoint)) continue;
+                using var reportStream = new FileStream(reportPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                if (reportStream.Length is <= 0 or > 16 * 1024 * 1024) continue;
+                using var report = JsonDocument.Parse(reportStream);
+                var value = report.RootElement;
+                if (value.GetProperty("case_id").GetString() != id || value.GetProperty("duration").GetString() != Choice("duration") ||
+                    value.GetProperty("load").GetString() != Choice("load") || value.GetProperty("complete").ValueKind is not (JsonValueKind.True or JsonValueKind.False))
+                    continue;
+                var item = value.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone());
+                item["workload_complete"] = value.GetProperty("complete").Clone();
+                item["complete"] = JsonSerializer.SerializeToElement(false);
+                item["cleanup_verified"] = JsonSerializer.SerializeToElement(false);
+                item["recovered_partial"] = JsonSerializer.SerializeToElement(true);
+                partial.Add(JsonSerializer.SerializeToElement(item));
+            }
+            var recovered = row.EnumerateObject().ToDictionary(p => p.Name, p => p.Value.Clone());
+            recovered["results"] = JsonSerializer.SerializeToElement(partial);
+            recovered["recovered_partial_results"] = JsonSerializer.SerializeToElement(true);
+            row = JsonSerializer.SerializeToElement(recovered);
+        }
         if (row.TryGetProperty("results",out var results))
         {
             var seen = new HashSet<string>(StringComparer.Ordinal);
