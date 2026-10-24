@@ -27,13 +27,25 @@ Object.assign(labText.en,{reportBaseline:'Baseline',reportCandidate:'Candidate',
 let resultView='reports',evidenceSelection=null,evidenceSequence=0,reportHasData=false;
 const trafficReportBuild=run=>labState.builds.find(build=>build.id===run.build_id)?.display_name||'ProxyBridge';
 function trafficReportDate(run){const date=new Date(run.started_at_utc);return Number.isNaN(date.valueOf())?'—':date.toLocaleString(labLanguage==='ru'?'ru-RU':'en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}
+function trafficLabCapacityUnverified(row,pending=false){
+  const allowed=['TRAFFIC_LAB_UDP_CAPACITY_UNVERIFIED','TRAFFIC_TRANSPORT_INCOMPLETE','TRAFFIC_ROUTE_UNVERIFIED','TRAFFIC_UDP_LOSS_THRESHOLD_EXCEEDED'];
+  return !!row&&!row.cancelled&&(pending||row.cleanup_verified!==false)&&!!(row.environment_limited||row.errors?.includes(allowed[0]))&&(row.errors||[]).every(code=>allowed.includes(code));
+}
 function trafficReportStatus(row,attempt){
-  if(!row?.cancelled&&row?.cleanup_verified!==false&&(row?.environment_limited||row?.errors?.includes('TRAFFIC_LAB_UDP_CAPACITY_UNVERIFIED')))return 'UNVERIFIED';
+  if(trafficLabCapacityUnverified(row))return 'UNVERIFIED';
   if(attempt?.activity_observation==='UNCONFIRMED')return 'UNVERIFIED';
   if(!row)return ['PREPARING','RUNNING'].includes(attempt?.state)?'RUNNING':'MISSING';
   return row.complete&&row.cleanup_verified?'PASS':row.skipped?'SKIPPED':row.cancelled?'CANCELLED':trafficWorkloadComplete(row)?'UNVERIFIED':'FAIL';
 }
 function trafficReportBadge(status){const names={ru:{PASS:'Успешно',FAIL:'Ошибка',FAILED:'С ошибками',COMPLETE:'Завершён',CANCELLED:'Отменён',RUNNING:'Выполняется',PREPARING:'Подготовка',SKIPPED:'Пропущен',MISSING:'Нет результата',INCOMPLETE:'Не завершён',UNVERIFIED:'Не подтверждено'}};return `<span class="result-badge status-${html(status.toLowerCase())}">${html(names[labLanguage]?.[status]||status)}</span>`;}
+function trafficReportRunStatus(run){
+  if(run.activity_observation==='UNCONFIRMED')return 'UNVERIFIED';
+  const rows=run.results||[];
+  if(run.state==='FAILED'&&run.error==='TRAFFIC_CASE_FAILED'&&run.cleanup_verified&&run.local_origin_cleanup_verified!==false&&
+    rows.length===(run.cases||[]).length&&rows.some(row=>trafficLabCapacityUnverified(row))&&
+    rows.every(row=>trafficReportStatus(row,run)==='PASS'||trafficLabCapacityUnverified(row)))return 'UNVERIFIED';
+  return run.state;
+}
 function trafficReportCounts(run){
   const rows=run.results||[],passed=rows.filter(row=>trafficReportStatus(row,run)==='PASS').length,failed=rows.filter(row=>trafficReportStatus(row,run)==='FAIL').length;
   return {passed,failed,other:Math.max(0,(run.cases?.length||0)-passed-failed)};
@@ -97,7 +109,7 @@ function renderConciseTrafficHistory(){
   lab('traffic-history').innerHTML=order.map((run,index)=>{
     const counts=trafficReportCounts(run),groups=trafficFamilyReportGroups(trafficCatalog,run.cases||[],run.results||[]),key=run.id;
     const label=(run.cases?.length||0)>=20?t('reportComplex'):t('reportRecent');
-    return `<article class="result-run"><details data-result-key="${html(key)}" ${expanded.has(key)||firstRender&&index===0?'open':''}><summary class="result-run-heading"><span><small>${html(label)} · ${html(trafficReportDate(run))} · ${html(t(run.mode||'remote'))}</small><strong>${html(trafficReportBuild(run))}</strong></span><span>${trafficReportBadge(run.activity_observation==='UNCONFIRMED'?'UNVERIFIED':run.state)}<span class="result-counts"><b class="result-pass">${t('reportPassed')}: ${counts.passed}</b><b class="result-fail">${t('reportFailed')}: ${counts.failed}</b>${counts.other?`<b>${t('reportOther')}: ${counts.other}</b>`:''}</span></span></summary>
+    return `<article class="result-run"><details data-result-key="${html(key)}" ${expanded.has(key)||firstRender&&index===0?'open':''}><summary class="result-run-heading"><span><small>${html(label)} · ${html(trafficReportDate(run))} · ${html(t(run.mode||'remote'))}</small><strong>${html(trafficReportBuild(run))}</strong></span><span>${trafficReportBadge(trafficReportRunStatus(run))}<span class="result-counts"><b class="result-pass">${t('reportPassed')}: ${counts.passed}</b><b class="result-fail">${t('reportFailed')}: ${counts.failed}</b>${counts.other?`<b>${t('reportOther')}: ${counts.other}</b>`:''}</span></span></summary>
       <p class="result-cleanup">${t(run.cleanup_verified&&run.local_origin_cleanup_verified!==false?'reportCleanup':'reportUnclean')} · ${run.cases?.length||0} ${t('reportSteps')}</p>
       <div class="result-report-actions"><button type="button" class="button secondary" data-report-download="${html(key)}">${t('reportDownload')}</button></div>
       <div class="result-families">${groups.map(group=>`<details class="result-family" data-result-key="${html(key+'.'+group.family.id)}" ${expanded.has(key+'.'+group.family.id)?'open':''}><summary><strong>${html(trafficFamilyName(group.family))}</strong><span>${trafficReportBadge(group.status)} ${group.passed}/${group.stages.length}</span></summary><div class="result-stage-list">${group.stages.map((stage,i)=>{
