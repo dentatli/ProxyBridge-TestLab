@@ -16,6 +16,7 @@ from trafficlab.application_wire import (APPLICATION_PORTS, SERVER_NAME, WS_GUID
 from trafficlab.protocol import Histogram, MAX_LINE, json_bytes, read_json
 from trafficlab.proxy import fingerprint
 from trafficlab.socks_client import exact_socket
+from trafficlab.diagnostics import require_datagram_source
 
 
 def headers(stream: Any) -> tuple[str, dict[str, str]]:
@@ -177,8 +178,7 @@ def application_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                     sock.sendto(sent_packet, destination)
                     result["sent"] += 1
                     reply, source = sock.recvfrom(2048)
-                    if source != destination:
-                        raise ValueError("APPLICATION_DNS_SOURCE_INVALID")
+                    require_datagram_source(result, source, destination, 'APPLICATION_DNS_SOURCE_INVALID', phase='dns-response')
                     if job.get("test_proxy"):
                         reply = unwrap(reply)
                 elif kind=='dns-https':

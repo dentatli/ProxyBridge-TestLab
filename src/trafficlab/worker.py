@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from trafficlab.protocol import BLOCK, FRAME, Histogram, ID, MAX_SECONDS, json_bytes, mac, pattern, read_frame, read_json, verify_mac
+from trafficlab.diagnostics import datagram_source, invalid_datagram
 
 
 def connect(job: dict[str, Any], task: str, flow_id: str, *, connection: socket.socket | None = None) -> tuple[socket.socket, Any, bytes, dict[str, Any]]:
@@ -90,12 +91,14 @@ def tcp_flow(job: dict[str, Any], task: str, flow_id: str) -> dict[str, Any]:
     result: dict[str, Any] = {"flow_id": flow_id, "task": task, "complete": False,
                               "tx_bytes": 0, "rx_bytes": 0, "errors": [], "latency": None}
     histogram = Histogram()
+    phase = 'connect-and-authentication'
     try:
         connection_started = time.perf_counter()
         sock, stream, context, ready = connect(job, task, flow_id)
         result["connect_ms"] = (time.perf_counter() - connection_started) * 1000
         result["local"] = list(sock.getsockname()[:2])
         result["peer_observed_by_origin"] = ready["peer"]
+        phase = 'workload'
         started = time.perf_counter()
         deadline = started + job["seconds"]
         tx_hash = hashlib.sha256()
@@ -162,6 +165,7 @@ def tcp_flow(job: dict[str, Any], task: str, flow_id: str) -> dict[str, Any]:
             receive()
         else:
             raise ValueError("TRAFFIC_TASK_INVALID")
+        phase = 'origin-evidence'
         observed = read_result(job, stream, context)
         result["origin_result"] = observed
         if observed.get("complete") is not True or observed.get("flow_id") != flow_id:
@@ -180,7 +184,10 @@ def tcp_flow(job: dict[str, Any], task: str, flow_id: str) -> dict[str, Any]:
         result["complete"] = not cancelled(job)
         result["cancelled"] = cancelled(job)
     except (OSError, EOFError, ValueError, KeyError) as exception:
+        result['failure_phase'] = phase
         result["errors"].append(type(exception).__name__ + ":" + (str(exception) if isinstance(exception, ValueError) else "TRANSPORT_FAILED"))
+        if isinstance(exception, OSError):
+            result.update(socket_errno=exception.errno, socket_winerror=getattr(exception, 'winerror', None))
     finally:
         result["cancelled"] = cancelled(job)
         result["latency"] = histogram.view()
@@ -249,7 +256,9 @@ def udp_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                     next_send = max(next_send + (1 / rate if rate else 0), now)
                 timeout = min(0.01, max(0.0, next_send - time.perf_counter())) if now < deadline and len(pending) < 8192 else 0.01
                 if select.select([sock], [], [], timeout)[0]:
-                    packet, _sender = sock.recvfrom(65535)
+                    packet, sender = sock.recvfrom(65535)
+                    if not datagram_source(result, sender, destination, phase='udp-response') and 'TRAFFIC_UDP_SOURCE_INVALID' not in result['errors']:
+                        result['errors'].append('TRAFFIC_UDP_SOURCE_INVALID')
                     try:
                         if socks_prefix:
                             from trafficlab.socks_client import unwrap
@@ -259,8 +268,12 @@ def udp_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                         proof = response.pop("proof")
                         verify_mac(secret, b"udp-server:", json_bytes(response) + payload, proof)
                         reply_sequence = response["sequence"]
-                        if response["run_id"] != job["run_id"] or response["flow_id"] != flow_id or payload != pattern(reply_sequence * job.get("message_bytes", 512), job.get("message_bytes", 512)):
-                            raise ValueError("TRAFFIC_DATAGRAM_IDENTITY_MISMATCH")
+                        if response['run_id'] != job['run_id']:
+                            raise ValueError('TRAFFIC_DATAGRAM_RUN_MISMATCH')
+                        if response['flow_id'] != flow_id:
+                            raise ValueError('TRAFFIC_DATAGRAM_FLOW_MISMATCH')
+                        if payload != pattern(reply_sequence * job.get('message_bytes', 512), job.get('message_bytes', 512)):
+                            raise ValueError('TRAFFIC_DATAGRAM_PAYLOAD_MISMATCH')
                         if reply_sequence in seen:
                             result["duplicates"] += 1
                         elif reply_sequence in pending:
@@ -277,8 +290,9 @@ def udp_flow(job: dict[str, Any], flow_id: str) -> dict[str, Any]:
                                 peer_samples.append(response["peer"])
                         else:
                             result["expired"] += 1
-                    except (ValueError, KeyError, TypeError, json.JSONDecodeError):
+                    except (ValueError, KeyError, TypeError, json.JSONDecodeError) as error:
                         result["invalid"] += 1
+                        invalid_datagram(result, error)
                 while pending and (time.perf_counter_ns() - next(iter(pending.values()))) > 2_000_000_000:
                     pending.popitem(last=False)
                     result["expired"] += 1
@@ -366,6 +380,7 @@ def flow_churn(job: dict[str, Any], worker_index: int) -> dict[str, Any]:
     offered = completed = failures = 0
     histogram = Histogram()
     samples = []
+    failure_samples = []
     fingerprint_value = 0
     tx_bytes = rx_bytes = 0
     while time.perf_counter() < deadline and not cancelled(job):
@@ -379,6 +394,8 @@ def flow_churn(job: dict[str, Any], worker_index: int) -> dict[str, Any]:
             fingerprint_value ^= fingerprint(result["flow_id"], result["peer_observed_by_origin"])
         else:
             failures += 1
+            if len(failure_samples) < 8:
+                failure_samples.append(result)
         tx_bytes += result["tx_bytes"]
         rx_bytes += result["rx_bytes"]
         if len(samples) < 64:
@@ -389,7 +406,8 @@ def flow_churn(job: dict[str, Any], worker_index: int) -> dict[str, Any]:
             "offered": offered, "completed": completed, "failures": failures, "elapsed_seconds": elapsed,
             "completed_flows_per_second": completed / elapsed, "connection_and_authentication_ms": histogram.view(),
             "tx_bytes": tx_bytes, "rx_bytes": rx_bytes, "tcp_origin_fingerprint": f"{fingerprint_value:064x}",
-            "route_samples": samples, "hold_seconds_per_flow": 0.05, "errors": [] if failures == 0 else ["CONNECTION_FAILURES_OBSERVED"]}
+            "route_samples": samples, "failure_samples": failure_samples, "failure_samples_truncated": failures > len(failure_samples),
+            "hold_seconds_per_flow": 0.05, "errors": [] if failures == 0 else ["CONNECTION_FAILURES_OBSERVED"]}
 
 
 def main() -> int:

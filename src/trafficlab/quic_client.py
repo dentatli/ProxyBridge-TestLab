@@ -10,6 +10,7 @@ from trafficlab.dependencies import enable, verify
 from trafficlab.application_wire import APPLICATION_PORTS, SERVER_NAME, request, verify_response
 from trafficlab.protocol import Histogram, json_bytes
 from trafficlab.quic_wire import append_body, h3_headers, MULTIPLEX_PROFILE, MULTIPLEX_WIDTH
+from trafficlab.diagnostics import require_datagram_source
 
 
 def quic_flow(job, flow_id):
@@ -70,8 +71,8 @@ def quic_flow(job, flow_id):
             delay = min(timeout, max(0, timer - time.monotonic())) if timer is not None else timeout
             if select.select([sock], [], [], delay)[0]:
                 packet, sender = sock.recvfrom(65535)
-                if sender != destination:
-                    raise ValueError('APPLICATION_QUIC_DATAGRAM_SOURCE_INVALID')
+                require_datagram_source(result, sender, destination, 'APPLICATION_QUIC_DATAGRAM_SOURCE_INVALID',
+                                        phase='workload' if handshake else 'handshake')
                 if prefix:
                     from trafficlab.socks_client import unwrap
                     if packet[:len(prefix)] != prefix:
