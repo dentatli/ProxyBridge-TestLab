@@ -55,6 +55,17 @@ off_verified=true/file_verified=true. Build ID и bundle hash не измени�
 карта путей обновлена в каталоге через API. Сетевые тесты не запускались.
 Evidence: `idle-installed-path-result.json`, `lab-selection-installed-path.json`
 рядом с release. Эта проверка закрывает только причину ошибки подготовки.
+Следующая попытка `20261024-171800-9b478d102b274b3091bbfa13e3219c86`
+прошла OFF gate, но остановилась на ACK_TIMEOUT до Core Start: InstallationDirectory
+в сохранённом request содержал `/`, а pb_core_host сравнивает GetModuleFileName
+с argv без нормализации. Исправлены оба пути request на канонические Windows
+пути с `\`. Существующий build перечитан/выбран через каталог без смены hashes.
+Реальные immutable console_host/core_host с новым Core вернули ожидаемый
+PB_ACK на SNAP до INIT; host exit0. Команда Start не посылалась, сетевой трафик
+не генерировался; преднамеренный child exit2 означает отсутствие INIT в этом
+узком loader/dispatch check, не проверку успешной полной сессии.
+Evidence рядом с release: `core-load-check-result.json`,
+`lab-selection-windows-paths.json`, `selection-request-windows-paths.json`.
 Статус VALIDATION_REQUIRED: файлы выбраны, но совместимость и новый full50
 ещё должен проверить USER. Не подменять этот результат прежними UDP/TCP gates.
 Новые диагностические socketpair trials не запускались: выбрана интеграция
