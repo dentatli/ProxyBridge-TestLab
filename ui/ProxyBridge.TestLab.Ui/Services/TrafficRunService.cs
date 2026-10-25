@@ -392,7 +392,8 @@ public sealed partial class TrafficRuntimeService
                         "modules/ProcessAdapter.psm1", "src/pb_service_query.cs", "src/pb_loaded_drivers.cs", "config/traffic-workloads.json", "vendor/traffic-dependencies.lock.json",
                         "config/traffic-echo.proto", "config/product-cli-adapters.json", "bin/pb_console_host.exe", "bin/pb_wfp_state.exe" }
                         .Select(path => Path.Combine(app.RepositoryRoot, path))).Concat(TrafficDependencyFiles("win-x64")).Append(python).Append(typeof(TrafficRuntimeService).Assembly.Location);
-                if (selection.Contract == "v4.0.0") sourceFiles = sourceFiles.Concat(new[] { "bin/tools/windivert-2.2.2/windivertctl.exe", "bin/tools/windivert-2.2.2/WinDivert.dll" }.Select(path => Path.Combine(app.RepositoryRoot, path)));
+                // Local comparisons pin the same bundled control tools for both product backends.
+                if (selection.Contract == "v4.0.0" || request.Mode == "local") sourceFiles = sourceFiles.Concat(new[] { "bin/tools/windivert-2.2.2/windivertctl.exe", "bin/tools/windivert-2.2.2/WinDivert.dll" }.Select(path => Path.Combine(app.RepositoryRoot, path)));
                 if (request.Mode == "local") sourceFiles = sourceFiles.Concat(new[] {
                     Path.Combine(app.RepositoryRoot, "bin", "pb_core_host.exe"),
                     Path.Combine(app.RepositoryRoot, "scripts", "Set-TrafficWfpDevice.ps1"),
