@@ -337,6 +337,9 @@ def execute(job: dict[str, Any]) -> dict[str, Any]:
     if job.get("application"):
         from trafficlab.application_client import execute_application
         return execute_application(job)
+    if job.get('native_worker_port'):
+        from trafficlab.native_engine import execute_worker
+        return execute_worker(job)
     started = time.perf_counter()
     with concurrent.futures.ThreadPoolExecutor(max_workers=job.get("connections", 1)) as pool:
         futures = []

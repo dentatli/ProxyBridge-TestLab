@@ -31,6 +31,7 @@ class Agent:
         self.configuration_path: Path | None = None
         self.applications: Any = None
         self.identity_mode = 'remote'
+        self.native = None
         self.origin_udp_receive_buffer: dict[str, int] | None = None
 
     def identity(self) -> dict[str, Any]:
@@ -156,9 +157,12 @@ class Agent:
                 result['runtime_connections_method'] = 'owned-origin-TCP-sockets-and-QUIC-protocols'
                 result['runtime_tcp_connections'] = tcp_connections
                 result['runtime_quic_connections'] = quic_connections
-                result["proxy_connections"] = len(self.proxy.pending) if hasattr(self, "proxy") else 0
-                result['proxy_udp_associations'] = len({id(value) for value in self.proxy.associations.values()}) if hasattr(self, 'proxy') else 0
-                result['proxy_tcp_connections'] = max(0, result['proxy_connections'] - result['proxy_udp_associations'])
+                if self.native is not None:
+                    self.native.merge(result, request['run_id'])
+                else:
+                    result["proxy_connections"] = len(self.proxy.pending) if hasattr(self, "proxy") else 0
+                    result['proxy_udp_associations'] = len({id(value) for value in self.proxy.associations.values()}) if hasattr(self, 'proxy') else 0
+                    result['proxy_tcp_connections'] = max(0, result['proxy_connections'] - result['proxy_udp_associations'])
                 result["proof"] = mac(self.secret, b"result:", challenge.encode() + raw + json_bytes(result))
                 writer.write(json_bytes(result) + b"\n")
                 await writer.drain()
@@ -356,23 +360,33 @@ async def serve(config: dict[str, Any]) -> None:
     if not isinstance(port, int) or not 1 <= port <= 65535:
         raise ValueError("TRAFFIC_AGENT_CONFIG_INVALID")
     loop = asyncio.get_running_loop()
-    server = await asyncio.start_server(agent.tcp, bind, port, limit=MAX_LINE + 1)
-    transport, _ = await create_origin_datagram_endpoint(loop, agent, bind, port)
+    server = transport = None
+    if config.get('native_engine'):
+        from trafficlab.native_engine import OriginAdapter
+        native = config['native_engine']
+        if agent.identity_mode != 'local-windows-v1':
+            raise ValueError('TRAFFIC_NATIVE_ENGINE_LOCAL_ONLY')
+        agent.native = OriginAdapter(native['port'], config['secret'], native['executable'])
+    else:
+        server = await asyncio.start_server(agent.tcp, bind, port, limit=MAX_LINE + 1)
+        transport, _ = await create_origin_datagram_endpoint(loop, agent, bind, port)
     control_port = config.get("control_port", 42503)
     control = await asyncio.start_server(lambda reader, writer: agent.tcp(reader, writer, True), bind, control_port, limit=MAX_LINE + 1)
     from trafficlab.proxy import SocksProxy, ProxyDatagram
-    proxy = SocksProxy(agent, port, config.get("origin_addresses", ["127.0.0.1"]))
+    proxy = agent.native or SocksProxy(agent, port, config.get("origin_addresses", ["127.0.0.1"]))
     agent.proxy = proxy
     from trafficlab.application_origin import ApplicationOrigins
     agent.applications = ApplicationOrigins(agent, config)
     proxy.application_ports = set(agent.applications.ports.values())
     proxy.application_dns_port = agent.applications.ports.get("dns-udp")
     proxy.quic_ports = {agent.applications.ports[kind] for kind in ('quic', 'http3') if kind in agent.applications.ports}
-    agent.origin_tcp_ports = {port, control_port} | (set(agent.applications.ports.values()) - proxy.quic_ports)
+    agent.origin_tcp_ports = ({port} if agent.native is None else set()) | {control_port} | (set(agent.applications.ports.values()) - proxy.quic_ports)
     await agent.applications.start(bind)
     proxy.port = config.get("proxy_port", 42502)
-    proxy_server = await asyncio.start_server(proxy.tcp, bind, proxy.port, limit=MAX_LINE + 1)
-    await loop.create_datagram_endpoint(lambda: ProxyDatagram(proxy), local_addr=(bind, proxy.port))
+    proxy_server = None
+    if agent.native is None:
+        proxy_server = await asyncio.start_server(proxy.tcp, bind, proxy.port, limit=MAX_LINE + 1)
+        await loop.create_datagram_endpoint(lambda: ProxyDatagram(proxy), local_addr=(bind, proxy.port))
     stopping = asyncio.Event()
     for signum in (signal.SIGTERM, signal.SIGINT):
         try:
@@ -392,15 +406,19 @@ async def serve(config: dict[str, Any]) -> None:
     finally:
         watcher.cancel()
         await asyncio.gather(watcher, return_exceptions=True)
-        server.close()
-        await server.wait_closed()
+        if server is not None:
+            server.close()
+            await server.wait_closed()
         control.close()
-        proxy_server.close()
+        if proxy_server is not None:
+            proxy_server.close()
         await control.wait_closed()
-        await proxy_server.wait_closed()
+        if proxy_server is not None:
+            await proxy_server.wait_closed()
         await proxy.close()
         await agent.applications.close()
-        transport.close()
+        if transport is not None:
+            transport.close()
         for task in list(agent.tasks):
             task.cancel()
         await asyncio.gather(*list(agent.tasks), return_exceptions=True)

@@ -70,6 +70,13 @@ def prepare(request: dict) -> dict:
               'stop_path':str(directory/'stop.requested'),
               'tls_certificate_file':str(pki/'server.pem'), 'tls_key_file':str(pki/'server.key'),
               'tls_ca_file':str(pki/'ca.pem'), 'ssh_host_key_file':str(pki/'ssh_host.key')}
+    if request.get('native_engine'):
+        native = request['native_engine']
+        if not isinstance(native, dict) or type(native.get('port')) is not int or not 1024 <= native['port'] <= 65535 or \
+                not isinstance(native.get('executable'), str) or not Path(native['executable']).is_absolute() or \
+                sources.get(native['executable']) != digest(Path(native['executable'])):
+            raise ValueError('TRAFFIC_NATIVE_ENGINE_IDENTITY_INVALID')
+        config['native_engine'] = {'port':native['port'], 'executable':native['executable']}
     configuration = directory/'config-private.json'
     configuration.write_bytes(json_bytes(config))
     files = {**sources, **{str(path):digest(path) for path in directory.rglob('*') if path.is_file()}}

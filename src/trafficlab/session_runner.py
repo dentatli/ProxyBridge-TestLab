@@ -37,11 +37,15 @@ def isolation(binding: dict[str, Any], session: CoreSession, job: dict[str, Any]
         origin = origin_metrics(job)
         if origin.get('identity', {}).get('verified') is not True:
             raise ValueError('TRAFFIC_REMOTE_ARTIFACT_IDENTITY_CHANGED')
+        from trafficlab.native_engine import worker_state
+        native_worker = worker_state(job)
         # An idle SOCKS UDP association may live for the queue. It is not a workload.
         # All TCP sessions and origin workloads must nevertheless be absent.
         if (type(origin.get('runtime_connections')) is int and origin['runtime_connections'] == 0 and
-                type(origin.get('proxy_tcp_connections')) is int and origin['proxy_tcp_connections'] == 0):
+                type(origin.get('proxy_tcp_connections')) is int and origin['proxy_tcp_connections'] == 0 and
+                (native_worker is None or native_worker['worker_jobs_active'] == 0)):
             return {**state, 'verified': True, 'origin_identity_verified': True, 'origin_idle_verified': True,
+                    'native_worker_idle_verified': native_worker is not None,
                     'proxy_udp_associations': origin.get('proxy_udp_associations'), 'scope': 'rules-disabled-and-signed-idle; Core-remains-running'}
         if time.monotonic() >= deadline:
             raise ValueError('TRAFFIC_SESSION_ORIGIN_NOT_IDLE')

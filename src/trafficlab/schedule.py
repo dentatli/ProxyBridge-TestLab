@@ -200,6 +200,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
     observations_lock = threading.Lock()
     current: dict[str, Any] = {"job": job, "origin": None}
     isolated_worker = any(workload.get('application') in ('ssh', 'sftp') for stage in stages for workload in stage['workloads'])
+    native_transport = bool(job.get('native_worker_port')) and not any(workload.get('application') for stage in stages for workload in stage['workloads'])
     progress_lock = threading.Lock()
     progress_state: dict[str, Any] = {'run_id':job['run_id'], 'state':'PREPARING', 'total':len(stages),
                                      'stage_run_id':None, 'live_origin':None}
@@ -221,6 +222,9 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                     child = dict(current['job'].get('_worker_process', {}))
                 if child.get('pid') and not child.get('finished'):
                     samples['worker'] = process_sample(child['pid'], child['path'])
+            elif native_transport:
+                samples['worker'] = process_sample(job['native_worker_pid'], job['native_worker_executable'])
+                samples['protocol_controller'] = process_sample(os.getpid())
             else:
                 samples['worker'] = process_sample(os.getpid())
             for role, binding in job.get("resource_processes", {}).items():
