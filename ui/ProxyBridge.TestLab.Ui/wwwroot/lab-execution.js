@@ -48,7 +48,7 @@ function trafficQueueModel(execution,catalog){
       const result=group.rows[index];
       let status=active?"WAIT":terminal;
       if(result){
-        status=result.skipped?"SKIP":result.cancelled?"CANCELLED":trafficLabCapacityUnverified(result,active)?"UNKNOWN":result.complete===true?(active?"PROVISIONAL":result.cleanup_verified===true?"PASS":"UNKNOWN"):trafficWorkloadComplete(result)?"UNKNOWN":"FAIL";
+        status=result.skipped?"SKIP":result.cancelled?"CANCELLED":(trafficLabCapacityUnverified(result,active)||trafficRouteAccountingUnverified(result,active))?"UNKNOWN":result.complete===true?(active?"PROVISIONAL":result.cleanup_verified===true?"PASS":"UNKNOWN"):trafficWorkloadComplete(result)?"UNKNOWN":"FAIL";
       }else if(current===stage.id)status="RUNNING";
       return {id:stage.id,name:trafficName(stage.id),status};
     });

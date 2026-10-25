@@ -151,7 +151,7 @@ function trafficQualityRateMetric(mode,key){
   if(!values.every(Number.isFinite))return null;
   return key==='trafficRateTarget'?(values.every(v=>v===values[0])?values[0]:null):key==='trafficRateMin'?Math.min(...values):Math.max(...values);
 }
-function trafficRouteAccountingUnverified(row){
+function trafficRouteAccountingUnverified(row,pending=false){
   const q=row?.measurements?.find(m=>m.mode==='SOCKS5')?.comparison_quality;
-  return !row?.cancelled&&(row?.measurements||[]).every(m=>m.mode==='SOCKS5'||m.complete)&&q?.exchange_state==='PASS'&&q.route_accounting==='PARTIAL'&&row.cleanup_verified===true&&(row.errors||[]).length>0&&(row.errors||[]).every(e=>['TRAFFIC_TRANSPORT_INCOMPLETE','TRAFFIC_ROUTE_UNVERIFIED'].includes(e));
+  return !row?.cancelled&&(row?.measurements||[]).every(m=>m.mode==='SOCKS5'||m.complete)&&q?.exchange_state==='PASS'&&q.route_accounting==='PARTIAL'&&(pending||row.cleanup_verified===true)&&(row.errors||[]).length>0&&(row.errors||[]).every(e=>['TRAFFIC_TRANSPORT_INCOMPLETE','TRAFFIC_ROUTE_UNVERIFIED'].includes(e));
 }
