@@ -280,7 +280,7 @@ function trafficMetric(row,key){
 }
 function trafficMeasurementMetric(measured,key){
   if(!measured)return null;
-  const overall=measured.overall||{},resources=measured.resources||{};
+  const overall=measured.overall||{},resources=measured.workload_resources||measured.resources||{};
   const workload=overall.phase_observations?.groups?.workload;
   const counter=(role,name,stat)=>resources[role]?.counters?.[name]?.[stat];
   const values={trafficTransactions:overall.application_transactions,trafficSent:trafficMiB(overall.tcp_tx_bytes_per_second),trafficReceived:trafficMiB(overall.tcp_rx_bytes_per_second),
@@ -294,6 +294,10 @@ function trafficMeasurementMetric(measured,key){
     trafficCpu:counter("product_cli","cpu_percent_of_pc","mean"),trafficRam:trafficMiB(counter("product_cli","private_bytes","max")),
     trafficSystemCpu:counter("windows_system","cpu_percent_of_pc","mean"),trafficSystemRam:trafficMiB(counter("windows_system","physical_used_bytes","max")),
     trafficOriginCpu:counter("origin_system","cpu_percent_of_pc","mean"),trafficOriginRam:trafficMiB(counter("origin_system","physical_used_bytes","max")),
+    ...Object.fromEntries(['trafficTargetTransactions','trafficRateTarget','trafficRateMin','trafficRateMax'].map(key=>[key,trafficQualityRateMetric(measured,key)])),
+    trafficCommitBefore:trafficMiB(counter('product_cli','private_bytes','first')),trafficCommitAfter:trafficMiB(counter('product_cli','private_bytes','last')),
+    trafficResidentBefore:trafficMiB(counter('product_cli','working_set_bytes','first')),trafficResidentAfter:trafficMiB(counter('product_cli','working_set_bytes','last')),
+    trafficCpuPerGiB:trafficQualityCpuCost(measured,false),trafficCpuPerThousand:trafficQualityCpuCost(measured,true),
     trafficCliResident:trafficMiB(counter("product_cli","working_set_bytes","max")),
     trafficWorkerCpu:counter("worker","cpu_percent_of_pc","mean"),trafficWorkerRam:trafficMiB(counter("worker","private_bytes","max")),
     trafficOriginProcessCpu:counter("origin_and_proxy","cpu_percent_of_pc","mean"),trafficOriginProcessRam:trafficMiB(counter("origin_and_proxy","working_set_bytes","max")),

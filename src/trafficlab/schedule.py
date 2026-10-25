@@ -135,6 +135,7 @@ def recipes(job: dict[str, Any], catalog: dict[str, Any]) -> list[dict[str, Any]
     pps = load["packets_per_second"]
     def workload(task: str, connections: int = 1, **extra: Any) -> dict[str, Any]:
         return {"task": task, "connections": connections, "seconds": duration, "warmup_count": job.get("warmup_count", 10),
+                **({'rate_exchanges_per_second':100} if task == 'echo' and job.get('native_worker_port') else {}),
                 "message_bytes": 512, "rate_packets_per_second": pps, **extra}
     def phase(name: str, *workloads: dict[str, Any]) -> dict[str, Any]:
         return {"phase": name, "workloads": list(workloads)}
@@ -198,7 +199,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
     resources = ResourceWindow()
     monitor_stop = threading.Event()
     observations_lock = threading.Lock()
-    current: dict[str, Any] = {"job": job, "origin": None}
+    current: dict[str, Any] = {"job": job, "origin": None, "phase_resources":None}
     isolated_worker = any(workload.get('application') in ('ssh', 'sftp') for stage in stages for workload in stage['workloads'])
     native_transport = bool(job.get('native_worker_port')) and not any(workload.get('application') for stage in stages for workload in stage['workloads'])
     progress_lock = threading.Lock()
@@ -215,6 +216,9 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                              'emitted_at_unix_seconds':time.time()})
     def monitor() -> None:
         while not monitor_stop.is_set():
+            with observations_lock:
+                observed_job = current['job']
+                phase_resources = current['phase_resources']
             stamp = time.perf_counter() - started
             samples = {"windows_system" if os.name == "nt" else "worker_system": system_sample()}
             if isolated_worker:
@@ -229,8 +233,6 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 samples['worker'] = process_sample(os.getpid())
             for role, binding in job.get("resource_processes", {}).items():
                 samples[role] = process_sample(int(binding["pid"]), binding.get("path"))
-            with observations_lock:
-                observed_job = current['job']
             live_origin: dict[str, Any] = {'available':False}
             try:
                 remote = origin_metrics(observed_job)
@@ -253,6 +255,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
             with observations_lock:
                 for role, sample in samples.items():
                     resources.add(role, stamp, sample)
+                    if phase_resources is not None and phase_resources is current['phase_resources'] and observed_job is current['job']:
+                        phase_resources.add(role, time.perf_counter() - started, sample)
             try:
                 publish_progress(observed_job['run_id'],live_origin=live_origin)
             except OSError:
@@ -292,6 +296,14 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                     stage_job['_isolated_origin_evidence'] = registration
             with observations_lock:
                 current["job"] = stage_job
+                phase_resources = ResourceWindow()
+                current['phase_resources'] = phase_resources
+                def sample_phase_endpoints():
+                    stamp = time.perf_counter() - started
+                    phase_resources.add('windows_system' if os.name == 'nt' else 'worker_system', stamp, system_sample())
+                    for role, process in job.get('resource_processes', {}).items():
+                        phase_resources.add(role, stamp, process_sample(int(process['pid']), process.get('path')))
+                sample_phase_endpoints()
             phase_started = time.perf_counter()
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(stage["workloads"])) as pool:
                 context['operation'] = 'RUNNING_WORKLOAD'
@@ -300,6 +312,10 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 futures = [pool.submit(execute_bounded if workload.get('application') in ('ssh', 'sftp') else execute,
                                        {**stage_job, **workload}) for workload in stage["workloads"]]
                 results = [future.result() for future in futures]
+            with observations_lock:
+                sample_phase_endpoints()
+                current['phase_resources'] = None
+                phase_samples = {role:{key:value for key,value in row.items() if key != 'timeline'} for role,row in phase_resources.view().items() if role in ('product_cli','windows_system','worker_system')}
             context['operation'] = 'COLLECTING_EVIDENCE'
             publish_progress(operation=context['operation'])
             evidence_error = None
@@ -313,9 +329,14 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 origin = None
                 evidence_error = origin_evidence_error(error)
             stage_value = {"phase": stage["phase"], "elapsed_seconds": time.perf_counter() - phase_started,
+                                      "phase_resources":phase_samples,
+                                      "workload_profiles":[{'task':w['task'], 'application':w.get('application'), 'connections':w['connections'],
+                                          'seconds':w['seconds'], 'target_per_flow':w.get('rate_packets_per_second') if w.get('application') or w['task']=='udp' else w.get('rate_exchanges_per_second')} for w in stage['workloads']],
                                       "results": results, "origin": origin, "origin_evidence_error": evidence_error,
                                       "complete": origin is not None and origin["active"] == 0 and origin.get("proxy", {}).get("tcp_active", 0) == 0 and all(row["complete"] for row in results)}
             route_verified = stage_route(stage_value, expected_proxy)
+            from trafficlab.comparison_quality import stage_quality
+            stage_value['comparison_quality'] = stage_quality(stage_value, expected_proxy, route_verified)
             loss_ok = all(flow.get("loss_fraction") is None or flow["loss_fraction"] <= 0.01
                           for result in results if result["task"] == "udp" for flow in result["flows"])
             if not stage_value["complete"] or not route_verified or not loss_ok:

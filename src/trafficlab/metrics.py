@@ -6,11 +6,14 @@ from trafficlab.protocol import Histogram
 
 
 def execution_evidence(report: dict[str, Any]) -> dict[str, Any]:
+    from trafficlab.comparison_quality import report_quality, workload_resources
     started = report.get('workload_started_stage_count')
     stages = report.get('stages',[])
     state = 'COMPLETED' if report.get('complete') is True else 'NOT_STARTED' if type(started) is int and started==0 else \
         'PARTIAL' if (type(started) is int and started>0) or stages else 'UNKNOWN'
     return {'measurement_state':state, 'planned_stage_count':report.get('stage_count'),
+            'comparison_quality':report_quality(report),
+            'workload_resources':workload_resources(report.get('stages', [])),
             'origin_metrics_transport':report.get('origin_metrics_transport'),
             'workload_started_stage_count':started, 'recorded_stage_count':len(stages),
             'unstarted_stage_count':report.get('unstarted_stage_count'),
@@ -92,6 +95,7 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
         def percentiles(histogram: Histogram) -> dict[str, Any]:
             return {key: value for key, value in histogram.view().items() if key not in ("bins", "sum_ms")}
         rows.append({"phase": stage["phase"], "complete": stage["complete"], "elapsed_seconds": stage["elapsed_seconds"],
+            'comparison_quality':stage.get('comparison_quality'), 'phase_resources':stage.get('phase_resources'), 'workload_profiles':stage.get('workload_profiles'), 'workload_profiles':stage.get('workload_profiles'),
             "origin_evidence_error": stage.get('origin_evidence_error'),
             "tcp_tx_bytes_per_second": sum(row["tx_bytes"] for row in values) / stage["elapsed_seconds"],
             "tcp_rx_bytes_per_second": sum(row["rx_bytes"] for row in values) / stage["elapsed_seconds"],

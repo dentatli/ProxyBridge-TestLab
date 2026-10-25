@@ -32,6 +32,7 @@ function trafficLabCapacityUnverified(row,pending=false){
   return !!row&&!row.cancelled&&(pending||row.cleanup_verified!==false)&&!!(row.environment_limited||row.errors?.includes(allowed[0]))&&(row.errors||[]).every(code=>allowed.includes(code));
 }
 function trafficReportStatus(row,attempt){
+  if(trafficRouteAccountingUnverified(row))return 'UNVERIFIED';
   if(trafficLabCapacityUnverified(row))return 'UNVERIFIED';
   if(attempt?.activity_observation==='UNCONFIRMED')return 'UNVERIFIED';
   if(!row)return ['PREPARING','RUNNING'].includes(attempt?.state)?'RUNNING':'MISSING';
@@ -42,8 +43,8 @@ function trafficReportRunStatus(run){
   if(run.activity_observation==='UNCONFIRMED')return 'UNVERIFIED';
   const rows=run.results||[];
   if(run.state==='FAILED'&&run.error==='TRAFFIC_CASE_FAILED'&&run.cleanup_verified&&run.local_origin_cleanup_verified!==false&&
-    rows.length===(run.cases||[]).length&&rows.some(row=>trafficLabCapacityUnverified(row))&&
-    rows.every(row=>trafficReportStatus(row,run)==='PASS'||trafficLabCapacityUnverified(row)))return 'UNVERIFIED';
+    rows.length===(run.cases||[]).length&&rows.some(row=>trafficLabCapacityUnverified(row)||trafficRouteAccountingUnverified(row))&&
+    rows.every(row=>trafficReportStatus(row,run)==='PASS'||trafficLabCapacityUnverified(row)||trafficRouteAccountingUnverified(row)))return 'UNVERIFIED';
   return run.state;
 }
 function trafficReportCounts(run){
@@ -51,6 +52,7 @@ function trafficReportCounts(run){
   return {passed,failed,other:Math.max(0,(run.cases?.length||0)-passed-failed)};
 }
 function trafficReportReason(row,attempt){
+  if(trafficRouteAccountingUnverified(row))return labLanguage==='ru'?'Обмен в пределах допуска; учёт всех отправок не подтверждён':'Exchange within tolerance; complete send accounting unverified';
   if(trafficReportStatus(row,attempt)==='UNVERIFIED'&&(row?.environment_limited||row?.errors?.includes('TRAFFIC_LAB_UDP_CAPACITY_UNVERIFIED')))return labLanguage==='ru'?'Стенд не выдержал нагрузку; результат клиента не подтверждён':'Lab capacity exceeded; product result unverified';
   const status=trafficReportStatus(row,attempt),errors=row?.errors||[],measure=row?.measurements?.find(item=>item.mode==='SOCKS5');
   if(status==='PASS')return t('reportOk');
@@ -66,7 +68,7 @@ function trafficReportReason(row,attempt){
 function trafficReportMeasurements(row){
   const measured=row?.measurements?.find(item=>item.mode==='SOCKS5');
   return trafficMetrics.map(key=>[key,trafficMeasurementMetric(measured,key)])
-    .filter(([,value])=>typeof value==='number'&&Number.isFinite(value));
+    .filter(([key,value])=>typeof value==='number'&&Number.isFinite(value)&&!(row.case_id==='flow-rate'&&key==='trafficP99'));
 }
 function trafficReportAdditionalMetricMarkup(row){
   const values=new Map(trafficReportMeasurements(row));
@@ -75,7 +77,7 @@ function trafficReportAdditionalMetricMarkup(row){
   const groups=[
     ['reportTrafficGroup',['trafficSent','trafficReceived','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficTransactions','trafficPeak']],
     ['reportUdpGroup',['trafficUdpP99','trafficLoss',...Object.keys(trafficUdpCounters)]],
-    ['reportClientGroup',['trafficCpu','trafficRam','trafficCliResident','trafficCliRamDelta','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads']],
+    ['reportClientGroup',['trafficCpu','trafficCpuPerGiB','trafficCpuPerThousand','trafficRam','trafficCliResident','trafficCommitBefore','trafficCommitAfter','trafficCliRamDelta','trafficResidentBefore','trafficResidentAfter','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads']],
     ['reportPcGroup',['trafficSystemCpu']],
     ['reportLoadGroup',['trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx','trafficLoadWorstP99','trafficRecoveryP99Change']]
   ];

@@ -163,7 +163,7 @@ class ResourceWindow:
             row["unavailable_samples"] += 1
             return
         row["identity_start"] = sample["identity_start"]
-        values = {key: value for key, value in sample.items() if key in ("working_set_bytes", "private_bytes", "anonymous_rss_bytes", "handles", "threads",
+        values = {key: value for key, value in sample.items() if key in ("cpu_seconds", "working_set_bytes", "private_bytes", "anonymous_rss_bytes", "handles", "threads",
             "physical_total_bytes", "physical_available_bytes", "physical_used_bytes")}
         last_cpu = row["last_cpu"]
         if "cpu_total_ticks" in sample:

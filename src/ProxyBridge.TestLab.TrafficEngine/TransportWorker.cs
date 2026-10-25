@@ -21,6 +21,8 @@ internal static partial class TransportWorker
             (job["warmup_count"]?.GetValue<int>() ?? 100) is < 0 or > 100000)
             throw new InvalidDataException("TRAFFIC_JOB_INVALID");
         var started = Stopwatch.GetTimestamp();
+        var echoRate = job["rate_exchanges_per_second"]?.GetValue<double>() ?? 0;
+        if (!double.IsFinite(echoRate) || echoRate is < 0 or > 1000000) throw new InvalidDataException("TRAFFIC_RATE_INVALID");
         var jobs = Enumerable.Range(0, count).Select(index => task == "udp" ? Udp(job, Guid.NewGuid().ToString(), token) :
             task == "flow_rate" ? Churn(job, index, token) : Tcp(job, task!, Guid.NewGuid().ToString(), token)).ToArray();
         var flows = await Task.WhenAll(jobs); var elapsed = Stopwatch.GetElapsedTime(started).TotalSeconds;
@@ -151,7 +153,9 @@ internal static partial class TransportWorker
                         txHash.AppendData(buffer); rxHash.AppendData(echoed); sent += size; received += size;
                         if (iteration++ >= (job["warmup_count"]?.GetValue<int>() ?? 100)) histogram.Add(latency);
                         if (task == "hold") await Task.Delay(200, token);
+                        else await Pace(started, iteration, job["rate_exchanges_per_second"]?.GetValue<double>() ?? 0, job, token);
                     }
+                    result["exchange_count"] = iteration;
                     await stream.WriteAsync(Wire.Frame((ulong)sent, 0), token); var final = await Wire.ReadFrame(stream, token);
                     if (final.Offset != (ulong)sent || final.Size != 0) throw new InvalidDataException("TRAFFIC_TERMINATION_INVALID");
                 }

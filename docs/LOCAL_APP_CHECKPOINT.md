@@ -2,6 +2,8 @@
 
 Завершён перенос транспортного тракта в C#. Установлена **preview.50**, source **1bf39e9690506553117af16d253704bcbdc4a56e**,1684SHA matched. Admin UI **http://127.0.0.1:5178**, PID8344, package `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.50-win-x64`. [Реализация, evidence, ограничения](CSHARP_TRANSPORT_ENGINE_2026-10-25.md).
 
+Текущая авторизованная работа: [исправление методики/интерфейса сравнения](COMPARISON_QUALITY_2026-10-25.md). Quality gates/phase resources/paced probes/UI готовы в исходниках, component/исторические guards PASS; далее package51/browser/short admission. Полный учёт WFP kernel resources отложен пользователем. Установленная50 пока не заменена.
+
 Пользователь выполнил оба full50→44 NORMAL/LOW. [Актуальный разбор сравнимости](FULL_RUN_COMPARABILITY_2026-10-25.md): WFP43PASS/1FAIL, WinDivert33PASS/11FAIL;44pairs conditions совпали,92rawSHA matched,33pairs PASS/PASS. Обнаружены misleading signed memory winner/percent, RTTbaseline/recovery вflow-rate, closed-loop50ms/2worker CPS ceiling, target/actual application counts, shared-host CPU ceiling и WFP128flow loss0.8246% против strict100%proxy accounting (не доказанный driver bug). Runtime/source не менялись, свежих сетевых прогонов не было. Следующий шаг — необходимые правки представления/методики по отчёту; причины продукта отдельно.
 
 - Native generator TCP/UDP, origin и SOCKS5 — отдельные owned C# processes. Проверенные Python application adapters сохранены. Два worker rules, оба IDs/ACK проверяются; CoreStart1/Stop1 на очередь, между cases только rules. Signed identity/route/bytes/PID/idle/cleanup guards сохранены.

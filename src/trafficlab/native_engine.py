@@ -75,7 +75,7 @@ def worker_state(job):
 def execute_worker(job):
     started = time.monotonic()
     allowed = ('host','port','secret','run_id','task','seconds','connections','message_bytes','warmup_count',
-               'rate_bytes_per_second','rate_packets_per_second','rate_flows_per_second','udp_connected','test_proxy','cancellation_path')
+               'rate_bytes_per_second','rate_packets_per_second','rate_flows_per_second','rate_exchanges_per_second','udp_connected','test_proxy','cancellation_path')
     try:
         if job.get('runtime_mode') != 'local' or type(job.get('native_worker_pid')) is not int:
             raise ValueError('TRAFFIC_NATIVE_ENGINE_LOCAL_ONLY')

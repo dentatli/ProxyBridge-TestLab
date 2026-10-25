@@ -5,14 +5,14 @@ Object.assign(labText.ru,{tableAdd:'Добавить столбец',tableRemove
 Object.assign(labText.en,{tableAdd:'Add column',tableRemove:'Remove column',tableRun:'Run',tableMetric:'Check / metric',tableAll:'All checks',tableFilter:'Show',tableConditions:'Conditions',tableBase:'Baseline',tableBestObserved:'Best reading',tableObservedNote:'Conditions differ: this is the best reading, not a verified build advantage',tableBest:'Best',tableEqual:'Equal',tableHint:'Green highlights the best value. Different conditions make the comparison descriptive. Differences are relative to the first column.',tableRegion:'Scrollable comparison table',tableOlder:'Load this report from history',tableMore:'More reports',tableNeutral:'Descriptive difference',tableDelta:'Difference from first column',tableNoNumeric:'No numeric measurement'});
 
 const trafficTableMetricGroups=[
-  ['reportTrafficGroup',['trafficOffP99','trafficUnruledP99','trafficSocksP99','trafficCompleted','trafficOffered','trafficCps','trafficSent','trafficReceived','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficTransactions','trafficPeak']],
+  ['reportTrafficGroup',['trafficTargetTransactions','trafficRateTarget','trafficRateMin','trafficRateMax','trafficOffP99','trafficUnruledP99','trafficSocksP99','trafficCompleted','trafficOffered','trafficCps','trafficSent','trafficReceived','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficTransactions','trafficPeak']],
   ['reportUdpGroup',['trafficUdpP99','trafficLoss',...Object.keys(trafficUdpCounters)]],
-  ['reportClientGroup',['trafficCpu','trafficRam','trafficCliResident','trafficCliRamDelta','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads']],
+  ['reportClientGroup',['trafficCpu','trafficCpuPerGiB','trafficCpuPerThousand','trafficRam','trafficCliResident','trafficCommitBefore','trafficCommitAfter','trafficCliRamDelta','trafficResidentBefore','trafficResidentAfter','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads']],
   ['reportPcGroup',['trafficSystemCpu']],
   ['reportLoadGroup',['trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx','trafficLoadWorstP99','trafficRecoveryP99Change']]
 ];
 const trafficTableHigher=new Set(['trafficSent','trafficReceived','trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx']);
-const trafficTableLower=new Set(['trafficOffP99','trafficUnruledP99','trafficSocksP99','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficUdpP99','trafficLoss','trafficCpu','trafficRam','trafficCliResident','trafficCliRamDelta','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads','trafficSystemCpu','trafficLoadWorstP99','trafficRecoveryP99Change']);
+const trafficTableLower=new Set(['trafficOffP99','trafficUnruledP99','trafficSocksP99','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficUdpP99','trafficLoss','trafficCpu','trafficRam','trafficCliResident','trafficCliHandles','trafficCliThreads','trafficSystemCpu','trafficLoadWorstP99']);
 const trafficTableIntegers=new Set(['trafficCompleted','trafficOffered','trafficTransactions','trafficPeak','trafficCliHandles','trafficCliThreads',...Object.keys(trafficUdpCounters)]);
 let trafficTableState={ids:[],family:'all'},trafficTableInitialized=false,trafficTableStamp='',trafficTableStructureKey='',trafficTableToolbarKey='';
 try{
@@ -46,6 +46,7 @@ function trafficTableValue(row,key){
 function trafficTableBest(runs,rows,key){
   const values=rows.map(row=>trafficTableValue(row,key));
   if(runs.length<2||rows.some((row,i)=>!row||trafficReportStatus(row,runs[i])!=='PASS')||values.some(value=>!Number.isFinite(value)))return [];
+  if(!trafficQualityRankable(runs,rows,key))return [];
   const lower=trafficTableLower.has(key);
   if(!lower&&!trafficTableHigher.has(key)||values.every(value=>value===values[0]))return [];
   const displayed=values.map(value=>Number(value.toFixed(trafficTableIntegers.has(key)?0:2)));
@@ -53,10 +54,10 @@ function trafficTableBest(runs,rows,key){
   const best=(lower?Math.min:Math.max)(...displayed);
   return displayed.flatMap((value,i)=>value===best?[i]:[]);
 }
-function trafficTableDifference(value,base,comparable){
+function trafficTableDifference(value,base,comparable,key){
   if(!Number.isFinite(value)||!Number.isFinite(base))return '';
   const change=value-base,amount=Math.abs(change),digits=amount>0&&amount<0.01?4:2;
-  const percent=base>0?Math.abs(change)/base*100:null;
+  const percent=!['trafficCliRamDelta','trafficCliResidentDelta','trafficRecoveryP99Change'].includes(key)&&base>0?Math.abs(change)/base*100:null;
   const relative=change===0?t('tableEqual'):`${change>0?'+':'−'}${number(amount,digits)}${percent!==null?` (${change>0?'+':'−'}${percent>0&&percent<0.01?'&lt;'+number(0.01,2):number(percent,2)}%)`:''}`;
   return `<small class="comparison-cell-delta" title="${html(t(comparable?'tableDelta':'tableNeutral'))}">${relative}</small>`;
 }
@@ -77,7 +78,7 @@ function trafficTableBody(runs,slots,families){
         if(!run||!rows[i])return '<td>—</td>';
         const reasons=base&&baseRun?trafficReportDifferences(baseRun,base,run,rows[i]):[];
         const label=i===0?t('tableBase'):!base?t('reportNoPair'):trafficReportComparable(baseRun,base,run,rows[i])?t('reportComparable'):reasons.map(t).join(', ')||t('reportUnknown');
-        return `<td>${html(label)}</td>`;
+        return `<td>${html(label)}<small>${html(trafficQualityNote(rows[i]))}</small></td>`;
       }).join('')}</tr>`;
       let metricCount=0;
       for(const [group,keys] of trafficTableMetricGroups){
@@ -93,9 +94,9 @@ function trafficTableBody(runs,slots,families){
           const rankedComparable=chosen.length>=2&&chosen.every(i=>trafficReportComparable(runs[chosen[0]],rows[chosen[0]],runs[i],rows[i]));
           const labels={trafficCpu:'reportCpuMean',trafficRam:'reportPrivatePeak',trafficCliResident:'reportResidentPeak',trafficCliHandles:'reportHandlesPeak',trafficCliThreads:'reportThreadsPeak',trafficSystemCpu:'reportPcCpu'};
           result+=`<tr><th scope="row">${html(t(labels[key]||key))}</th>${runs.map((run,i)=>{
-            const value=trafficTableValue(rows[i],key),valid=Number.isFinite(value),winner=best.includes(i);
+            const value=trafficTableValue(rows[i],key),valid=Number.isFinite(value),winner=best.includes(i),repeat=trafficTableRepeat(runs,rows,i,key);
             const comparable=!!run&&!!baseRun&&trafficReportComparable(baseRun,base,run,rows[i]);
-            return `<td class="${winner?(rankedComparable?'comparison-best':'comparison-best-observed'):''}"${winner?` aria-label="${html(t(rankedComparable?'tableBest':'tableBestObserved'))}: ${html(number(value,trafficTableIntegers.has(key)?0:2))}"`:''}>${valid?`<strong>${number(value,trafficTableIntegers.has(key)?0:2)}</strong>${i>0?trafficTableDifference(value,trafficTableValue(base,key),comparable):''}`:'—'}</td>`;
+            return `<td class="${winner?(rankedComparable?'comparison-best':'comparison-best-observed'):''}"${winner?` aria-label="${html(t(rankedComparable?'tableBest':'tableBestObserved'))}: ${html(number(value,trafficTableIntegers.has(key)?0:2))}"`:''}>${valid?`<strong title="${html(repeat?.text||'')}">${number(value,trafficTableIntegers.has(key)?0:2)}</strong>${i>0?trafficTableDifference(value,trafficTableValue(base,key),comparable,key):''}`:'—'}</td>`;
           }).join('')}</tr>`;
         }
       }
@@ -148,3 +149,19 @@ lab('traffic-pair-view').addEventListener('change',event=>{
   }else return;
   trafficTableSave();renderRunComparison();
 });
+
+Object.assign(labText.ru,{trafficCompleted:'Успешных TCP-сеансов',trafficOffered:'Попыток TCP-сеанса',trafficTransactions:'Подтверждено обменов',trafficCliRamDelta:'Память commit: после − до, МиБ',trafficCliResidentDelta:'Память в RAM: после − до, МиБ',trafficCommitBefore:'Память commit: первый замер, МиБ',trafficCommitAfter:'Память commit: последний замер, МиБ',trafficResidentBefore:'RAM: первый замер, МиБ',trafficResidentAfter:'RAM: последний замер, МиБ',trafficCpuPerGiB:'CPU клиента, с / ГиБ данных',trafficCpuPerThousand:'CPU клиента, с / 1000 обменов',trafficConnectP50:'TCP + подготовка приёмника p50, мс',trafficConnectP95:'TCP + подготовка приёмника p95, мс',trafficConnectP99:'TCP + подготовка приёмника p99, мс',tableHint:'Подсветка только при подтверждённых сопоставимых измерениях. Разница — к первому столбцу. Один прогон не подтверждает устойчивое преимущество. Выберите повторы одной сборки: медиана и диапазон — в подсказке числа.'});
+Object.assign(labText.en,{trafficCompleted:'Successful TCP sessions',trafficOffered:'TCP session attempts',trafficTransactions:'Verified transactions',trafficCliRamDelta:'Private memory: last − first, MiB',trafficCliResidentDelta:'Resident memory: last − first, MiB',trafficCommitBefore:'Private memory: first sample, MiB',trafficCommitAfter:'Private memory: last sample, MiB',trafficResidentBefore:'Resident memory: first sample, MiB',trafficResidentAfter:'Resident memory: last sample, MiB',trafficCpuPerGiB:'Client CPU seconds / GiB',trafficCpuPerThousand:'Client CPU seconds / 1000 transactions',trafficConnectP50:'TCP + receiver setup p50, ms',trafficConnectP95:'TCP + receiver setup p95, ms',trafficConnectP99:'TCP + receiver setup p99, ms',tableHint:'Highlighting requires verified comparable measurements. Differences use the first column. A single run does not establish a repeatable advantage. Select repeated runs of one build for median and range in value tooltips.'});
+
+Object.assign(labText.ru,{trafficTargetTransactions:'Ориентир обменов по профилю, ≈',trafficRateTarget:'Целевой темп на поток, /с',trafficRateMin:'Фактический темп: минимум на поток, /с',trafficRateMax:'Фактический темп: максимум на поток, /с'});
+Object.assign(labText.en,{trafficTargetTransactions:'Profile target transactions, approx.',trafficRateTarget:'Target rate per flow, /s',trafficRateMin:'Actual rate: minimum per flow, /s',trafficRateMax:'Actual rate: maximum per flow, /s'});
+for(const key of ['trafficCpuPerGiB','trafficCpuPerThousand','trafficCommitBefore','trafficCommitAfter','trafficResidentBefore','trafficResidentAfter','trafficTargetTransactions','trafficRateTarget','trafficRateMin','trafficRateMax'])if(!trafficMetrics.includes(key))trafficMetrics.push(key);
+
+function trafficTableRepeat(runs,rows,index,key){
+  const base=runs[index],row=rows[index];
+  if(!base?.build_id||!row)return null;
+  const values=runs.flatMap((run,i)=>run?.build_id===base.build_id&&trafficReportComparable(base,row,run,rows[i])&&Number.isFinite(trafficTableValue(rows[i],key))?[trafficTableValue(rows[i],key)]:[]).sort((a,b)=>a-b);
+  if(values.length<2)return null;
+  const middle=Math.floor(values.length/2),median=values.length%2?values[middle]:(values[middle-1]+values[middle])/2;
+  return {count:values.length,median,min:values[0],max:values.at(-1),text:labLanguage==='ru'?`${values.length} выбранных прогона этой сборки · медиана ${number(median,2)} · диапазон ${number(values[0],2)}…${number(values.at(-1),2)}`:`${values.length} selected runs of this build · median ${number(median,2)} · range ${number(values[0],2)}…${number(values.at(-1),2)}`};
+}

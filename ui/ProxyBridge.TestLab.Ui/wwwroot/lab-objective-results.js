@@ -9,13 +9,14 @@ function trafficObjectiveMetricKeys(caseId){
   const recipe=trafficCatalog?.cases?.find(item=>item.id===caseId)?.recipe;
   if(!recipe)return null;
   if(caseId==='three-modes')return ['trafficOffP99','trafficUnruledP99','trafficSocksP99'];
-  if(recipe==='application')return ['trafficTransactions'];
+  if(recipe==='application')return ['trafficTransactions','trafficTargetTransactions','trafficRateTarget','trafficRateMin','trafficRateMax'];
   if(recipe==='echo')return ['trafficP99'];
   if(recipe==='upload')return ['trafficSent'];
   if(recipe==='download')return ['trafficReceived'];
   if(['duplex','multistream'].includes(recipe))return ['trafficSent','trafficReceived'];
-  if(['connections','flow_rate'].includes(recipe))return ['trafficCompleted','trafficOffered','trafficCps','trafficPeak','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficP99','trafficRecoveryP99Change'];
-  const udp=['trafficUdpP99','trafficLoss',...Object.keys(trafficUdpCounters)];
+  if(recipe==='connections')return ['trafficCompleted','trafficOffered','trafficPeak','trafficLoadWorstP99'];
+  if(recipe==='flow_rate')return ['trafficCompleted','trafficOffered','trafficCps','trafficPeak','trafficConnectP50','trafficConnectP95','trafficConnectP99'];
+  const udp=['trafficRateTarget','trafficRateMin','trafficRateMax','trafficUdpP99','trafficLoss',...Object.keys(trafficUdpCounters)];
   if(recipe.startsWith('udp'))return udp;
   return ['trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx','trafficLoadWorstP99','trafficRecoveryP99Change',...(['mixed','stability','soak'].includes(recipe)?udp:[])];
 }
@@ -57,23 +58,26 @@ function trafficObjectiveMarkup(row,view={}){
   // Unknown historical recipes keep their original measurements available.
   if(!recipe)return trafficReportAdditionalMetricMarkup(row);
   const mode=row.measurements?.find(item=>item.mode==='SOCKS5'),stages=mode?.stages||[];
-  let body='';
+  let body=trafficQualityMarkup(row);
   if(row.case_id==='three-modes'){
     const off=row.measurements?.find(item=>item.mode==='OFF'),base=trafficMeasurementMetric(off,'trafficP99');
-    body=trafficObjectiveTable(['stage','status','route','rtt','delta','cpu','ram'],['OFF','UNRULED','SOCKS5'].map(name=>{
+    body+=trafficObjectiveTable(['stage','status','route','rtt','delta','cpu','ram'],['OFF','UNRULED','SOCKS5'].map(name=>{
       const measured=row.measurements?.find(item=>item.mode===name),rtt=trafficMeasurementMetric(measured,'trafficP99');
       return [name,measured?trafficObjectiveLabel(measured.transport_complete===true?'ok':'bad'):'—',measured?trafficObjectiveLabel(measured.route_verified===true?'yes':'no'):'—',trafficObjectiveNumber(rtt),trafficObjectiveNumber(Number.isFinite(rtt)&&Number.isFinite(base)?rtt-base:null),trafficObjectiveNumber(trafficMeasurementMetric(measured,'trafficCpu')),trafficObjectiveNumber(trafficMeasurementMetric(measured,'trafficRam'))];
     }));
-  }else if(!stages.length){body=`<p>${trafficObjectiveLabel('missing')}</p>`;}
+  }else if(!stages.length){body+=`<p>${trafficObjectiveLabel('missing')}</p>`;}
   else{
     const application=recipe==='application',udp=['udp','udp_unconnected','udp_sweep','udp_connections','mixed','stability','soak'].includes(recipe);
     const connections=['connections','flow_rate'].includes(recipe),latency=['echo','multistream','loaded','connections','mixed','stability','soak'].includes(recipe);
     const tx=['upload','duplex','multistream','loaded','mixed','stability','soak'].includes(recipe),rx=['download','duplex','multistream','loaded','mixed','stability','soak'].includes(recipe);
-    const columns=['stage','status',...(application?['payload','transactions']:[]),...(connections?['tcp',...(recipe==='flow_rate'?['cps']:['peak'])]:[]),...(tx?['tx']:[]),...(rx?['rx']:[]),...(latency?['rtt']:[]),...(udp?['requestedPps','actualPps','sent','received','loss','worstLoss','udpRtt']:[])];
+    const columns=['stage','status',...(application?['payload','transactions','targetRate','verifiedRate']:[]),...(connections?['tcp',...(recipe==='flow_rate'?['cps']:['peak'])]:[]),...(tx?['tx']:[]),...(rx?['rx']:[]),...(latency?['rtt']:[]),...(udp?['requestedPps','actualPps','sent','received','loss','worstLoss','udpRtt']:[])];
     const visible=stages.length>40?[...stages.slice(0,4),...stages.slice(-4)]:stages;
-    body=trafficObjectiveTable(columns,visible.map(stage=>{
+    body+=trafficObjectiveTable(columns,visible.map(stage=>{
       const u=stage.udp_observations,hasUdp=u?.flow_count>0;
       const values={stage:trafficObjectivePhase(stage.phase),status:trafficObjectiveLabel(stage.complete===true?'ok':'bad'),payload:trafficObjectiveNumber(stage.application_payload_bytes,0),transactions:trafficObjectiveNumber(stage.application_transactions,0),tcp:Number.isFinite(stage.tcp_completed)&&Number.isFinite(stage.tcp_offered)?`${stage.tcp_completed} / ${stage.tcp_offered}`:'—',cps:trafficObjectiveNumber(stage.elapsed_seconds>0?stage.tcp_completed/stage.elapsed_seconds:null),peak:trafficObjectiveNumber(stage.tcp_active_peak,0),tx:trafficObjectiveNumber(trafficMiB(stage.tcp_tx_bytes_per_second)),rx:trafficObjectiveNumber(trafficMiB(stage.tcp_rx_bytes_per_second)),rtt:trafficObjectiveNumber(stage.probe_latency?.count>0?stage.probe_p99_ms:null),sent:trafficObjectiveNumber(hasUdp?u.sent:null,0),received:trafficObjectiveNumber(hasUdp?u.received:null,0),loss:trafficObjectiveNumber(hasUdp&&u.sent>0&&Number.isFinite(u.received)?100*(u.sent-u.received)/u.sent:null),udpRtt:trafficObjectiveNumber(hasUdp&&stage.udp_latency?.count>0?stage.udp_latency.p99_ms:null)};
+      const rate=stage.comparison_quality?.rates?.find(r=>r.unit==='verified-transactions');
+      values.targetRate=trafficObjectiveNumber(rate?.target_per_flow);
+      values.verifiedRate=Number.isFinite(rate?.actual_per_flow_min)?`${trafficObjectiveNumber(rate.actual_per_flow_min)}–${trafficObjectiveNumber(rate.actual_per_flow_max)}`:'—';
       values.requestedPps=trafficObjectiveNumber(u?.requested_pps_per_flow,0);
       values.actualPps=Number.isFinite(u?.achieved_pps_per_flow_min)&&Number.isFinite(u?.achieved_pps_per_flow_max)?`${trafficObjectiveNumber(u.achieved_pps_per_flow_min)}–${trafficObjectiveNumber(u.achieved_pps_per_flow_max)}`:'—';
       values.worstLoss=trafficObjectiveNumber(hasUdp&&Number.isFinite(stage.max_udp_flow_loss_fraction)?100*stage.max_udp_flow_loss_fraction:null);
@@ -87,10 +91,67 @@ function trafficObjectiveMarkup(row,view={}){
       if(counters?.flow_count>0)body+=`<section class="result-metric-group"><div class="result-quick-metrics">${['invalid','duplicates','reordered','expired','send_errors'].filter(key=>Number.isFinite(counters[key])).map(key=>`<span>${html(trafficObjectiveLabel(key))}<b>${trafficObjectiveNumber(counters[key],0)}</b></span>`).join('')}</div></section>`;
     }
     if(['mixed','stability','soak'].includes(recipe))body+=`<small>${trafficObjectiveLabel('scope')}</small>`;
+    if(recipe==='flow_rate'){const workers=stages.find(s=>s.phase==='churn')?.workload_profiles?.find(w=>w.task==='flow_rate')?.connections;if(workers)body+=`<small>${workers} ${labLanguage==='ru'?'параллельных исполнителя':'parallel workers'} · 50 ${labLanguage==='ru'?'мс обмена на сеанс':'ms exchange per session'}</small>`;}
     if(recipe==='flow_rate')body+=`<small>${trafficObjectiveLabel('churnScope')}</small>`;
   }
   const goal=row.case_id==='three-modes'?'modes':recipe;
   const warning=mode&&(!mode.complete||!mode.route_verified)?`<p class="result-observed">${trafficObjectiveLabel('observed')}</p>`:'';
   const resourceKey=view.key?view.key+'.resources':null;
-  return `<section class="objective-result"><p class="objective-purpose"><b>${trafficObjectiveLabel('goal')}:</b> ${html(trafficObjectiveLabel(goal))}</p>${warning}${body}<details class="objective-additional" ${resourceKey?`data-result-key="${html(resourceKey)}" ${view.expanded?.has(resourceKey)?'open':''}`:''}><summary>${trafficObjectiveLabel('resources')}</summary>${trafficReportAdditionalMetricMarkup(row)}</details></section>`;
+  return `<section class="objective-result"><p class="objective-purpose"><b>${trafficObjectiveLabel('goal')}:</b> ${html(trafficObjectiveLabel(goal))}</p>${warning}${body}<details class="objective-additional" ${resourceKey?`data-result-key="${html(resourceKey)}" ${view.expanded?.has(resourceKey)?'open':''}`:''}><summary>${trafficObjectiveLabel('resources')}</summary>${trafficPhaseResourceMarkup(mode)}${trafficReportAdditionalMetricMarkup(row)}</details></section>`;
+}
+
+Object.assign(trafficObjectiveText.ru,{targetRate:'Цель, обменов/с на поток',verifiedRate:'Подтверждено, обменов/с на поток',transactions:'Подтверждено обменов',tcp:'Успешных сеансов / попыток'});
+Object.assign(trafficObjectiveText.en,{targetRate:'Target transactions/s per flow',verifiedRate:'Verified transactions/s per flow',transactions:'Verified transactions',tcp:'Successful sessions / attempts'});
+function trafficQualityCpuCost(mode,transactions){
+  const seconds=mode?.workload_resources?.product_cli?.counters?.cpu_seconds?.measured_change;
+  const stages=(mode?.stages||[]).filter(s=>!['baseline','recovery'].includes(s.phase));
+  if(!Number.isFinite(seconds)||seconds<0||!stages.length)return null;
+  const work=transactions?stages.reduce((n,s)=>n+(s.application_transactions||0),0):stages.reduce((n,s)=>n+(s.tcp_tx_bytes_per_second+s.tcp_rx_bytes_per_second)*s.elapsed_seconds,0);
+  return Number.isFinite(work)&&work>0?seconds/work*(transactions?1000:1073741824):null;
+}
+function trafficQualityNote(row){
+  const q=row?.measurements?.find(m=>m.mode==='SOCKS5')?.comparison_quality,ru=labLanguage==='ru';
+  if(!q||q.exchange_state==='UNKNOWN')return ru?'Архив: качество нагрузки не измерялось; ресурсы за весь этап':'Archive: load quality was not measured; resources cover the whole case';
+  const notes=[ru?'Ресурсы: нагрузочные интервалы':'Resources: load windows'];
+  if(!q.windows_complete){const m=row.measurements.find(m=>m.mode==='SOCKS5');notes.push(`${m.recorded_stage_count??'?'} / ${m.planned_stage_count??'?'} ${ru?'интервалов':'windows'}`);}
+  if(q.route_accounting==='PARTIAL')notes.push(ru?'неполный учёт маршрута':'partial route accounting');
+  if(['BELOW_TARGET','OFF_TARGET'].includes(q.load_state))notes.push(ru?'темп ниже цели':'rate below target');
+  if(q.load_state==='PROFILE')notes.push(ru?'измерена работа этого профиля; предел клиента не установлен':'observed profile performance; client capacity ceiling unverified');
+  if(q.load_state==='NOT_MEASURED')notes.push(ru?'фиксированный темп не подтверждён':'fixed rate not confirmed');
+  if(q.headroom==='CPU_SATURATED')notes.push(ru?'стенд: CPU насыщен':'lab CPU saturated');
+  return notes.join(' · ');
+}
+function trafficQualityRankable(runs,rows,key){
+  if(rows.some((row,i)=>!trafficReportComparable(runs[0],rows[0],runs[i],row)))return false;
+  const qs=rows.map(row=>row?.measurements?.find(m=>m.mode==='SOCKS5')?.comparison_quality);
+  if(qs.some(q=>!q||q.exchange_state!=='PASS'||!q.windows_complete||q.route_accounting!=='COMPLETE'))return false;
+  if(['trafficCliRamDelta','trafficCliResidentDelta','trafficRecoveryP99Change'].includes(key))return false;
+  if(qs.some(q=>q.headroom!=='CPU_NOT_SATURATED'))return false;
+  if(qs.some(q=>q.load_state!=='MET'))return false;
+  return true;
+}
+function trafficQualityMarkup(row){
+  const mode=row?.measurements?.find(m=>m.mode==='SOCKS5'),q=mode?.comparison_quality,ru=labLanguage==='ru';
+  const labels=ru?{PASS:'подтверждён',FAIL:'ошибка',UNKNOWN:'не измерено',COMPLETE:'полный',PARTIAL:'неполный',UNVERIFIED:'не подтверждён',MET:'достигнут (допуск 5%)',PROFILE:'профиль без фиксированного темпа',BELOW_TARGET:'цель не достигнута',OFF_TARGET:'темп вне допуска',NOT_MEASURED:'не измерено'}:{PASS:'verified',FAIL:'failed',UNKNOWN:'not measured',COMPLETE:'complete',PARTIAL:'partial',UNVERIFIED:'unverified',MET:'met (5% tolerance)',PROFILE:'profile without a fixed rate',BELOW_TARGET:'target not reached',OFF_TARGET:'rate outside tolerance',NOT_MEASURED:'not measured'};
+  if(!q||q.exchange_state==='UNKNOWN')return `<small>${html(trafficQualityNote(row))}</small>`;
+  return `<p class="objective-purpose">${html(ru?'Обмен':'Exchange')}: ${html(labels[q.exchange_state]||q.exchange_state)} · ${html(ru?'Учёт маршрута':'Route accounting')}: ${html(labels[q.route_accounting]||q.route_accounting)} · ${html(ru?'Темп':'Rate')}: ${html(labels[q.load_state]||q.load_state)}</p><small>${html(trafficQualityNote(row))}</small>`;
+}
+function trafficPhaseResourceMarkup(mode){
+  const ru=labLanguage==='ru',stages=(mode?.stages||[]).filter(s=>s.phase_resources?.product_cli?.counters);
+  if(!stages.length)return '';
+  const columns=ru?['Интервал','CPU клиента, % ПК','Commit: первый / пик / последний, МиБ','RAM: первый / пик / последний, МиБ','Потоки: пик']:['Window','Client CPU, % of PC','Private: first / peak / last, MiB','Resident: first / peak / last, MiB','Peak threads'];
+  return trafficObjectiveTable(columns,stages.map(s=>{const c=s.phase_resources.product_cli.counters;const memory=k=>['first','max','last'].map(n=>trafficObjectiveNumber(trafficMiB(c[k]?.[n]))).join(' / ');return [trafficObjectivePhase(s.phase),trafficObjectiveNumber(c.cpu_percent_of_pc?.mean),memory('private_bytes'),memory('working_set_bytes'),trafficObjectiveNumber(c.threads?.max,0)];}));
+}
+
+function trafficQualityRateMetric(mode,key){
+  const profiles=(mode?.stages||[]).filter(s=>!['baseline','recovery'].includes(s.phase)).flatMap(s=>s.comparison_quality?.rates||[]);
+  if(!profiles.length)return null;
+  if(key==='trafficTargetTransactions')return profiles.every(r=>r.unit==='verified-transactions')?profiles.reduce((sum,r)=>sum+r.target_per_flow*r.connections*r.window_seconds,0):null;
+  const values=profiles.map(r=>key==='trafficRateTarget'?r.target_per_flow:key==='trafficRateMin'?r.actual_per_flow_min:r.actual_per_flow_max);
+  if(!values.every(Number.isFinite))return null;
+  return key==='trafficRateTarget'?(values.every(v=>v===values[0])?values[0]:null):key==='trafficRateMin'?Math.min(...values):Math.max(...values);
+}
+function trafficRouteAccountingUnverified(row){
+  const q=row?.measurements?.find(m=>m.mode==='SOCKS5')?.comparison_quality;
+  return !row?.cancelled&&(row?.measurements||[]).every(m=>m.mode==='SOCKS5'||m.complete)&&q?.exchange_state==='PASS'&&q.route_accounting==='PARTIAL'&&row.cleanup_verified===true&&(row.errors||[]).length>0&&(row.errors||[]).every(e=>['TRAFFIC_TRANSPORT_INCOMPLETE','TRAFFIC_ROUTE_UNVERIFIED'].includes(e));
 }
