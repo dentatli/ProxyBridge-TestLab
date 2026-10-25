@@ -11,8 +11,11 @@ function Get-DeviceProblemCode([string]$InstanceId) {
     if($rows.Count -ne 1 -or $rows[0].InstanceId -ine $InstanceId){throw 'TRAFFIC_PNP_DEVICE_NOT_UNIQUE'}
     $property=$rows[0].PSObject.Properties['ConfigManagerErrorCode']
     $code=[uint32]0
+    $value=if($null -ne $property){$property.Value}else{$null}
+    # PnpDevice exposes the code as its generated Problem enum on Windows PowerShell.
+    if($value -is [Enum]){$value=[Convert]::ToUInt32($value)}
     if($null -eq $property -or $null -eq $property.Value -or
-       -not [uint32]::TryParse([string]$property.Value,[ref]$code)){throw 'TRAFFIC_PNP_PROBLEM_CODE_UNAVAILABLE'}
+       -not [uint32]::TryParse([string]$value,[ref]$code)){throw 'TRAFFIC_PNP_PROBLEM_CODE_UNAVAILABLE'}
     return $code
 }
 $binding=Get-Content -LiteralPath $BindingPath -Raw|ConvertFrom-Json
