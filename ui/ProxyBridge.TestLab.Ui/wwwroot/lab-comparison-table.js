@@ -1,18 +1,18 @@
 "use strict";
-Object.assign(labText.ru,{trafficOffP99:'OFF: RTT p99, мс',trafficUnruledP99:'UNRULED: RTT p99, мс',trafficCompleted:'Завершено TCP-соединений',trafficOffered:'Предложено TCP-соединений',trafficCps:'Коротких TCP-соединений завершено/с'});
-Object.assign(labText.en,{trafficOffP99:'OFF: RTT p99, ms',trafficUnruledP99:'UNRULED: RTT p99, ms',trafficCompleted:'Completed TCP connections',trafficOffered:'Offered TCP connections',trafficCps:'Short TCP connections completed/s'});
+Object.assign(labText.ru,{trafficOffP99:'OFF: RTT p99, мс',trafficUnruledP99:'UNRULED: RTT p99, мс',trafficSocksP99:'SOCKS5: RTT p99, мс',trafficCompleted:'Завершено TCP-соединений',trafficOffered:'Предложено TCP-соединений',trafficCps:'Коротких TCP-соединений завершено/с'});
+Object.assign(labText.en,{trafficOffP99:'OFF: RTT p99, ms',trafficUnruledP99:'UNRULED: RTT p99, ms',trafficSocksP99:'SOCKS5: RTT p99, ms',trafficCompleted:'Completed TCP connections',trafficOffered:'Offered TCP connections',trafficCps:'Short TCP connections completed/s'});
 Object.assign(labText.ru,{tableAdd:'Добавить столбец',tableRemove:'Убрать столбец',tableRun:'Прогон',tableMetric:'Проверка / показатель',tableAll:'Все проверки',tableFilter:'Показать',tableConditions:'Условия',tableBase:'База',tableBestObserved:'Лучшее показание',tableObservedNote:'Условия различаются: это лучшее число, а не подтверждённое преимущество сборки',tableBest:'Лучшее',tableEqual:'Одинаково',tableHint:'Зелёным выделено лучшее число. При разных условиях это справочное сравнение. Разница — к первому столбцу.',tableRegion:'Таблица сравнения, прокручивается',tableOlder:'Загрузите этот отчёт из истории',tableMore:'Ещё отчёты',tableNeutral:'Справочная разница',tableDelta:'Разница к первому столбцу',tableNoNumeric:'Нет числового измерения'});
 Object.assign(labText.en,{tableAdd:'Add column',tableRemove:'Remove column',tableRun:'Run',tableMetric:'Check / metric',tableAll:'All checks',tableFilter:'Show',tableConditions:'Conditions',tableBase:'Baseline',tableBestObserved:'Best reading',tableObservedNote:'Conditions differ: this is the best reading, not a verified build advantage',tableBest:'Best',tableEqual:'Equal',tableHint:'Green highlights the best value. Different conditions make the comparison descriptive. Differences are relative to the first column.',tableRegion:'Scrollable comparison table',tableOlder:'Load this report from history',tableMore:'More reports',tableNeutral:'Descriptive difference',tableDelta:'Difference from first column',tableNoNumeric:'No numeric measurement'});
 
 const trafficTableMetricGroups=[
-  ['reportTrafficGroup',['trafficOffP99','trafficUnruledP99','trafficCompleted','trafficOffered','trafficCps','trafficSent','trafficReceived','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficTransactions','trafficPeak']],
+  ['reportTrafficGroup',['trafficOffP99','trafficUnruledP99','trafficSocksP99','trafficCompleted','trafficOffered','trafficCps','trafficSent','trafficReceived','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficTransactions','trafficPeak']],
   ['reportUdpGroup',['trafficUdpP99','trafficLoss',...Object.keys(trafficUdpCounters)]],
   ['reportClientGroup',['trafficCpu','trafficRam','trafficCliResident','trafficCliRamDelta','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads']],
   ['reportPcGroup',['trafficSystemCpu']],
   ['reportLoadGroup',['trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx','trafficLoadWorstP99','trafficRecoveryP99Change']]
 ];
 const trafficTableHigher=new Set(['trafficSent','trafficReceived','trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx']);
-const trafficTableLower=new Set(['trafficOffP99','trafficUnruledP99','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficUdpP99','trafficLoss','trafficCpu','trafficRam','trafficCliResident','trafficCliRamDelta','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads','trafficSystemCpu','trafficLoadWorstP99','trafficRecoveryP99Change']);
+const trafficTableLower=new Set(['trafficOffP99','trafficUnruledP99','trafficSocksP99','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficUdpP99','trafficLoss','trafficCpu','trafficRam','trafficCliResident','trafficCliRamDelta','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads','trafficSystemCpu','trafficLoadWorstP99','trafficRecoveryP99Change']);
 const trafficTableIntegers=new Set(['trafficCompleted','trafficOffered','trafficTransactions','trafficPeak','trafficCliHandles','trafficCliThreads',...Object.keys(trafficUdpCounters)]);
 let trafficTableState={ids:[],family:'all'},trafficTableInitialized=false,trafficTableStamp='',trafficTableStructureKey='',trafficTableToolbarKey='';
 try{
@@ -32,6 +32,7 @@ function trafficTableSave(){try{sessionStorage.setItem('testlab-comparison-table
 function trafficTableValue(row,key){
   if(key==='trafficOffP99'||key==='trafficUnruledP99')return trafficMeasurementMetric(row?.measurements?.find(m=>m.mode===(key==='trafficOffP99'?'OFF':'UNRULED')),'trafficP99');
   const measured=row?.measurements?.find(m=>m.mode==='SOCKS5');
+  if(key==='trafficSocksP99')return trafficMeasurementMetric(measured,'trafficP99');
   if(['trafficCompleted','trafficOffered','trafficCps'].includes(key)){
     const stages=(measured?.stages||[]).filter(stage=>stage.phase!=='baseline'&&stage.phase!=='recovery');
     if(!stages.length)return null;

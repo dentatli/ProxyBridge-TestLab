@@ -86,6 +86,12 @@ function trafficReportAdditionalMetricMarkup(row){
     return `<section class="result-metric-group"><h5>${t(group)}</h5>${group==='reportPcGroup'?`<small>${t('reportPcHint')}</small>`:''}<div class="result-quick-metrics">${rows.map(key=>`<span>${html(t(labels[key]||key))}<b>${number(values.get(key),integer.has(key)?0:2)}</b></span>`).join('')}</div></section>`;
   }).join('');
 }
+function trafficReportGroupStatus(group,run){
+  const statuses=group.rows.map(row=>trafficReportStatus(row,run));
+  const passed=statuses.filter(status=>status==='PASS').length;
+  const status=statuses.includes('FAIL')?'FAIL':statuses.includes('CANCELLED')?'CANCELLED':passed===statuses.length?'PASS':statuses.every(status=>status==='SKIPPED')?'SKIPPED':statuses.includes('RUNNING')?'RUNNING':'UNVERIFIED';
+  return {...group,passed,status};
+}
 function trafficReportChronological(runs){
   const time=run=>{const value=Date.parse(run.started_at_utc);return Number.isFinite(value)?value:0;};
   return [...runs].sort((a,b)=>time(b)-time(a)||String(b.id).localeCompare(String(a.id)));
@@ -107,7 +113,7 @@ function renderConciseTrafficHistory(){
   const expanded=new Set([...lab('traffic-history').querySelectorAll('details[open][data-result-key]')].map(node=>node.dataset.resultKey));
   const order=trafficReportChronological(trafficHistory);
   lab('traffic-history').innerHTML=order.map((run,index)=>{
-    const counts=trafficReportCounts(run),groups=trafficFamilyReportGroups(trafficCatalog,run.cases||[],run.results||[]),key=run.id;
+    const counts=trafficReportCounts(run),groups=trafficFamilyReportGroups(trafficCatalog,run.cases||[],run.results||[]).map(group=>trafficReportGroupStatus(group,run)),key=run.id;
     const label=(run.cases?.length||0)>=20?t('reportComplex'):t('reportRecent');
     return `<article class="result-run"><details data-result-key="${html(key)}" ${expanded.has(key)||firstRender&&index===0?'open':''}><summary class="result-run-heading"><span><small>${html(label)} · ${html(trafficReportDate(run))} · ${html(t(run.mode||'remote'))}</small><strong>${html(trafficReportBuild(run))}</strong></span><span>${trafficReportBadge(trafficReportRunStatus(run))}<span class="result-counts"><b class="result-pass">${t('reportPassed')}: ${counts.passed}</b><b class="result-fail">${t('reportFailed')}: ${counts.failed}</b>${counts.other?`<b>${t('reportOther')}: ${counts.other}</b>`:''}</span></span></summary>
       <p class="result-cleanup">${t(run.cleanup_verified&&run.local_origin_cleanup_verified!==false?'reportCleanup':'reportUnclean')} · ${run.cases?.length||0} ${t('reportSteps')}</p>${trafficSelectionNote(run.selection_optimization)}

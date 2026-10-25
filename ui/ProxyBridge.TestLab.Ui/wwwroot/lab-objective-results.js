@@ -8,7 +8,7 @@ function trafficObjectiveLabel(key){return trafficObjectiveText[labLanguage]?.[k
 function trafficObjectiveMetricKeys(caseId){
   const recipe=trafficCatalog?.cases?.find(item=>item.id===caseId)?.recipe;
   if(!recipe)return null;
-  if(caseId==='three-modes')return ['trafficOffP99','trafficUnruledP99','trafficP99'];
+  if(caseId==='three-modes')return ['trafficOffP99','trafficUnruledP99','trafficSocksP99'];
   if(recipe==='application')return ['trafficTransactions'];
   if(recipe==='echo')return ['trafficP99'];
   if(recipe==='upload')return ['trafficSent'];

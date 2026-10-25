@@ -174,7 +174,7 @@ function renderTraffic(){
   }
   const selectionPlan=trafficSelectionPlan(trafficCatalog,trafficCases());
   const reviewChoices=trafficReviewChoices(run,active,Object.fromEntries(selectionPlan.cases.map(row=>[row.id,{...row,selected:true}])));
-  const reviewChoice=family=>trafficFamilySelection(family,reviewChoices);
+  const reviewChoice=family=>{const effective=trafficFamilySelection(family,reviewChoices);return active?effective:{...effective,profile:trafficFamilyChoice(family).profile};};
   const reviewCases=Object.entries(reviewChoices).map(([id,row])=>({id,...row}));
   const reviewEstimate=trafficEstimate(reviewCases,active?run?.continue_after_failure===true:trafficSafeContinue());
   const selectedFamilies=families.filter(family=>reviewChoice(family).selected);
