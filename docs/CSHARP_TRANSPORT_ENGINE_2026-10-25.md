@@ -33,3 +33,5 @@ Standalone evidence ignored artifacts/engine-migration:origin-interop.json,worke
 5. Прогнать relevant offline/component gates (не повторять всё без изменения входов), matched короткие smoke после координации с диагностическим чатом, затем package SHA/admin start/UI/cleanup checks. WFP/WinDivert new-engine product admission ещё НЕ выполнялась. Не заявлять готовность полного сравнения до этого.
 
 Сейчас установленная и работающая версия — preview46/source8a1c932/admin5178; C# candidate НЕ подменяет её. Продуктовый трафик, WFP/WinDivert запуск, system proxy, BCD, trust, product driver installation, remote runtime не менялись. Нужен следующий перенос/integration, не выбор языка заново и не переписывание всех протоколов.
+
+Остановлено по AGENTS usage gate: primary95%used/weekly15%used. Source milestonefb40eae remote verified, дерево чистое до этого documentation checkpoint. APIactive/busy=false,ProxyBridgeDrvStopped,0native engine processes. Установленнаяpreview46 не заменена.
