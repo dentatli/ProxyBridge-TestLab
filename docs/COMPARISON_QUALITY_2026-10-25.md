@@ -1,4 +1,4 @@
-# Исправление методики сравнения — в работе
+# Исправление методики сравнения — preview.53
 
 Scope по запросу пользователя: качество и смысл сравнения лаборатории; полный учёт kernel WFP оставлен отдельно. Сохраняем51ID/10групп, saved suites, old reports, source evidence/admission guards. Новых tracked автотестов и продуктовых изменений нет.
 
@@ -19,3 +19,11 @@ Preview51/source7de0415 published1685SHA/admin5178/PID3000, browser archive comp
 Self-contained paced gate controller-1792943125599 PASS:7protocol probes и5coordinator profiles, в том числе6s UDP target подтверждён. Preview52/source d96e46b1685SHA/admin5178/PID6960: matched3×2SHORTLOW88.00s; WFP3PASS/WinDivertTCP+HTTPS PASS,UDPFAIL. У всех6load_stateMET, echo100/s,UDP99.833/s,HTTPS100/s на поток. Conditionsv3 совпали; product/native cleanup=true; Core1/1. Evidence quality52-admission.json иmatched-smoke-1792943294240098000.json; attempts154814-8ae3d86e76ee4429a443301108e7d7d2 и154857-c2c5d33b5bac475aa481e53cec3fb133.
 
 Финальное UI-only согласование53: pending partial-accounting на экране запускаUNKNOWN и вreportUNVERIFIED, неFAIL/PASS; loss/capture/cancelguards сохранены. Method/probe/tolerance различия названы method differences. Проверено actualJS historical88/RUEN/best/signed/rate/missing/selectedrepeat/pending cleanup gates. Измерительный Python/C#код неизменён от52. Далее immutable53publish икороткая финальная проверка; full автоматически не запускается.
+
+## Итоговая установленная версия
+
+Preview53/source **cdd9e5034f0a0e546f39dcad7407b559a989e1b7**,1685SHA matched, admin **http://127.0.0.1:5178**/PID2752. Финальная matched3×2SHORTLOW88.72s: WFP TCP/UDP/HTTPS3PASS; WinDivertTCP+HTTPS PASS,UDPFAIL. Все6окон имеютload_stateMET по заявленной5%политике: TCP100/s; UDP100/s на поток у обеих сборок; HTTPS WFP97.67–99.67/s,WinDivert100/s. Exchange/route valid для5PASS, WinDivertUDPFAIL/UNVERIFIEDне скрыты правильным темпом. Conditionsv3 идентичны; phase_resources/client CPUseconds delta есть; fullmaximum_capacity_verified=false. CoreStart1/Stop1, всеproduct/native cleanup=true. Evidence **quality53-admission.json** и**matched-smoke-1792943755467427800.json**; attempts `20261025-155555-f6f5443d2fa8432f992102bef72d90c9`, `20261025-155638-f8e3a805d6074a8a9e3f4c7d21cc09c7`.
+
+После тестов active/busy=false, ProxyBridgeDrvStopped/PnP22,0engine/Core processes/listeners, приватные конфиги удалены. Выбор WFP4daсохранён. Browser archive comparison before/after/delta безrelative%/winner,RU/EN,no console errors проверен; методика и статусpending tested actualJS. Пользовательские два выбранных столбца и раскрытие сохраняются. Immutable50–52 и всеисторическиеresults сохранены. Полный53/HIGH/soak не запускались; новые полноценныеA/B сравнения должны быть наодном53package из-за изменениятемпа иscope.
+
+Границы: только CPU-headroom indicator, не доказательство абсолютного ceiling; 5%rate tolerance — явная методика, не гарантия микросекундного pacing. Per-process memory/CPU не является полным WFP kernel attribution, оно прямо отложено пользователем. Причину WinDivertUDP продукта здесь не исследовали. Следующий шаг — оценка UI/свежий пользовательский полный набор; не повторять успешные component gates без изменения входов.
