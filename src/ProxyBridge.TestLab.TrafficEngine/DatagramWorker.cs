@@ -19,7 +19,7 @@ internal static partial class TransportWorker
         internal readonly HashSet<string> Errors = [];
         internal readonly Dictionary<string, long> InvalidReasons = [];
         internal readonly Histogram Latency = new();
-        internal long Sent, Received, Duplicates, Reordered, Invalid, Expired, SendErrors, LastSequence = -1, UnexpectedSources;
+        internal long Sent, Received, Duplicates, Reordered, Invalid, Expired, SendErrors, LastSequence = -1, UnexpectedSources, PacingResets;
         internal JsonObject? FirstMismatch;
         internal void Expire(long now)
         {
@@ -75,11 +75,13 @@ internal static partial class TransportWorker
                     catch (SocketException) { lock (state.Sync) { state.Pending.Remove(sequence); state.SendErrors++; } }
                     sequence++;
                     if ((sequence & 31) == 0) await Task.Yield();
-                    // One schedule per flow; send cadence never catches up with a burst after a stall.
+                    // Absolute deadlines avoid accumulating timer/serialization drift.
+                    // Permit at most four overdue slots; long stalls discard slots instead of creating an unbounded burst.
                     if (rate > 0)
                     {
                         var elapsed = Stopwatch.GetElapsedTime(started).TotalSeconds;
-                        nextSend = Math.Max(nextSend + 1 / rate, Stopwatch.GetElapsedTime(started, now).TotalSeconds);
+                        nextSend += 1 / rate;
+                        if (elapsed - nextSend > 4 / rate) { nextSend = elapsed; state.PacingResets++; }
                         var delay = nextSend - elapsed;
                         if (delay > 0) await Task.Delay(TimeSpan.FromSeconds(delay), deadline.Token);
                     }
@@ -163,6 +165,8 @@ internal static partial class TransportWorker
             ["loss_definition"] = "authenticated-replies-not-received-within-2s-deadline", ["achieved_send_packets_per_second"] = state.Sent / seconds,
             ["requested_send_packets_per_second"] = rate, ["offered_load_fraction"] = rate > 0 ? state.Sent / (seconds * rate) : null,
             ["send_rate_scope"] = "sent-divided-by-requested-workload-window; excludes-association-and-reply-drain",
+            ["pacing_policy"] = "absolute-deadlines; maximum-four-overdue-slots; long-stalls-drop-slots",
+            ["pacing_resets"] = state.PacingResets,
             ["received_packets_per_second"] = state.Received / elapsedSeconds, ["peer_observed_by_origin"] = state.Peers,
             ["latency"] = state.Latency.View(), ["unexpected_source_packets"] = state.UnexpectedSources, ["first_source_mismatch"] = state.FirstMismatch,
             ["complete"] = !Cancelled(job) && !stopping.IsCancellationRequested && state.Errors.Count == 0 && state.Invalid == 0 && state.Received > 0,
