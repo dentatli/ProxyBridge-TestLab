@@ -23,7 +23,7 @@ class CoreSession(Product):
         self.responses: queue.Queue[list[str]] = queue.Queue()
         self.sequence = 0
         self.command_lock = threading.Lock()
-        self.configuration: tuple[int, int] | None = None
+        self.configuration: tuple[int, ...] | None = None
         self.last_state: dict[str, Any] = {}
 
     def finish_output(self) -> None:
@@ -57,14 +57,19 @@ class CoreSession(Product):
                 row = self.responses.get(timeout=20)
             except queue.Empty as error:
                 raise ValueError('TRAFFIC_SESSION_ACK_TIMEOUT') from error
-            if len(row) != 9 or row[1] != str(self.sequence) or row[2] != '1':
+            native = bool(self.binding.get('native_worker_executable'))
+            if len(row) != (10 if native else 9) or row[1] != str(self.sequence) or row[2] != '1':
                 raise ValueError('TRAFFIC_SESSION_ACK_INVALID')
-            config, rule, enabled, direct, proxy, blocked = map(int, row[3:])
+            config, rule, enabled, direct, proxy, blocked = map(int, row[3:9])
+            native_rule = int(row[9]) if native else None
             if config < 1 or rule < 1 or enabled not in (0, 1):
                 raise ValueError('TRAFFIC_SESSION_ACK_INVALID')
-            if self.configuration is not None and self.configuration != (config, rule):
+            identity = (config, rule, native_rule) if native else (config, rule)
+            if native and (native_rule < 1 or native_rule == rule):
+                raise ValueError('TRAFFIC_SESSION_ACK_INVALID')
+            if self.configuration is not None and self.configuration != identity:
                 raise ValueError('TRAFFIC_SESSION_IDENTITY_CHANGED')
-            self.configuration = (config, rule)
+            self.configuration = identity
             sample = process_sample(self.pid, self.binding['core_host'])
             if not sample['available'] or sample['identity_start'] != self.evidence['identity_start']:
                 raise ValueError('TRAFFIC_SESSION_IDENTITY_CHANGED')
@@ -72,6 +77,8 @@ class CoreSession(Product):
             self.last_state = {'command_sequence': self.sequence, 'operation': operation, 'ack_verified': True,
                                'pid': self.pid, 'config_id': config, 'rule_id': rule, 'rule_enabled': bool(enabled),
                                'route_events': dict(self.route_events), 'path_verified': True}
+            if native:
+                self.last_state['native_rule_id'] = native_rule
             return dict(self.last_state)
 
     @staticmethod
@@ -114,9 +121,16 @@ class CoreSession(Product):
                                  execution_model='persistent-core-session-v1', core_sha256=hashlib.sha256(Path(binding['core']).read_bytes()).hexdigest())
             self.process.stdin.write(b'READY\n')
             self.process.stdin.flush()
+            native = ()
+            if binding.get('native_worker_executable'):
+                from trafficlab.native_engine import worker_state
+                worker_state(binding)
+                if Path(binding['native_worker_executable']).name != 'pb_testlab_worker.exe':
+                    raise ValueError('TRAFFIC_NATIVE_WORKER_RULE_INVALID')
+                native = (self.hex('pb_testlab_worker.exe'), self.hex(binding['native_worker_executable']), str(binding['native_worker_pid']))
             self.command('INIT', self.hex(binding['host']), str(binding['proxy_port']), self.hex(binding['id']),
                 self.hex(mac(bytes.fromhex(binding['secret']), b'socks:', binding['id'].encode())),
-                self.hex(Path(binding['python']).name), self.hex(binding['port']), str(os.getpid()))
+                self.hex(Path(binding['python']).name), self.hex(binding['port']), str(os.getpid()), *native)
             self.evidence['ready'] = True
             self.evidence['proxy_configuration_verified'] = True
             return self

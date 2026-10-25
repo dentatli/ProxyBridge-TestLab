@@ -52,11 +52,19 @@ def validate_route(report: dict[str, Any], proxied: bool) -> bool:
 
 
 def profile(binding: dict[str, Any], run_id: str, mode: str, target_port: int | None = None) -> dict[str, Any]:
+    processes = [Path(binding['python']).name]
+    if binding.get('native_worker_executable'):
+        worker = Path(binding['native_worker_executable']).name
+        if binding.get('runtime_mode') != 'local' or worker != 'pb_testlab_worker.exe' or worker == processes[0]:
+            raise ValueError('TRAFFIC_NATIVE_WORKER_RULE_INVALID')
+        processes.append(worker)
+    if mode != 'SOCKS5':
+        processes = ['pb-unruled-control-never.exe']
     return {"Version": "1.0", "LocalhostViaProxy": True, "IsTrafficLoggingEnabled": True,
         "ProxyConfigs": [{"Id": 1, "Name": "TestLab traffic", "Type": "SOCKS5", "Host": binding["host"], "Port": str(binding["proxy_port"]),
             "Username": run_id, "Password": mac(bytes.fromhex(binding["secret"]), b"socks:", run_id.encode()), "SendDomainToProxy": False}],
-        "ProxyRules": [{"Name": "Controlled traffic", "ProcessName": Path(binding["python"]).name if mode == "SOCKS5" else "pb-unruled-control-never.exe",
-            "TargetHosts": binding["host"], "TargetPorts": str(target_port or binding["port"]), "TargetDomains": "", "Protocol": "BOTH", "Action": "PROXY", "ProxyConfigId": 1, "IsEnabled": True, **({"LocalhostViaProxy": True} if binding.get("adapter_id") == "windivert-4.1-cli-v1" else {})}]}
+        "ProxyRules": [{"Name": "Controlled traffic: " + process, "ProcessName": process,
+            "TargetHosts": binding["host"], "TargetPorts": str(target_port or binding["port"]), "TargetDomains": "", "Protocol": "BOTH", "Action": "PROXY", "ProxyConfigId": 1, "IsEnabled": True, **({"LocalhostViaProxy": True} if binding.get("adapter_id") == "windivert-4.1-cli-v1" else {})} for process in processes]}
 
 
 def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], output: str, progress: str) -> dict[str, Any]:
@@ -71,6 +79,7 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
             "host_binding": __import__("hashlib").sha256(binding["host"].encode()).hexdigest(), "python_version": platform.python_version(),
             "windows_version": platform.version(), "logical_cpus": os.cpu_count(), "method": "controlled-traffic-v1"}}
     result["conditions"]["local_runtime_sha256"] = binding.get("local_runtime_sha256")
+    result['conditions']['transport_engine'] = binding.get('transport_engine', 'python-transport-v1')
     result["conditions"].update(product_contract=binding.get("product_contract", "driver"), adapter_id=binding.get("adapter_id", "wfp-cli-v1"), product_version=binding.get("product_version", ""))
     result['conditions']['runtime_mode'] = binding.get('runtime_mode', 'remote')
     result['conditions']['origin_scope'] = 'same-Windows-host-loopback' if binding.get('runtime_mode') == 'local' else 'separate-remote-Ubuntu'

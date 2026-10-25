@@ -366,7 +366,7 @@ async def serve(config: dict[str, Any]) -> None:
         native = config['native_engine']
         if agent.identity_mode != 'local-windows-v1':
             raise ValueError('TRAFFIC_NATIVE_ENGINE_LOCAL_ONLY')
-        agent.native = OriginAdapter(native['port'], config['secret'], native['executable'])
+        agent.native = OriginAdapter(native['port'], config['secret'], native['executable'], native.get('pid'))
     else:
         server = await asyncio.start_server(agent.tcp, bind, port, limit=MAX_LINE + 1)
         transport, _ = await create_origin_datagram_endpoint(loop, agent, bind, port)

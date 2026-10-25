@@ -23,7 +23,14 @@ UDP_COUNTERS = ("sent", "received", "duplicates", "reordered", "invalid", "expir
 def udp_observations(values: list[dict[str, Any]]) -> dict[str, Any]:
     """Native datagram replies only; application clients have different evidence."""
     flows = [flow for row in values if row['task'] == 'udp' and not row.get('application') for flow in row['flows']]
+    def rates(key):
+        return [flow[key] for flow in flows if type(flow.get(key)) in (int, float) and math.isfinite(flow[key])]
+    achieved, requested = rates('achieved_send_packets_per_second'), rates('requested_send_packets_per_second')
     return {"flow_count": len(flows), "scope": "native-authenticated-UDP-replies; bounded-replay-window; 2s-deadline",
+            "send_rate_scope": "packets/s-per-flow; requested-workload-window; excludes-setup-and-drain",
+            "achieved_pps_per_flow_min": min(achieved) if achieved and len(achieved) == len(flows) else None,
+            "achieved_pps_per_flow_max": max(achieved) if achieved and len(achieved) == len(flows) else None,
+            "requested_pps_per_flow": requested[0] if requested and len(requested) == len(flows) and len(set(requested)) == 1 else None,
             **{key: sum(flow.get(key, 0) for flow in flows) if flows else None for key in UDP_COUNTERS}}
 
 

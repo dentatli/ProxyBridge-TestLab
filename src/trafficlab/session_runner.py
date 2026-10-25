@@ -92,6 +92,7 @@ def execute(binding_path: str, directory: Path) -> int:
     queue_evidence: dict[str, Any] = {'execution_model': MODEL, 'start_count': 0, 'stop_count': 0}
     base_conditions = {'build_sha256': binding['build_sha256'], 'remote_bundle_sha256': binding['remote_bundle_sha256'],
         'local_runtime_sha256': binding['local_runtime_sha256'], 'method': 'controlled-traffic-core-session-v1',
+        'transport_engine': binding.get('transport_engine', 'python-transport-v1'),
         'execution_model': MODEL, 'resource_product_scope': 'selected-Core-in-TestLab-native-host; excludes-official-CLI',
         'queue_profile_sha256': hashlib.sha256(json.dumps(binding['cases'], sort_keys=True, separators=(',', ':')).encode()).hexdigest(),
         'session_state': 'retained-between-cases', 'off_control_scope': 'queue-before-Core-Start',

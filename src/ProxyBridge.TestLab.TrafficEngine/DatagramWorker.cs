@@ -161,6 +161,8 @@ internal static partial class TransportWorker
             ["elapsed_seconds"] = elapsedSeconds, ["loss"] = state.Sent - state.Received,
             ["loss_fraction"] = state.Sent > 0 ? (double)(state.Sent - state.Received) / state.Sent : null,
             ["loss_definition"] = "authenticated-replies-not-received-within-2s-deadline", ["achieved_send_packets_per_second"] = state.Sent / seconds,
+            ["requested_send_packets_per_second"] = rate, ["offered_load_fraction"] = rate > 0 ? state.Sent / (seconds * rate) : null,
+            ["send_rate_scope"] = "sent-divided-by-requested-workload-window; excludes-association-and-reply-drain",
             ["received_packets_per_second"] = state.Received / elapsedSeconds, ["peer_observed_by_origin"] = state.Peers,
             ["latency"] = state.Latency.View(), ["unexpected_source_packets"] = state.UnexpectedSources, ["first_source_mismatch"] = state.FirstMismatch,
             ["complete"] = !Cancelled(job) && !stopping.IsCancellationRequested && state.Errors.Count == 0 && state.Invalid == 0 && state.Received > 0,

@@ -22,6 +22,8 @@ typedef void (*CONN_SET)(void (*)(const char *, DWORD, const char *, UINT16, con
 static CRITICAL_SECTION output_lock;
 static volatile LONG stopping = 0;
 static DWORD worker_pid;
+static DWORD native_worker_pid;
+static HANDLE native_worker_handle;
 static UINT64 direct_count, proxy_count, blocked_count;
 // Isolated SSH/SFTP workers are direct children of the queue's Python worker.
 // Check live parent, executable and creation times; never accept an arbitrary PID/name.
@@ -32,6 +34,10 @@ static BOOL owned_worker(DWORD pid) {
     WCHAR parent_path[32768], child_path[32768];
     DWORD parent_size = 32768, child_size = 32768;
     FILETIME pc, pe, pk, pu, cc, ce, ck, cu;
+    if (pid == native_worker_pid && native_worker_handle) {
+        DWORD status = 0;
+        return GetExitCodeProcess(native_worker_handle, &status) && status == STILL_ACTIVE;
+    }
     if (pid == worker_pid) return TRUE;
     snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
     if (snapshot == INVALID_HANDLE_VALUE) return FALSE;
@@ -69,11 +75,17 @@ static void connection(const char *process, DWORD pid, const char *ip, UINT16 po
     LeaveCriticalSection(&output_lock);
 }
 static BOOL WINAPI stop_handler(DWORD event) { (void)event; InterlockedExchange(&stopping, 1); return TRUE; }
-static void ack(unsigned id, BOOL ok, UINT32 config, UINT32 rule, BOOL enabled) {
+static void ack(unsigned id, BOOL ok, UINT32 config, UINT32 rule, UINT32 rule2, BOOL enabled) {
     EnterCriticalSection(&output_lock);
-    fprintf(stdout, "PB_ACK\t%u\t%d\t%u\t%u\t%d\t%llu\t%llu\t%llu\n", id, !!ok, config, rule, !!enabled,
+    fprintf(stdout, "PB_ACK\t%u\t%d\t%u\t%u\t%d\t%llu\t%llu\t%llu", id, !!ok, config, rule, !!enabled,
         (unsigned long long)direct_count, (unsigned long long)proxy_count, (unsigned long long)blocked_count);
+    if (rule2) fprintf(stdout, "\t%u", rule2);
+    fputc('\n', stdout);
     fflush(stdout); LeaveCriticalSection(&output_lock);
+}
+static BOOL disable_all(RULE_OP disable, UINT32 rule, UINT32 rule2) {
+    BOOL first = disable(rule), second = rule2 ? disable(rule2) : TRUE;
+    return first && second;
 }
 static BOOL number(const char *s, unsigned *out) {
     char *end; unsigned long value;
@@ -98,8 +110,8 @@ int wmain(int argc, wchar_t **argv) {
     VOID_OP clear_logs;
     LOG_SET set_log; CONN_SET set_connection; BOOL_SET logging, localhost, every;
     BOOL wfp, started = FALSE, enabled = FALSE, ok;
-    UINT32 config = 0, rule = 0;
-    char line[8192], process[1024] = {0}, host[1024] = {0};
+    UINT32 config = 0, rule = 0, rule2 = 0;
+    char line[8192], process[1024] = {0}, process2[1024] = {0}, host[1024] = {0};
     wchar_t loaded_path[32768];
     DWORD length = 0; int exit_code = 2;
     if (argc != 3 || (wcscmp(argv[2], L"wfp") && wcscmp(argv[2], L"windivert43"))) return 2;
@@ -135,32 +147,50 @@ int wmain(int argc, wchar_t **argv) {
         for (next = line; *next; next++) if (*next == '\t') { *next = 0; if (n == 14) goto finish; fields[n++] = next+1; }
         if (n < 3 || strcmp(fields[0], "PB_CMD") || !number(fields[1], &id)) break;
         ok = FALSE;
-        if (!strcmp(fields[2], "INIT") && n == 10 && !started && !config) {
+        if (!strcmp(fields[2], "INIT") && (n == 10 || n == 13) && !started && !config) {
             unsigned j;
             if (!number(fields[4], &port) || !port || port > 65535 || !number(fields[9], &pid) || !pid) break;
             for (j=3; j<=8; j++) if (j != 4 && !decode(fields[j])) goto finish;
             if (strlen(fields[3]) >= sizeof(host) || strlen(fields[7]) >= sizeof(process)) break;
             strcpy_s(host, sizeof(host), fields[3]); strcpy_s(process, sizeof(process), fields[7]); worker_pid = pid;
+            if (n == 13) {
+                WCHAR expected[32768], actual[32768]; DWORD size = 32768; unsigned native_pid;
+                if (!decode(fields[10]) || !decode(fields[11]) || strcmp(fields[10], "pb_testlab_worker.exe") ||
+                    !number(fields[12], &native_pid) || !native_pid || native_pid == worker_pid ||
+                    !MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, fields[11], -1, expected, 32768)) break;
+                native_worker_pid = native_pid;
+                native_worker_handle = OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION | SYNCHRONIZE, FALSE, native_worker_pid);
+                if (!native_worker_handle || !QueryFullProcessImageNameW(native_worker_handle, 0, actual, &size) || _wcsicmp(actual, expected)) break;
+                strcpy_s(process2, sizeof(process2), fields[10]);
+            }
             config = add_proxy(1, host, (UINT16)port, fields[5], fields[6], FALSE);
             if (!config) break;
             rule = wfp ? ((ADD_RULE_WFP)add_rule)(process, host, fields[8], "", 2, 0, config) :
                 ((ADD_RULE)add_rule)(process, host, fields[8], "", 2, 0, config, TRUE);
             if (!rule || !disable_rule(rule)) break;
+            if (process2[0]) {
+                rule2 = wfp ? ((ADD_RULE_WFP)add_rule)(process2, host, fields[8], "", 2, 0, config) :
+                    ((ADD_RULE)add_rule)(process2, host, fields[8], "", 2, 0, config, TRUE);
+                if (!rule2 || !disable_rule(rule2)) break;
+            }
             started = start(); ok = started;
         } else if (!strcmp(fields[2], "RULE") && n == 5 && started && !strcmp(fields[4], "1") && decode(fields[3])) {
-            ok = disable_rule(rule); enabled = FALSE;
+            ok = disable_all(disable_rule, rule, rule2); enabled = FALSE;
             if (ok) ok = wfp ? ((EDIT_RULE_WFP)edit_rule)(rule, process, host, fields[3], "", 2, 0, config) :
                 ((EDIT_RULE)edit_rule)(rule, process, host, fields[3], "", 2, 0, config, TRUE);
-            if (ok) { ok = enable_rule(rule); enabled = ok; }
+            if (ok && rule2) ok = wfp ? ((EDIT_RULE_WFP)edit_rule)(rule2, process2, host, fields[3], "", 2, 0, config) :
+                ((EDIT_RULE)edit_rule)(rule2, process2, host, fields[3], "", 2, 0, config, TRUE);
+            if (ok) { ok = enable_rule(rule); if (ok && rule2) ok = enable_rule(rule2); enabled = ok; }
         } else if (!strcmp(fields[2], "DISABLE") && n == 3 && started) {
-            ok = disable_rule(rule); if (ok) enabled = FALSE;
+            ok = disable_all(disable_rule, rule, rule2); if (ok) enabled = FALSE;
         } else if (!strcmp(fields[2], "SNAP") && n == 3 && started) ok = TRUE;
         if (ok && (!strcmp(fields[2], "RULE") || !strcmp(fields[2], "DISABLE"))) clear_logs();
-        ack(id, ok, config, rule, enabled);
+        ack(id, ok, config, rule, rule2, enabled);
         if (!ok) break;
     }
 finish:
-    if (started) { ok = disable_rule(rule); enabled = FALSE; if (stop() && ok) exit_code = 0; }
+    if (started) { ok = disable_all(disable_rule, rule, rule2); enabled = FALSE; if (stop() && ok) exit_code = 0; }
+    if (native_worker_handle) CloseHandle(native_worker_handle);
     // Keep the module and callback code mapped through process exit. No FreeLibrary race.
     return exit_code;
 }

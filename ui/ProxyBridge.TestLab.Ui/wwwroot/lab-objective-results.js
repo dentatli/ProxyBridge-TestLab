@@ -21,6 +21,8 @@ function trafficObjectiveMetricKeys(caseId){
 }
 function trafficObjectiveNumber(value,digits=2){return typeof value==='number'&&Number.isFinite(value)?number(value,digits):'—';}
 Object.assign(trafficObjectiveText.ru,{worstLoss:'Худшие потери одного UDP-потока, %',cpu:'CPU клиента, % ПК',ram:'Выделенная память клиента, МиБ · пик',churnScope:'Измеряется этот профиль коротких соединений с удержанием 50 мс, не предельная частота создания соединений.'});
+Object.assign(trafficObjectiveText.ru,{requestedPps:'Задано, пак./с на поток',actualPps:'Подано, пак./с на поток',rateScope:'Фактическая подача указана за окно нагрузки, без подключения и ожидания ответов. Потери считаются от отправленных пакетов. Успешная доставка не подтверждает достижение заданного темпа.'});
+Object.assign(trafficObjectiveText.en,{requestedPps:'Target packets/s per flow',actualPps:'Offered packets/s per flow',rateScope:'Offered rate uses the load window, excluding setup and reply drain. Loss uses sent packets. Successful delivery does not confirm reaching the target rate.'});
 Object.assign(trafficObjectiveText.en,{worstLoss:'Worst single UDP flow loss, %',cpu:'Client CPU, % of PC',ram:'Client private memory, MiB · peak',churnScope:'This measures the selected short-connection profile with a 50 ms hold, not maximum connection creation rate.'});
 function trafficObjectiveTable(columns,rows){
   return `<div class="objective-scroll"><table class="objective-table"><thead><tr>${columns.map(key=>`<th scope="col">${html(trafficObjectiveLabel(key))}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map((value,index)=>index===0?`<th scope="row">${html(value)}</th>`:`<td>${html(value)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
@@ -67,17 +69,20 @@ function trafficObjectiveMarkup(row,view={}){
     const application=recipe==='application',udp=['udp','udp_unconnected','udp_sweep','udp_connections','mixed','stability','soak'].includes(recipe);
     const connections=['connections','flow_rate'].includes(recipe),latency=['echo','multistream','loaded','connections','mixed','stability','soak'].includes(recipe);
     const tx=['upload','duplex','multistream','loaded','mixed','stability','soak'].includes(recipe),rx=['download','duplex','multistream','loaded','mixed','stability','soak'].includes(recipe);
-    const columns=['stage','status',...(application?['payload','transactions']:[]),...(connections?['tcp',...(recipe==='flow_rate'?['cps']:['peak'])]:[]),...(tx?['tx']:[]),...(rx?['rx']:[]),...(latency?['rtt']:[]),...(udp?['sent','received','loss','worstLoss','udpRtt']:[])];
+    const columns=['stage','status',...(application?['payload','transactions']:[]),...(connections?['tcp',...(recipe==='flow_rate'?['cps']:['peak'])]:[]),...(tx?['tx']:[]),...(rx?['rx']:[]),...(latency?['rtt']:[]),...(udp?['requestedPps','actualPps','sent','received','loss','worstLoss','udpRtt']:[])];
     const visible=stages.length>40?[...stages.slice(0,4),...stages.slice(-4)]:stages;
     body=trafficObjectiveTable(columns,visible.map(stage=>{
       const u=stage.udp_observations,hasUdp=u?.flow_count>0;
       const values={stage:trafficObjectivePhase(stage.phase),status:trafficObjectiveLabel(stage.complete===true?'ok':'bad'),payload:trafficObjectiveNumber(stage.application_payload_bytes,0),transactions:trafficObjectiveNumber(stage.application_transactions,0),tcp:Number.isFinite(stage.tcp_completed)&&Number.isFinite(stage.tcp_offered)?`${stage.tcp_completed} / ${stage.tcp_offered}`:'—',cps:trafficObjectiveNumber(stage.elapsed_seconds>0?stage.tcp_completed/stage.elapsed_seconds:null),peak:trafficObjectiveNumber(stage.tcp_active_peak,0),tx:trafficObjectiveNumber(trafficMiB(stage.tcp_tx_bytes_per_second)),rx:trafficObjectiveNumber(trafficMiB(stage.tcp_rx_bytes_per_second)),rtt:trafficObjectiveNumber(stage.probe_latency?.count>0?stage.probe_p99_ms:null),sent:trafficObjectiveNumber(hasUdp?u.sent:null,0),received:trafficObjectiveNumber(hasUdp?u.received:null,0),loss:trafficObjectiveNumber(hasUdp&&u.sent>0&&Number.isFinite(u.received)?100*(u.sent-u.received)/u.sent:null),udpRtt:trafficObjectiveNumber(hasUdp&&stage.udp_latency?.count>0?stage.udp_latency.p99_ms:null)};
+      values.requestedPps=trafficObjectiveNumber(u?.requested_pps_per_flow,0);
+      values.actualPps=Number.isFinite(u?.achieved_pps_per_flow_min)&&Number.isFinite(u?.achieved_pps_per_flow_max)?`${trafficObjectiveNumber(u.achieved_pps_per_flow_min)}–${trafficObjectiveNumber(u.achieved_pps_per_flow_max)}`:'—';
       values.worstLoss=trafficObjectiveNumber(hasUdp&&Number.isFinite(stage.max_udp_flow_loss_fraction)?100*stage.max_udp_flow_loss_fraction:null);
       return columns.map(key=>values[key]);
     }));
     if(stages.length>40)body+=`<small>${trafficObjectiveLabel('limited')}</small>`;
     if(application)body+=trafficObjectiveProtocol(stages);
     if(udp){
+      body+=`<small>${trafficObjectiveLabel('rateScope')}</small>`;
       const counters=mode?.overall?.udp_observations;
       if(counters?.flow_count>0)body+=`<section class="result-metric-group"><div class="result-quick-metrics">${['invalid','duplicates','reordered','expired','send_errors'].filter(key=>Number.isFinite(counters[key])).map(key=>`<span>${html(trafficObjectiveLabel(key))}<b>${trafficObjectiveNumber(counters[key],0)}</b></span>`).join('')}</div></section>`;
     }

@@ -320,6 +320,7 @@ public sealed partial class TrafficRuntimeService
                 final = await WithLocalRuntimeAsync(directory, (payload, token) => ExecutePreparedRunAsync(request, selection, directory, id, "127.0.0.1", payload, token, plan));
                 var value = System.Text.Json.Nodes.JsonNode.Parse(final.Value.GetRawText())!.AsObject();
                 value["local_origin_cleanup_verified"] = true;
+                value["native_engine_cleanup_verified"] = true;
                 await WriteAsync(Path.Combine(directory,"attempt.json"), value);
                 final = JsonSerializer.SerializeToElement(value);
             }
@@ -336,6 +337,7 @@ public sealed partial class TrafficRuntimeService
         {
             error = exception is InvalidOperationException && System.Text.RegularExpressions.Regex.IsMatch(exception.Message, "^[A-Z][A-Z0-9_]{0,100}$")
                 ? exception.Message : "TRAFFIC_RUN_OR_STORAGE_FAILED";
+            if (request.Mode == "local") final = await PreserveRuntimeFailureAsync(directory, error);
         }
         if (final is null)
         {
@@ -346,6 +348,23 @@ public sealed partial class TrafficRuntimeService
             final = document.RootElement.Clone();
         }
         lock (_stateGate) { _queuePresentation = ReadQueuePresentation(); _run = final; _activeDirectory = null; _checked = null; _error = error; }
+    }
+
+    private static async Task<JsonElement?> PreserveRuntimeFailureAsync(string directory, string error)
+    {
+        var path = Path.Combine(directory, "attempt.json");
+        if (!File.Exists(path)) return null;
+        var value = System.Text.Json.Nodes.JsonNode.Parse(await File.ReadAllBytesAsync(path))!.AsObject();
+        if (value["results"] is not System.Text.Json.Nodes.JsonArray) return null;
+        // A runtime shutdown failure must not erase completed case measurements or turn them into product failures.
+        value["state"] = "FAILED";
+        value["complete"] = false;
+        value["local_origin_cleanup_verified"] = false;
+        value["native_engine_cleanup_verified"] = false;
+        value["runtime_error"] = error;
+        value["error"] = error;
+        await WriteAsync(path, value);
+        return JsonSerializer.SerializeToElement(value);
     }
 
     private async Task<JsonElement> ExecutePreparedRunAsync(TrafficRunRequest request, ProductSelectionRequest selection,
@@ -377,13 +396,20 @@ public sealed partial class TrafficRuntimeService
                 if (request.Mode == "local") sourceFiles = sourceFiles.Concat(new[] {
                     Path.Combine(app.RepositoryRoot, "bin", "pb_core_host.exe"),
                     Path.Combine(app.RepositoryRoot, "scripts", "Set-TrafficWfpDevice.ps1"),
-                    Path.Combine(app.RepositoryRoot, "scripts", "Initialize-LocalFirewall.ps1") });
+                    Path.Combine(app.RepositoryRoot, "scripts", "Initialize-LocalFirewall.ps1") }).Concat(NativeFiles(app.RepositoryRoot));
                 sourceFiles = sourceFiles.Select(Path.GetFullPath).ToArray();
                 foreach (var file in sourceFiles)
                 {
                     if (!File.Exists(file) || File.GetAttributes(file).HasFlag(FileAttributes.ReparsePoint)) throw new InvalidOperationException("TRAFFIC_LOCAL_ARTIFACT_MISSING_OR_REPARSE_POINT");
                     hashes[file] = Hash(File.ReadAllBytes(file));
                 }
+                if (payload.NativeSources is not null)
+                    foreach (var pair in payload.NativeSources)
+                    {
+                        if (!File.Exists(pair.Key) || Hash(File.ReadAllBytes(pair.Key)) != pair.Value)
+                            throw new InvalidOperationException("TRAFFIC_LOCAL_IDENTITY_CHANGED");
+                        hashes[pair.Key] = pair.Value;
+                    }
                 var localRuntimeHash = Hash(JsonSerializer.SerializeToUtf8Bytes(sourceFiles.Order(StringComparer.Ordinal)
                     .ToDictionary(path => Path.GetFileName(path), path => hashes[path], StringComparer.Ordinal)));
                 var binding = new { schema_version = 1, id, build_id = build.Id, build_sha256 = build.BundleSha256,
@@ -394,6 +420,9 @@ public sealed partial class TrafficRuntimeService
                     core, core_host = Path.Combine(app.RepositoryRoot, "bin", "pb_core_host.exe"),
                     remote_bundle_sha256 = payload.Bundle, root = app.RepositoryRoot, cli, driver, driver_sha256 = hashes[driver],
                     console_host = Path.Combine(app.RepositoryRoot, "bin", "pb_console_host.exe"), python, source_hashes = hashes,
+                    transport_engine = payload.NativeWorker is null ? "python-transport-v1" : "csharp-transport-v1",
+                    native_worker_port = payload.NativeWorker?.Port, native_worker_pid = payload.NativeWorker?.Pid,
+                    native_worker_executable = payload.NativeWorker?.Executable,
                     cancellation_path = Path.Combine(directory, "cancel.requested"),
                     continue_after_failure = request.ContinueAfterFailure,
                     cases = request.Cases.Select(row => new { case_id = row.Id, duration = row.Duration, load = row.Load }).ToArray() };

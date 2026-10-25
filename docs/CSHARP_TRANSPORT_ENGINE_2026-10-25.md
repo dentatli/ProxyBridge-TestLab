@@ -2,7 +2,15 @@
 
 Выбор по запросу пользователя: C# для всего измеряющего транспортного тракта (генератор TCP/UDP, приёмник, SOCKS5); существующие прикладные библиотеки пока сохраняются. Пользователь спросил, какой объём лучше; рекомендован этот вариант, дополнительное подтверждение не требуется. Продуктовые источники и диагностика драйвера не входят в scope. Полный прогон обеих сборок пользователь запустит после готовности новой версии.
 
-## Готово в исходниках, ещё не включено в приложении
+## Состояние интеграции — продолжение 25 октября
+
+Контроллер подключает отдельные owned native origin/relay и worker, immutable private configs ДО Python manifest, PID/image/resource binding, bounded stop/owned kill. Прикладной Python origin имеет отдельное имя. Local preflight требует self-contained native runtime; publisher47 собирает C host и движок, создаёт проверенные apphost aliases. В Core API две отдельные rules с подтверждёнными IDs; обе disabled/edited/enabled до ACK, один Start/Stop. Native worker callbacks привязаны к открытому process handle и точному image path. Legacy one-rule/remote пути сохранены. Отдельный ABI probe fake DLL: WFP+WinDivert signatures, native+Python events, injected second-enable failure и cleanup PASS.
+
+Свежий contract35 PASS: artifacts/engine-contract-1792930577143994000/result.json. Контроллерный reflection probe через настоящие методы+admin firewall:7 transport/application checks PASS (TCP/UDP/HTTPS/SSH/DNS-UDP/HTTP3), подписанные route/resources, renamed self-contained aliases, private inputs cleanup и сохранение результатов при runtime failure; evidence artifacts/engine-migration/controller-1792930574969/component-result.json. UI/C build0warnings/errors. UDP rate actual/target видны по интервалам; доставка и достижение темпа разделены. Новых tracked автотестов не добавлено.
+
+Следующий шаг: commit/package47, проверить immutable SHA/admin UI, короткая matched product smoke (diagnostic chat inactive, product/driver stopped, debugger absent), затем оставить полные прогоны пользователю. Полная приёмка нового движка ещё не заявлена.
+
+## Компоненты переноса
 
 - src/ProxyBridge.TestLab.TrafficEngine: .NET10 Windows console host, роли origin/relay и worker-only; без новых NuGet-зависимостей. Чистый managed C#, async sockets, отдельный read buffer для duplex. Native processes должны быть отдельными от Python controller/адаптеров и друг от друга.
 - Совместимый контролируемый TCP wire: challenge/HMAC, flow/run, sequence/pattern/byte counters/SHA256, echo/hold/upload/download/duplex/churn. Ошибка duplex отменяет вторую сторону, оба результата наблюдаются.

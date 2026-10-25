@@ -1,5 +1,5 @@
 [CmdletBinding()]
-param([string]$Version='0.3.0-local-preview.46',[string]$OutputRoot='', [string]$PythonDirectory='')
+param([string]$Version='0.3.0-local-preview.47',[string]$OutputRoot='', [string]$PythonDirectory='')
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 $root=Split-Path -Parent $PSScriptRoot
@@ -50,8 +50,16 @@ function Copy-RuntimeTree([string]$Source,[string]$Target) {
 
 $null=New-Item -ItemType Directory -Path $stage -Force
 try {
+    & (Join-Path $root 'scripts/Build-CoreHost.ps1')
+    if($LASTEXITCODE -ne 0) {throw 'CORE_HOST_BUILD_FAILED'}
     & dotnet publish (Join-Path $root 'ui/ProxyBridge.TestLab.Ui/ProxyBridge.TestLab.Ui.csproj') -c Release -r win-x64 --self-contained true --source https://api.nuget.org/v3/index.json --nologo -o (Join-Path $stage 'app')
     if($LASTEXITCODE -ne 0) {throw 'LOCAL_APP_PUBLISH_FAILED'}
+    $engineTarget=Join-Path $stage 'bin/runtime/traffic-engine'
+    & dotnet publish (Join-Path $root 'src/ProxyBridge.TestLab.TrafficEngine/ProxyBridge.TestLab.TrafficEngine.csproj') -c Release -r win-x64 --self-contained true --source https://api.nuget.org/v3/index.json --nologo -o $engineTarget
+    if($LASTEXITCODE -ne 0) {throw 'TRAFFIC_ENGINE_PUBLISH_FAILED'}
+    foreach($alias in @('pb_testlab_origin.exe','pb_testlab_worker.exe')) {
+        Copy-Item -LiteralPath (Join-Path $engineTarget 'ProxyBridge.TestLab.TrafficEngine.exe') -Destination (Join-Path $engineTarget $alias)
+    }
     # Only tracked public configuration/modules are included. Never enumerate
     # or copy the research source tree, captures, kits, profiles or secrets.
     $tracked=@(& git -C $root ls-files -- modules config scenarios src/trafficlab vendor)
@@ -76,7 +84,7 @@ try {
     [IO.File]::WriteAllText((Join-Path $stage 'VERSION.txt'),$Version+"`r`n",[Text.UTF8Encoding]::new($false))
     $sourceCommit=(& git -C $root rev-parse HEAD).Trim()
     if($LASTEXITCODE -ne 0 -or $sourceCommit -notmatch '^[a-f0-9]{40}$') {throw 'RELEASE_SOURCE_REVISION_UNAVAILABLE'}
-    $manifest=[ordered]@{schema_version=1;name='ProxyBridge TestLab';version=$Version;source_commit=$sourceCommit;platform='win-x64';scope='local';controller_self_contained=$true;local_python_included=$true;product_binaries_included=$false;runtime_validation='NOT_RUN_ON_THIS_REVISION';catalog_scenarios=51;ui_checks=10;baseline_commit='d5b51f3'}
+    $manifest=[ordered]@{schema_version=1;name='ProxyBridge TestLab';version=$Version;source_commit=$sourceCommit;platform='win-x64';scope='local';controller_self_contained=$true;local_python_included=$true;transport_engine='csharp-transport-v1';transport_self_contained=$true;product_binaries_included=$false;runtime_validation='NOT_RUN_ON_THIS_REVISION';catalog_scenarios=51;ui_checks=10;baseline_commit='d5b51f3'}
     [IO.File]::WriteAllText((Join-Path $stage 'MANIFEST.json'),($manifest|ConvertTo-Json)+"`r`n",[Text.UTF8Encoding]::new($false))
     $sums=@(Get-ChildItem -LiteralPath $stage -Recurse -File | Sort-Object FullName | ForEach-Object {
         (Get-FileHash -LiteralPath $_.FullName).Hash.ToLowerInvariant()+'  '+$_.FullName.Substring($stage.Length+1).Replace('\','/')

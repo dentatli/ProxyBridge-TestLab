@@ -103,9 +103,9 @@ def execute_worker(job):
 
 class OriginAdapter:
     """Protocol callbacks enter the same compiled relay that forwards their bytes."""
-    def __init__(self, port: int, secret: str, executable: str):
+    def __init__(self, port: int, secret: str, executable: str, expected_pid: int | None = None):
         self.native_port, self.secret, self.executable = port, secret, executable
-        self.pid = None
+        self.pid = expected_pid
 
     def snapshot(self, run_id):
         result = request(self.native_port, self.secret, {'operation':'snapshot', 'run_id':run_id})

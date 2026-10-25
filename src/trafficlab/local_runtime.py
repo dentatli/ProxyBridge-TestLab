@@ -34,7 +34,7 @@ def prepare(request: dict) -> dict:
     if not sources or any(digest(Path(name)) != value for name, value in sources.items()):
         raise ValueError('TRAFFIC_LOCAL_SOURCE_CHANGED')
     home = Path(sys.executable).parent
-    executable = directory / 'pb_testlab_origin.exe'
+    executable = directory / ('pb_testlab_adapter_origin.exe' if request.get('native_engine') else 'pb_testlab_origin.exe')
     shutil.copyfile(sys.executable, executable)
     if digest(executable) != digest(Path(sys.executable)):
         raise ValueError('TRAFFIC_LOCAL_INTERPRETER_CHANGED')
@@ -77,6 +77,10 @@ def prepare(request: dict) -> dict:
                 sources.get(native['executable']) != digest(Path(native['executable'])):
             raise ValueError('TRAFFIC_NATIVE_ENGINE_IDENTITY_INVALID')
         config['native_engine'] = {'port':native['port'], 'executable':native['executable']}
+        if 'pid' in native:
+            if type(native['pid']) is not int or native['pid'] <= 0:
+                raise ValueError('TRAFFIC_NATIVE_ENGINE_IDENTITY_INVALID')
+            config['native_engine']['pid'] = native['pid']
     configuration = directory/'config-private.json'
     configuration.write_bytes(json_bytes(config))
     files = {**sources, **{str(path):digest(path) for path in directory.rglob('*') if path.is_file()}}
@@ -102,8 +106,14 @@ def identity(configuration: Path, applications) -> dict:
 
 def main() -> int:
     parser = argparse.ArgumentParser()
-    parser.add_argument('--prepare', action='store_true', required=True)
-    parser.parse_args()
+    action = parser.add_mutually_exclusive_group(required=True)
+    action.add_argument('--prepare', action='store_true')
+    action.add_argument('--application-ports', action='store_true')
+    args = parser.parse_args()
+    if args.application_ports:
+        from trafficlab.application_wire import APPLICATION_PORTS
+        print(json.dumps(APPLICATION_PORTS), flush=True)
+        return 0
     try:
         request = json.loads(sys.stdin.buffer.read(1024*1024))
         print(json.dumps(prepare(request)), flush=True)

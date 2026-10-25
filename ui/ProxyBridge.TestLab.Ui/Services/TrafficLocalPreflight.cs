@@ -11,6 +11,9 @@ public sealed partial class TrafficRuntimeService
     private string[] LocalFileErrors()
     {
         var errors = new List<string>();
+        try { _ = NativeFiles(app.RepositoryRoot); }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or InvalidOperationException)
+        { errors.Add("TRAFFIC_NATIVE_ENGINE_MISSING"); }
         try
         {
             var home = Path.GetDirectoryName(LocalPythonRuntime.Resolve(app.RepositoryRoot))!;

@@ -7,6 +7,10 @@ $ErrorActionPreference='Stop'
 $root=[IO.Path]::GetFullPath($RepositoryRoot)
 if(-not $PythonPath){$PythonPath=Join-Path $root 'bin/runtime/python/python.exe'}
 $programs=@((Join-Path $root 'bin/pb_core_host.exe'),$PythonPath)
+$nativeFolder=Join-Path $root 'bin/runtime/traffic-engine'
+if(Test-Path -LiteralPath $nativeFolder -PathType Container){
+    $programs+=@((Join-Path $nativeFolder 'pb_testlab_origin.exe'),(Join-Path $nativeFolder 'pb_testlab_worker.exe'))
+}
 $group='ProxyBridge TestLab - local runtime'
 # NetSecurity rejects the IPv6 loopback literal in rule scopes. The current local
 # runtime uses IPv4 loopback; do not broaden the rule to all IPv6 addresses.
