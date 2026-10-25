@@ -1,4 +1,7 @@
 "use strict";
+Object.assign(labText.ru,{trafficCombined:'Совмещённые проверки — без повторного выполнения'});
+Object.assign(labText.en,{trafficCombined:'Combined checks — without duplicate execution'});
+
 Object.assign(labText.ru, {
   trafficHeading:"Трафик, скорость, нагрузка и стабильность", trafficScope:"Ubuntu 22.04. Транспортные и прикладные протоколы: HTTP, QUIC, DNS, SSH, почта и обмен сообщениями. Проверка данных и маршрута, потери UDP, CPU/RAM всей ОС и CPU/RAM/handles/threads отдельных процессов. Число соединений и скорость не доказывают максимальную ёмкость или ресурсы драйвера.",
   trafficPrepare:"Проверить / подготовить runtime", trafficApply:"Установить по этому плану", trafficStart:"Запустить выбранные проверки", trafficStop:"Остановить и очистить",
@@ -73,7 +76,7 @@ lab('traffic-comparison-mode').value=trafficCompareChoice.mode;
 const trafficCases=()=>trafficFamilies(trafficCatalog).flatMap(family=>family.rows.filter(row=>trafficChoice[row.id]?.selected).map(row=>({id:row.id,duration:trafficChoice[row.id].duration,load:trafficChoice[row.id].load})));
 const trafficCaseEstimate=row=>row.id==="soak"?({SHORT:24,NORMAL:48,LONG:72}[row.duration]*3600+300):({SHORT:6,NORMAL:30,LONG:120}[row.duration]*({"tcp-multistream":3,"loaded-rtt":3,"flow-rate":3,"mixed":3,"three-modes":3,"tcp-connections":5,"udp-connections":5,"udp-sweep":6,"stability":10}[row.id]||trafficCatalog?.cases.find(value=>value.id===row.id)?.payload_sizes?.length||1)+20);
 const trafficSafeContinue=()=>true;
-const trafficEstimate=(cases=trafficCases(),continueAfterFailure=trafficSafeContinue())=>cases.reduce((sum,row)=>sum+trafficCaseEstimate(row),0)+(continueAfterFailure?Math.max(0,cases.length-1)*20:0);
+const trafficEstimate=(cases=trafficCases(),continueAfterFailure=trafficSafeContinue())=>{const planned=trafficSelectionPlan(trafficCatalog,cases).cases;return planned.reduce((sum,row)=>sum+trafficCaseEstimate(row),0)+(continueAfterFailure?Math.max(0,planned.length-1)*20:0);};
 function trafficLiveBytes(value){
   if(typeof value!=="number"||!Number.isFinite(value)||value<0)return "—";
   if(value<1024)return `${number(value,0)} ${t('trafficLiveBytes')}`;
@@ -90,7 +93,8 @@ const trafficName=id=>trafficCatalog?.cases.find(row=>row.id===id)?.[labLanguage
 function trafficFamilyCard(family,busy,expanded){
   const choice=trafficFamilyChoice(family),disabled=busy?"disabled":"";
   const options=(values,current,label)=>`${current==="MIXED"?`<option value="MIXED" disabled selected>${t("trafficMixed")}</option>`:""}${values.map(value=>`<option value="${value}" ${value===current?"selected":""}>${html(label(value))}</option>`).join("")}`;
-  const estimate=family.rows.filter(row=>choice.ids.includes(row.id)).reduce((sum,row)=>sum+trafficCaseEstimate({id:row.id,duration:choice.duration==="MIXED"?trafficChoice[row.id]?.duration||"SHORT":choice.duration}),0);
+  const effectiveIds=new Set(trafficSelectionPlan(trafficCatalog,trafficCases()).cases.map(row=>row.id));
+  const estimate=family.rows.filter(row=>choice.ids.includes(row.id)&&(!choice.selected||effectiveIds.has(row.id))).reduce((sum,row)=>sum+trafficCaseEstimate({id:row.id,duration:choice.duration==="MIXED"?trafficChoice[row.id]?.duration||"SHORT":choice.duration}),0);
   return `<div data-traffic-card="${family.id}" class="lab-test-card${choice.selected?" is-selected":""}"><label class="lab-test-toggle"><input type="checkbox" data-traffic-family="${family.id}" ${choice.selected?"checked":""} ${disabled}><span>${html(trafficFamilyName(family))}</span></label>
     <div class="lab-test-settings ${Object.keys(family.profiles).length>1?"traffic-family-settings":""}">${Object.keys(family.profiles).length>1?`<label>${t("trafficDepth")}<select data-traffic-depth="${family.id}" ${disabled}>${choice.profile==="CUSTOM"?`<option value="CUSTOM" disabled selected>${t("trafficDepth_CUSTOM")}</option>`:""}${options(Object.keys(family.profiles),choice.profile,value=>t(`trafficDepth_${value}`))}</select></label>`:""}
     <label>${t("duration")}<select data-traffic-duration="${family.id}" ${disabled}>${options(["SHORT","NORMAL","LONG"],choice.duration,value=>family.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[value]+" h":t(value))}</select></label>
@@ -168,9 +172,10 @@ function renderTraffic(){
     trafficCardsKey=cardsKey;
     lab("traffic-cases").innerHTML=families.map(family=>trafficFamilyCard(family,busy,expanded.includes(family.id))).join("");
   }
-  const reviewChoices=trafficReviewChoices(run,active,trafficChoice);
-  const reviewChoice=family=>active?trafficFamilySelection(family,reviewChoices):trafficFamilyChoice(family);
-  const reviewCases=active?Object.entries(reviewChoices).map(([id,row])=>({id,...row})):trafficCases();
+  const selectionPlan=trafficSelectionPlan(trafficCatalog,trafficCases());
+  const reviewChoices=trafficReviewChoices(run,active,Object.fromEntries(selectionPlan.cases.map(row=>[row.id,{...row,selected:true}])));
+  const reviewChoice=family=>trafficFamilySelection(family,reviewChoices);
+  const reviewCases=Object.entries(reviewChoices).map(([id,row])=>({id,...row}));
   const reviewEstimate=trafficEstimate(reviewCases,active?run?.continue_after_failure===true:trafficSafeContinue());
   const selectedFamilies=families.filter(family=>reviewChoice(family).selected);
   lab("traffic-selection-review").hidden=active;
@@ -179,7 +184,7 @@ function renderTraffic(){
   lab("traffic-selection-summary").innerHTML=selectedFamilies.length?`<p>${t(active?"trafficActiveSelection":"trafficSelectionReview")}:</p><ul>${selectedFamilies.map(family=>{
     const choice=reviewChoice(family);
     return `<li>${html(trafficFamilyName(family))} · ${t(`trafficDepth_${choice.profile}`)} · ${t("trafficStages")}: ${choice.ids.length} · ${choice.duration==="MIXED"?t("trafficMixed"):family.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[choice.duration]+" h":t(choice.duration)} / ${choice.load==="MIXED"?t("trafficMixed"):t(choice.load)}</li>`;
-  }).join("")}</ul><p>${t("trafficEstimate")}: ≈ ${number(reviewEstimate/60,1)} ${t("trafficMinutes")}</p>`:`<p>${t("trafficNoSelection")}</p>`;
+  }).join("")}</ul><p>${t("trafficEstimate")}: ≈ ${number(reviewEstimate/60,1)} ${t("trafficMinutes")}</p>${!active?trafficSelectionNote(selectionPlan):''}`:`<p>${t("trafficNoSelection")}</p>`;
   if(restoreFocus){
     const control=lab("traffic-cases").querySelector(restoreFocus);
     if(control&&!control.disabled&&!control.closest("[hidden]"))control.focus({preventScroll:true});
@@ -460,3 +465,8 @@ loadTraffic();setInterval(()=>{if(!trafficActionActive)loadTraffic();},3000);
 
 Object.assign(labText.ru,{trafficLocalScope:"Windows, получатель на этом же ПК. ",trafficLocalRuntime:"Локальный получатель подготавливается автоматически перед запуском. TLS/SSH-ключи изолированы; измерения используют ресурсы этого же ПК."});
 Object.assign(labText.en,{trafficLocalScope:"Windows, origin on this PC. ",trafficLocalRuntime:"The local origin is prepared automatically before each run. TLS/SSH keys are isolated; measurements share this PC’s resources."});
+
+function trafficSelectionNote(plan){
+  if(!plan?.covered_cases?.length)return '';
+  return `<details class="result-plan"><summary>${html(t('trafficCombined'))}: ${plan.requested_cases.length} → ${plan.cases.length}</summary><ul>${plan.covered_cases.map(row=>`<li>${html(trafficName(row.case_id))} → ${html(trafficName(row.covered_by))}</li>`).join('')}</ul></details>`;
+}

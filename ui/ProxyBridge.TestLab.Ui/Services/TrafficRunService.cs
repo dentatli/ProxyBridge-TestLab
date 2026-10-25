@@ -25,6 +25,8 @@ public sealed partial class TrafficRuntimeService
             row.Duration is not ("SHORT" or "NORMAL" or "LONG") || row.Load is not ("LOW" or "HIGH")) ||
             request.Cases.Select(row => row.Id).Distinct().Count() != request.Cases.Length)
             throw new InvalidOperationException("TRAFFIC_CASE_SELECTION_INVALID");
+        var plan = OptimizeSelection(catalog, request.Cases);
+        request = request with { Cases = plan.cases };
         if (request.Mode == "local") ValidateLocalFiles();
         if (!await _gate.WaitAsync(0, Token)) throw new InvalidOperationException("TRAFFIC_OPERATION_ACTIVE");
         try
@@ -36,22 +38,35 @@ public sealed partial class TrafficRuntimeService
             var directory = Path.Combine(Root, id);
             AppStoragePaths.EnsureSecureDirectory(directory);
             var attempt = new { id, state = "PREPARING", started_at_utc = DateTimeOffset.UtcNow, build_id = request.BuildId,
-                mode = request.Mode, cases = request.Cases, estimate_seconds = Estimate(request.Cases, request.ContinueAfterFailure),
+                mode = request.Mode, cases = request.Cases, selection_optimization = plan, estimate_seconds = Estimate(request.Cases, request.ContinueAfterFailure),
                 continue_after_failure = request.ContinueAfterFailure, complete = false, cleanup_verified = false };
             await WriteAsync(Path.Combine(directory, "attempt.json"), attempt);
             lock (_stateGate) { _run = attempt; _queuePresentation = null; _activeDirectory = directory; _checked = null; }
             _execution = Task.Run(async () =>
             {
-                try { await ExecuteRunAsync(request, selected, directory, id); }
+                try { await ExecuteRunAsync(request, selected, directory, id, plan); }
                 catch (Exception)
                 {
-                    lock (_stateGate) { _queuePresentation = ReadQueuePresentation(); _run = new { id, cases = request.Cases, mode = request.Mode, state = "FAILED", complete = false, cleanup_verified = false, error = "TRAFFIC_RUN_OR_STORAGE_FAILED" }; _activeDirectory = null; _checked = null; }
+                    lock (_stateGate) { _queuePresentation = ReadQueuePresentation(); _run = new { id, cases = request.Cases, selection_optimization = plan, mode = request.Mode, state = "FAILED", complete = false, cleanup_verified = false, error = "TRAFFIC_RUN_OR_STORAGE_FAILED" }; _activeDirectory = null; _checked = null; }
                 }
                 finally { _gate.Release(); }
             });
             return attempt;
         }
         catch { _gate.Release(); throw; }
+    }
+
+    internal sealed record TrafficCoverage(string case_id, string covered_by);
+    internal sealed record TrafficSelectionPlan(TrafficCaseRequest[] requested_cases, TrafficCaseRequest[] cases, TrafficCoverage[] covered_cases);
+    internal static TrafficSelectionPlan OptimizeSelection(JsonElement catalog, TrafficCaseRequest[] requested)
+    {
+        var coverage = catalog.GetProperty("cases").EnumerateArray().ToDictionary(
+            row => row.GetProperty("id").GetString()!,
+            row => row.TryGetProperty("covers", out var ids) ? ids.EnumerateArray().Select(id => id.GetString()!).ToHashSet() : new HashSet<string>());
+        var covered = requested.Select(row => (Row: row, Parent: requested.FirstOrDefault(other => other.Id != row.Id &&
+            other.Duration == row.Duration && other.Load == row.Load && coverage[other.Id].Contains(row.Id))))
+            .Where(item => item.Parent is not null).Select(item => new TrafficCoverage(item.Row.Id, item.Parent!.Id)).ToArray();
+        return new(requested, requested.Where(row => !covered.Any(item => item.case_id == row.Id)).ToArray(), covered);
     }
 
     public object Stop()
@@ -294,7 +309,7 @@ public sealed partial class TrafficRuntimeService
         }
     }
 
-    private async Task ExecuteRunAsync(TrafficRunRequest request, ProductSelectionRequest selection, string directory, string id)
+    private async Task ExecuteRunAsync(TrafficRunRequest request, ProductSelectionRequest selection, string directory, string id, TrafficSelectionPlan plan)
     {
         string? error = null;
         JsonElement? final = null;
@@ -302,7 +317,7 @@ public sealed partial class TrafficRuntimeService
         {
             if (request.Mode == "local")
             {
-                final = await WithLocalRuntimeAsync(directory, (payload, token) => ExecutePreparedRunAsync(request, selection, directory, id, "127.0.0.1", payload, token));
+                final = await WithLocalRuntimeAsync(directory, (payload, token) => ExecutePreparedRunAsync(request, selection, directory, id, "127.0.0.1", payload, token, plan));
                 var value = System.Text.Json.Nodes.JsonNode.Parse(final.Value.GetRawText())!.AsObject();
                 value["local_origin_cleanup_verified"] = true;
                 await WriteAsync(Path.Combine(directory,"attempt.json"), value);
@@ -314,7 +329,7 @@ public sealed partial class TrafficRuntimeService
                     var payload = BuildPayload(target, paths, "inspect");
                     var readiness = await ExecuteAsync(target, paths, payload, token);
                     if (readiness.GetProperty("state").GetString() != "READY") throw new InvalidOperationException("TRAFFIC_RUNTIME_SETUP_REQUIRED");
-                    return await ExecutePreparedRunAsync(request, selection, directory, id, target.Host, payload, token);
+                    return await ExecutePreparedRunAsync(request, selection, directory, id, target.Host, payload, token, plan);
                 });
         }
         catch (Exception exception) when (exception is InvalidOperationException or IOException or UnauthorizedAccessException or OperationCanceledException or JsonException or System.ComponentModel.Win32Exception or TimeoutException)
@@ -325,7 +340,7 @@ public sealed partial class TrafficRuntimeService
         if (final is null)
         {
             await WriteAsync(Path.Combine(directory, "attempt.json"), new { id, state = "FAILED", build_id = request.BuildId,
-                mode = request.Mode, cases = request.Cases, continue_after_failure = request.ContinueAfterFailure,
+                mode = request.Mode, cases = request.Cases, selection_optimization = plan, continue_after_failure = request.ContinueAfterFailure,
                 complete = false, cleanup_verified = false, error, completed_at_utc = DateTimeOffset.UtcNow });
             using var document = JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(directory, "attempt.json")));
             final = document.RootElement.Clone();
@@ -334,7 +349,7 @@ public sealed partial class TrafficRuntimeService
     }
 
     private async Task<JsonElement> ExecutePreparedRunAsync(TrafficRunRequest request, ProductSelectionRequest selection,
-        string directory, string id, string host, Payload payload, CancellationToken token)
+        string directory, string id, string host, Payload payload, CancellationToken token, TrafficSelectionPlan plan)
     {
                 var observed = await lab.InspectAsync(selection, token);
                 if (!observed.GetProperty("files_observed").GetBoolean() || observed.GetProperty("status").GetString() == "UNSUPPORTED_BEFORE_4_0_0")
@@ -385,7 +400,7 @@ public sealed partial class TrafficRuntimeService
                 var bindingPath = Path.Combine(directory, "binding-private.json");
                 await WriteAsync(bindingPath, binding);
                 await WriteAsync(Path.Combine(directory, "attempt.json"), new { id, state = "RUNNING", build_id = build.Id,
-                    build_sha256 = build.BundleSha256, started_at_utc = DateTimeOffset.UtcNow, mode = request.Mode, cases = request.Cases,
+                    build_sha256 = build.BundleSha256, started_at_utc = DateTimeOffset.UtcNow, mode = request.Mode, cases = request.Cases, selection_optimization = plan,
                     complete = false, cleanup_verified = false, remote_bundle_sha256 = payload.Bundle,
                     continue_after_failure = request.ContinueAfterFailure });
                 using (var running = JsonDocument.Parse(await File.ReadAllBytesAsync(Path.Combine(directory, "attempt.json"))))

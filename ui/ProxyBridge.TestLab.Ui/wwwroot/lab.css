@@ -217,3 +217,15 @@
 
 .comparison-group-toggle { display:block; width:100%; padding:4px 0; border:0; background:transparent; color:inherit; font:inherit; font-weight:650; text-align:left; cursor:pointer; }
 .comparison-group-toggle:focus-visible { outline:2px solid var(--teal); outline-offset:3px; }
+
+.objective-purpose { color:var(--muted); margin:14px 0 10px; }
+.objective-scroll { max-width:100%; overflow:auto; margin:12px 0; border:1px solid var(--line,#30484d); border-radius:6px; }
+.objective-table { width:100%; border-collapse:collapse; font-size:12px; }
+.objective-table th,.objective-table td { padding:10px; border-bottom:1px solid var(--line,#30484d); text-align:right; vertical-align:top; }
+.objective-table th:first-child { text-align:left; min-width:150px; }
+.objective-table thead { background:#162d33; color:var(--muted); }
+.objective-table tbody th { font-weight:500; }
+.objective-table tr:last-child>* { border-bottom:0; }
+.objective-additional { margin:16px 0; border-top:1px solid var(--line,#30484d); padding-top:12px; }
+.objective-additional summary,.result-plan summary { cursor:pointer; color:var(--muted); font-size:12px; }
+.result-plan { margin:12px 0; }

@@ -64,3 +64,13 @@ function trafficFamilyReportGroups(catalog,requested,results){
     return {family,stages,rows,passed,status};
   }).filter(group=>group.stages.length);
 }
+
+// Only exact selected conditions may share a wider scenario. Never create synthetic results.
+function trafficSelectionPlan(catalog, requested){
+  const covered=requested.flatMap(row=>{
+    const parent=requested.find(other=>other.id!==row.id&&other.duration===row.duration&&other.load===row.load&&
+      catalog?.cases?.find(spec=>spec.id===other.id)?.covers?.includes(row.id));
+    return parent?[{case_id:row.id,covered_by:parent.id}]:[];
+  });
+  return {requested_cases:requested,cases:requested.filter(row=>!covered.some(item=>item.case_id===row.id)),covered_cases:covered};
+}

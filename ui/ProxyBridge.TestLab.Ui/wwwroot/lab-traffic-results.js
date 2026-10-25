@@ -68,7 +68,7 @@ function trafficReportMeasurements(row){
   return trafficMetrics.map(key=>[key,trafficMeasurementMetric(measured,key)])
     .filter(([,value])=>typeof value==='number'&&Number.isFinite(value));
 }
-function trafficReportMetricMarkup(row){
+function trafficReportAdditionalMetricMarkup(row){
   const values=new Map(trafficReportMeasurements(row));
   const integer=new Set(['trafficPeak','trafficCliHandles','trafficCliThreads','trafficTransactions',...Object.keys(trafficUdpCounters)]);
   const labels={trafficCpu:'reportCpuMean',trafficRam:'reportPrivatePeak',trafficCliResident:'reportResidentPeak',trafficCliHandles:'reportHandlesPeak',trafficCliThreads:'reportThreadsPeak',trafficSystemCpu:'reportPcCpu'};
@@ -110,11 +110,11 @@ function renderConciseTrafficHistory(){
     const counts=trafficReportCounts(run),groups=trafficFamilyReportGroups(trafficCatalog,run.cases||[],run.results||[]),key=run.id;
     const label=(run.cases?.length||0)>=20?t('reportComplex'):t('reportRecent');
     return `<article class="result-run"><details data-result-key="${html(key)}" ${expanded.has(key)||firstRender&&index===0?'open':''}><summary class="result-run-heading"><span><small>${html(label)} · ${html(trafficReportDate(run))} · ${html(t(run.mode||'remote'))}</small><strong>${html(trafficReportBuild(run))}</strong></span><span>${trafficReportBadge(trafficReportRunStatus(run))}<span class="result-counts"><b class="result-pass">${t('reportPassed')}: ${counts.passed}</b><b class="result-fail">${t('reportFailed')}: ${counts.failed}</b>${counts.other?`<b>${t('reportOther')}: ${counts.other}</b>`:''}</span></span></summary>
-      <p class="result-cleanup">${t(run.cleanup_verified&&run.local_origin_cleanup_verified!==false?'reportCleanup':'reportUnclean')} · ${run.cases?.length||0} ${t('reportSteps')}</p>
+      <p class="result-cleanup">${t(run.cleanup_verified&&run.local_origin_cleanup_verified!==false?'reportCleanup':'reportUnclean')} · ${run.cases?.length||0} ${t('reportSteps')}</p>${trafficSelectionNote(run.selection_optimization)}
       <div class="result-report-actions"><button type="button" class="button secondary" data-report-download="${html(key)}">${t('reportDownload')}</button></div>
       <div class="result-families">${groups.map(group=>`<details class="result-family" data-result-key="${html(key+'.'+group.family.id)}" ${expanded.has(key+'.'+group.family.id)?'open':''}><summary><strong>${html(trafficFamilyName(group.family))}</strong><span>${trafficReportBadge(group.status)} ${group.passed}/${group.stages.length}</span></summary><div class="result-stage-list">${group.stages.map((stage,i)=>{
         const row=group.rows[i],stageKey=key+'.'+group.family.id+'.'+stage.id;
-        return `<details class="result-stage" data-result-key="${html(stageKey)}" ${expanded.has(stageKey)?'open':''}><summary><strong>${html(trafficName(stage.id))}</strong>${trafficReportBadge(trafficReportStatus(row,run))}</summary><div class="result-stage-content"><p>${html(trafficReportReason(row,run))}</p><small>${html(t(stage.duration))} · ${html(t(stage.load))}</small>${row?.measurements?.some(m=>m.mode==='SOCKS5'&&(!m.complete||!m.route_verified))?`<p class="result-observed">${t('reportObserved')}</p>`:''}${trafficReportMetricMarkup(row)}${row?`<button type="button" class="button secondary" data-evidence-run="${html(key)}" data-evidence-case="${html(stage.id)}">${t('reportDetails')}</button>`:''}</div></details>`;
+        return `<details class="result-stage" data-result-key="${html(stageKey)}" ${expanded.has(stageKey)?'open':''}><summary><strong>${html(trafficName(stage.id))}</strong>${trafficReportBadge(trafficReportStatus(row,run))}</summary><div class="result-stage-content"><p>${html(trafficReportReason(row,run))}</p><small>${html(t(stage.duration))} · ${html(t(stage.load))}</small>${trafficObjectiveMarkup(row,{key:stageKey,expanded})}${row?`<button type="button" class="button secondary" data-evidence-run="${html(key)}" data-evidence-case="${html(stage.id)}">${t('reportDetails')}</button>`:''}</div></details>`;
       }).join('')}</div></details>`).join('')}</div></details></article>`;
   }).join('')||`<p>${t('trafficNone')}</p>`;
   renderRunComparison();
