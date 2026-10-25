@@ -4,6 +4,17 @@ param([Parameter(Mandatory)][string]$BindingPath,[Parameter(Mandatory)][Validate
 Set-StrictMode -Version Latest
 $ErrorActionPreference='Stop'
 [Console]::OutputEncoding=[Text.UTF8Encoding]::new($false)
+function Get-DeviceProblemCode([string]$InstanceId) {
+    # DEVPKEY_Device_ProblemCode can be an empty DEVPROP_TYPE_EMPTY even when
+    # the PnP entity has CM_PROB_DISABLED. Never coerce absent Data to zero.
+    $rows=@(Get-PnpDevice -InstanceId $InstanceId -ErrorAction Stop)
+    if($rows.Count -ne 1 -or $rows[0].InstanceId -ine $InstanceId){throw 'TRAFFIC_PNP_DEVICE_NOT_UNIQUE'}
+    $property=$rows[0].PSObject.Properties['ConfigManagerErrorCode']
+    $code=[uint32]0
+    if($null -eq $property -or $null -eq $property.Value -or
+       -not [uint32]::TryParse([string]$property.Value,[ref]$code)){throw 'TRAFFIC_PNP_PROBLEM_CODE_UNAVAILABLE'}
+    return $code
+}
 $binding=Get-Content -LiteralPath $BindingPath -Raw|ConvertFrom-Json
 if($binding.product_contract -ne 'driver' -or $binding.runtime_mode -ne 'local'){throw 'TRAFFIC_PNP_LOCAL_WFP_ONLY'}
 $leasePath=Join-Path (Split-Path -Parent $BindingPath) 'wfp-device-lease.json'
@@ -25,7 +36,7 @@ $id=[string]$device.InstanceId
 $service=(Get-PnpDeviceProperty -InstanceId $id -KeyName 'DEVPKEY_Device_Service' -ErrorAction Stop).Data
 $hardware=@((Get-PnpDeviceProperty -InstanceId $id -KeyName 'DEVPKEY_Device_HardwareIds' -ErrorAction Stop).Data)
 if($service -ne 'ProxyBridgeDrv' -or $hardware -notcontains 'ROOT\InterceptSuite_ProxyBridge'){throw 'TRAFFIC_PNP_DEVICE_IDENTITY_CHANGED'}
-$problem=[int](Get-PnpDeviceProperty -InstanceId $id -KeyName 'DEVPKEY_Device_ProblemCode' -ErrorAction Stop).Data
+$problem=Get-DeviceProblemCode $id
 if(@(Get-Process -Name ProxyBridge,ProxyBridge_CLI,ProxyBridgeSvc,pb_core_host -ErrorAction SilentlyContinue).Count){throw 'TRAFFIC_PNP_PRODUCT_STILL_RUNNING'}
 if($Action -eq 'Enable'){
     $loaded=Get-LoadedInterceptionDriverObservation -AllowProductRuntime
@@ -44,7 +55,7 @@ if($Action -eq 'Enable'){
 }
 $deadline=[DateTime]::UtcNow.AddSeconds(5)
 do{
-    $problem=[int](Get-PnpDeviceProperty -InstanceId $id -KeyName 'DEVPKEY_Device_ProblemCode' -ErrorAction Stop).Data
+    $problem=Get-DeviceProblemCode $id
     $serviceState=Get-WfpServiceState -Name ProxyBridgeDrv -AllowProductRuntime
     if(($Action -eq 'Enable' -and $problem -eq 0 -and $serviceState.state -eq 'Running') -or
        ($Action -eq 'Disable' -and $problem -eq 22 -and $serviceState.state -eq 'Stopped')){break}
