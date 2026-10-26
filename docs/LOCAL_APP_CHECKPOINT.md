@@ -1,12 +1,20 @@
 # «На этом ПК» — checkpoint 26 октября 2026
 
-Запрос адаптации нагрузки и полного сброса активной лаборатории выполнен. Установлена **preview.54**, source `bd32e3789a2506cca4c8cc7a4fd35dc7bba1961f`, 1685SHA matched. Admin **http://127.0.0.1:5178**, PID11224. Package `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.54-win-x64`. Пользователь повторно добавил WinDivert4.3/WFP4da и выполнил триSHORT/LOWпрогона; active/busy=false.
+Текущая версия **preview.55**, source `d2604ae14cfe178995823c36a51903abeb94a395`,1685SHA matched, admin **http://127.0.0.1:5178**. Package `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.55-win-x64`. Store54сохранён:2сборки/3fullreports плюс2новыхкороткихflowchecks; история не сбрасывалась.
+
+## Компактная таблица и фиксированный TCPсеанс
+
+[Исправления, полное evidence и ограничения](FIXED_SESSION_COMPACT_2026-10-26.md). Metricrow66→47.5px,group50→30,stickyheaders/expand/4columns сохраняются. Nativeflow-rateтеперь1verified64B echo насеанс вместоunbounded50ms; SHORTLOW36sessions/2304Bнаправление, HIGH60/3840. Existingcontract35PASSсновымиassertsC#→Pythondirect/proxy, cancellation/falsePASS. ActualJS CPUbudget/percent/memory/old-vs-fixed и132реальныхrenderingsPASS. Новыхотдельныхtrackedавтотестовнет.
+
+Method `user-workload-v2-fixed-session`, fixedsession1/64 вphaseworkloadprofiles; старыйflow-rateне получает рейтингравнойработы. ПриclientCPUbudget<0.25CPU-с либоmissing не подсвечиватьCPU/CPUcostпобедителя и не выводитьrelative%; абсолютныепоказания/tooltipостаются. ЭтоUIpolicyнеstatisticaltest. «Быстро»6sчастонедостаточно; «Обычно»30s/«Долго»120sпомогают,ноне гарантируют информативныйbudget, нужныповторы. Длительностиавтоматическинеувеличивали; WFPkernelmeasurementотложен.
+
+ФинальнаяmatchedflowSHORTLOW×2за79.58s:WFP `20261026-063834-feffe5256c434166941c656985586d31`,Win `20261026-063915-37ef3b4e8aaa42348adf2f617213aebe`:обаCOMPLETE/36sessions/2304tx=2304rx,loadMET/fullroute,Core1/1,capture/cleanuptrue. `artifacts/fixed-session55-proof.json`, `artifacts/engine-migration/fixed-session-smoke-1792996714631236300.json`. Финальноactive/busyfalse,ProxyBridgeDrvStopped,0native/Corelisteners42501/2/3,stderrпуст. Full/HIGH/soakне запускали. Сравниваемыеfull54столбцысохранены; screenshot `artifacts/compact-comparison55.png`.
 
 ## Последний анализ пользовательских54прогонов
 
 [Сопоставимость, числа и оставшиеся ограничения](COMPARABILITY_PREVIEW54_2026-10-26.md). WinDivert `20261026-052749-776c4521c87442989338de33ff9db4a0` и `20261026-053731-768aa20821164c6b97ac76a2114db2ff`:оба33PASS/11FAIL. WFP `20261026-054809-a2dca698c1cb4cde89891160b9b8f736`:44PASS. ВсеSHORT/LOW,44matchingpairs,138rawSHA,quality/resourcesrecompute0diff,Core1/1/cleanup/capturetrue. 29pairs проходят текущиегейты; **flow-rateCPUнеравноценен**:36сессийeach, ноWFP630656 vsWin≈130000payloadbytes из-заunbounded50msвнутри, guardэтоещёнеучитывает. 6sCPUdeltasчасто0–0.0625CPU-с, percentages/rankingнеустойчивы; нужно достаточноевремя/повторы иlow-budgetdisplayguard. Кодне меняли, новуюнагрузку не запускали.
 
-SFTP180цикловeach/targetMET; loadedRTTfixed6MiB/s/probe15sMET, CPUПК6.62–10.49%; WFPstability8/8METсCPU≈9.34%, UDP12819273/19273/fullroute. Прежняяперегрузкаустранена дляboundedprofiles; bulkWFPостаётся≈97%CPU, этоисключениеmaximumspeed. WinUDP11failповторяютсяпрималомCPU/заданномтемпе, корневаяпричинанеустановлена. WFPkernelattributionотложен. Следующийотдельныйфикслаборатории: fixedworkpernewsession иCPUconfidence; не объявлятьвсе29пар пригоднымидлялюбогорейтинга. ОдинWFPповтор,2Win,6sокна—не24hустойчивость.
+SFTP180цикловeach/targetMET; loadedRTTfixed6MiB/s/probe15sMET, CPUПК6.62–10.49%; WFPstability8/8METсCPU≈9.34%, UDP12819273/19273/fullroute. Прежняяперегрузкаустранена дляboundedprofiles; bulkWFPостаётся≈97%CPU, этоисключениеmaximumspeed. WinUDP11failповторяютсяпрималомCPU/заданномтемпе, корневаяпричинанеустановлена. WFPkernelattributionотложен. Эти два замечания исправлены в55выше; статистическаяуверенностьвсёещётребуетповторов; не объявлятьвсе29пар пригоднымидлялюбогорейтинга. ОдинWFPповтор,2Win,6sокна—не24hустойчивость.
 
 ## Новые профили
 
@@ -28,4 +36,4 @@ Byte/session targets включены вloadquality; единицы не сме�
 
 Пользовательские парные54прогоны проанализированы выше. Не запускать full автоматически и не сравнивать53/54 какодинаковыеусловия. Kernelattribution ипричиныWinDivertUDP/WFPpartial отдельно. Данные старых анализов искать вarchive, неактивномtraffic-lab. Успешныепроверки безновыхвходов не повторять.
 
-Worktree `C:/Users/LabAdmin/.codex/worktrees/testlab-development/ProxyBridge-TestLab`, branch `codex/development-functional-completion`; базаd5b51f3 сохранена. Main `C:/src/ProxyBridge-TestLab`, branch `codex/checkpoint-20261007`: чужиеhandoffchange/KernelReadCapture.csне трогать/нечитать. Последниелимитыprimary23%used/weekly34%used; ≤5%remaining — checkpoint/стоп. Commit/pushбезforce/privateartifacts/PR. Relevant history: [методика53](COMPARISON_QUALITY_2026-10-25.md), [движокC#](CSHARP_TRANSPORT_ENGINE_2026-10-25.md).
+Worktree `C:/Users/LabAdmin/.codex/worktrees/testlab-development/ProxyBridge-TestLab`, branch `codex/development-functional-completion`; базаd5b51f3 сохранена. Main `C:/src/ProxyBridge-TestLab`, branch `codex/checkpoint-20261007`: чужиеhandoffchange/KernelReadCapture.csне трогать/нечитать. Последниелимитыprimary1%used/weekly0%used; ≤5%remaining — checkpoint/стоп. Commit/pushбезforce/privateartifacts/PR. Relevant history: [методика53](COMPARISON_QUALITY_2026-10-25.md), [движокC#](CSHARP_TRANSPORT_ENGINE_2026-10-25.md).
