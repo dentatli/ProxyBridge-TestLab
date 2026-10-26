@@ -2,11 +2,17 @@
 
 Текущая версия **preview.55**, source `d2604ae14cfe178995823c36a51903abeb94a395`,1685SHA matched, admin **http://127.0.0.1:5178**. Package `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.55-win-x64`.2сборки/история сохранены, active/busy=false.
 
+## Новый запрос: ресурсы ядра и длительные проверки
+
+[Проверенные возможности, аудит soak и предлагаемая методика](KERNEL_RESOURCES_AND_SOAK_REVIEW_2026-10-26.md). Пользователь возобновил тему kernelaccounting; исследованы код и официальнаядокументация, **трассировки/продуктовые/суточные тесты не запускались**. WPR/WPA/xperf установлены, readonlyprofilesCPU/Poolесть. У4daсобственныеtagsPBfp/PbDu; частьNDIS/WDF/sharedmemoryотдельно. ETWexclusive/inclusive/DPC/processCPUне складыватьбезустраненияпересечений; не обещатьабсолютноточныйполныйfootprint. Первое предложение — короткийTCPA/Bpilotнастарыхбинарникахсодинаковойработой,оценкойcoverage/lostevents/overhead,безизмененийдрайвера. Runtimeостаётся55.
+
+Soak24/48/72сейчас1440/2880/4320минутныхсвежихTCP/UDP/probeсессий, бездолгоживущих/прикладныхканалов; перваяошибкаоставляеттолькорecovery. Журналесть,ноJSONрастётипереписываетсяцеликом. Предложение:одиндлительныйсценарийспостояннымисессиями+churn+приложения+quiet/burst/drain,2hрегрессия/24hприёмка/48–72толькообоснованно,boundedmonitor/выборочныйETW/фиксированнаясводка. Это **проект пересмотра, не реализованный результат**. Существующую5minграницуавтопроверокнеснимать; пользовательскоевмешательство/новаяавторизациянужнытолькодляследующеговнешнегодействияпоегофактическомуscope.
+
 ## Последние пользовательские NORMAL/LOW
 
 [Подробный анализ](NORMAL_RUNS_PREVIEW55_2026-10-26.md). WFP `20261026-064603-e89b4d841fbf424499adcdd9a6b0e5db` **44PASS**; WinDivert `20261026-073142-90ca8c8a86944ca4b03516267a138616` **33PASS/11FAIL**. Все44conditions совпали;92rawSHA иquality/resourcesrecompute0diff;Core1/1,capture/cleanuptrue. Код/отчёты не меняли, новых проверок не запускали.
 
-Нагрузка достигнута в успешных boundedcases. Flow-rate180сессий/11520Bнаправление у обоих, fixed1×64B проверен. SFTP900цикловeach; loadedRTTp99WFP0.930/Win6.477ms приfixed6MiB/s/probe15s, CPUПК7.3/11.2%. WFPUDP12896000/96000/fullroute,stability8/8/no loss/CPU≈9%; Winтеже11UDP/HTTP3/QUIC/DNSUDP/mixed/stabilityотказов приумеренномCPU, корень не локализован. СравнимыхPASSпар33,qualityadmitted29; CPUbudget≥0.25у обоих только7пар(loaded,connections,flowrate,HTTPsweep,WSSsweep,SFTP,AMQPS), ещё22недостаточны дляCPUрейтинга даже30s. BulkWFP≈98%CPU — пределобщегостенда. TCPconnections privatepeakWFP45.25MiB/Win3.56, неleakclaim. WFPkernelattributionотложен. Evidence `artifacts/comparison-preview55-normal/` и`artifacts/comparison-preview55-normal-summary.txt`.
+Нагрузка достигнута в успешных boundedcases. Flow-rate180сессий/11520Bнаправление у обоих, fixed1×64B проверен. SFTP900цикловeach; loadedRTTp99WFP0.930/Win6.477ms приfixed6MiB/s/probe15s, CPUПК7.3/11.2%. WFPUDP12896000/96000/fullroute,stability8/8/no loss/CPU≈9%; Winтеже11UDP/HTTP3/QUIC/DNSUDP/mixed/stabilityотказов приумеренномCPU, корень не локализован. СравнимыхPASSпар33,qualityadmitted29; CPUbudget≥0.25у обоих только7пар(loaded,connections,flowrate,HTTPsweep,WSSsweep,SFTP,AMQPS), ещё22недостаточны дляCPUрейтинга даже30s. BulkWFP≈98%CPU — пределобщегостенда. TCPconnections privatepeakWFP45.25MiB/Win3.56, неleakclaim. Фактического WFPkernelattribution пока нет; исследование см. выше. Evidence `artifacts/comparison-preview55-normal/` и`artifacts/comparison-preview55-normal-summary.txt`.
 
 ## Реализовано / уже проверено
 
