@@ -6,7 +6,7 @@
 
 ## Новый запрос — физический стенд
 
-[Подготовка PB-SUT](PB_SUT_COMPARISON_PREPARATION_2026-10-26.md):файлы56/обесборкиперенесены,1715SHAverified,driverобновлёнoem25/4da/1.1,backupсохранён,HLKStopped/Manual,HighPerformance,debugNo,testsigningнеизменён. USERподтвердилфиздоступ/перезагрузку.Rebootпринят,RDPвернулся,WinRM5985покаclosed. ЖдёмвходPB-USER/Start-ServiceWinRM;затемpreparedverify-ready.ps1. ПослеребутаготовностьUI/NICнеподтверждена,тестовнет. VM5178остаётся56безизменений.
+[Подготовка PB-SUT](PB_SUT_COMPARISON_PREPARATION_2026-10-26.md):готов. USERподтвердилфиздоступ/reboot,послеребутавошёлPB-USER/включилWinRM. Новая56/2сборки/1715SHAverified,driveroem25/4da/1.1,SYS5a29f6b7…,backupсохранён. ОбычныйIntelI219-V1Gbps,HighPerformance,HLKStopped/Manual,debugNo,testsigningнеизменён. НаSUTloopback5178admin,taskAtLogonPB-USERHighest,ярлыкнарабочемстоле;этоотдельноотVM5178/еёистории. Win/WFPпоодномуSHORTloaded-rttCOMPLETE/PASS/MET/fullroute,lost0/drained/cleanuptrue. ФиналdriverStopped,active/busyfalse,своихETWнет. ПолныеNORMAL/LOWпользовательможетзапускатьнаSUT;full/HIGH/soakавтоматическинепроводились. Evidenceartifacts/sut-comparison-prep/{inventory-r1,prepare-r1,reboot-r1,ready-r1,smoke-r1}непубликовать.
 
 ## Последнее изменение — ресурсы ядра
 

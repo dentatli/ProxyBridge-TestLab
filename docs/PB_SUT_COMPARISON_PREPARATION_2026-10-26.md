@@ -10,11 +10,13 @@ PB-SUT192.168.0.157: i3-10100,4ядра/8потоков,16ГБ RAM,Windows11Pro2
 
 В preparation сохранены before.json, экспорт предыдущего драйвера,BCDbackup,RESTORE-SETTINGS.ps1. TaskProxyBridge-TestLab-Comparison:PB-USERInteractive/Highest/AtLogon,без сохранения пароля,контроллер привязан к loopback. На общем рабочем столе ярлык ProxyBridgeTestLab. Полные evidence/zip/скрипты только в ignored artifacts/sut-comparison-prep.
 
-## Текущий стоп-пункт
+## Финальное состояние после перезагрузки
 
-shutdown/r/t10 принят, после перезагрузки RDP3389 доступен на прежнем IP;WinRM5985не отвечает. Пользователю предложено войти как PB-USER и при необходимости Start-ServiceWinRM. Не утверждать финальную готовность или обычныйNIC до повторногоinventory. Лаборатория/сборки ещё не проверены после reboot; трафиковые тесты не запускались.
+USER вошёлPB-USER/запустилWinRM. Boot2026-10-26T09:43:40.500Z;обычныйIntelI219-V/Ethernet1Gbps,debugNo,testsigningYes,HighPerformance,HLKStopped. TaskRunning,loopbackUIadmin/idle. Через штатныйCSRFAPI сохранены2сборки:WFPсinstalledSYSpath иWinDivert4.3.0. Предварительныйverify-readyвывелbuild_count1 из-за подсчёта envelope;smokeсчитаетbuilds.items иподтвердил2. Это не потеря сборки.
 
-Готовый reviewed продолжатель artifacts/sut-comparison-prep/verify-ready.ps1:hostguard,проверяет/запускает loopbackUI с той же учётной записью,через штатный CSRFAPI сохраняет обе сборки с installedSYSpath,проверяетadmin/idle/2builds/NIC/boot/debug/power/services/hash. Запускать через существующий Invoke-IndependentWfpRemote.ps1 с DPAPIcredential внеGit и новым evidence directory, после восстановления WinRM. Wrapperвосстановил clientWinRMStopped/TrustedHostsбез ошибок во всех трёх вызовах.
+ДваSHORT/LOWloaded-rttнафизическомПКуспешны:Win`20261026-094946-2ec20707b2bc47c8b7972f538ba99083`,WFP`20261026-095050-22b1d8656b514427b27c95055114b123`. COMPLETE,errors[],exchangePASS,routeCOMPLETE,loadMET,CPU_NOT_SATURATED. Нужныеkernelмодулиувидены,lost0,drained/cleanuptrue. ФиналdriverStopped,active/busyfalse,своихETWнет. Wrapperclientcleanupбезошибок. Evidenceignoredartifacts/sut-comparison-prep/{ready-r1,smoke-r1}.
+
+Готово к пользовательским полнымNORMAL/LOWбезsoak. Открывать ярлык на рабочем столеPB-SUT (localhost5178наSUT);управляющийVMlocalhost5178остаётсяотдельнойлабораторией. КонтроллерневыставленвLAN. НовыйstoreнаSUTнеполучалстарыеотчётыVM. Длительныенагрузки/результативноесравнениевсехпротоколовнаSUTещёнепроводились.
 
 ## Условия сравнения
 
