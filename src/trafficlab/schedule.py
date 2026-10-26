@@ -190,6 +190,9 @@ def recipes(job: dict[str, Any], catalog: dict[str, Any]) -> list[dict[str, Any]
 
 
 def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str) -> dict[str, Any]:
+    if job['case_id']=='soak':
+        from trafficlab.endurance import run as run_endurance
+        return run_endurance(job,catalog,output,progress)
     stages = recipes(job, catalog)
     report: dict[str, Any] = {"schema_version": 1, "method": "controlled-traffic-v1", "run_id": job["run_id"],
         "case_id": job["case_id"], "duration": job["duration"], "load": job["load"], "complete": False,

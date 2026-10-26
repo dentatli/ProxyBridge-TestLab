@@ -229,3 +229,5 @@
 .objective-additional { margin:16px 0; border-top:1px solid var(--line,#30484d); padding-top:12px; }
 .objective-additional summary,.result-plan summary { cursor:pointer; color:var(--muted); font-size:12px; }
 .result-plan { margin:12px 0; }
+
+.lab-test-card.is-unavailable { opacity: .48; }

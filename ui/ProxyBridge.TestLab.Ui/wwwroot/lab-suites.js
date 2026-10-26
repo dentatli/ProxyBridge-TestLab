@@ -75,7 +75,8 @@ function applySuiteChoices(entry) {
     trafficChoice = {};
     for (const test of entry.tests) for (const id of legacy[test.scenario] || [test.scenario])
       trafficChoice[id] = {selected:true,duration:test.duration,load:test.load};
-    localStorage.setItem("testlab-traffic-choice",JSON.stringify(trafficChoice));
+    trafficEnduranceNormalize(trafficChoice);
+  localStorage.setItem("testlab-traffic-choice",JSON.stringify(trafficChoice));
 
   lab("lab-suite-name").value = entry.name;
   labState.plan = null;
@@ -126,7 +127,7 @@ function portableSuite(value){
   const allowed=native?remote:local;
   if(!value.tests.length||value.tests.length>allowed.length||new Set(value.tests.map(row=>row?.scenario)).size!==value.tests.length||
     value.tests.some(row=>!keys(row,['scenario','duration','load'])||!allowed.includes(row.scenario)||
-      !['SHORT','NORMAL','LONG'].includes(row.duration)||!['LOW','HIGH'].includes(row.load)))throw new Error('SUITE_FILE_INVALID');
+      !trafficDurationAllowed(row.scenario,row.duration)||!['LOW','HIGH'].includes(row.load)))throw new Error('SUITE_FILE_INVALID');
   return {name:value.name.trim(),mode:value.mode,tests:value.tests.map(row=>({scenario:row.scenario,duration:row.duration,load:row.load}))};
 }
 function exportSuiteChoices(){

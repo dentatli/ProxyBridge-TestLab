@@ -19,7 +19,7 @@
     {"id": "udp-connections", "ru": "Потоки UDP и восстановление", "en": "UDP flows and recovery", "recipe": "udp_connections"},
     {"id": "mixed", "ru": "Одновременные TCP и UDP", "en": "Concurrent TCP and UDP", "recipe": "mixed"},
     {"id": "stability", "ru": "Стабильность, нагрузка и восстановление", "en": "Stability, load and recovery", "recipe": "stability"},
-    {"id": "soak", "ru": "Длительный прогон 24/48/72 часа", "en": "24/48/72 hour soak", "recipe": "soak"},
+    {"id": "soak", "ru": "Длительная проверка", "en": "Endurance check", "recipe": "soak"},
     {"id": "app-dns-tcp", "ru": "DNS по TCP: ответы и задержка", "en": "DNS over TCP: answers and latency", "recipe": "application", "application": "dns-tcp", "family": "dns-classic", "user_load": {"LOW": {"connections": 2, "transactions_per_second_per_flow": 3}, "HIGH": {"connections": 2, "transactions_per_second_per_flow": 5}}},
     {"id": "app-dns-udp", "ru": "DNS по UDP: ответы, потери и задержка", "en": "DNS over UDP: answers, loss and latency", "recipe": "application", "application": "dns-udp", "family": "dns-classic", "user_load": {"LOW": {"connections": 2, "transactions_per_second_per_flow": 3}, "HIGH": {"connections": 2, "transactions_per_second_per_flow": 5}}},
     {"id": "app-dns-tls", "ru": "DNS over TLS: сертификат, ответы и задержка", "en": "DNS over TLS: certificate, answers and latency", "recipe": "application", "application": "dns-tls", "family": "dns-encrypted", "user_load": {"LOW": {"connections": 2, "transactions_per_second_per_flow": 3}, "HIGH": {"connections": 2, "transactions_per_second_per_flow": 5}}},

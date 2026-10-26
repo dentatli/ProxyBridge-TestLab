@@ -67,14 +67,15 @@ Object.assign(labText.en,{trafficMetrics:"Metrics",trafficCompare:"Latest attemp
 try{trafficCompareChoice=JSON.parse(localStorage.getItem("testlab-traffic-comparison")||"null")||trafficCompareChoice;}catch{}
 try {trafficChoice=JSON.parse(localStorage.getItem("testlab-traffic-choice")||"{}");} catch {}
 if(!trafficChoice||typeof trafficChoice!=='object'||Array.isArray(trafficChoice))trafficChoice={};
-for(const [id,choice] of Object.entries(trafficChoice))if(!choice||!['SHORT','NORMAL','LONG'].includes(choice.duration)||!['LOW','HIGH'].includes(choice.load))delete trafficChoice[id];
+for(const [id,choice] of Object.entries(trafficChoice))if(!choice||!trafficDurationAllowed(id,choice.duration)||!['LOW','HIGH'].includes(choice.load))delete trafficChoice[id];
+trafficEnduranceNormalize(trafficChoice);
 if(!trafficCompareChoice||typeof trafficCompareChoice!=='object')trafficCompareChoice={};
 trafficCompareChoice.builds=trafficCompareChoice.builds&&typeof trafficCompareChoice.builds==='object'?trafficCompareChoice.builds:{};
 trafficCompareChoice.metrics=trafficCompareChoice.metrics&&typeof trafficCompareChoice.metrics==='object'?trafficCompareChoice.metrics:{};
 trafficCompareChoice.mode=['OFF','UNRULED','SOCKS5'].includes(trafficCompareChoice.mode)?trafficCompareChoice.mode:'SOCKS5';
 lab('traffic-comparison-mode').value=trafficCompareChoice.mode;
 const trafficCases=()=>trafficFamilies(trafficCatalog).flatMap(family=>family.rows.filter(row=>trafficChoice[row.id]?.selected).map(row=>({id:row.id,duration:trafficChoice[row.id].duration,load:trafficChoice[row.id].load})));
-const trafficCaseEstimate=row=>row.id==="soak"?({SHORT:24,NORMAL:48,LONG:72}[row.duration]*3600+300):({SHORT:6,NORMAL:30,LONG:120}[row.duration]*({"tcp-multistream":3,"loaded-rtt":3,"flow-rate":3,"mixed":3,"three-modes":3,"tcp-connections":5,"udp-connections":5,"udp-sweep":6,"stability":10}[row.id]||trafficCatalog?.cases.find(value=>value.id===row.id)?.payload_sizes?.length||1)+20);
+const trafficCaseEstimate=row=>row.id==="soak"?(trafficEnduranceHours[row.duration]*3600+60):({SHORT:6,NORMAL:30,LONG:120}[row.duration]*({"tcp-multistream":3,"loaded-rtt":3,"flow-rate":3,"mixed":3,"three-modes":3,"tcp-connections":5,"udp-connections":5,"udp-sweep":6,"stability":10}[row.id]||trafficCatalog?.cases.find(value=>value.id===row.id)?.payload_sizes?.length||1)+20);
 const trafficSafeContinue=()=>true;
 const trafficEstimate=(cases=trafficCases(),continueAfterFailure=trafficSafeContinue())=>{const planned=trafficSelectionPlan(trafficCatalog,cases).cases;return planned.reduce((sum,row)=>sum+trafficCaseEstimate(row),0)+(continueAfterFailure?Math.max(0,planned.length-1)*20:0);};
 function trafficLiveBytes(value){
@@ -104,16 +105,17 @@ function trafficUserLoadLabel(row,load){
   return ru?`TCP ${mib} МиБ/с в каждом направлении · RTT ${p.probe_per_second}/с${row.recipe==='loaded'?'':` · UDP ${p.connections*p.packets_per_second} пакетов/с`}${['stability','soak'].includes(row.recipe)?' · фон 50 / 100 / 125 / 100% по интервалам':''}`:`TCP ${mib} MiB/s each way · RTT ${p.probe_per_second}/s${row.recipe==='loaded'?'':` · UDP ${p.connections*p.packets_per_second} packets/s`}${['stability','soak'].includes(row.recipe)?' · interval background 50 / 100 / 125 / 100%':''}`;
 }
 function trafficFamilyCard(family,busy,expanded){
-  const choice=trafficFamilyChoice(family),disabled=busy?"disabled":"";
+  const choice=trafficFamilyChoice(family),unavailable=(trafficChoice.soak?.selected&&family.id!=="soak")||(family.id==="soak"&&lab("lab-mode").value!=="local"&&!choice.selected),disabled=busy||unavailable?"disabled":"";
   const options=(values,current,label)=>`${current==="MIXED"?`<option value="MIXED" disabled selected>${t("trafficMixed")}</option>`:""}${values.map(value=>`<option value="${value}" ${value===current?"selected":""}>${html(label(value))}</option>`).join("")}`;
   const effectiveIds=new Set(trafficSelectionPlan(trafficCatalog,trafficCases()).cases.map(row=>row.id));
   const estimate=family.rows.filter(row=>choice.ids.includes(row.id)&&(!choice.selected||effectiveIds.has(row.id))).reduce((sum,row)=>sum+trafficCaseEstimate({id:row.id,duration:choice.duration==="MIXED"?trafficChoice[row.id]?.duration||"SHORT":choice.duration}),0);
-  return `<div data-traffic-card="${family.id}" class="lab-test-card${choice.selected?" is-selected":""}"><label class="lab-test-toggle"><input type="checkbox" data-traffic-family="${family.id}" ${choice.selected?"checked":""} ${disabled}><span>${html(trafficFamilyName(family))}</span></label>
+  if(family.id==="soak")return trafficEnduranceCard(family,choice,disabled,expanded,estimate);
+  return `<div data-traffic-card="${family.id}" class="lab-test-card${unavailable?" is-unavailable":""}${choice.selected?" is-selected":""}"><label class="lab-test-toggle"><input type="checkbox" data-traffic-family="${family.id}" ${choice.selected?"checked":""} ${disabled}><span>${html(trafficFamilyName(family))}</span></label>
     <div class="lab-test-settings ${Object.keys(family.profiles).length>1?"traffic-family-settings":""}">${Object.keys(family.profiles).length>1?`<label>${t("trafficDepth")}<select data-traffic-depth="${family.id}" ${disabled}>${choice.profile==="CUSTOM"?`<option value="CUSTOM" disabled selected>${t("trafficDepth_CUSTOM")}</option>`:""}${options(Object.keys(family.profiles),choice.profile,value=>t(`trafficDepth_${value}`))}</select></label>`:""}
-    <label>${t("duration")}<select data-traffic-duration="${family.id}" ${disabled}>${options(["SHORT","NORMAL","LONG"],choice.duration,value=>family.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[value]+" h":t(value))}</select></label>
-    <label>${t("load")}<select data-traffic-load="${family.id}" ${disabled}>${options(["LOW","HIGH"],choice.load,t)}</select></label></div>
+    <label>${t("duration")}<select data-traffic-duration="${family.id}" ${disabled}>${options(family.id==="soak"?["H2","H24","H48","H72"]:["SHORT","NORMAL","LONG"],choice.duration,value=>t(value))}</select></label>
+    ${family.id==="soak"?`<small>${t("enduranceFixed")} · ${t("enduranceExclusive")}</small>`:`<label>${t("load")}<select data-traffic-load="${family.id}" ${disabled}>${options(["LOW","HIGH"],choice.load,t)}</select></label>`}</div>
     <p>${t("trafficStages")}: ${choice.ids.length} / ${family.rows.length} · ${t("trafficEstimate")}: ≈ ${number(estimate/60,1)} ${t("trafficMinutes")}</p>
-    <details class="traffic-family-stages" data-family-stages="${family.id}" ${expanded?"open":""}><summary>${t("trafficFamilyStages")}</summary><p>${t("trafficFamilyHelp")}</p><ul>${family.rows.map(row=>`<li><label class="lab-test-toggle"><input type="checkbox" data-traffic-stage="${html(row.id)}" ${choice.selected&&choice.ids.includes(row.id)?"checked":""} ${disabled}>${html(row[labLanguage]||row.id)}${choice.selected&&choice.ids.includes(row.id)&&[choice.duration,choice.load].includes("MIXED")?` · ${html(trafficChoice[row.id].duration)} / ${html(trafficChoice[row.id].load)}`:""}</label><small>${html(trafficUserLoadLabel(row,choice.load==="MIXED"?trafficChoice[row.id]?.load:choice.load))}</small></li>`).join("")}</ul></details>${family.id==="soak"?`<p class="traffic-soak-help">${t("reportSoak")}</p>`:""}</div>`;
+    <details class="traffic-family-stages" data-family-stages="${family.id}" ${expanded?"open":""}><summary>${t("trafficFamilyStages")}</summary><p>${t("trafficFamilyHelp")}</p><ul>${family.rows.map(row=>`<li><label class="lab-test-toggle"><input type="checkbox" data-traffic-stage="${html(row.id)}" ${choice.selected&&choice.ids.includes(row.id)?"checked":""} ${disabled}>${html(row[labLanguage]||row.id)}${choice.selected&&choice.ids.includes(row.id)&&[choice.duration,choice.load].includes("MIXED")?` · ${html(trafficChoice[row.id].duration)} / ${html(trafficChoice[row.id].load)}`:""}</label><small>${html(row.id==="soak"?t("endurancePurpose"):trafficUserLoadLabel(row,choice.load==="MIXED"?trafficChoice[row.id]?.load:choice.load))}</small></li>`).join("")}</ul></details>${family.id==="soak"?`<p class="traffic-soak-help">${t("endurancePurpose")}</p>`:""}</div>`;
 }
 Object.assign(labText.ru,{trafficCliExitCode:"Код завершения CLI"});
 Object.assign(labText.en,{trafficCliExitCode:"CLI exit code"});
@@ -196,7 +198,7 @@ function renderTraffic(){
   lab("traffic-run").querySelector('[data-i18n="trafficRunHelp"]').hidden=!!run;
   lab("traffic-selection-summary").innerHTML=selectedFamilies.length?`<p>${t(active?"trafficActiveSelection":"trafficSelectionReview")}:</p><ul>${selectedFamilies.map(family=>{
     const choice=reviewChoice(family);
-    return `<li>${html(trafficFamilyName(family))} · ${t(`trafficDepth_${choice.profile}`)} · ${t("trafficStages")}: ${choice.ids.length} · ${choice.duration==="MIXED"?t("trafficMixed"):family.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[choice.duration]+" h":t(choice.duration)} / ${choice.load==="MIXED"?t("trafficMixed"):t(choice.load)}</li>`;
+    return `<li>${html(trafficFamilyName(family))} · ${t(`trafficDepth_${choice.profile}`)} · ${t("trafficStages")}: ${choice.ids.length} · ${choice.duration==="MIXED"?t("trafficMixed"):family.id==="soak"?trafficEnduranceHours[choice.duration]+" h":t(choice.duration)} / ${family.id==="soak"?t("enduranceFixed"):choice.load==="MIXED"?t("trafficMixed"):t(choice.load)}</li>`;
   }).join("")}</ul><p>${t("trafficEstimate")}: ≈ ${number(reviewEstimate/60,1)} ${t("trafficMinutes")}</p>${!active?trafficSelectionNote(selectionPlan):''}`:`<p>${t("trafficNoSelection")}</p>`;
   if(restoreFocus){
     const control=lab("traffic-cases").querySelector(restoreFocus);
@@ -449,6 +451,7 @@ async function trafficAction(action){
 lab("traffic-cases").addEventListener("change",event=>{
   const target=event.target,card=target.closest("[data-traffic-card]");if(!card)return;
   const family=trafficFamilies(trafficCatalog).find(row=>row.id===card.dataset.trafficCard);if(!family)return;
+  if(trafficChoice.soak?.selected&&family.id!=="soak")return;
   const choice=trafficFamilyChoice(family);
   let ids=[...choice.ids],selected=choice.selected;
   if(target.dataset.trafficFamily)selected=target.checked;
@@ -465,6 +468,7 @@ lab("traffic-cases").addEventListener("change",event=>{
     const previous=trafficChoice[row.id];
     trafficChoice[row.id]={selected:selected&&ids.includes(row.id),duration:duration==="MIXED"?previous?.duration||"SHORT":duration,load:load==="MIXED"?previous?.load||"LOW":load};
   }
+  trafficEnduranceNormalize(trafficChoice);
   trafficFamilyPreferences[family.id]={ids,duration,load};
   localStorage.setItem("testlab-traffic-choice",JSON.stringify(trafficChoice));
   localStorage.setItem("testlab-traffic-families",JSON.stringify(trafficFamilyPreferences));

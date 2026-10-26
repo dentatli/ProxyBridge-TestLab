@@ -42,7 +42,7 @@ public sealed class BenchmarkSuiteCatalog(AppStoragePaths storage, AppPaths app)
         var allowed = traffic ? remoteCases : Scenarios;
         if (mode is not ("local" or "remote") || tests is null || tests.Length < 1 || tests.Length > allowed.Length ||
             tests.Any(test => test is null || !allowed.Contains(test.Scenario) ||
-                test.Duration is not ("SHORT" or "NORMAL" or "LONG") || test.Load is not ("LOW" or "HIGH")) ||
+                (test.Scenario=="soak" ? test.Duration is not ("SHORT" or "NORMAL" or "LONG" or "H2" or "H24" or "H48" or "H72") : test.Duration is not ("SHORT" or "NORMAL" or "LONG")) || test.Load is not ("LOW" or "HIGH")) ||
             tests.Select(test => test.Scenario).Distinct(StringComparer.Ordinal).Count() != tests.Length)
             throw new InvalidOperationException("SUITE_SELECTION_INVALID");
     }

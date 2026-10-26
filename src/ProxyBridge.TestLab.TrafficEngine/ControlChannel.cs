@@ -10,6 +10,7 @@ namespace ProxyBridge.TestLab.TrafficEngine;
 internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, TransportOrigin origin, SocksRelay? relay, KernelResources kernel)
 {
     private readonly ConcurrentDictionary<long, Task> pending = [];
+    private readonly ConcurrentDictionary<string,Task<JsonObject>> ownedJobs = new();
     private readonly HashSet<string> seen = [];
     private readonly Queue<string> replay = [];
     private readonly Lock replayLock = new();
@@ -31,7 +32,7 @@ internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, Tr
                 _ = task.ContinueWith(_ => pending.TryRemove(id, out var ignored), TaskScheduler.Default);
             }
         }
-        finally { listener.Stop(); await Task.WhenAll(pending.Values).WaitAsync(TimeSpan.FromSeconds(5)); }
+        finally { listener.Stop(); await Task.WhenAll(pending.Values).WaitAsync(TimeSpan.FromSeconds(5)); await Task.WhenAll(ownedJobs.Values).WaitAsync(TimeSpan.FromSeconds(5)); }
     }
     private async Task Request(Socket socket, CancellationToken stopping)
     {
@@ -53,15 +54,26 @@ internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, Tr
                 }
                 var request = JsonNode.Parse(body) as JsonObject ?? throw new InvalidDataException("ENGINE_CONTROL_INVALID");
                 JsonObject response;
-                if (request["operation"]?.GetValue<string>() == "worker")
+                if (request["operation"]?.GetValue<string>() is "worker" or "worker-start")
                 {
                     var job = request["job"] as JsonObject ?? throw new InvalidDataException("TRAFFIC_JOB_INVALID");
                     if (!CryptographicOperations.FixedTimeEquals(Convert.FromHexString(job["secret"]?.GetValue<string>() ?? ""), secret) || !IPAddress.TryParse(job["host"]?.GetValue<string>(), out var workerAddress) || !workerAddress.Equals(IPAddress.Loopback)) throw new InvalidDataException("TRAFFIC_JOB_INVALID");
                     var seconds = job["seconds"]?.GetValue<double>() ?? double.NaN; if (!double.IsFinite(seconds) || seconds is < .05 or > 259200) throw new InvalidDataException("TRAFFIC_JOB_INVALID");
+                    if(request["operation"]!.GetValue<string>()=="worker-start")
+                    {
+                        var id=Wire.Id(job,"run_id");
+                        if(ownedJobs.Count>=8 || ownedJobs.ContainsKey(id)) throw new InvalidDataException("TRAFFIC_ASYNC_JOB_LIMIT");
+                        var work=RunOwned(job,seconds,stopping);
+                        if(!ownedJobs.TryAdd(id,work)) throw new InvalidDataException("TRAFFIC_ASYNC_JOB_EXISTS");
+                        response=new() { ["accepted"]=true };
+                    }
+                    else
+                    {
                     deadline.CancelAfter(TimeSpan.FromSeconds(seconds + 25));
                     Interlocked.Increment(ref activeJobs);
                     try { response = await TransportWorker.Execute(job, deadline.Token); }
                     finally { Interlocked.Decrement(ref activeJobs); }
+                    }
                 }
                 else response = Observe(request);
                 var raw = Encoding.UTF8.GetBytes(response.ToJsonString());
@@ -73,9 +85,24 @@ internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, Tr
             { /* A failed authenticated control request has no usable response and never becomes evidence. */ }
         }
     }
+    private async Task<JsonObject> RunOwned(JsonObject job,double seconds,CancellationToken stopping)
+    {
+        using var deadline=CancellationTokenSource.CreateLinkedTokenSource(stopping);
+        deadline.CancelAfter(TimeSpan.FromSeconds(seconds+25));Interlocked.Increment(ref activeJobs);
+        try { return await TransportWorker.Execute(job,deadline.Token); }
+        finally { Interlocked.Decrement(ref activeJobs); }
+    }
     private JsonObject Observe(JsonObject request)
     {
         var operation = request["operation"]?.GetValue<string>(); var run = Wire.Id(request, "run_id");
+        if(operation=="worker-result")
+        {
+            if(!ownedJobs.TryGetValue(run,out var work)) throw new InvalidDataException("TRAFFIC_ASYNC_JOB_UNKNOWN");
+            if(!work.IsCompleted) return new() { ["state"]="RUNNING" };
+            var value=work.GetAwaiter().GetResult();ownedJobs.TryRemove(run,out _);
+            return new() { ["state"]="FINISHED",["result"]=value };
+        }
+        if(operation=="session-retain") { sessions.Retain(run); return new() { ["complete"]=true }; }
         if (operation == "kernel-start") return kernel.Start(request["driver"]!.GetValue<string>(), request["driver_sha256"]!.GetValue<string>());
         if (operation == "kernel-begin") return kernel.Begin(Wire.Id(request,"phase_id"), Wire.Id(request,"phase"));
         if (operation == "kernel-end") return kernel.End();
@@ -86,7 +113,7 @@ internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, Tr
             var session = sessions.Get(run); var result = session.Snapshot(); result["proxy"] = session.Proxy.Snapshot();
             result["origin_udp_receive_buffer"] = new JsonObject { ["requested_bytes"] = TransportOrigin.DatagramBuffer, ["effective_bytes"] = origin.EffectiveReceiveBuffer };
             result["native_origin_connections"] = origin.Active; result["proxy_connections"] = relay?.Active ?? 0;
-            result["worker_jobs_active"] = Volatile.Read(ref activeJobs); result["kernel_session_active"] = kernel.Active;
+            result["worker_jobs_active"] = Volatile.Read(ref activeJobs); result["endurance_jobs"] = EnduranceObservation.Snapshot(); result["kernel_session_active"] = kernel.Active;
             result["proxy_udp_associations"] = relay?.Associations ?? 0; result["proxy_tcp_connections"] = (relay?.Active ?? 0) - (relay?.Associations ?? 0);
             result["relay_diagnostics"] = relay?.Diagnostics(); result["native_pid"] = Environment.ProcessId; result["engine"] = "csharp-transport-v1"; return result;
         }

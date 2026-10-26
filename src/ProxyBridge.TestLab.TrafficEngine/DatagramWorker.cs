@@ -70,7 +70,7 @@ internal static partial class TransportWorker
                     {
                         var count = connected ? await socket.SendAsync(packet, SocketFlags.None, deadline.Token) : await socket.SendToAsync(packet, SocketFlags.None, destination, deadline.Token);
                         if (count != packet.Length) throw new SocketException((int)SocketError.MessageSize);
-                        lock (state.Sync) state.Sent++;
+                        lock (state.Sync) state.Sent++; EnduranceObservation.Sent(job);
                     }
                     catch (SocketException) { lock (state.Sync) { state.Pending.Remove(sequence); state.SendErrors++; } }
                     sequence++;
@@ -120,7 +120,7 @@ internal static partial class TransportWorker
                             if (state.Seen.Contains(sequence)) state.Duplicates++;
                             else if (state.Pending.Remove(sequence, out var stamp))
                             {
-                                state.Received++; state.Latency.Add(Stopwatch.GetElapsedTime(stamp, now).TotalMilliseconds);
+                                state.Received++; var latency=Stopwatch.GetElapsedTime(stamp, now).TotalMilliseconds; state.Latency.Add(latency); EnduranceObservation.Reply(job,latency);
                                 if (sequence < state.LastSequence) state.Reordered++; state.LastSequence = Math.Max(sequence, state.LastSequence);
                                 state.Seen.Add(sequence); state.Replay.Enqueue(sequence); if (state.Replay.Count > 16384) state.Seen.Remove(state.Replay.Dequeue());
                                 if (state.Peers.Count < 16) state.Peers.Add(response["peer"]!.DeepClone());
@@ -131,7 +131,7 @@ internal static partial class TransportWorker
                     catch (Exception error) when (error is InvalidDataException or System.Text.Json.JsonException or InvalidOperationException or FormatException or OverflowException or ArgumentException)
                     {
                         var code = error is InvalidDataException && error.Message is "TRAFFIC_AUTHENTICATION_FAILED" or "TRAFFIC_DATAGRAM_RUN_MISMATCH" or "TRAFFIC_DATAGRAM_FLOW_MISMATCH" or "TRAFFIC_DATAGRAM_PAYLOAD_MISMATCH" ? error.Message : "TRAFFIC_DATAGRAM_MALFORMED";
-                        lock (state.Sync) { state.Invalid++; state.InvalidReasons[code] = state.InvalidReasons.GetValueOrDefault(code) + 1; }
+                        lock (state.Sync) { state.Invalid++; EnduranceObservation.Invalid(job); state.InvalidReasons[code] = state.InvalidReasons.GetValueOrDefault(code) + 1; }
                     }
                 }
             }

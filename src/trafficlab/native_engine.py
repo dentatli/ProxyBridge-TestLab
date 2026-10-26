@@ -75,13 +75,26 @@ def worker_state(job):
 def execute_worker(job):
     started = time.monotonic()
     allowed = ('host','port','secret','run_id','task','seconds','connections','message_bytes','warmup_count',
-               'rate_bytes_per_second','rate_packets_per_second','rate_flows_per_second','rate_exchanges_per_second','udp_connected','test_proxy','cancellation_path')
+               'endurance','rate_bytes_per_second','rate_packets_per_second','rate_flows_per_second','rate_exchanges_per_second','udp_connected','test_proxy','cancellation_path')
     try:
         if job.get('runtime_mode') != 'local' or type(job.get('native_worker_pid')) is not int:
             raise ValueError('TRAFFIC_NATIVE_ENGINE_LOCAL_ONLY')
         worker_state(job)  # Reject an unobserved replacement before submitting any traffic.
-        result = request(job['native_worker_port'], job['secret'], {'operation':'worker', 'job':{key:job[key] for key in allowed if key in job}},
-                         timeout=float(job['seconds'])+25)
+        payload={key:job[key] for key in allowed if key in job}
+        if job.get('endurance') or job.get('_endurance_async'):
+            accepted=request(job['native_worker_port'],job['secret'],{'operation':'worker-start','job':payload})
+            if accepted.get('accepted') is not True:raise ValueError('TRAFFIC_ASYNC_JOB_REJECTED')
+            deadline=time.monotonic()+float(job['seconds'])+25
+            while True:
+                if job.get('cancellation_path'):
+                    from pathlib import Path
+                    if Path(job['cancellation_path']).exists():deadline=min(deadline,time.monotonic()+10)
+                value=request(job['native_worker_port'],job['secret'],{'operation':'worker-result','run_id':job['run_id']},timeout=5)
+                if value.get('state')=='FINISHED':result=value['result'];break
+                if time.monotonic()>=deadline:raise ValueError('TRAFFIC_ASYNC_JOB_DEADLINE')
+                time.sleep(.2)
+        else:
+            result = request(job['native_worker_port'], job['secret'], {'operation':'worker', 'job':payload},timeout=float(job['seconds'])+25)
         flows = result.get('flows')
         if result.get('engine') != 'csharp-transport-v1' or result.get('engine_pid') != job['native_worker_pid'] or \
                 result.get('run_id') != job['run_id'] or result.get('task') != job['task'] or type(result.get('complete')) is not bool or \
@@ -132,6 +145,8 @@ class OriginAdapter:
 
     def merge(self, result, run_id):
         from trafficlab.resources import process_sample
+        if run_id.endswith((".persistent.tcp", ".persistent.udp")):
+            self._observe({"operation":"session-retain", "run_id":run_id})
         native = self.snapshot(run_id)
         for key in ('accepted','completed','active','errors','rx_bytes','tx_bytes','udp_received','udp_reply_errors','udp_unique_flows'):
             if type(native.get(key)) is not int or native[key] < 0:

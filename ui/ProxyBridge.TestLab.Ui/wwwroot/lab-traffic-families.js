@@ -38,7 +38,8 @@ function trafficFamilySelection(family,choices,preference={}){
     const values=selected.length?selected.map(row=>choices[row.id][key]):[preference[key]||defaultValue];
     return values.every(value=>value===values[0])&&allowed.includes(values[0])?values[0]:"MIXED";
   };
-  return {selected:!!selected.length,ids,profile,duration:common("duration",["SHORT","NORMAL","LONG"],"SHORT"),load:common("load",["LOW","HIGH"],"LOW")};
+  const duration=common("duration",family.id==="soak"?["H2","H24","H48","H72","SHORT","NORMAL","LONG"]:["SHORT","NORMAL","LONG"],family.id==="soak"?"H2":"SHORT");
+  return {selected:!!selected.length,ids,profile,duration:family.id==="soak"?({SHORT:"H24",NORMAL:"H48",LONG:"H72"}[duration]||duration):duration,load:common("load",["LOW","HIGH"],"LOW")};
 }
 function trafficWorkloadComplete(row){
   if(!row||row.skipped||row.cancelled||(row.errors||[]).length)return false;

@@ -53,6 +53,8 @@ function trafficObjectiveProtocol(stages){
   return facts.length?`<section class="result-metric-group"><h5>${trafficObjectiveLabel('checks')}</h5><div class="result-quick-metrics">${facts.join('')}</div></section>`:'';
 }
 function trafficObjectiveMarkup(row,view={}){
+  const enduranceMode=row?.measurements?.find(m=>m.mode==='SOCKS5'&&m.endurance);
+  if(enduranceMode)return trafficEnduranceResult(enduranceMode);
   if(!row)return '';
   const spec=trafficCatalog?.cases?.find(item=>item.id===row.case_id),recipe=spec?.recipe;
   // Unknown historical recipes keep their original measurements available.
@@ -104,6 +106,7 @@ Object.assign(trafficObjectiveText.ru,{targetRate:'Цель, обменов/с �
 Object.assign(trafficObjectiveText.en,{targetRate:'Target transactions/s per flow',verifiedRate:'Verified transactions/s per flow',transactions:'Verified transactions',tcp:'Successful sessions / attempts'});
 function trafficQualityCpuCost(mode,transactions){
   const seconds=mode?.workload_resources?.product_cli?.counters?.cpu_seconds?.measured_change;
+  if(mode?.endurance){const e=mode.endurance,work=transactions?e.verified_application_transactions:e.verified_tcp_tx_bytes+e.verified_tcp_rx_bytes;return Number.isFinite(seconds)&&seconds>=0&&work>0?seconds/work*(transactions?1000:1073741824):null;}
   const stages=(mode?.stages||[]).filter(s=>!['baseline','recovery'].includes(s.phase));
   if(!Number.isFinite(seconds)||seconds<0||!stages.length)return null;
   const work=transactions?stages.reduce((n,s)=>n+(s.application_transactions||0),0):stages.reduce((n,s)=>n+(s.tcp_tx_bytes_per_second+s.tcp_rx_bytes_per_second)*s.elapsed_seconds,0);

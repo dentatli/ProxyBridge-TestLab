@@ -65,6 +65,9 @@ def phase_observations(stages: list[dict[str, Any]]) -> dict[str, Any]:
 
 
 def summary(report: dict[str, Any]) -> dict[str, Any]:
+    if report.get("endurance"):
+        from trafficlab.endurance import summary_report
+        return summary_report(report)
     if report.get("compact_stages"):
         resources = {role: {key:value for key,value in row.items() if key != "timeline"} for role,row in report.get("resources", {}).items()}
         return {"stages": report["stages"], "resources": resources,

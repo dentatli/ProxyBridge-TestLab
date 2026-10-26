@@ -18,7 +18,7 @@ DEADLINE_GRACE = 15.0
 
 
 def execute_bounded(job: dict[str, Any]) -> dict[str, Any]:
-    if job.get('application') not in ('ssh', 'sftp'):
+    if job.get('application') not in ('ssh', 'sftp') and not job.get('_endurance_bounded'):
         raise ValueError('TRAFFIC_BOUNDED_WORKER_APPLICATION_INVALID')
     started = time.monotonic()
     budget = float(job['seconds']) + DEADLINE_GRACE
@@ -26,6 +26,7 @@ def execute_bounded(job: dict[str, Any]) -> dict[str, Any]:
     process = None
 
     def failure(code: str, was_cancelled: bool = False) -> dict[str, Any]:
+        if job.get('application') not in ('ssh','sftp'):code=code.replace('TRAFFIC_SSH_','TRAFFIC_APPLICATION_')
         result = {'schema_version': 1, 'measurement_method': 'controlled-traffic-v1', 'run_id': job['run_id'],
             'task': job['task'], 'application': job['application'], 'complete': False, 'cancelled': was_cancelled,
             'errors': [code], 'flows': [], 'successful_tcp_flows': 0, 'tcp_origin_fingerprint': '0' * 64,
@@ -80,7 +81,7 @@ def execute_bounded(job: dict[str, Any]) -> dict[str, Any]:
                     return failure('TRAFFIC_SSH_WORKER_RESULT_INVALID')
                 result['worker_deadline_seconds'] = budget
                 result['worker_exit_code'] = process.returncode
-                result['worker_resource_scope'] = 'isolated-SSH/SFTP-process'
+                result['worker_resource_scope'] = 'isolated-application-process' if job.get('_endurance_bounded') else 'isolated-SSH/SFTP-process'
                 return result
             finally:
                 if process.poll() is None:

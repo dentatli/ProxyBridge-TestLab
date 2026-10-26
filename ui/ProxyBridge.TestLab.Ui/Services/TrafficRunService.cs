@@ -22,9 +22,15 @@ public sealed partial class TrafficRuntimeService
         var catalog = Catalog();
         var known = catalog.GetProperty("cases").EnumerateArray().Select(row => row.GetProperty("id").GetString()).ToHashSet();
         if (request.Cases is null || request.Cases.Length < 1 || request.Cases.Length > known.Count || request.Cases.Any(row => row is null || !known.Contains(row.Id) ||
-            row.Duration is not ("SHORT" or "NORMAL" or "LONG") || row.Load is not ("LOW" or "HIGH")) ||
+            (row.Id=="soak" ? row.Duration is not ("SHORT" or "NORMAL" or "LONG" or "H2" or "H24" or "H48" or "H72") : row.Duration is not ("SHORT" or "NORMAL" or "LONG")) || row.Load is not ("LOW" or "HIGH")) ||
             request.Cases.Select(row => row.Id).Distinct().Count() != request.Cases.Length)
             throw new InvalidOperationException("TRAFFIC_CASE_SELECTION_INVALID");
+        if(request.Cases.Any(row=>row.Id=="soak"))
+        {
+            if(request.Cases.Length!=1) throw new InvalidOperationException("TRAFFIC_ENDURANCE_EXCLUSIVE");
+            if(request.Mode!="local") throw new InvalidOperationException("TRAFFIC_ENDURANCE_LOCAL_ONLY");
+            request=request with { Cases=request.Cases.Select(row=>row with { Load="LOW" }).ToArray() };
+        }
         var plan = OptimizeSelection(catalog, request.Cases);
         request = request with { Cases = plan.cases };
         if (request.Mode == "local") ValidateLocalFiles();
@@ -188,7 +194,7 @@ public sealed partial class TrafficRuntimeService
         {
             string? Value(string name) => (choice.TryGetProperty(name,out var lower)?lower:choice.GetProperty(char.ToUpperInvariant(name[0])+name[1..])).GetString();
             if (string.IsNullOrWhiteSpace(Value("id")) || !caseIds.Add(Value("id")!) ||
-                Value("duration") is not ("SHORT" or "NORMAL" or "LONG") || Value("load") is not ("LOW" or "HIGH"))
+                (Value("id")=="soak" ? Value("duration") is not ("SHORT" or "NORMAL" or "LONG" or "H2" or "H24" or "H48" or "H72") : Value("duration") is not ("SHORT" or "NORMAL" or "LONG")) || Value("load") is not ("LOW" or "HIGH"))
                 throw new InvalidOperationException("TRAFFIC_HISTORY_UNREADABLE");
         }
         foreach (var name in new[] { "results", "recovery_checks" })
@@ -262,7 +268,7 @@ public sealed partial class TrafficRuntimeService
                     foreach (var stage in stages.EnumerateArray())
                         if (stage.TryGetProperty("tcp_active_peak", out var count) && count.ValueKind == JsonValueKind.Number && count.TryGetInt32(out var observed)) peak = Math.Max(peak ?? 0, observed);
                 measurements.Add(new { mode = Field("mode"), complete = Field("complete"), route_verified = Field("route_verified"),
-                    overall = Field("overall"), resources = Field("resources"), kernel_resources = Field("kernel_resources"), tcp_active_peak = peak });
+                    overall = Field("overall"), resources = Field("resources"), kernel_resources = Field("kernel_resources"), endurance=Field("endurance"), workload_resources=Field("workload_resources"), tcp_active_peak = peak });
             }
         return new { complete = row.GetProperty("complete").GetBoolean(),
             errors = row.TryGetProperty("errors", out var errors) ? errors.Clone() : JsonSerializer.SerializeToElement(Array.Empty<string>()), measurements };
@@ -490,7 +496,7 @@ public sealed partial class TrafficRuntimeService
             return count;
         });
         return (continueAfterFailure ? Math.Max(0, cases.Count - 1) * 20 : 0) + cases.Sum(row => row.Id == "soak"
-        ? (row.Duration == "SHORT" ? 24 : row.Duration == "NORMAL" ? 48 : 72) * 3600d + 300
+        ? (row.Duration switch { "H2"=>2,"SHORT" or "H24"=>24,"NORMAL" or "H48"=>48,_=>72 }) * 3600d + 60
         : (row.Duration == "SHORT" ? 6 : row.Duration == "NORMAL" ? 30 : 120) * (row.Id switch
             { "tcp-multistream" or "loaded-rtt" or "flow-rate" or "mixed" or "three-modes" => 3, "tcp-connections" or "udp-connections" => 5,
                 "udp-sweep" => 6, "stability" => 10, _ => payloadStages.GetValueOrDefault(row.Id,1) }) + 20);

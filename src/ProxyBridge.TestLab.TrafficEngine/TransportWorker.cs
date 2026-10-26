@@ -23,6 +23,7 @@ internal static partial class TransportWorker
         var started = Stopwatch.GetTimestamp();
         var echoRate = job["rate_exchanges_per_second"]?.GetValue<double>() ?? 0;
         if (!double.IsFinite(echoRate) || echoRate is < 0 or > 1000000) throw new InvalidDataException("TRAFFIC_RATE_INVALID");
+        using var observation = EnduranceObservation.Start(job);
         var jobs = Enumerable.Range(0, count).Select(index => task == "udp" ? Udp(job, Guid.NewGuid().ToString(), token) :
             task == "flow_rate" ? Churn(job, index, token) : Tcp(job, task!, Guid.NewGuid().ToString(), token)).ToArray();
         var flows = await Task.WhenAll(jobs); var elapsed = Stopwatch.GetElapsedTime(started).TotalSeconds;
@@ -145,11 +146,16 @@ internal static partial class TransportWorker
                     while ((exchangeLimit > 0 ? iteration < exchangeLimit : Stopwatch.GetElapsedTime(started).TotalSeconds < seconds) && !Cancelled(job))
                     {
                         Wire.Fill(buffer, (ulong)sent); var sample = Stopwatch.GetTimestamp();
-                        await stream.WriteAsync(Wire.Frame((ulong)sent, size), token); await stream.WriteAsync(buffer, token);
-                        var header = await Wire.ReadFrame(stream, token);
+                        using var exchange = job["endurance"]?.GetValue<bool>()==true ? CancellationTokenSource.CreateLinkedTokenSource(token) : null;
+                        exchange?.CancelAfter(TimeSpan.FromSeconds(5));
+                        var exchangeToken=exchange?.Token ?? token;
+                        EnduranceObservation.Sent(job);
+                        await stream.WriteAsync(Wire.Frame((ulong)sent, size), exchangeToken); await stream.WriteAsync(buffer, exchangeToken);
+                        var header = await Wire.ReadFrame(stream, exchangeToken);
                         if (header.Offset != (ulong)sent || header.Size != size) throw new InvalidDataException("TRAFFIC_DATA_OR_SEQUENCE_MISMATCH");
-                        await stream.ReadExactlyAsync(echoed, token); var latency = Stopwatch.GetElapsedTime(sample).TotalMilliseconds;
+                        await stream.ReadExactlyAsync(echoed, exchangeToken); var latency = Stopwatch.GetElapsedTime(sample).TotalMilliseconds;
                         if (!buffer.AsSpan().SequenceEqual(echoed)) throw new InvalidDataException("TRAFFIC_DATA_OR_SEQUENCE_MISMATCH");
+                        EnduranceObservation.Reply(job, latency);
                         txHash.AppendData(buffer); rxHash.AppendData(echoed); sent += size; received += size;
                         if (iteration++ >= (job["warmup_count"]?.GetValue<int>() ?? 100)) histogram.Add(latency);
                         if (task == "hold") await Task.Delay(200, token);

@@ -5,19 +5,22 @@ namespace ProxyBridge.TestLab.TrafficEngine;
 internal sealed class SessionRegistry
 {
     private readonly Dictionary<string, Session> sessions = new(StringComparer.Ordinal);
+    private long clock;
     private readonly Lock sync = new();
+    private readonly HashSet<string> retained = [];
+    internal void Retain(string id) { lock(sync) { Get(id); retained.Add(id); } }
     internal Session Get(string id)
     {
         lock (sync)
         {
-            if (sessions.TryGetValue(id, out var found)) return found;
+            if (sessions.TryGetValue(id, out var found)) { found.LastAccess=++clock; return found; }
             if (sessions.Count >= 128)
             {
-                var idle = sessions.FirstOrDefault(pair => pair.Value.Active == 0);
+                var idle = sessions.Where(pair => pair.Value.Active == 0 && !retained.Contains(pair.Key)).OrderBy(pair=>pair.Value.LastAccess).FirstOrDefault();
                 if (idle.Key is null) throw new InvalidDataException("TRAFFIC_SESSION_LIMIT");
                 sessions.Remove(idle.Key);
             }
-            var value = new Session(); sessions.Add(id, value); return value;
+            var value = new Session { LastAccess=++clock }; sessions.Add(id, value); return value;
         }
     }
     internal string? FindTag(string tag)
@@ -29,6 +32,7 @@ internal sealed class SessionRegistry
 internal sealed class Session
 {
     internal readonly Lock Sync = new();
+    internal long LastAccess;
     internal long Accepted, Completed, Active, Errors, Peak, Rx, Tx, UdpReceived, UdpReplyErrors;
     internal readonly HashSet<string> UdpFlows = new(StringComparer.Ordinal);
     internal readonly List<JsonObject> Routes = [];

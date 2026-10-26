@@ -74,7 +74,7 @@ function trafficTableBody(runs,slots,families){
     if(!trafficTableExpanded.has(family.id))continue;
     for(const stage of stages){
       const rows=runs.map(run=>trafficTableStage(run,stage.id)),base=rows[0],baseRun=runs[0];
-      result+=`<tr class="comparison-stage"><th scope="row">${html(trafficName(stage.id))}</th>${runs.map((run,i)=>`<td>${run?trafficReportBadge(trafficReportStatus(rows[i],run)):'—'}${rows[i]?`<small>${html(t(rows[i].duration))} · ${html(t(rows[i].load))}</small>`:''}</td>`).join('')}</tr>`;
+      result+=`<tr class="comparison-stage"><th scope="row">${html(trafficName(stage.id))}</th>${runs.map((run,i)=>`<td>${run?trafficReportBadge(trafficReportStatus(rows[i],run)):'—'}${rows[i]?`<small>${html(t(rows[i].duration))} · ${html(stage.id==="soak"?t("enduranceFixed"):t(rows[i].load))}</small>`:''}</td>`).join('')}</tr>`;
       result+=`<tr class="comparison-conditions"><th scope="row">${t('tableConditions')}</th>${runs.map((run,i)=>{
         if(!run||!rows[i])return '<td>—</td>';
         const reasons=base&&baseRun?trafficReportDifferences(baseRun,base,run,rows[i]):[];
