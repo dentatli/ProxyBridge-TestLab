@@ -20,6 +20,7 @@ from trafficlab.routes import stage_route
 from trafficlab.resources import ResourceWindow, process_sample, system_sample
 from trafficlab.worker import cancelled, connect, execute, read_result
 from trafficlab.bounded_worker import execute_bounded
+from trafficlab.kernel_resources import KernelCapture
 
 
 def atomic(path: str, value: Any) -> None:
@@ -201,6 +202,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
         "ip_family": "IPv6" if ":" in job["host"] else "IPv4"}
     started = time.perf_counter()
     resources = ResourceWindow()
+    kernel = KernelCapture(job)
+    kernel.start()
     monitor_stop = threading.Event()
     observations_lock = threading.Lock()
     current: dict[str, Any] = {"job": job, "origin": None, "phase_resources":None}
@@ -223,6 +226,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
             with observations_lock:
                 observed_job = current['job']
                 phase_resources = current['phase_resources']
+            kernel.poll()
             stamp = time.perf_counter() - started
             samples = {"windows_system" if os.name == "nt" else "worker_system": system_sample()}
             if isolated_worker:
@@ -309,6 +313,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                         phase_resources.add(role, stamp, process_sample(int(process['pid']), process.get('path')))
                 sample_phase_endpoints()
             phase_started = time.perf_counter()
+            kernel.begin(index, stage["phase"])
             with concurrent.futures.ThreadPoolExecutor(max_workers=len(stage["workloads"])) as pool:
                 context['operation'] = 'RUNNING_WORKLOAD'
                 publish_progress(operation=context['operation'])
@@ -316,6 +321,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                 futures = [pool.submit(execute_bounded if workload.get('application') in ('ssh', 'sftp') else execute,
                                        {**stage_job, **workload}) for workload in stage["workloads"]]
                 results = [future.result() for future in futures]
+            kernel.end()
             with observations_lock:
                 sample_phase_endpoints()
                 current['phase_resources'] = None
@@ -383,6 +389,7 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
         observer.join(timeout=12)
         with observations_lock:
             report["resources"] = resources.view()
+        report["kernel_resources"] = kernel.close()
         report["elapsed_seconds"] = time.perf_counter() - started
         report['unstarted_stage_count'] = len(stages)-report['workload_started_stage_count']
         atomic(output, report)

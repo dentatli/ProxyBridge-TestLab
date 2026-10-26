@@ -7,7 +7,7 @@ using System.Text.Json.Nodes;
 
 namespace ProxyBridge.TestLab.TrafficEngine;
 
-internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, TransportOrigin origin, SocksRelay? relay)
+internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, TransportOrigin origin, SocksRelay? relay, KernelResources kernel)
 {
     private readonly ConcurrentDictionary<long, Task> pending = [];
     private readonly HashSet<string> seen = [];
@@ -76,12 +76,17 @@ internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, Tr
     private JsonObject Observe(JsonObject request)
     {
         var operation = request["operation"]?.GetValue<string>(); var run = Wire.Id(request, "run_id");
+        if (operation == "kernel-start") return kernel.Start(request["driver"]!.GetValue<string>(), request["driver_sha256"]!.GetValue<string>());
+        if (operation == "kernel-begin") return kernel.Begin(Wire.Id(request,"phase_id"), Wire.Id(request,"phase"));
+        if (operation == "kernel-end") return kernel.End();
+        if (operation == "kernel-poll") return kernel.Poll();
+        if (operation == "kernel-stop") return kernel.Stop();
         if (operation == "snapshot")
         {
             var session = sessions.Get(run); var result = session.Snapshot(); result["proxy"] = session.Proxy.Snapshot();
             result["origin_udp_receive_buffer"] = new JsonObject { ["requested_bytes"] = TransportOrigin.DatagramBuffer, ["effective_bytes"] = origin.EffectiveReceiveBuffer };
             result["native_origin_connections"] = origin.Active; result["proxy_connections"] = relay?.Active ?? 0;
-            result["worker_jobs_active"] = Volatile.Read(ref activeJobs);
+            result["worker_jobs_active"] = Volatile.Read(ref activeJobs); result["kernel_session_active"] = kernel.Active;
             result["proxy_udp_associations"] = relay?.Associations ?? 0; result["proxy_tcp_connections"] = (relay?.Active ?? 0) - (relay?.Associations ?? 0);
             result["relay_diagnostics"] = relay?.Diagnostics(); result["native_pid"] = Environment.ProcessId; result["engine"] = "csharp-transport-v1"; return result;
         }

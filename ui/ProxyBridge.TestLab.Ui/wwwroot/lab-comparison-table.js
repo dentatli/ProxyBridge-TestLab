@@ -8,12 +8,13 @@ const trafficTableMetricGroups=[
   ['reportTrafficGroup',['trafficTargetTransactions','trafficRateTarget','trafficRateMin','trafficRateMax','trafficOffP99','trafficUnruledP99','trafficSocksP99','trafficCompleted','trafficOffered','trafficCps','trafficSent','trafficReceived','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficTransactions','trafficPeak']],
   ['reportUdpGroup',['trafficUdpP99','trafficLoss',...Object.keys(trafficUdpCounters)]],
   ['reportClientGroup',['trafficCpu','trafficCpuPerGiB','trafficCpuPerThousand','trafficRam','trafficCliResident','trafficCommitBefore','trafficCommitAfter','trafficCliRamDelta','trafficResidentBefore','trafficResidentAfter','trafficCliResidentDelta','trafficCliHandles','trafficCliThreads']],
+  ['reportKernelGroup',['trafficKernelCpu','trafficKernelSamples','trafficKernelPaged','trafficKernelNonPaged','trafficKernelPoolAfter']],
   ['reportPcGroup',['trafficSystemCpu']],
   ['reportLoadGroup',['trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx','trafficLoadWorstP99','trafficRecoveryP99Change']]
 ];
 const trafficTableHigher=new Set(['trafficSent','trafficReceived','trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx']);
 const trafficTableLower=new Set(['trafficOffP99','trafficUnruledP99','trafficSocksP99','trafficP99','trafficConnectP50','trafficConnectP95','trafficConnectP99','trafficUdpP99','trafficLoss','trafficCpu','trafficRam','trafficCliResident','trafficCliHandles','trafficCliThreads','trafficSystemCpu','trafficLoadWorstP99']);
-const trafficTableIntegers=new Set(['trafficCompleted','trafficOffered','trafficTransactions','trafficPeak','trafficCliHandles','trafficCliThreads',...Object.keys(trafficUdpCounters)]);
+const trafficTableIntegers=new Set(['trafficCompleted','trafficOffered','trafficTransactions','trafficPeak','trafficCliHandles','trafficCliThreads','trafficKernelSamples',...Object.keys(trafficUdpCounters)]);
 let trafficTableState={ids:[],family:'all'},trafficTableInitialized=false,trafficTableStamp='',trafficTableStructureKey='',trafficTableToolbarKey='';
 try{
   const saved=JSON.parse(sessionStorage.getItem('testlab-comparison-table')||'null');
@@ -83,7 +84,7 @@ function trafficTableBody(runs,slots,families){
       let metricCount=0;
       for(const [group,keys] of trafficTableMetricGroups){
         const relevant=trafficObjectiveMetricKeys(stage.id);
-        const available=keys.filter(key=>(['reportClientGroup','reportPcGroup'].includes(group)||!relevant||relevant.includes(key))&&rows.some(row=>Number.isFinite(trafficTableValue(row,key)))&&!(key==='trafficTransactions'&&rows.every(row=>!trafficTableValue(row,key))));
+        const available=keys.filter(key=>(['reportClientGroup','reportPcGroup','reportKernelGroup'].includes(group)||!relevant||relevant.includes(key))&&(group==='reportKernelGroup'?rows.some(row=>row?.measurements?.some(m=>m.kernel_resources)):rows.some(row=>Number.isFinite(trafficTableValue(row,key))))&&!(key==='trafficTransactions'&&rows.every(row=>!trafficTableValue(row,key))));
         if(!available.length)continue;
         metricCount+=available.length;
         result+=`<tr class="comparison-metric-group"><th colspan="${span}">${trafficTableGroup(family.id+'/'+stage.id+'/'+group,t(group))}</th></tr>`;
@@ -94,9 +95,9 @@ function trafficTableBody(runs,slots,families){
           const rankedComparable=chosen.length>=2&&chosen.every(i=>trafficReportComparable(runs[chosen[0]],rows[chosen[0]],runs[i],rows[i]));
           const labels={trafficCpu:'reportCpuMean',trafficRam:'reportPrivatePeak',trafficCliResident:'reportResidentPeak',trafficCliHandles:'reportHandlesPeak',trafficCliThreads:'reportThreadsPeak',trafficSystemCpu:'reportPcCpu'};
           result+=`<tr><th scope="row">${html(t(labels[key]||key))}</th>${runs.map((run,i)=>{
-            const value=trafficTableValue(rows[i],key),valid=Number.isFinite(value),winner=best.includes(i),repeat=trafficTableRepeat(runs,rows,i,key),cpuNote=trafficCpuBudgetNote(rows[i],key),allowPercent=trafficCpuBudgetEnough(rows[i],key)&&trafficCpuBudgetEnough(base,key);
+            const value=trafficTableValue(rows[i],key),valid=Number.isFinite(value),winner=best.includes(i),repeat=trafficTableRepeat(runs,rows,i,key),cpuNote=key.startsWith('trafficKernel')?trafficKernelNote(rows[i]?.measurements?.find(m=>m.mode==='SOCKS5')):trafficCpuBudgetNote(rows[i],key),allowPercent=trafficCpuBudgetEnough(rows[i],key)&&trafficCpuBudgetEnough(base,key)&&!key.startsWith('trafficKernel');
             const comparable=!!run&&!!baseRun&&trafficReportComparable(baseRun,base,run,rows[i]);
-            return `<td class="${winner?(rankedComparable?'comparison-best':'comparison-best-observed'):''}"${winner?` aria-label="${html(t(rankedComparable?'tableBest':'tableBestObserved'))}: ${html(number(value,trafficTableIntegers.has(key)?0:2))}"`:''}>${valid?`<strong title="${html([repeat?.text,cpuNote].filter(Boolean).join(' · '))}">${number(value,trafficTableIntegers.has(key)?0:2)}</strong>${i>0?trafficTableDifference(value,trafficTableValue(base,key),comparable,key,allowPercent):''}`:'—'}</td>`;
+            return `<td ${key.startsWith('trafficKernel')?`title="${html(cpuNote)}"`:""} class="${winner?(rankedComparable?'comparison-best':'comparison-best-observed'):''}"${winner?` aria-label="${html(t(rankedComparable?'tableBest':'tableBestObserved'))}: ${html(number(value,trafficTableIntegers.has(key)?0:2))}"`:''}>${valid?`<strong title="${html([repeat?.text,cpuNote].filter(Boolean).join(' · '))}">${number(value,trafficTableIntegers.has(key)?0:2)}</strong>${i>0?trafficTableDifference(value,trafficTableValue(base,key),comparable,key,allowPercent):''}`:'—'}</td>`;
           }).join('')}</tr>`;
         }
       }

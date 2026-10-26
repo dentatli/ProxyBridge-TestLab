@@ -293,6 +293,7 @@ function trafficMetric(row,key){
 }
 function trafficMeasurementMetric(measured,key){
   if(!measured)return null;
+  if(key.startsWith('trafficKernel'))return trafficKernelMetric(measured,key);
   const overall=measured.overall||{},resources=measured.workload_resources||measured.resources||{};
   const workload=overall.phase_observations?.groups?.workload;
   const counter=(role,name,stat)=>resources[role]?.counters?.[name]?.[stat];

@@ -97,7 +97,7 @@ function trafficObjectiveMarkup(row,view={}){
   const goal=row.case_id==='three-modes'?'modes':recipe;
   const warning=mode&&(!mode.complete||!mode.route_verified)?`<p class="result-observed">${trafficObjectiveLabel('observed')}</p>`:'';
   const resourceKey=view.key?view.key+'.resources':null;
-  return `<section class="objective-result"><p class="objective-purpose"><b>${trafficObjectiveLabel('goal')}:</b> ${html(trafficObjectiveLabel(goal))}</p>${warning}${body}<details class="objective-additional" ${resourceKey?`data-result-key="${html(resourceKey)}" ${view.expanded?.has(resourceKey)?'open':''}`:''}><summary>${trafficObjectiveLabel('resources')}</summary>${trafficPhaseResourceMarkup(mode)}${trafficReportAdditionalMetricMarkup(row)}</details></section>`;
+  return `<section class="objective-result"><p class="objective-purpose"><b>${trafficObjectiveLabel('goal')}:</b> ${html(trafficObjectiveLabel(goal))}</p>${warning}${body}<details class="objective-additional" ${resourceKey?`data-result-key="${html(resourceKey)}" ${view.expanded?.has(resourceKey)?'open':''}`:''}><summary>${trafficObjectiveLabel('resources')}</summary>${trafficPhaseResourceMarkup(mode)}${trafficKernelMarkup(mode)}${trafficReportAdditionalMetricMarkup(row)}</details></section>`;
 }
 
 Object.assign(trafficObjectiveText.ru,{targetRate:'Цель, обменов/с на поток',verifiedRate:'Подтверждено, обменов/с на поток',transactions:'Подтверждено обменов',tcp:'Успешных сеансов / попыток'});
@@ -134,6 +134,7 @@ function trafficCpuBudgetNote(row,key){
   return trafficCpuBudgetEnough(row,key)?'':labLanguage==='ru'?'Мало измеренного CPU-времени для рейтинга (< 0,25 CPU-с). Выберите «Обычно» или «Долго» и повторите прогон.':'Too little measured CPU time to rank (< 0.25 CPU seconds). Use Normal or Long and repeat the run.';
 }
 function trafficQualityRankable(runs,rows,key){
+  if(key.startsWith('trafficKernel'))return false; // Exclusive samples/global tags are observations, not full driver ownership.
   if(rows.some(row=>!trafficCpuBudgetEnough(row,key)))return false;
   if(rows.some(row=>row?.case_id==='flow-rate'&&!row.measurements?.find(m=>m.mode==='SOCKS5')?.stages?.some(s=>s.workload_profiles?.some(w=>w.task==='flow_rate'&&w.session_exchange_count===1&&w.session_payload_bytes===64))))return false;
   if(rows.some((row,i)=>!trafficReportComparable(runs[0],rows[0],runs[i],row)))return false;

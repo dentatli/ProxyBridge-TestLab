@@ -262,7 +262,7 @@ public sealed partial class TrafficRuntimeService
                     foreach (var stage in stages.EnumerateArray())
                         if (stage.TryGetProperty("tcp_active_peak", out var count) && count.ValueKind == JsonValueKind.Number && count.TryGetInt32(out var observed)) peak = Math.Max(peak ?? 0, observed);
                 measurements.Add(new { mode = Field("mode"), complete = Field("complete"), route_verified = Field("route_verified"),
-                    overall = Field("overall"), resources = Field("resources"), tcp_active_peak = peak });
+                    overall = Field("overall"), resources = Field("resources"), kernel_resources = Field("kernel_resources"), tcp_active_peak = peak });
             }
         return new { complete = row.GetProperty("complete").GetBoolean(),
             errors = row.TryGetProperty("errors", out var errors) ? errors.Clone() : JsonSerializer.SerializeToElement(Array.Empty<string>()), measurements };
@@ -418,7 +418,7 @@ public sealed partial class TrafficRuntimeService
                     product_version = observed.GetProperty("product_version").GetString(),
                     host, runtime_mode = request.Mode, port = 42501, control_port = 42503, proxy_port = 42502, secret = payload.Secret,
                     execution_model = request.Mode == "local" ? "persistent-core-session-v1" : "independent-cli-v1",
-                    core, core_host = Path.Combine(app.RepositoryRoot, "bin", "pb_core_host.exe"),
+                    core, core_host = Path.Combine(app.RepositoryRoot, "bin", "pb_core_host.exe"), collect_kernel_resources = request.CollectKernelResources,
                     remote_bundle_sha256 = payload.Bundle, root = app.RepositoryRoot, cli, driver, driver_sha256 = hashes[driver],
                     console_host = Path.Combine(app.RepositoryRoot, "bin", "pb_console_host.exe"), python, source_hashes = hashes,
                     transport_engine = payload.NativeWorker is null ? "python-transport-v1" : "csharp-transport-v1",

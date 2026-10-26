@@ -43,7 +43,7 @@ def isolation(binding: dict[str, Any], session: CoreSession, job: dict[str, Any]
         # All TCP sessions and origin workloads must nevertheless be absent.
         if (type(origin.get('runtime_connections')) is int and origin['runtime_connections'] == 0 and
                 type(origin.get('proxy_tcp_connections')) is int and origin['proxy_tcp_connections'] == 0 and
-                (native_worker is None or native_worker['worker_jobs_active'] == 0)):
+                (native_worker is None or native_worker['worker_jobs_active'] == 0 and native_worker.get('kernel_session_active') is not True)):
             return {**state, 'verified': True, 'origin_identity_verified': True, 'origin_idle_verified': True,
                     'native_worker_idle_verified': native_worker is not None,
                     'proxy_udp_associations': origin.get('proxy_udp_associations'), 'scope': 'rules-disabled-and-signed-idle; Core-remains-running'}
@@ -94,6 +94,7 @@ def execute(binding_path: str, directory: Path) -> int:
         'local_runtime_sha256': binding['local_runtime_sha256'], 'method': 'controlled-traffic-core-session-v1',
         'transport_engine': binding.get('transport_engine', 'python-transport-v1'),
         'comparison_method':'user-workload-v2-fixed-session', 'probe_exchanges_per_second':'LOW15-HIGH25',
+        'kernel_measurement_policy':'exclusive-ip-and-tagged-pool-v1' if binding.get('collect_kernel_resources',True) else 'disabled',
         'load_rate_tolerance_fraction':.05,
         'execution_model': MODEL, 'resource_product_scope': 'selected-Core-in-TestLab-native-host; excludes-official-CLI',
         'queue_profile_sha256': hashlib.sha256(json.dumps(binding['cases'], sort_keys=True, separators=(',', ':')).encode()).hexdigest(),

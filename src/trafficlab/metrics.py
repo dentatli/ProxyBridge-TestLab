@@ -13,6 +13,7 @@ def execution_evidence(report: dict[str, Any]) -> dict[str, Any]:
         'PARTIAL' if (type(started) is int and started>0) or stages else 'UNKNOWN'
     return {'measurement_state':state, 'planned_stage_count':report.get('stage_count'),
             'comparison_quality':report_quality(report),
+            'kernel_resources':report.get('kernel_resources'),
             'workload_resources':workload_resources(report.get('stages', [])),
             'origin_metrics_transport':report.get('origin_metrics_transport'),
             'workload_started_stage_count':started, 'recorded_stage_count':len(stages),

@@ -77,7 +77,8 @@ try
                 tasks.Add(DenyUnassociatedUdp(globalUdp));
             }
         }
-        var channel = new ControlChannel(secret, registry, origin, relay);
+        using var kernel = new KernelResources();
+        var channel = new ControlChannel(secret, registry, origin, relay, kernel);
         tasks.Add(channel.Serve(stopping.Token));
         tasks.Add(WatchStop());
         Console.WriteLine($"TRAFFIC_ENGINE_READY origin={port} udp_buffer={origin.EffectiveReceiveBuffer} proxy={proxyPort} control={channel.Port} worker_only={workerOnly}");
