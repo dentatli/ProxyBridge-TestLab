@@ -4,6 +4,10 @@
 
 **preview.56**, source `6bce96b6f3a2a40d07c248a82e110ae8cd86326a`,1698SHA совпали. Admin **http://127.0.0.1:5178**; package `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.56-win-x64`. Active/busy=false,2сборки/история сохранены,добавлены2короткихконтрольныхпрогона. Dev5188остановлен. Не запускать full/HIGH/soak автоматически.
 
+## Новый запрос — физический стенд
+
+[Подготовка PB-SUT](PB_SUT_COMPARISON_PREPARATION_2026-10-26.md):файлы56/обесборкиперенесены,1715SHAverified,driverобновлёнoem25/4da/1.1,backupсохранён,HLKStopped/Manual,HighPerformance,debugNo,testsigningнеизменён. USERподтвердилфиздоступ/перезагрузку.Rebootпринят,RDPвернулся,WinRM5985покаclosed. ЖдёмвходPB-USER/Start-ServiceWinRM;затемpreparedverify-ready.ps1. ПослеребутаготовностьUI/NICнеподтверждена,тестовнет. VM5178остаётся56безизменений.
+
 ## Последнее изменение — ресурсы ядра
 
 [Метод, реализация, проверки и ограничения](KERNEL_COLLECTION_PREVIEW56_2026-10-26.md). Пользователь одобрил отдельные прогоны WFP/WinDivert с последующим сравнением; чередование не обязательно. Реализованы exclusive-IP ETW CPU samples выбранного SYS и общесистемные tagged pool snapshots, без изменения продукта/установки/trust/BCD. No sum cprocessCPU, no full footprintclaim, no winner/relative%forkernel. Missing/loss/low samples=>unknown,не0CPU. Длительный прогон исключён из нового сбора и отложен.
