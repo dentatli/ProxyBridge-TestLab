@@ -336,7 +336,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
                                       "phase_resources":phase_samples,
                                       "workload_profiles":[{'task':w['task'], 'application':w.get('application'), 'connections':w['connections'],
                                           'seconds':w['seconds'], 'target_per_flow':w.get('rate_packets_per_second') if w.get('application') or w['task']=='udp' else w.get('rate_exchanges_per_second'),
-                                          'rate_bytes_per_second_per_flow':w.get('rate_bytes_per_second',0), 'rate_flows_per_second_per_worker':w.get('rate_flows_per_second',0)} for w in stage['workloads']],
+                                          'rate_bytes_per_second_per_flow':w.get('rate_bytes_per_second',0), 'rate_flows_per_second_per_worker':w.get('rate_flows_per_second',0),
+                                          **({'session_exchange_count':1,'session_payload_bytes':64} if w['task']=='flow_rate' and job.get('native_worker_port') else {})} for w in stage['workloads']],
                                       "results": results, "origin": origin, "origin_evidence_error": evidence_error,
                                       "complete": origin is not None and origin["active"] == 0 and origin.get("proxy", {}).get("tcp_active", 0) == 0 and all(row["complete"] for row in results)}
             route_verified = stage_route(stage_value, expected_proxy)

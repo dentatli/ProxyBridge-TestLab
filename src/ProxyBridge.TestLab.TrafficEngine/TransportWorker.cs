@@ -100,7 +100,7 @@ internal static partial class TransportWorker
         }
         throw new OperationCanceledException("TRAFFIC_CANCELLED");
     }
-    internal static async Task<JsonObject> Tcp(JsonObject job, string task, string flow, CancellationToken stopping)
+    internal static async Task<JsonObject> Tcp(JsonObject job, string task, string flow, CancellationToken stopping, int exchangeLimit = 0)
     {
         await Task.Yield();
         var result = new JsonObject { ["flow_id"] = flow, ["task"] = task, ["complete"] = false, ["tx_bytes"] = 0L, ["rx_bytes"] = 0L, ["errors"] = new JsonArray() };
@@ -142,7 +142,7 @@ internal static partial class TransportWorker
                 if (task is "echo" or "hold")
                 {
                     var size = job["message_bytes"]?.GetValue<int>() ?? 512; var buffer = new byte[size]; var echoed = new byte[size]; var iteration = 0;
-                    while (Stopwatch.GetElapsedTime(started).TotalSeconds < seconds && !Cancelled(job))
+                    while ((exchangeLimit > 0 ? iteration < exchangeLimit : Stopwatch.GetElapsedTime(started).TotalSeconds < seconds) && !Cancelled(job))
                     {
                         Wire.Fill(buffer, (ulong)sent); var sample = Stopwatch.GetTimestamp();
                         await stream.WriteAsync(Wire.Frame((ulong)sent, size), token); await stream.WriteAsync(buffer, token);
@@ -155,6 +155,7 @@ internal static partial class TransportWorker
                         if (task == "hold") await Task.Delay(200, token);
                         else await Pace(started, iteration, job["rate_exchanges_per_second"]?.GetValue<double>() ?? 0, job, token);
                     }
+                    if (exchangeLimit > 0 && iteration != exchangeLimit) throw new InvalidDataException("TRAFFIC_FIXED_EXCHANGE_INCOMPLETE");
                     result["exchange_count"] = iteration;
                     await stream.WriteAsync(Wire.Frame((ulong)sent, 0), token); var final = await Wire.ReadFrame(stream, token);
                     if (final.Offset != (ulong)sent || final.Size != 0) throw new InvalidDataException("TRAFFIC_TERMINATION_INVALID");
@@ -196,8 +197,8 @@ internal static partial class TransportWorker
         var histogram = new Histogram(); var fingerprint = new byte[32]; var samples = new JsonArray(); var failed = new JsonArray();
         while (Stopwatch.GetElapsedTime(started).TotalSeconds < job["seconds"]!.GetValue<double>() && !Cancelled(job) && !token.IsCancellationRequested)
         {
-            var shortJob = (JsonObject)job.DeepClone(); shortJob["seconds"] = .05; shortJob["warmup_count"] = 0; shortJob["message_bytes"] = 64;
-            var flow = await Tcp(shortJob, "echo", $"{job["run_id"]!.GetValue<string>()}.{worker}.{offered}", token); offered++;
+            var shortJob = (JsonObject)job.DeepClone(); shortJob["seconds"] = 1.0; shortJob["warmup_count"] = 0; shortJob["message_bytes"] = 64; shortJob["rate_exchanges_per_second"] = 0.0;
+            var flow = await Tcp(shortJob, "echo", $"{job["run_id"]!.GetValue<string>()}.{worker}.{offered}", token, exchangeLimit: 1); offered++;
             if (flow["complete"]?.GetValue<bool>() == true) { completed++; histogram.Add(flow["connect_ms"]!.GetValue<double>()); Xor(fingerprint, Fingerprint(flow["flow_id"]!.GetValue<string>(), flow["peer_observed_by_origin"]!)); }
             else { failures++; if (failed.Count < 8) failed.Add(flow.DeepClone()); }
             tx += flow["tx_bytes"]!.GetValue<long>(); rx += flow["rx_bytes"]!.GetValue<long>(); if (samples.Count < 64) samples.Add(flow);
@@ -208,7 +209,7 @@ internal static partial class TransportWorker
             ["cancelled"] = Cancelled(job) || token.IsCancellationRequested, ["offered"] = offered, ["completed"] = completed, ["failures"] = failures,
             ["elapsed_seconds"] = elapsed, ["completed_flows_per_second"] = completed / elapsed, ["connection_and_authentication_ms"] = histogram.View(),
             ["tx_bytes"] = tx, ["rx_bytes"] = rx, ["tcp_origin_fingerprint"] = Convert.ToHexStringLower(fingerprint), ["route_samples"] = samples,
-            ["failure_samples"] = failed, ["failure_samples_truncated"] = failures > failed.Count, ["hold_seconds_per_flow"] = .05,
+            ["failure_samples"] = failed, ["failure_samples_truncated"] = failures > failed.Count, ["verified_exchanges_per_flow"] = 1, ["payload_bytes_per_direction_per_flow"] = 64,
             ["errors"] = failures == 0 ? new JsonArray() : new JsonArray("CONNECTION_FAILURES_OBSERVED") };
     }
 }

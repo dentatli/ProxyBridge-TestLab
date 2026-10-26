@@ -54,10 +54,10 @@ function trafficTableBest(runs,rows,key){
   const best=(lower?Math.min:Math.max)(...displayed);
   return displayed.flatMap((value,i)=>value===best?[i]:[]);
 }
-function trafficTableDifference(value,base,comparable,key){
+function trafficTableDifference(value,base,comparable,key,allowPercent=true){
   if(!Number.isFinite(value)||!Number.isFinite(base))return '';
   const change=value-base,amount=Math.abs(change),digits=amount>0&&amount<0.01?4:2;
-  const percent=!['trafficCliRamDelta','trafficCliResidentDelta','trafficRecoveryP99Change'].includes(key)&&base>0?Math.abs(change)/base*100:null;
+  const percent=allowPercent&&!['trafficCliRamDelta','trafficCliResidentDelta','trafficRecoveryP99Change'].includes(key)&&base>0?Math.abs(change)/base*100:null;
   const relative=change===0?t('tableEqual'):`${change>0?'+':'−'}${number(amount,digits)}${percent!==null?` (${change>0?'+':'−'}${percent>0&&percent<0.01?'&lt;'+number(0.01,2):number(percent,2)}%)`:''}`;
   return `<small class="comparison-cell-delta" title="${html(t(comparable?'tableDelta':'tableNeutral'))}">${relative}</small>`;
 }
@@ -94,9 +94,9 @@ function trafficTableBody(runs,slots,families){
           const rankedComparable=chosen.length>=2&&chosen.every(i=>trafficReportComparable(runs[chosen[0]],rows[chosen[0]],runs[i],rows[i]));
           const labels={trafficCpu:'reportCpuMean',trafficRam:'reportPrivatePeak',trafficCliResident:'reportResidentPeak',trafficCliHandles:'reportHandlesPeak',trafficCliThreads:'reportThreadsPeak',trafficSystemCpu:'reportPcCpu'};
           result+=`<tr><th scope="row">${html(t(labels[key]||key))}</th>${runs.map((run,i)=>{
-            const value=trafficTableValue(rows[i],key),valid=Number.isFinite(value),winner=best.includes(i),repeat=trafficTableRepeat(runs,rows,i,key);
+            const value=trafficTableValue(rows[i],key),valid=Number.isFinite(value),winner=best.includes(i),repeat=trafficTableRepeat(runs,rows,i,key),cpuNote=trafficCpuBudgetNote(rows[i],key),allowPercent=trafficCpuBudgetEnough(rows[i],key)&&trafficCpuBudgetEnough(base,key);
             const comparable=!!run&&!!baseRun&&trafficReportComparable(baseRun,base,run,rows[i]);
-            return `<td class="${winner?(rankedComparable?'comparison-best':'comparison-best-observed'):''}"${winner?` aria-label="${html(t(rankedComparable?'tableBest':'tableBestObserved'))}: ${html(number(value,trafficTableIntegers.has(key)?0:2))}"`:''}>${valid?`<strong title="${html(repeat?.text||'')}">${number(value,trafficTableIntegers.has(key)?0:2)}</strong>${i>0?trafficTableDifference(value,trafficTableValue(base,key),comparable,key):''}`:'—'}</td>`;
+            return `<td class="${winner?(rankedComparable?'comparison-best':'comparison-best-observed'):''}"${winner?` aria-label="${html(t(rankedComparable?'tableBest':'tableBestObserved'))}: ${html(number(value,trafficTableIntegers.has(key)?0:2))}"`:''}>${valid?`<strong title="${html([repeat?.text,cpuNote].filter(Boolean).join(' · '))}">${number(value,trafficTableIntegers.has(key)?0:2)}</strong>${i>0?trafficTableDifference(value,trafficTableValue(base,key),comparable,key,allowPercent):''}`:'—'}</td>`;
           }).join('')}</tr>`;
         }
       }

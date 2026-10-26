@@ -195,6 +195,13 @@ def main():
                     for task in ('echo', 'hold', 'upload', 'download', 'duplex', 'flow_rate', 'udp'):
                         value = job(secret, python_port, task, python_proxy if proxied else 0, 16 if task == 'udp' else 3)
                         result = request(worker, secret, {'operation':'worker', 'job':value}, timeout=20)
+                        if task == 'flow_rate':
+                            assert result['complete'], [(f.get('completed'),f.get('failures'),f.get('failure_samples',[])[:1]) for f in result['flows']]
+                            for flow in result['flows']:
+                                assert flow['verified_exchanges_per_flow'] == 1 and flow['payload_bytes_per_direction_per_flow'] == 64
+                                assert flow['tx_bytes'] == flow['rx_bytes'] == flow['completed'] * 64
+                                assert all(sample['exchange_count'] == 1 for sample in flow['route_samples'])
+
                         reconcile(value, result, python_snapshot(python_control, value), proxied)
                         checks.append({'peer':'C# worker / Python origin+relay', 'task':task, 'proxy':proxied, 'complete':True})
             for connected in (False, True):

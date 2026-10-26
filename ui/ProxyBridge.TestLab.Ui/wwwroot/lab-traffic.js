@@ -96,7 +96,7 @@ function trafficUserLoadLabel(row,load){
   if(a)return ru?`${a.connections} соединения · ${rate(a.transactions_per_second_per_flow)} проверенных циклов/с на соединение`:`${a.connections} connections · ${rate(a.transactions_per_second_per_flow)} verified cycles/s per connection`;
   if(['upload','download','duplex','multistream'].includes(row.recipe))return ru?`Предел скорости без ограничения · до ${p.connections} потоков; возможно насыщение стенда`:`Uncapped speed · up to ${p.connections} flows; lab saturation possible`;
   if(['connections','udp_connections'].includes(row.recipe))return `${p.connection_steps.join(' / ')} ${ru?'соединений':'connections'}${row.recipe==='udp_connections'?` · ${p.udp_flow_rate} ${ru?'пакетов/с на поток':'packets/s per flow'}`:''}`;
-  if(row.recipe==='flow_rate')return ru?`${p.flow_workers} генератора × ${p.flow_rate_per_worker} новых сессий/с; обмен 50 мс`:`${p.flow_workers} workers × ${p.flow_rate_per_worker} new sessions/s; 50 ms exchange`;
+  if(row.recipe==='flow_rate')return ru?`${p.flow_workers} генератора × ${p.flow_rate_per_worker} новых сессий/с; один обмен 64 байта`:`${p.flow_workers} workers × ${p.flow_rate_per_worker} new sessions/s; one 64-byte exchange`;
   if(row.recipe==='udp_sweep')return `2 ${ru?'потока':'flows'} · 64 / 512 / 1400 B · ${p.udp_sweep_rates.join(' / ')} ${ru?'пакетов/с на поток':'packets/s per flow'}`;
   if(['udp','udp_unconnected'].includes(row.recipe))return `${p.connections} ${ru?'потока':'flows'} × ${p.packets_per_second} ${ru?'пакетов/с':'packets/s'} · 512 B`;
   if(row.recipe==='echo')return `1 ${ru?'соединение':'connection'} · ${p.probe_per_second} ${ru?'обменов/с':'exchanges/s'} · 512 B`;

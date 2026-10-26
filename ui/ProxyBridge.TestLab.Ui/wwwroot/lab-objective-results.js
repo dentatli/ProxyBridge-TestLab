@@ -21,10 +21,10 @@ function trafficObjectiveMetricKeys(caseId){
   return ['trafficLoadTx','trafficLoadRx','trafficLoadMinTx','trafficLoadMinRx','trafficLoadWorstP99','trafficRecoveryP99Change',...(['mixed','stability','soak'].includes(recipe)?udp:[])];
 }
 function trafficObjectiveNumber(value,digits=2){return typeof value==='number'&&Number.isFinite(value)?number(value,digits):'—';}
-Object.assign(trafficObjectiveText.ru,{worstLoss:'Худшие потери одного UDP-потока, %',cpu:'CPU клиента, % ПК',ram:'Выделенная память клиента, МиБ · пик',churnScope:'Измеряется этот профиль коротких соединений с удержанием 50 мс, не предельная частота создания соединений.'});
+Object.assign(trafficObjectiveText.ru,{worstLoss:'Худшие потери одного UDP-потока, %',cpu:'CPU клиента, % ПК',ram:'Выделенная память клиента, МиБ · пик',churnScope:'Измеряется этот профиль коротких соединений с заданным обменом, не предельная частота создания соединений.'});
 Object.assign(trafficObjectiveText.ru,{requestedPps:'Задано, пак./с на поток',actualPps:'Подано, пак./с на поток',rateScope:'Фактическая подача указана за окно нагрузки, без подключения и ожидания ответов. Потери считаются от отправленных пакетов. Успешная доставка не подтверждает достижение заданного темпа.'});
 Object.assign(trafficObjectiveText.en,{requestedPps:'Target packets/s per flow',actualPps:'Offered packets/s per flow',rateScope:'Offered rate uses the load window, excluding setup and reply drain. Loss uses sent packets. Successful delivery does not confirm reaching the target rate.'});
-Object.assign(trafficObjectiveText.en,{worstLoss:'Worst single UDP flow loss, %',cpu:'Client CPU, % of PC',ram:'Client private memory, MiB · peak',churnScope:'This measures the selected short-connection profile with a 50 ms hold, not maximum connection creation rate.'});
+Object.assign(trafficObjectiveText.en,{worstLoss:'Worst single UDP flow loss, %',cpu:'Client CPU, % of PC',ram:'Client private memory, MiB · peak',churnScope:'This measures the selected short-connection profile with the specified exchange, not maximum connection creation rate.'});
 function trafficObjectiveTable(columns,rows){
   return `<div class="objective-scroll"><table class="objective-table"><thead><tr>${columns.map(key=>`<th scope="col">${html(trafficObjectiveLabel(key))}</th>`).join('')}</tr></thead><tbody>${rows.map(row=>`<tr>${row.map((value,index)=>index===0?`<th scope="row">${html(value)}</th>`:`<td>${html(value)}</td>`).join('')}</tr>`).join('')}</tbody></table></div>`;
 }
@@ -91,7 +91,7 @@ function trafficObjectiveMarkup(row,view={}){
       if(counters?.flow_count>0)body+=`<section class="result-metric-group"><div class="result-quick-metrics">${['invalid','duplicates','reordered','expired','send_errors'].filter(key=>Number.isFinite(counters[key])).map(key=>`<span>${html(trafficObjectiveLabel(key))}<b>${trafficObjectiveNumber(counters[key],0)}</b></span>`).join('')}</div></section>`;
     }
     if(['mixed','stability','soak'].includes(recipe))body+=`<small>${trafficObjectiveLabel('scope')}</small>`;
-    if(recipe==='flow_rate'){const workers=stages.find(s=>s.phase==='churn')?.workload_profiles?.find(w=>w.task==='flow_rate')?.connections;if(workers)body+=`<small>${workers} ${labLanguage==='ru'?'параллельных исполнителя':'parallel workers'} · 50 ${labLanguage==='ru'?'мс обмена на сеанс':'ms exchange per session'}</small>`;}
+    if(recipe==='flow_rate'){const profile=stages.find(s=>s.phase==='churn')?.workload_profiles?.find(w=>w.task==='flow_rate');if(profile?.connections)body+=`<small>${profile.connections} ${labLanguage==='ru'?'параллельных генератора':'parallel workers'} · ${profile.session_exchange_count===1&&profile.session_payload_bytes===64?(labLanguage==='ru'?'один подтверждённый обмен 64 байта на сеанс':'one verified 64-byte exchange per session'):(labLanguage==='ru'?'архивный обмен 50 мс на сеанс':'legacy 50 ms exchange per session')}</small>`;}
     if(recipe==='flow_rate')body+=`<small>${trafficObjectiveLabel('churnScope')}</small>`;
   }
   const goal=row.case_id==='three-modes'?'modes':recipe;
@@ -122,7 +122,20 @@ function trafficQualityNote(row){
   if(q.headroom==='CPU_SATURATED')notes.push(ru?'стенд: CPU насыщен':'lab CPU saturated');
   return notes.join(' · ');
 }
+// Display policy, not a statistical confidence claim: avoid ranking tiny CPU deltas.
+const trafficCpuMinimumSeconds=.25;
+const trafficCpuMetricKeys=new Set(['trafficCpu','trafficCpuPerGiB','trafficCpuPerThousand']);
+function trafficCpuBudgetEnough(row,key){
+  if(!trafficCpuMetricKeys.has(key))return true;
+  const seconds=row?.measurements?.find(m=>m.mode==='SOCKS5')?.workload_resources?.product_cli?.counters?.cpu_seconds?.measured_change;
+  return Number.isFinite(seconds)&&seconds>=trafficCpuMinimumSeconds;
+}
+function trafficCpuBudgetNote(row,key){
+  return trafficCpuBudgetEnough(row,key)?'':labLanguage==='ru'?'Мало измеренного CPU-времени для рейтинга (< 0,25 CPU-с). Выберите «Обычно» или «Долго» и повторите прогон.':'Too little measured CPU time to rank (< 0.25 CPU seconds). Use Normal or Long and repeat the run.';
+}
 function trafficQualityRankable(runs,rows,key){
+  if(rows.some(row=>!trafficCpuBudgetEnough(row,key)))return false;
+  if(rows.some(row=>row?.case_id==='flow-rate'&&!row.measurements?.find(m=>m.mode==='SOCKS5')?.stages?.some(s=>s.workload_profiles?.some(w=>w.task==='flow_rate'&&w.session_exchange_count===1&&w.session_payload_bytes===64))))return false;
   if(rows.some((row,i)=>!trafficReportComparable(runs[0],rows[0],runs[i],row)))return false;
   const qs=rows.map(row=>row?.measurements?.find(m=>m.mode==='SOCKS5')?.comparison_quality);
   if(qs.some(q=>!q||q.exchange_state!=='PASS'||!q.windows_complete||q.route_accounting!=='COMPLETE'))return false;
