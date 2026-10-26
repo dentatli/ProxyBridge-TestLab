@@ -95,7 +95,7 @@ def summary(report: dict[str, Any]) -> dict[str, Any]:
         def percentiles(histogram: Histogram) -> dict[str, Any]:
             return {key: value for key, value in histogram.view().items() if key not in ("bins", "sum_ms")}
         rows.append({"phase": stage["phase"], "complete": stage["complete"], "elapsed_seconds": stage["elapsed_seconds"],
-            'comparison_quality':stage.get('comparison_quality'), 'phase_resources':stage.get('phase_resources'), 'workload_profiles':stage.get('workload_profiles'), 'workload_profiles':stage.get('workload_profiles'),
+            'comparison_quality':stage.get('comparison_quality'), 'phase_resources':stage.get('phase_resources'), 'workload_profiles':stage.get('workload_profiles'),
             "origin_evidence_error": stage.get('origin_evidence_error'),
             "tcp_tx_bytes_per_second": sum(row["tx_bytes"] for row in values) / stage["elapsed_seconds"],
             "tcp_rx_bytes_per_second": sum(row["rx_bytes"] for row in values) / stage["elapsed_seconds"],

@@ -93,7 +93,7 @@ def execute(binding_path: str, directory: Path) -> int:
     base_conditions = {'build_sha256': binding['build_sha256'], 'remote_bundle_sha256': binding['remote_bundle_sha256'],
         'local_runtime_sha256': binding['local_runtime_sha256'], 'method': 'controlled-traffic-core-session-v1',
         'transport_engine': binding.get('transport_engine', 'python-transport-v1'),
-        'comparison_method':'phase-resources-paced-probe-v3', 'probe_exchanges_per_second':100,
+        'comparison_method':'user-workload-v1', 'probe_exchanges_per_second':'LOW15-HIGH25',
         'load_rate_tolerance_fraction':.05,
         'execution_model': MODEL, 'resource_product_scope': 'selected-Core-in-TestLab-native-host; excludes-official-CLI',
         'queue_profile_sha256': hashlib.sha256(json.dumps(binding['cases'], sort_keys=True, separators=(',', ':')).encode()).hexdigest(),

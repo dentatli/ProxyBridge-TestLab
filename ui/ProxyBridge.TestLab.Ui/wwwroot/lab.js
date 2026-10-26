@@ -514,6 +514,15 @@ async function loadLab() {
     const response = await fetch("/api/v1/lab/state", { cache: "no-store", signal: AbortSignal.timeout(15000) });
     if (!response.ok) throw new Error("state");
     const data = await response.json();
+    // Browser choices belong to this data store, not to a prior cleared installation.
+    if(data.browser_state_id&&localStorage.getItem('testlab-browser-state-id')!==data.browser_state_id){
+      const reset=!!localStorage.getItem('testlab-browser-state-id')||data.browser_reset_requested===true;
+      if(reset)for(const store of [localStorage,sessionStorage]){
+        for(const key of Object.keys(store))if(key.startsWith('testlab-'))store.removeItem(key);
+      }
+      localStorage.setItem('testlab-browser-state-id',data.browser_state_id);
+      if(reset){location.reload();return;}
+    }
     labState.csrf = data.csrf_token;
     await loadSavedSuites();
     await loadRemote();

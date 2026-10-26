@@ -90,6 +90,19 @@ function trafficReviewChoices(run,active,choices){
 Object.assign(labText.ru,{trafficActiveSelection:"Запущенный набор",trafficWindow:"Окно"});
 Object.assign(labText.en,{trafficActiveSelection:"Running selection",trafficWindow:"Window"});
 const trafficName=id=>trafficCatalog?.cases.find(row=>row.id===id)?.[labLanguage]||id;
+function trafficUserLoadLabel(row,load){
+  if(!trafficCatalog?.load_profile||!['LOW','HIGH'].includes(load))return '';
+  const p=trafficCatalog.loads[load],a=row.user_load?.[load],ru=labLanguage==='ru',rate=v=>number(v,Number.isInteger(v)?0:2);
+  if(a)return ru?`${a.connections} соединения · ${rate(a.transactions_per_second_per_flow)} проверенных циклов/с на соединение`:`${a.connections} connections · ${rate(a.transactions_per_second_per_flow)} verified cycles/s per connection`;
+  if(['upload','download','duplex','multistream'].includes(row.recipe))return ru?`Предел скорости без ограничения · до ${p.connections} потоков; возможно насыщение стенда`:`Uncapped speed · up to ${p.connections} flows; lab saturation possible`;
+  if(['connections','udp_connections'].includes(row.recipe))return `${p.connection_steps.join(' / ')} ${ru?'соединений':'connections'}${row.recipe==='udp_connections'?` · ${p.udp_flow_rate} ${ru?'пакетов/с на поток':'packets/s per flow'}`:''}`;
+  if(row.recipe==='flow_rate')return ru?`${p.flow_workers} генератора × ${p.flow_rate_per_worker} новых сессий/с; обмен 50 мс`:`${p.flow_workers} workers × ${p.flow_rate_per_worker} new sessions/s; 50 ms exchange`;
+  if(row.recipe==='udp_sweep')return `2 ${ru?'потока':'flows'} · 64 / 512 / 1400 B · ${p.udp_sweep_rates.join(' / ')} ${ru?'пакетов/с на поток':'packets/s per flow'}`;
+  if(['udp','udp_unconnected'].includes(row.recipe))return `${p.connections} ${ru?'потока':'flows'} × ${p.packets_per_second} ${ru?'пакетов/с':'packets/s'} · 512 B`;
+  if(row.recipe==='echo')return `1 ${ru?'соединение':'connection'} · ${p.probe_per_second} ${ru?'обменов/с':'exchanges/s'} · 512 B`;
+  const mib=p.background_bytes_per_second/1048576;
+  return ru?`TCP ${mib} МиБ/с в каждом направлении · RTT ${p.probe_per_second}/с${row.recipe==='loaded'?'':` · UDP ${p.connections*p.packets_per_second} пакетов/с`}${['stability','soak'].includes(row.recipe)?' · фон 50 / 100 / 125 / 100% по интервалам':''}`:`TCP ${mib} MiB/s each way · RTT ${p.probe_per_second}/s${row.recipe==='loaded'?'':` · UDP ${p.connections*p.packets_per_second} packets/s`}${['stability','soak'].includes(row.recipe)?' · interval background 50 / 100 / 125 / 100%':''}`;
+}
 function trafficFamilyCard(family,busy,expanded){
   const choice=trafficFamilyChoice(family),disabled=busy?"disabled":"";
   const options=(values,current,label)=>`${current==="MIXED"?`<option value="MIXED" disabled selected>${t("trafficMixed")}</option>`:""}${values.map(value=>`<option value="${value}" ${value===current?"selected":""}>${html(label(value))}</option>`).join("")}`;
@@ -100,7 +113,7 @@ function trafficFamilyCard(family,busy,expanded){
     <label>${t("duration")}<select data-traffic-duration="${family.id}" ${disabled}>${options(["SHORT","NORMAL","LONG"],choice.duration,value=>family.id==="soak"?{SHORT:24,NORMAL:48,LONG:72}[value]+" h":t(value))}</select></label>
     <label>${t("load")}<select data-traffic-load="${family.id}" ${disabled}>${options(["LOW","HIGH"],choice.load,t)}</select></label></div>
     <p>${t("trafficStages")}: ${choice.ids.length} / ${family.rows.length} · ${t("trafficEstimate")}: ≈ ${number(estimate/60,1)} ${t("trafficMinutes")}</p>
-    <details class="traffic-family-stages" data-family-stages="${family.id}" ${expanded?"open":""}><summary>${t("trafficFamilyStages")}</summary><p>${t("trafficFamilyHelp")}</p><ul>${family.rows.map(row=>`<li><label class="lab-test-toggle"><input type="checkbox" data-traffic-stage="${html(row.id)}" ${choice.selected&&choice.ids.includes(row.id)?"checked":""} ${disabled}>${html(row[labLanguage]||row.id)}${choice.selected&&choice.ids.includes(row.id)&&[choice.duration,choice.load].includes("MIXED")?` · ${html(trafficChoice[row.id].duration)} / ${html(trafficChoice[row.id].load)}`:""}</label></li>`).join("")}</ul></details>${family.id==="soak"?`<p class="traffic-soak-help">${t("reportSoak")}</p>`:""}</div>`;
+    <details class="traffic-family-stages" data-family-stages="${family.id}" ${expanded?"open":""}><summary>${t("trafficFamilyStages")}</summary><p>${t("trafficFamilyHelp")}</p><ul>${family.rows.map(row=>`<li><label class="lab-test-toggle"><input type="checkbox" data-traffic-stage="${html(row.id)}" ${choice.selected&&choice.ids.includes(row.id)?"checked":""} ${disabled}>${html(row[labLanguage]||row.id)}${choice.selected&&choice.ids.includes(row.id)&&[choice.duration,choice.load].includes("MIXED")?` · ${html(trafficChoice[row.id].duration)} / ${html(trafficChoice[row.id].load)}`:""}</label><small>${html(trafficUserLoadLabel(row,choice.load==="MIXED"?trafficChoice[row.id]?.load:choice.load))}</small></li>`).join("")}</ul></details>${family.id==="soak"?`<p class="traffic-soak-help">${t("reportSoak")}</p>`:""}</div>`;
 }
 Object.assign(labText.ru,{trafficCliExitCode:"Код завершения CLI"});
 Object.assign(labText.en,{trafficCliExitCode:"CLI exit code"});

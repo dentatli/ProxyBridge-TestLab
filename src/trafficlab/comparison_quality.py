@@ -30,19 +30,26 @@ def stage_quality(stage, proxied, route):
                 type(proxy.get('udp_sent')) is int and 0 < proxy['udp_sent'] < packets:
             coverage, missing = 'PARTIAL', packets - proxy['udp_sent']
     rates = []
-    for plan, row in zip(stage.get('workload_profiles', []), results):
+    def record(plan, row, target, key, unit):
         count, seconds = plan['connections'], plan['seconds']
-        target = plan.get('target_per_flow')
-        if not finite(target) or target <= 0 or seconds <= 0 or len(row.get('flows', [])) != count:
-            continue
-        key = 'verified_transactions' if plan.get('application') else 'sent' if plan['task'] == 'udp' else 'exchange_count'
-        values = [f.get(key) for f in row['flows']]
+        if not finite(target) or target <= 0 or seconds <= 0:
+            return
+        values = [f.get(key) for f in row.get('flows', [])]
         known = len(values) == count and all(finite(v) and v >= 0 for v in values)
         actual = [v / seconds for v in values] if known else []
-        rates.append({'unit':'verified-transactions' if plan.get('application') else 'sent-datagrams' if plan['task'] == 'udp' else 'verified-echoes',
-                      'target_per_flow':target, 'actual_per_flow_min':min(actual) if actual else None,
+        rates.append({'unit':unit, 'target_per_flow':target,
+                      'actual_per_flow_min':min(actual) if actual else None,
                       'actual_per_flow_max':max(actual) if actual else None, 'connections':count, 'window_seconds':seconds,
                       'state':'NOT_MEASURED' if not actual else 'MET' if all(abs(v / target - 1) <= RATE_TOLERANCE for v in actual) else 'OFF_TARGET' if any(v > target*(1+RATE_TOLERANCE) for v in actual) else 'BELOW_TARGET'})
+    for plan, row in zip(stage.get('workload_profiles', []), results):
+        key = 'verified_transactions' if plan.get('application') else 'sent' if plan['task'] == 'udp' else 'exchange_count'
+        unit = 'verified-transactions' if plan.get('application') else 'sent-datagrams' if plan['task'] == 'udp' else 'verified-echoes'
+        record(plan, row, plan.get('target_per_flow'), key, unit)
+        if plan['task'] == 'flow_rate':
+            record(plan, row, plan.get('rate_flows_per_second_per_worker'), 'completed', 'completed-sessions')
+        if plan['task'] in ('upload','download','duplex'):
+            for direction in (['tx','rx'] if plan['task'] == 'duplex' else ['tx' if plan['task'] == 'upload' else 'rx']):
+                record(plan, row, plan.get('rate_bytes_per_second_per_flow'), direction+'_bytes', direction+'-bytes')
     pc = stage.get('phase_resources', {}).get('windows_system', {}).get('counters', {}).get('cpu_percent_of_pc', {})
     headroom = 'NOT_MEASURED' if not finite(pc.get('mean')) else 'CPU_SATURATED' if pc['mean'] >= 90 else 'CPU_NOT_SATURATED'
     return {'method':METHOD, 'exchange_state':exchange, 'route_accounting':coverage, 'unaccounted_sent_packets':missing,

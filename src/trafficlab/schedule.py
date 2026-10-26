@@ -130,12 +130,13 @@ def recipes(job: dict[str, Any], catalog: dict[str, Any]) -> list[dict[str, Any]
     if case is None:
         raise ValueError("TRAFFIC_CASE_UNKNOWN")
     duration = catalog["duration_seconds"][job["duration"]]
-    load = catalog["loads"][job["load"]]
+    local_profile = job.get("runtime_mode") == "local" and catalog.get("load_profile") == "user-workload-v1"
+    load = (catalog["loads"] if local_profile else catalog.get("legacy_loads",catalog["loads"]))[job["load"]]
     n = load["connections"]
     pps = load["packets_per_second"]
     def workload(task: str, connections: int = 1, **extra: Any) -> dict[str, Any]:
         return {"task": task, "connections": connections, "seconds": duration, "warmup_count": job.get("warmup_count", 10),
-                **({'rate_exchanges_per_second':100} if task == 'echo' and job.get('native_worker_port') else {}),
+                **({'rate_exchanges_per_second':load.get('probe_per_second',100)} if task == 'echo' and job.get('native_worker_port') else {}),
                 "message_bytes": 512, "rate_packets_per_second": pps, **extra}
     def phase(name: str, *workloads: dict[str, Any]) -> dict[str, Any]:
         return {"phase": name, "workloads": list(workloads)}
@@ -143,42 +144,45 @@ def recipes(job: dict[str, Any], catalog: dict[str, Any]) -> list[dict[str, Any]
     recovery = phase("recovery", workload("echo"))
     recipe = case["recipe"]
     if recipe == "application":
+        profile = case.get('user_load',{}).get(job['load'],{}) if local_profile else {}
+        app_connections = profile.get('connections',n)
+        app_rate = profile.get('transactions_per_second_per_flow',pps)
         sizes = case.get('payload_sizes',[512])
         if not isinstance(sizes,list) or not 1<=len(sizes)<=4 or any(type(value) is not int or not 1<=value<=4096 for value in sizes) or len(set(sizes))!=len(sizes) or \
             ('payload_sizes' in case and case['application'] not in ('http','https','http2','websocket-tls','http3')):
             raise ValueError('TRAFFIC_CATALOG_PAYLOAD_PROFILE_INVALID')
         return [phase(f"{case['application']}-payload-{size}" if 'payload_sizes' in case else case['application'],
-                      workload("udp" if case["application"] in ("dns-udp", "quic", "http3") else "echo", n,
-                      application=case["application"], warmup_count=0,grpc_mode=case.get('grpc_mode','unary'),
+                      workload("udp" if case["application"] in ("dns-udp", "quic", "http3") else "echo", app_connections,
+                      rate_packets_per_second=app_rate, application=case["application"], warmup_count=0,grpc_mode=case.get('grpc_mode','unary'),
                       quic_mode=case.get('quic_mode','single'),message_bytes=size)) for size in sizes]
     if recipe in ("echo", "upload", "download", "duplex"):
-        return [phase(recipe, workload(recipe, (1 if job["load"] == "LOW" else 4) if recipe == "echo" else n))]
+        return [phase(recipe, workload(recipe, (1 if local_profile or job["load"] == "LOW" else 4) if recipe == "echo" else n))]
     if recipe == "multistream":
-        return [phase(f"streams-{count}", workload("duplex", count)) for count in (1, max(2, n // 4), n)]
+        return [phase(f"streams-{count}", workload("duplex", count)) for count in dict.fromkeys((1, max(2, n // 4), n))]
     if recipe == "loaded":
-        return [baseline, phase("loaded", workload("duplex", n), workload("echo")), recovery]
+        return [baseline, phase("loaded", workload("duplex", n, rate_bytes_per_second=load.get("background_bytes_per_second",0)/n), workload("echo")), recovery]
     if recipe == "connections":
         return [baseline] + [phase(f"connections-{count}", workload("hold", count, warmup_count=0), workload("echo"))
                              for count in load["connection_steps"]] + [recovery]
     if recipe == "flow_rate":
-        return [baseline, phase("churn", workload("flow_rate", load["flow_workers"])), recovery]
+        return [baseline, phase("churn", workload("flow_rate", load["flow_workers"], rate_flows_per_second=load.get("flow_rate_per_worker",0))), recovery]
     if recipe in ("udp", "udp_unconnected"):
         return [phase(recipe, workload("udp", n, udp_connected=recipe == "udp"))]
     if recipe == "udp_sweep":
-        return [phase(f"udp-{size}-{rate}", workload("udp", n, message_bytes=size, rate_packets_per_second=rate))
-                for size in (64, 512, 1400) for rate in (pps, pps * 2)]
+        return [phase(f"udp-{size}-{rate}", workload("udp", 2 if local_profile else n, message_bytes=size, rate_packets_per_second=rate))
+                for size in (64, 512, 1400) for rate in load.get("udp_sweep_rates",(pps, pps * 2))]
     if recipe == "udp_connections":
-        return [phase("baseline", workload("udp"))] + [phase(f"udp-flows-{count}", workload("udp", count))
-                for count in load["connection_steps"]] + [phase("recovery", workload("udp"))]
+        return [phase("baseline", workload("udp", rate_packets_per_second=load.get("udp_flow_rate",pps)))] + [phase(f"udp-flows-{count}", workload("udp", count, rate_packets_per_second=load.get("udp_flow_rate",pps)))
+                for count in load["connection_steps"]] + [phase("recovery", workload("udp", rate_packets_per_second=load.get("udp_flow_rate",pps)))]
     if recipe == "mixed":
-        return [baseline, phase("mixed", workload("duplex", n), workload("udp", n), workload("echo")), recovery]
+        return [baseline, phase("mixed", workload("duplex", n, rate_bytes_per_second=load.get("background_bytes_per_second",0)/n), workload("udp", n), workload("echo")), recovery]
     if recipe in ("stability", "soak"):
         count = 8 if recipe == "stability" else {"SHORT": 24, "NORMAL": 48, "LONG": 72}[job["duration"]] * 60
         segment = duration if recipe == "stability" else 60
         stages = [baseline]
         for index in range(count):
             # Each signed session has a bounded number of UDP flows; a fresh ID per interval avoids saturation.
-            stages.append(phase(f"interval-{index + 1}", workload("duplex", n, seconds=segment),
+            stages.append(phase(f"interval-{index + 1}", workload("duplex", n, seconds=segment, rate_bytes_per_second=load.get("background_bytes_per_second",0)/n * (0.5,1,1.25,1)[index%4]),
                                 workload("udp", n, seconds=segment), workload("echo", seconds=segment)))
         return stages + [recovery]
     raise ValueError("TRAFFIC_RECIPE_UNKNOWN")
@@ -331,7 +335,8 @@ def run(job: dict[str, Any], catalog: dict[str, Any], output: str, progress: str
             stage_value = {"phase": stage["phase"], "elapsed_seconds": time.perf_counter() - phase_started,
                                       "phase_resources":phase_samples,
                                       "workload_profiles":[{'task':w['task'], 'application':w.get('application'), 'connections':w['connections'],
-                                          'seconds':w['seconds'], 'target_per_flow':w.get('rate_packets_per_second') if w.get('application') or w['task']=='udp' else w.get('rate_exchanges_per_second')} for w in stage['workloads']],
+                                          'seconds':w['seconds'], 'target_per_flow':w.get('rate_packets_per_second') if w.get('application') or w['task']=='udp' else w.get('rate_exchanges_per_second'),
+                                          'rate_bytes_per_second_per_flow':w.get('rate_bytes_per_second',0), 'rate_flows_per_second_per_worker':w.get('rate_flows_per_second',0)} for w in stage['workloads']],
                                       "results": results, "origin": origin, "origin_evidence_error": evidence_error,
                                       "complete": origin is not None and origin["active"] == 0 and origin.get("proxy", {}).get("tcp_active", 0) == 0 and all(row["complete"] for row in results)}
             route_verified = stage_route(stage_value, expected_proxy)

@@ -115,7 +115,8 @@ function trafficQualityNote(row){
   const notes=[ru?'Ресурсы: нагрузочные интервалы':'Resources: load windows'];
   if(!q.windows_complete){const m=row.measurements.find(m=>m.mode==='SOCKS5');notes.push(`${m.recorded_stage_count??'?'} / ${m.planned_stage_count??'?'} ${ru?'интервалов':'windows'}`);}
   if(q.route_accounting==='PARTIAL')notes.push(ru?'неполный учёт маршрута':'partial route accounting');
-  if(['BELOW_TARGET','OFF_TARGET'].includes(q.load_state))notes.push(ru?'темп ниже цели':'rate below target');
+  if(q.load_state==='BELOW_TARGET')notes.push(ru?'темп ниже цели':'rate below target');
+  if(q.load_state==='OFF_TARGET')notes.push(ru?'темп вне допуска':'rate outside tolerance');
   if(q.load_state==='PROFILE')notes.push(ru?'измерена работа этого профиля; предел клиента не установлен':'observed profile performance; client capacity ceiling unverified');
   if(q.load_state==='NOT_MEASURED')notes.push(ru?'фиксированный темп не подтверждён':'fixed rate not confirmed');
   if(q.headroom==='CPU_SATURATED')notes.push(ru?'стенд: CPU насыщен':'lab CPU saturated');
@@ -144,8 +145,8 @@ function trafficPhaseResourceMarkup(mode){
 }
 
 function trafficQualityRateMetric(mode,key){
-  const profiles=(mode?.stages||[]).filter(s=>!['baseline','recovery'].includes(s.phase)).flatMap(s=>s.comparison_quality?.rates||[]);
-  if(!profiles.length)return null;
+  const profiles=(mode?.stages||[]).filter(s=>!['baseline','recovery'].includes(s.phase)).flatMap(s=>s.comparison_quality?.rates||[]).filter(r=>!['tx-bytes','rx-bytes'].includes(r.unit));
+  if(!profiles.length||new Set(profiles.map(r=>r.unit)).size!==1)return null;
   if(key==='trafficTargetTransactions')return profiles.every(r=>r.unit==='verified-transactions')?profiles.reduce((sum,r)=>sum+r.target_per_flow*r.connections*r.window_seconds,0):null;
   const values=profiles.map(r=>key==='trafficRateTarget'?r.target_per_flow:key==='trafficRateMin'?r.actual_per_flow_min:r.actual_per_flow_max);
   if(!values.every(Number.isFinite))return null;

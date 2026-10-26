@@ -8,6 +8,10 @@ public sealed class AppStoragePaths
     public AppStoragePaths(string root)
     {
         Root = Path.GetFullPath(root);
+        EnsureSecureDirectory(Root);
+        var browserStatePath = Path.Combine(Root, "browser-state-id");
+        if (!File.Exists(browserStatePath)) File.WriteAllText(browserStatePath, Guid.NewGuid().ToString("N"));
+        BrowserStateId = Guid.Parse(File.ReadAllText(browserStatePath)).ToString("N");
         ConfigRoot = Path.Combine(Root, "config");
         RuntimeRoot = Path.Combine(Root, "runtime");
         EvidenceRoot = Path.Combine(Root, "evidence");
@@ -25,6 +29,7 @@ public sealed class AppStoragePaths
     }
 
     public string Root { get; }
+    public string BrowserStateId { get; }
     public string ConfigRoot { get; }
     public string RuntimeRoot { get; }
     public string EvidenceRoot { get; }

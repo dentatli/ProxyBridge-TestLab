@@ -158,8 +158,8 @@ api.MapPost("/lab/remote/plan", async (RemoteUbuntuService remote) => await Remo
 api.MapPost("/lab/remote/apply", async (ServerApplyRequest request, RemoteUbuntuService remote) =>
     await RemoteAction(() => remote.ApplyAsync(request)));
 
-api.MapGet("/lab/state", async (BenchmarkLabService lab, BenchmarkBuildCatalog builds, BenchmarkRunService runs, RequestTokenService tokens, CancellationToken cancellationToken) =>
-    Results.Ok(new { csrf_token = tokens.Token, selection = await lab.GetSelectionAsync(cancellationToken), builds = await builds.PublicAsync(cancellationToken), reports = lab.GetReports(), local_runs = lab.GetLocalRttReports(), local_transfers = lab.GetLocalTransferReports(), local_connections = lab.GetLocalConnectionReports(), launch_history = lab.GetLaunchAttempts(), run_control = runs.State() }));
+api.MapGet("/lab/state", async (BenchmarkLabService lab, BenchmarkBuildCatalog builds, BenchmarkRunService runs, RequestTokenService tokens, AppStoragePaths storage, CancellationToken cancellationToken) =>
+    Results.Ok(new { browser_state_id = storage.BrowserStateId, browser_reset_requested = File.Exists(Path.Combine(storage.Root, "browser-reset-requested")), csrf_token = tokens.Token, selection = await lab.GetSelectionAsync(cancellationToken), builds = await builds.PublicAsync(cancellationToken), reports = lab.GetReports(), local_runs = lab.GetLocalRttReports(), local_transfers = lab.GetLocalTransferReports(), local_connections = lab.GetLocalConnectionReports(), launch_history = lab.GetLaunchAttempts(), run_control = runs.State() }));
 
 api.MapPost("/lab/build/select", async (BenchmarkBuildRequest request, BenchmarkBuildCatalog builds, BenchmarkLabService lab, BenchmarkRunService runs, CancellationToken token) =>
 {
