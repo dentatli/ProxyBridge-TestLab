@@ -17,3 +17,13 @@
 Пилот4коротких loaded-rtt (WFP off/on, затем WinDivert off/on),180.64с: все COMPLETE, обмен/маршрут/темп подтверждены, Core/nativecleanup true. Обе SYS найдены однозначно, interval10000(100нс) сохранён, lost0/drained/cleanuptrue. WFP0выборок, WinDivert22внагрузке: CPU неизвестен. Tagged nonpaged максимум3472/305600байт соответственно — не общий объём памяти драйверов. Наблюдатель не сорвал заданный темп; одна пара не калибрует погрешность или влияние профилирования. Нельзя объявлять превосходство подхода по этому пилоту.
 
 Evidence (ignored): artifacts/kernel-pilot/{product-pilot.log,standalone.json,pool-reference.log,contract.log,check-ui.cjs}; artifacts/engine-migration/kernel-pilot-1793005940636396300.json. Дополнительно перед публикацией граница kernel.end перемещена к завершению workload, до получения origin evidence/drain, чтобы не включать последующую обработку отчёта. Требуется финальная проверка пакета этой ревизии.
+
+## Проверка готового пакета
+
+Source6bce96b6f3a2a40d07c248a82e110ae8cd86326a;1698SHA256совпали. Adminhttp://127.0.0.1:5178. WFP`20261026-092520-91ef402fff1443f685bc1aacd87abd10`,Win`20261026-092605-f24a643b5a4d48a19b3c89f27972631a`:дваSHORT/LOWloaded-rtt COMPLETEза91.59с,qualityPASS/MET/fullroute,Core/nativecleanuptrue. Новый конец фазы доorigin evidenceпроверен. RawSHA и recompute kernel summaryсовпали уобоих;непересекающиесяQPCокна и число всех CPUвыборок соответствуют длительности×логическиеCPU×частота. Lost0,интервалсохранён,draintrue,модулиоднозначны,сессийProxyBridge-TestLabпослеочисткинете;ProxyBridgeDrvStopped,собственныхCore/worker/originпроцессовнет.
+
+WFPнагрузка0CPUвыборок/5248байтnonpagedobservedmax,Win18/8720байт. CPUоценкавобоихслучаяхнеизвестна,вUIпрочерк. Не выводить из этих значений полное ресурсное превосходство WFP.
+
+Браузер: отчёт и сравнение двухновыхпопытокпроверены;условияравны,группараскрывается,scopeподсказкаесть,нетподсветкипобедителя/процентовдляkernel,КиБнеокругляютсявнулевыеМиБ. История/2сборкисохранены,добавленытолько2контрольныепопытки. Screenshot`artifacts/kernel-pilot/comparison56.png`,evidence`artifacts/kernel-pilot/package-verification.json`и`artifacts/engine-migration/kernel-pilot-1793006719883437100.json`.
+
+ТочностьexclusiveCPUнадомаломчислевыборокисистемноетегированиеограничены. Повторысодинаковойнагрузкой/окружениемнужныдлясравнения;одиночныезапускиневосстанавливаютпреимуществачередования. Полнаяатрибуцияsharedkernelстековикалибровкаoverheadповторамивэтотвыпускневошли. Длительныепроверкиотложеныпорешениюпользователя.
