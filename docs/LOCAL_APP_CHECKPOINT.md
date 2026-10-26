@@ -4,6 +4,10 @@
 
 Лаборатория **preview.56**, source `6bce96b6f3a2a40d07c248a82e110ae8cd86326a`. VMadminlocalhost5178,1698packageSHAverified; физическийPB-SUT имеет отдельную копию56/свойstore/ярлык на рабочемстоле. Не смешивать их отчёты. 2сборки:WFPdriver4da324e иWinDivert4.3.0. Последний запрос — read-onlyпроверка двух новых выборочных повторов каждойсборки наPB-SUT; выполнен. Новые нагрузки/измененияпродукта/лаборатории не запускались.
 
+## Решение пользователя и следующий этап
+
+[README и порядок завершения](FINALIZATION_AND_NEXT_SCOPE_2026-10-26.md): при финализации внести в README измеренные преимущества WFP по задержке/CPU процесса и WinDivert по privatecommit в TCPconnections, версии/стенд/диапазоны и ограничения полного kernelCPU/RAM/throughput. Не объявлять универсального победителя, причины UDP не считать установленными. Перед публикацией обновить выводы по финальным проверкам. Далее пользователь выбрал: **длительный режим лаборатории → отдельный разбор UDP WinDivert → итоговый README**. В текущем запросе зафиксировано решение, реализация длительного режима и новые нагрузки ещё не начаты. Ранее отложенный soak теперь следующая тема; исходный обзор см. по ссылкам в решении.
+
 ## Последний результат PB-SUT
 
 [Аудит повторов](PB_SUT_REPEAT56_AUDIT_2026-10-26.md):WFP130126/131844,Win131033/132552. Все4очереди COMPLETE,4одинаковыхэтапа loaded-rtt/tcp-connections/flow-rate/SFTP,NORMAL/LOW. Все16PASS/MET/fullroute,все6попарныхconditionsравны.61transferSHA/16rawSHA/recompute0diff;actualJS16renders,4CPUbudgeteligibleэтапауобоих,kernelwinner0. Start/Stop1/1,capturecomplete/cleanuptrue,forcedstopfalse.
@@ -19,7 +23,7 @@ PB-SUTприэкспорте:i3-10100/8логCPU,тотжеboot09:43:40Z,HighPer
 - [Полные NORMAL56 наSUT](PB_SUT_NORMAL56_AUDIT_2026-10-26.md):WFP43PASS/1UNVERIFIEDUDP128(70из96002пакетовнепокрытыrouteaccounting),Win33PASS/11UDP-relatedFAIL;29qualityeligibleпар,92rawSHA/recompute0diff. Rootcauseнеразбирался. PeakTCPнаSUTCPU~96%неподтверждаетмаксимумдрайвера.
 - [Случайные VMповторы](REPEAT_RUNS_VM56_2026-10-26.md):новыераньшеоказалисьнаVMModel183/6CPU,неSUTModel165/8CPU;первыйWFPсдополнительнымUDPнеравен4caseочередям. Сохранятькакотдельныерезультаты.
 - [ПодготовкаSUT](PB_SUT_COMPARISON_PREPARATION_2026-10-26.md):C:/PB-TestLab-20261026-r1/payload,1715SHA,driveroem25/1.1/SYS5a29f6b7…,backupдрайвера/BCD/настроексохранён. USERразрешилфизподготовку/reboot/disabledebug. TaskPB-USERInteractiveHighestAtLogon,контроллерloopbackonly. VMstoreнепереносилсянаSUT.
-- [Методядра56](KERNEL_COLLECTION_PREVIEW56_2026-10-26.md),[fixed-session55](FIXED_SESSION_COMPACT_2026-10-26.md),[51LOW/HIGHпрофиль](USER_LOAD_PROFILES_2026-10-26.md). Soakотложен.
+- [Методядра56](KERNEL_COLLECTION_PREVIEW56_2026-10-26.md),[fixed-session55](FIXED_SESSION_COMPACT_2026-10-26.md),[51LOW/HIGHпрофиль](USER_LOAD_PROFILES_2026-10-26.md). Длительный режим — следующий согласованный этап.
 
 ## Рабочие границы
 

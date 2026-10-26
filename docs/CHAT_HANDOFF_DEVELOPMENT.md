@@ -421,3 +421,8 @@ aioquic 1.3.0 выбран для Python 3.10 на проверенной Ubuntu
 ## Checkpoint 2026-10-26 — preview.56: scoped kernel observations
 
 Актуальное состояние: [LOCAL_APP_CHECKPOINT](LOCAL_APP_CHECKPOINT.md). [Метод и проверка](KERNEL_COLLECTION_PREVIEW56_2026-10-26.md). Отдельные прогоны WFP/WinDivert сохраняются; CPUexclusive-IP иtaggedpoolбезполногоfootprint/рейтинга. Пакет56запущенна5178,1698SHAverified,обаSHORTконтроляCOMPLETE/cleanup,старыеистория/сборкисохранены. Soakотложен,продуктнеизменён.
+
+
+## Решение USER 2026-10-26 — следующие этапы и README
+
+Актуальный [checkpoint](LOCAL_APP_CHECKPOINT.md) и [зафиксированное решение](FINALIZATION_AND_NEXT_SCOPE_2026-10-26.md). Сначала продолжить длительный режим лаборатории, затем отдельно разобрать UDP WinDivert. При завершении разработки добавить в README измеренные преимущества и ограничения сравнения; не обещать полного CPU/RAM учёта ядра или универсального победителя. В этом запросе только запись решения, новые нагрузки и реализация не запускались.
