@@ -1,26 +1,25 @@
 # «На этом ПК» — checkpoint 26 октября 2026
 
-Лаборатория **preview.53**, source `cdd9e5034f0a0e546f39dcad7407b559a989e1b7`, запущена после выключения машины: admin **http://127.0.0.1:5178**, PID12212. Package `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.53-win-x64`. UI «Результаты» открыт; busy=false, ProxyBridgeDrv Stopped, worker/origin/Core отсутствуют, stderr пуст. Новую сетевую нагрузку не запускали.
+Запрос адаптации нагрузки и полного сброса активной лаборатории выполнен. Установлена **preview.54**, source `bd32e3789a2506cca4c8cc7a4fd35dc7bba1961f`, 1685SHA matched. Admin **http://127.0.0.1:5178**, PID11224. Package `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.54-win-x64`. Browser оставлен на «Сборки»: комплект не выбран, сохранённых сборок нет.
 
-## Последние пользовательские полные прогоны
+## Новые профили
 
-[Полный разбор и границы сравнения](FULL_RUN_COMPARABILITY_2026-10-26.md).
-- WinDivert4.3: `20261025-160707-5e2eaa8c397e4115bb8715943f2873db`, **33PASS/11FAIL**.
-- WFP4da: `20261025-164617-d189642ae3a143cd91f4e742b2fe0500`, **43PASS/1UNVERIFIED**; 128UDPflows: 2716/383945 непокрытых пакетов (0.7074%), все flow loss≤1%, темпMET, received fingerprints совпали, strict accountingPARTIAL. Причина потери не локализована.
-- 50→44 у обоих; **44 пары matching conditions**, 33PASS/PASS; **26 пар** проходят quality/rate/CPU guard для рейтинга. 92raw SHA совпали, recompute stage/report quality и workload_resources — 0 расхождений. Cleanup product/local/native=true у обоих, capture complete, forced_stop=false. Raw и отчёты не изменены.
-- WinDivert UDP flow mismatch при достигнутом темпе, HTTP3/QUIC/DNSUDP и связанные mixed/stability failures сохраняются. Не объявлять установленную корневую причину продукта.
-- Оба SFTP ниже100/s; WinDivert loaded probe51.93/s; WFP bulk/loaded/mixed/stability CPU≈98–100%, UDP stability иногда57–81/s. Функциональный PASS не означает темпMET или maximumcapacity. Низкий общий CPU не исключает single-core/другой bottleneck. Все ресурсы клиента — process, **kernel WFP measurement отложен пользователем**.
+[Все51сценарий: конкретные LOW/HIGH и смысл результата](USER_LOAD_PROFILES_2026-10-26.md). Method `user-workload-v1`; одинаковые заранее заданные профили для WinDivert/WFP. LOW/HIGH: умеренно активная/интенсивная работа, синтетическая модель, не статистика реальных пользователей. Прикладные2соединения; SFTP15/25циклов/с на каждое, HTTP6/10, DNS3/5, прочее в таблице. TCPфон6/10МиБ/с в каждом направлении, probe15/25с; stability/soak поинтервально50/100/125/100%TCP, UDP постоянен. UDPмасштабирование25pps/flow, max128/192flows. Максимальная TCPскорость явно отдельная/неограниченная, может насыщатьстенд.
 
-## Реализовано и уже проверено
+Byte/session targets включены вloadquality; единицы не смешиваются. 51ID/10групп, SHORT/NORMAL/LONG, saved-suiteimport/covers сохранены. Новые/старые численно не приравниваются. Remote306планов идентичны прежним. Strict exchange/route/capture/cleanup не ослаблены, WFPkernelmeasurement по-прежнему отложен; продуктовый код/драйверы/trust/BCD/systemproxy не менялись.
 
-[Методика preview.53, source и проверки](COMPARISON_QUALITY_2026-10-25.md). Exchange/route/rate/windows/CPU quality раздельны; phase resources, CPUcost, signed memory безwinner/%; fixedprobe100/s, UDPabsolute deadline bounded4slots. Strict route/capture/cleanup не ослаблены. 51ID/10групп, saved suites и archive сохранены. Полные53 данные подтвердили guards; код в этом анализе не менялся.
+## Сброс и сохранённые свидетельства
 
-Не повторять без новых входов:35nativecontractPASS, controller7protocol+5schedulerPASS, actualJS88historicalrender/RUEN/ranking/PASS, package1685SHA matched; финальная matched3×2SHORT88.72s WFP3PASS/WinTCP+HTTPS PASS/UDPFAIL, cleanup/Core1/1, allrateMET. Evidence `artifacts/engine-migration/quality53-admission.json`, `matched-smoke-1792943755467427800.json`. Ранние fullpreview50 [отдельно](FULL_RUN_COMPARABILITY_2026-10-25.md); не смешивать с53 из-за методики.
+По прямому запросу пользователя старый store целиком перенесён в **`C:/Users/LabAdmin/AppData/Local/ProxyBridge-TestLab-archive-20261026T050512Z`**; там прежние config/traffic-lab/evidence/jobs, включая оба последних fullattempt. Не публиковать архив/ключи. Новый `%LOCALAPPDATA%/ProxyBridge-TestLab` пуст в смысле истории/каталогов: API builds/suites/history/launches=[]; selection=null, unreadable=0. Browser только testlab-* этого origin сброшен по новой storeidentity; обычный upgrade без explicitreset сохраняет browserchoices. Активных проверок нет, busy=false, ProxyBridgeDrvStopped,0native/Coreprocesses иlisteners42501/2/3,stderrпуст. Frozenkits/captures и старые immutablepackages сохранены.
 
-## Границы и продолжение
+Предыдущие полные53теперьвarchive: WinDivert `20261025-160707-5e2eaa8c397e4115bb8715943f2873db`33PASS/11FAIL; WFP `20261025-164617-d189642ae3a143cd91f4e742b2fe0500`43PASS/1UNVERIFIED. [Разбор](FULL_RUN_COMPARABILITY_2026-10-26.md):44matchingpairs/26rankable,92rawSHA, UDP128 partial2716/383945, WFPbulkCPU≈100%, SFTPunderload. Корневаяпричина продукта не установлена.
 
-Запрос анализа завершён. Продуктовую причину отказов и kernel attribution разбирать отдельно. Для следующего улучшения равной нагрузки loaded RTT/stability нужен ограниченный одинаковый фон с запасом стенда; не запускать новый full/HIGH/soak автоматически. Текущие результаты годятся для функционального и ограниченного численного сравнения, не полного ранжирования архитектур.
+## Проверки / evidence
 
-Worktree `C:/Users/LabAdmin/.codex/worktrees/testlab-development/ProxyBridge-TestLab`, branch `codex/development-functional-completion`, согласованнаябазаd5b51f3 сохранена. Main `C:/src/ProxyBridge-TestLab`, branch `codex/checkpoint-20261007`: чужиеhandoffchange/KernelReadCapture.cs не трогать/не читать; ветки вслепую не сливать. Commit/push безforce, privateartifacts неGit. Последние лимиты primary3%used/weekly31%used; ≤5%remaining — recoverable checkpoint и стоп.
+306localplansвалидны и306remoteplansравныпрежним;102actualJSописанияLOW/HIGH/RU иseparateunits; browser-storeexplicitreset/changedstore/upgradepreservation/isolationPASS. C#build0warning/error, Pythoncompile,JSsyntax,diffcheckPASS. Existingcontrollergate14LOW/HIGHcases:tcp-rtt,udp-connected,loaded-rtt,flow-rate,app-sftp,app-smtps,mixed — всеexchange/route/windowsPASS/loadMET, фазовыеCPUсчётчики, signednativeorigin иprivateinputcleanupPASS. Sumraw165.96s (<5min); **ProductCoreне запускался**. `artifacts/engine-migration/controller-1792990915641/user-load-result.json`, `C:/src/ProxyBridge-TestLab/artifacts/user-load-component.log`. Новыхtrackedавтотестовнет. Browser54emptyhistory/builds/suites,2loadoptions,actualprofilelabels проверены. Full54/HIGHwholequeue/soak не запускались.
 
-Справки: [движокC#](CSHARP_TRANSPORT_ENGINE_2026-10-25.md), [этапы](OBJECTIVE_RESULTS_2026-10-25.md), [таблица](COMPARISON_TABLE_2026-10-24.md). История — свидетельства, не очередь действий.
+## Продолжение / ограничения
+
+Пользователь заново добавляет комплекты и делает парные прогоны на54. Не запускать full автоматически и не сравнивать53/54 какодинаковыеусловия. Kernelattribution ипричиныWinDivertUDP/WFPpartial отдельно. Данные старых анализов искать вarchive, неактивномtraffic-lab. Успешныепроверки безновыхвходов не повторять.
+
+Worktree `C:/Users/LabAdmin/.codex/worktrees/testlab-development/ProxyBridge-TestLab`, branch `codex/development-functional-completion`; базаd5b51f3 сохранена. Main `C:/src/ProxyBridge-TestLab`, branch `codex/checkpoint-20261007`: чужиеhandoffchange/KernelReadCapture.csне трогать/нечитать. Последниелимитыprimary23%used/weekly34%used; ≤5%remaining — checkpoint/стоп. Commit/pushбезforce/privateartifacts/PR. Relevant history: [методика53](COMPARISON_QUALITY_2026-10-25.md), [движокC#](CSHARP_TRANSPORT_ENGINE_2026-10-25.md).
