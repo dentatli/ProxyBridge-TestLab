@@ -1,52 +1,54 @@
 # ProxyBridge TestLab
 
-Лаборатория для проверки [ProxyBridge](https://github.com/InterceptSuite/ProxyBridge) и сравнения сборок с подходами **WFP** и **WinDivert**. Приложение создаёт управляемый сетевой трафик, проверяет обмен и применение правил, собирает измерения и сохраняет отчёты.
+**English** | [Русский](README.ru.md)
 
-Основной сценарий — проверка **«На этом ПК»** через локальный веб-интерфейс. Генератор, получатель и SOCKS5-реле запускаются на проверяемой машине. Отдельный сервер для этого режима не нужен. Интерфейс доступен на русском и английском языках.
+A laboratory for testing [ProxyBridge](https://github.com/InterceptSuite/ProxyBridge) and comparing builds using **WFP** and **WinDivert**. The application generates controlled network traffic, verifies data exchange and rule enforcement, collects measurements, and saves reports.
 
-## Возможности
+The primary workflow is **On this PC**, accessed through a local web interface. The traffic generator, receiver, and SOCKS5 relay run on the machine under test. This mode requires no separate server. The interface supports English and Russian.
 
-- Десять групп проверок: TCP, UDP, HTTP/WebSocket/gRPC, TLS/QUIC, DNS, SSH/SFTP, почта, сообщения, стабильность и длительная проверка.
-- Выбор этапов, полноты, длительности и нагрузки; сохранение, импорт и экспорт наборов.
-- Проверка правил PROXY, DIRECT и BLOCK в предусмотренных сценариях.
-- Ход выполнения с раскрываемыми группами и этапами, сохранение частичных результатов и проверка очистки после остановки.
-- Отчёты с подробностями и логами, скачивание итогов JSON, таблица сравнения до четырёх прогонов.
-- Отдельная длительная проверка на 2/24/48/72 часа с фиксированным циклом нагрузки. Она выбирается отдельно от остальных проверок.
+## Features
 
-Лаборатория проверяет определённые сценарии и условия. Успешный прогон не подтверждает совместимость со всеми приложениями, видами трафика и сетевыми конфигурациями.
+- Ten check groups: TCP, UDP, HTTP/WebSocket/gRPC, TLS/QUIC, DNS, SSH/SFTP, mail, messaging, stability, and endurance.
+- Select stages, coverage, duration, and load; save, import, and export test suites.
+- Verify PROXY, DIRECT, and BLOCK rules in the scenarios that exercise them.
+- Follow progress through expandable groups and stages, retain partial results, and verify cleanup after stopping.
+- Inspect reports, details, and logs; download JSON results; compare up to four runs in a table.
+- Run a separate 2/24/48/72-hour endurance check with a fixed load cycle. It cannot be selected together with other checks.
 
-## Требования
+The laboratory tests specific scenarios and conditions. A successful run does not establish compatibility with every application, traffic type, or network configuration.
 
-- Windows 11 x64 — проверенная платформа текущего локального пакета.
-- Права администратора для сетевых проверок.
-- Отдельно установленный или подготовленный комплект ProxyBridge с подходящим драйвером.
-- Свободный локальный порт 5178 и браузер.
+## Requirements
 
-Для **WinDivert поддержка заявлена только для ProxyBridge 4.3.0**. Другие версии не заявлены как поддерживаемые. Для WFP выбирается конкретный комплект сборки; проверка его файлов сама по себе не подтверждает работоспособность.
+- Windows 11 x64, the verified platform for the current local package.
+- Administrator privileges for network checks.
+- A separately installed or prepared ProxyBridge build with its matching driver.
+- An available local port 5178 and a web browser.
 
-Готовый локальный пакет содержит .NET, Python 3.11 и зависимости. Отдельно устанавливать Python, .NET Runtime, Ubuntu или настраивать SSH для режима «На этом ПК» не требуется. ProxyBridge и его продуктовый драйвер в пакет не входят. Требования к установке и подписи драйвера определяются выбранной сборкой ProxyBridge.
+For **WinDivert, support is declared only for ProxyBridge 4.3.0**. Support for other versions is not claimed. For WFP, select a specific build package; validating its files alone does not establish that it works correctly.
 
-## Установка и запуск
+The prepared local package includes .NET, Python 3.11, and dependencies. On this PC does not require a separate Python or .NET Runtime installation, Ubuntu, or SSH setup. ProxyBridge and its product driver are not included. Driver installation and signing requirements depend on the selected ProxyBridge build.
 
-Публичные готовые архивы в [GitHub Releases](https://github.com/dentatli/ProxyBridge-TestLab/releases) пока не опубликованы. Следующие действия относятся к подготовленному пакету `ProxyBridge-TestLab-…-win-x64`.
+## Installation and quick start
 
-1. Распакуйте весь пакет в отдельную папку. Сохраните его структуру каталогов.
-2. Запустите `Start.cmd` и подтвердите запрос Windows на права администратора.
-3. Откроется браузер с лабораторией. Если вкладка не появилась, откройте [localhost:5178](http://127.0.0.1:5178/lab.html).
-4. В разделе **«Сборки»** найдите установленный ProxyBridge или укажите папку вручную. Выберите тип WFP/WinDivert, проверьте файлы и сохраните комплект.
-5. В разделе **«Машина и настройка»** выберите **«На этом ПК»**.
-6. В **«Выборе проверок»** задайте нужные проверки и параметры. Для знакомства подойдёт TCP → Базовая → Быстро → Низкая.
-7. Откройте **«Запуск»**, проверьте состав и оценку времени, запустите очередь.
-8. После завершения откройте **«Результаты»**: отчёт, подробности этапов, логи и сравнение прогонов.
+Public ready-to-run archives have not yet been published in [GitHub Releases](https://github.com/dentatli/ProxyBridge-TestLab/releases). The following instructions apply to a prepared `ProxyBridge-TestLab-…-win-x64` package.
 
-При остановке используйте кнопку приложения и дождитесь подтверждения очистки. Перед заменой пакета завершите активную проверку и закройте прежний экземпляр. Настройки, сборки и история хранятся отдельно от пакета в профиле пользователя Windows; запускайте лабораторию под тем же пользователем.
+1. Extract the entire package into its own folder, preserving the directory structure.
+2. Run `Start.cmd` and approve the Windows administrator prompt.
+3. The laboratory opens in your browser. If no tab appears, open [localhost:5178](http://127.0.0.1:5178/lab.html).
+4. In **Builds**, locate the installed ProxyBridge or enter its folder manually. Select WFP or WinDivert, validate the files, and save the build.
+5. In the machine setup step, select **On this PC**.
+6. In **Select checks**, choose the checks and their settings. For an initial short run, use TCP with basic coverage, Quick duration, and Low load.
+7. Open the run step, review the selection and estimated duration, and start the queue.
+8. After completion, open **Results** to view the report, stage details, logs, and run comparison.
 
-Для подготовки пакета из исходников предназначен [Publish-LocalApp.ps1](scripts/Publish-LocalApp.ps1). Сборочной машине нужны .NET 10 SDK, MSVC x64, Python 3.11 и подготовленные runtime-зависимости и вспомогательные исполняемые файлы. Это инструменты сборки, не дополнительные требования к готовому пакету.
+To stop a check, use the application's stop button and wait for cleanup confirmation. Before replacing the package, finish any active check and close the previous instance. Settings, saved builds, and history are stored separately from the package in the Windows user profile; use the same Windows account when launching the laboratory.
 
-## Результаты сравнения
+[Publish-LocalApp.ps1](scripts/Publish-LocalApp.ps1) prepares a package from source. The build machine needs the .NET 10 SDK, MSVC x64, Python 3.11, and prepared runtime dependencies and helper executables. These are build requirements, not additional requirements for running the prepared package.
 
-Измерения, параметры стенда, подтверждённые выводы и ограничения опубликованы отдельно: **[сравнение WFP и WinDivert](docs/COMPARISON_RESULTS.md)**.
+## Comparison results
 
-## Лицензия
+Measurements, test conditions, supported conclusions, and limitations are documented separately in **[WFP and WinDivert comparison results](docs/COMPARISON_RESULTS.md)**.
+
+## License
 
 [MIT](LICENSE).

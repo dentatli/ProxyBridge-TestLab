@@ -1,77 +1,79 @@
-# Результаты сравнения WFP и WinDivert
+# WFP and WinDivert comparison results
 
-Подтверждённые наблюдения по состоянию на 27 октября 2026 года. Это результаты конкретных сборок и сценариев, а не универсальный рейтинг архитектур. Назначение и установка лаборатории описаны в [README](../README.md).
+**English** | [Русский](COMPARISON_RESULTS.ru.md)
 
-## Стенд и методика
+Verified observations as of October 27, 2026. These results describe specific builds and scenarios, not a universal ranking of the architectures. See the [README](../README.md) for the project description and installation instructions. The supporting audit notes linked below are currently in Russian.
 
-Физический PB-SUT: Intel Core i3-10100,4 ядра/8 логических CPU, около 16 ГиБ RAM, Windows 11 x64. Для рассмотренных прогонов отладка ядра отключена, используется обычный сетевой адаптер и план высокой производительности. Температуры, частоты и весь внешний фон непрерывно не записывались.
+## Test machine and methodology
 
-Сравнивались пользовательская **WFP-сборка ревизии 4da324e** и **ProxyBridge WinDivert 4.3.0**. Продуктовый Core запускался в управляемом процессе лаборатории; это не измерение официального GUI/CLI. Генератор, получатель и SOCKS5-реле находились на той же машине, обмен шёл по IPv4 loopback. Такой стенд подходит для функциональной проверки и ограниченных сравнений; максимальную скорость внешней сети он не устанавливает. Случайные прогоны на VM в эти результаты не включены.
+Physical PB-SUT: Intel Core i3-10100, 4 cores / 8 logical CPUs, approximately 16 GiB RAM, Windows 11 x64. Kernel debugging was disabled for these runs; the machine used a regular network adapter and the High Performance power plan. Temperatures, clock frequencies, and all background activity were not recorded continuously.
 
-Обычные измерения ниже выполнены лабораторией **preview.56**, NORMAL/LOW, с совпадающими записанными условиями. Длительные результаты относятся к отдельному фиксированному профилю и явно указанным версиям лаборатории. Эти наборы не объединяются в один ресурсный рейтинг.
+The compared builds were the user's **WFP build at revision 4da324e** and **ProxyBridge WinDivert 4.3.0**. The product Core ran in a process managed by the laboratory; these are not measurements of the official GUI or CLI. The generator, receiver, and SOCKS5 relay ran on the same machine over IPv4 loopback. This setup supports functional verification and limited comparisons; it does not establish maximum throughput over an external network. Accidental VM runs are excluded from these results.
 
-## Повторы при обычной нагрузке
+The ordinary measurements below used laboratory **preview.56**, NORMAL/LOW settings, and matching recorded conditions. Endurance results use a separate fixed profile and explicitly identified laboratory versions. These datasets are not combined into a single resource ranking.
 
-26 октября выполнены два дополнительных прогона каждой сборки: задержка TCP под нагрузкой, множество TCP-соединений, создание новых соединений и SFTP. Все 16 выбранных проверок успешны: обмен, маршрут и заданный темп подтверждены; общего насыщения CPU не зафиксировано. Числа — диапазоны двух запусков, не доверительные интервалы.
+## Repeated runs at ordinary load
 
-| Измерение | WFP 4da324e | WinDivert 4.3.0 |
+On October 26, each build completed two additional runs covering TCP latency under load, many concurrent TCP connections, new connection creation, and SFTP. All 16 selected checks passed: exchange, routing, and the requested load rate were verified, with no whole-system CPU saturation recorded. The numbers below are ranges from two runs, not confidence intervals.
+
+| Measurement | WFP 4da324e | WinDivert 4.3.0 |
 |---|---:|---:|
-| TCP под нагрузкой: RTT p99, мс | 1,058–1,146 | 5,361–6,102 |
-| Тот же профиль: CPU процесса за нагрузку, с | 0,546875–0,609375 | 4,265625–4,625 |
-| 128 TCP-соединений: RTT p99 контрольного обмена, мс | 2,021–2,211 | 39,229–42,904 |
-| Множество TCP-соединений: выделенная память процесса, пик МиБ | 45,2266–45,2344 | 8,4844–8,5273 |
-| Создание соединений: успешные/попытки, каждый прогон | 180/180 | 180/180 |
-| Создание соединений: CPU процесса за нагрузку, с | 0,296875–0,328125 | 2,125–2,296875 |
-| SFTP: CPU процесса на 1000 подтверждённых циклов, с | 1,4428–1,4757 | 7,5174–7,6736 |
+| TCP under load: RTT p99, ms | 1.058–1.146 | 5.361–6.102 |
+| Same profile: process CPU time during load, s | 0.546875–0.609375 | 4.265625–4.625 |
+| 128 TCP connections: probe RTT p99, ms | 2.021–2.211 | 39.229–42.904 |
+| Many TCP connections: peak process private commit, MiB | 45.2266–45.2344 | 8.4844–8.5273 |
+| Connection creation: successful / attempted, each run | 180/180 | 180/180 |
+| Connection creation: process CPU time during load, s | 0.296875–0.328125 | 2.125–2.296875 |
+| SFTP: process CPU time per 1,000 verified cycles, s | 1.4428–1.4757 | 7.5174–7.6736 |
 
-**В этих сценариях WFP показал меньшую задержку и меньшие затраты CPU наблюдаемого процесса. WinDivert использовал меньше выделенной памяти процесса в проверке множества TCP-соединений.** Направление различий повторилось в обоих запусках. Это не устанавливает полного расхода CPU/RAM всей архитектуры.
+**In these scenarios, WFP showed lower latency and lower CPU cost in the observed process. WinDivert used less process private commit in the many-connections check.** The direction of the differences repeated in both runs. This does not establish the total CPU or RAM cost of either architecture.
 
-Количество работы может различаться при одинаковом времени и заданном темпе: в SFTP WFP выполнил 888 и 900 циклов, WinDivert — 900 в каждом прогоне; заданный темп достигнут в пределах допуска 5%. CPU SFTP нормализован на фактическое число подтверждённых циклов. Сравнивать только общее число операций как «лучше/хуже» некорректно.
+The amount of completed work can differ despite equal duration and requested rate. In SFTP, WFP completed 888 and 900 cycles, while WinDivert completed 900 in each run; the requested rate was met within the 5% tolerance. SFTP CPU cost is normalized by the actual number of verified cycles. Ranking the approaches solely by total operation counts would be misleading.
 
-Подробные условия, идентификаторы попыток и проверки расчётов: [аудит повторов](PB_SUT_REPEAT56_AUDIT_2026-10-26.md).
+Detailed conditions, attempt identifiers, and calculation checks: [repeat-run audit](PB_SUT_REPEAT56_AUDIT_2026-10-26.md).
 
-## Функциональные ограничения обычного набора
+## Functional limitations in the ordinary suite
 
-В предшествующем обычном прогоне preview.56:
+The preceding ordinary runs on preview.56 produced:
 
-| Подход | Результат 44 выбранных проверок |
+| Approach | Outcome of 44 selected checks |
 |---|---|
-| WFP 4da324e | 43 успешны, 1 не подтверждена |
-| WinDivert 4.3.0 | 33 успешны, 11 с ошибками |
+| WFP 4da324e | 43 passed, 1 unverified |
+| WinDivert 4.3.0 | 33 passed, 11 failed |
 
-Неподтверждённый WFP-сценарий — множество UDP-потоков: наблюдаемые счётчики генератора и реле расходятся на 70 пакетов из 96002. Небольшая доля потерь не превратила неполный учёт маршрута в PASS. У WinDivert ошибки связаны с UDP-сценариями, включая QUIC/HTTP3 и смешанные нагрузки. Эти результаты не следует автоматически объявлять дефектами драйвера: для установления причины нужна отдельная локализация.
+The unverified WFP scenario used many UDP flows: the generator and relay counters differed by 70 packets out of 96,002. A low loss fraction did not turn incomplete route accounting into a PASS. WinDivert failures involved UDP scenarios, including QUIC/HTTP3 and mixed workloads. These results should not automatically be classified as driver defects; establishing their causes requires separate fault isolation.
 
-Четыре скоростных TCP-профиля также не устанавливают максимальную производительность ProxyBridge: часть WFP-окон насыщает CPU общего стенда, встречается асимметрия направлений. Для оценки предельной скорости нужен отдельный получатель и контроль ограничений генератора/реле.
+Four TCP speed profiles also do not establish ProxyBridge's maximum performance: some WFP windows saturated the shared machine's CPU, and directional asymmetry was observed. Measuring peak throughput requires a separate receiver and checks for generator and relay bottlenecks.
 
-Это состояние конкретного набора 26 октября, а не утверждение об отказе любого UDP у WinDivert. Подробности: [аудит обычных прогонов](PB_SUT_NORMAL56_AUDIT_2026-10-26.md).
+This describes the specific October 26 dataset, not a claim that all UDP traffic fails with WinDivert. Details: [ordinary-run audit](PB_SUT_NORMAL56_AUDIT_2026-10-26.md).
 
-## Длительные проверки
+## Endurance checks
 
-Фиксированный профиль чередует обычную работу, всплеск, создание соединений, затишье и восстановление. Постоянные TCP/UDP-каналы живут весь прогон, шесть прикладных протоколов проверяются периодически; DIRECT/BLOCK проверяются отдельно. Нагрузка этого профиля не эквивалентна всем обычным UDP-сценариям выше.
+The fixed profile cycles through ordinary activity, bursts, connection creation, quiet periods, and recovery. Persistent TCP and UDP channels remain active throughout the run; six application protocols are checked periodically, with separate DIRECT/BLOCK checks. This workload is not equivalent to all the ordinary UDP scenarios above.
 
-| Сборка | Лаборатория | Результат |
+| Build | Laboratory | Outcome |
 |---|---|---|
-| WinDivert 4.3.0 | preview.60 | 7200 с нагрузки выполнены; один отказ завершения QUIC при подтверждённом обмене. Общий результат с ошибкой. |
-| WFP 4da324e | preview.62 | Полные 7200 с нагрузки, COMPLETE; обмен и маршрут подтверждены во всех 212 завершённых работах. |
+| WinDivert 4.3.0 | preview.60 | Completed 7,200 seconds of load; one QUIC close failure despite verified data exchange. Overall result failed. |
+| WFP 4da324e | preview.62 | Completed all 7,200 seconds of load, COMPLETE; exchange and routing verified for all 212 completed jobs. |
 
-После WinDivert-прогона исправлена методика фиксированного ожидания закрытия QUIC: в preview.61 ожидание привязано к таймеру библиотеки с ограниченным бюджетом. Точный таймер исторического отказа не записывался, поэтому его конкретная причина окончательно не доказана. Это исправление проверено короткими опытами, но полного WinDivert H2 на preview.62 в данном наборе результатов ещё нет. Старый отчёт не переписан как успешный.
+After the WinDivert run, the laboratory's fixed QUIC close wait was revised: preview.61 follows the library timer within a bounded budget. The exact timer for the historical failure was not recorded, so its specific cause remains unproven. The change was checked in short runs, but this dataset does not yet include a full WinDivert H2 run on preview.62. The old report has not been reclassified as successful.
 
-В WFP-прогоне preview.62:
+The WFP run on preview.62 recorded:
 
-- TCP: 14 400 подтверждённых обменов на постоянном соединении.
-- UDP: 36 000/36 000, без потерь и некорректных ответов.
-- HTTP, HTTPS, HTTP/2, SFTP, DNS-TCP, QUIC — по 16 успешных окон, включая закрытие QUIC.
-- DIRECT/BLOCK: 464/464 успешных проверки, стабильные правила и процесс Core.
-- Очистка подтверждена, устройство после проверки отключено. Прежние ложные callback-ошибки и остановка примерно через час не повторились; историческая причина RPC-отказа остаётся неизвестной.
+- TCP: 14,400 verified exchanges over the persistent connection.
+- UDP: 36,000/36,000, with no lost or invalid replies.
+- HTTP, HTTPS, HTTP/2, SFTP, DNS-TCP, and QUIC: 16 successful windows each, including QUIC closure.
+- DIRECT/BLOCK: 464/464 successful checks, with stable rules and Core process.
+- Verified cleanup, with the device disabled afterward. The previous false callback failures and roughly one-hour stop did not recur; the cause of the historical RPC failure remains unknown.
 
-Прогоны 24/48/72 часа здесь не подтверждены. Один успешный H2 не доказывает отсутствие всех утечек или полное покрытие сетевого трафика ПК.
+Runs of 24, 48, or 72 hours are not verified here. One successful H2 run does not establish the absence of all leaks or coverage of all network traffic on the PC.
 
-Источники: [WinDivert H2](PB_SUT_WINDIVERT_H2_60_AUDIT_2026-10-27.md), [исправление QUIC](QUIC_CLOSE_TIMER_PREVIEW61_2026-10-27.md), [WFP H2](PB_SUT_WFP_H2_62_AUDIT_2026-10-27.md).
+Sources: [WinDivert H2](PB_SUT_WINDIVERT_H2_60_AUDIT_2026-10-27.md), [QUIC close fix](QUIC_CLOSE_TIMER_PREVIEW61_2026-10-27.md), [WFP H2](PB_SUT_WFP_H2_62_AUDIT_2026-10-27.md).
 
-## Как понимать ресурсы
+## Interpreting resource measurements
 
-CPU процесса, выборки исполнения собственного SYS, общесистемный CPU и память по тегам — разные области измерения. **Полный расход CPU/RAM всей архитектуры этими данными не установлен.**
+Process CPU time, execution samples from the selected SYS module, whole-system CPU, and memory attributed by pool tags have different measurement scopes. **These data do not establish the total CPU or RAM cost of either architecture.**
 
-Малое число выборок WFP не означает нулевых затрат. Работа TCP/IP, WFP, NDIS и других общих компонентов Windows также может зависеть от подхода, но не входит целиком в наблюдение собственного SYS. Эти данные нельзя просто сложить с CPU процесса. Память по тегам не равна всей RAM драйвера и сетевого стека; в длительном режиме ETW ядра отключён.
+A small WFP sample count does not mean zero cost. Work in TCP/IP, WFP, NDIS, and other shared Windows components can also depend on the approach, but is not fully covered by observing the selected SYS module. These values cannot simply be added to process CPU. Tagged memory is not the entire RAM footprint of the driver and network stack; kernel ETW is disabled in endurance mode.
 
-Сравнивать производительность следует после подтверждения обмена, маршрута и нагрузки, при сопоставимых условиях и с повторами. Меньшая задержка или CPU процесса в указанных профилях не означают превосходства по всем протоколам, стабильности, памяти и нагрузкам. [Исторические результаты прежнего технического стенда](test-results.md) относятся к другой методике и отдельно не объединяются с этими измерениями.
+Compare performance only after verifying exchange, routing, and load, using comparable conditions and repeated runs. Lower latency or process CPU cost in the listed profiles does not imply superiority across all protocols, stability requirements, memory use, or loads. [Historical results from the earlier technical harness](test-results.md) use a different methodology and are not combined with these measurements.
