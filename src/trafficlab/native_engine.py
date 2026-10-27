@@ -5,6 +5,7 @@ Application adapters and orchestration must not treat this channel as product-ro
 from __future__ import annotations
 import base64
 import json
+import re
 import secrets
 import socket
 import time
@@ -12,6 +13,28 @@ from typing import Any
 from trafficlab.protocol import json_bytes, mac, verify_mac
 
 MAX_REPLY = 24 * 1024 * 1024
+
+
+def channel_error(error, operation):
+    value=str(error)
+    return {'operation':operation,'exception_type':type(error).__name__,
+            'code':value if re.fullmatch(r'TRAFFIC_[A-Z0-9_]{1,160}',value) else 'TRAFFIC_ENGINE_CHANNEL_ERROR',
+            'errno':getattr(error,'errno',None),'winerror':getattr(error,'winerror',None)}
+
+
+def read_control(job, operation, deadline, diagnostics):
+    if operation not in ('worker-result','worker-ack'):
+        raise ValueError('TRAFFIC_ENGINE_RETRY_OPERATION_INVALID')
+    for attempt in range(3):
+        remaining=deadline-time.monotonic()
+        if remaining<=0:raise TimeoutError('TRAFFIC_ASYNC_JOB_DEADLINE')
+        try:
+            return request(job['native_worker_port'],job['secret'],{'operation':operation,'run_id':job['run_id']},timeout=min(5,remaining))
+        except (OSError,EOFError) as error:
+            diagnostics['transport_failures']+=1
+            if len(diagnostics['errors'])<6:diagnostics['errors'].append(channel_error(error,operation))
+            if attempt==2 or time.monotonic()>=deadline:raise
+            time.sleep(min(.1,max(0,deadline-time.monotonic())))
 
 
 def request(port: int, secret: str, value: dict[str, Any], timeout: float = 10) -> dict[str, Any]:
@@ -74,6 +97,8 @@ def worker_state(job):
 
 def execute_worker(job):
     started = time.monotonic()
+    operation='identity';last_state=None;result=None;remote_error=None;accepted=False
+    diagnostics={'transport_failures':0,'errors':[]}
     allowed = ('host','port','secret','run_id','task','seconds','connections','message_bytes','warmup_count',
                'endurance','connect_timeout_seconds','rate_bytes_per_second','rate_packets_per_second','rate_flows_per_second','rate_exchanges_per_second','udp_connected','test_proxy','cancellation_path')
     try:
@@ -82,19 +107,31 @@ def execute_worker(job):
         worker_state(job)  # Reject an unobserved replacement before submitting any traffic.
         payload={key:job[key] for key in allowed if key in job}
         if job.get('endurance') or job.get('_endurance_async'):
-            accepted=request(job['native_worker_port'],job['secret'],{'operation':'worker-start','job':payload})
-            if accepted.get('accepted') is not True:raise ValueError('TRAFFIC_ASYNC_JOB_REJECTED')
+            operation='worker-start'
+            submitted=request(job['native_worker_port'],job['secret'],{'operation':'worker-start','job':payload})
+            accepted=submitted.get('accepted') is True
+            if not accepted:raise ValueError('TRAFFIC_ASYNC_JOB_REJECTED')
             deadline=time.monotonic()+float(job['seconds'])+25
             while True:
                 if job.get('cancellation_path'):
                     from pathlib import Path
                     if Path(job['cancellation_path']).exists():deadline=min(deadline,time.monotonic()+10)
-                value=request(job['native_worker_port'],job['secret'],{'operation':'worker-result','run_id':job['run_id']},timeout=5)
+                operation='worker-result'
+                value=read_control(job,operation,deadline,diagnostics);last_state=value.get('state')
                 if value.get('state')=='FINISHED':result=value['result'];break
+                if value.get('state')=='FAILED':
+                    remote_error=value.get('error')
+                    if isinstance(remote_error,dict) and remote_error.get('code')!='TRAFFIC_ASYNC_JOB_UNKNOWN':
+                        try:read_control(job,'worker-ack',deadline,diagnostics)
+                        except (OSError,EOFError,ValueError):pass  # Preserve the task failure as primary.
+                    raise ValueError('TRAFFIC_NATIVE_WORKER_FAILED')
+                if value.get('state')!='RUNNING':raise ValueError('TRAFFIC_ASYNC_JOB_STATE_INVALID')
                 if time.monotonic()>=deadline:raise ValueError('TRAFFIC_ASYNC_JOB_DEADLINE')
                 time.sleep(.2)
         else:
+            operation='worker'
             result = request(job['native_worker_port'], job['secret'], {'operation':'worker', 'job':payload},timeout=float(job['seconds'])+25)
+        operation='validate-result'
         flows = result.get('flows')
         if result.get('engine') != 'csharp-transport-v1' or result.get('engine_pid') != job['native_worker_pid'] or \
                 result.get('run_id') != job['run_id'] or result.get('task') != job['task'] or type(result.get('complete')) is not bool or \
@@ -102,8 +139,14 @@ def execute_worker(job):
                 any(not isinstance(flow, dict) or type(flow.get('complete')) is not bool for flow in flows) or \
                 result['complete'] != all(flow['complete'] for flow in flows):
             raise ValueError('TRAFFIC_NATIVE_WORKER_RESULT_INVALID')
+        if accepted:
+            operation='worker-ack'
+            ack=read_control(job,operation,deadline,diagnostics)
+            if ack.get('acknowledged') is not True or ack.get('engine_pid')!=job['native_worker_pid'] or ack.get('run_id')!=job['run_id']:
+                raise ValueError('TRAFFIC_ASYNC_JOB_ACK_INVALID')
+        if diagnostics['transport_failures']:result['control_recovery']={**diagnostics,'recovered':True}
         return result
-    except (OSError, ValueError, KeyError, EOFError):
+    except (OSError, ValueError, KeyError, EOFError) as error:
         # Unavailable results cannot be turned into measured zeroes or inferred flow success.
         from trafficlab.worker import cancelled
         return {'schema_version':1, 'measurement_method':'controlled-traffic-v1', 'engine':'csharp-transport-v1',
@@ -111,7 +154,11 @@ def execute_worker(job):
                 'errors':['TRAFFIC_NATIVE_WORKER_RESULT_UNAVAILABLE'], 'worker_results_available':False,
                 'successful_tcp_flows':0, 'tcp_origin_fingerprint':'0'*64, 'udp_origin_fingerprint':'0'*64,
                 'tx_bytes':0, 'rx_bytes':0, 'elapsed_seconds':time.monotonic()-started, 'product_route_confirmed':False,
-                'byte_scope':'confirmed-results-only; unavailable native reply'}
+                'byte_scope':'confirmed-results-only; unavailable native reply',
+                'failure_context':{'operation':operation,'first_error':diagnostics['errors'][0] if diagnostics['errors'] else channel_error(error,operation),
+                    'last_error':channel_error(error,operation),'last_state':last_state,'submission_acknowledged':accepted,
+                    'remote_error':remote_error,**diagnostics},
+                'retained_control_result':result}
 
 
 class OriginAdapter:

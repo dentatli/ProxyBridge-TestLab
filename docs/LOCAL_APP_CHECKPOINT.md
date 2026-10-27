@@ -1,5 +1,9 @@
 # Локальная лаборатория — checkpoint, 27 октября 2026
 
+## Исправление preview.62 — в работе
+
+[Изменения и проверки](ENDURANCE62_POLICY_RPC_FIX_2026-10-27.md): POLICY_BEGIN очищает кеш callback без изменения правил/соединений; native результат хранится до ACK, потеря FINISHED/ACK допускает только bounded повтор чтения, исходная ошибка сохраняется. Три новых regression-контракта PASS отдельно, policy guards2/2, C#/C build PASS. Первый полный native gate прошёл прежние проверки, затем исправлена ошибка snapshot в новом test harness; второй gate остановлен старым churn transport FAIL на VM с уже загруженным чужим WinDivert64.sys. Gate не ослаблялся. WFP-enable здесь штатно отклонён до изменения устройства. Нужны package62, короткая функциональная приёмка на свободном PB-SUT и deployment verification; H2 не запускать автоматически. Продукт не менялся.
+
 ## Последний WFP H2, 27 октября
 
 [АудитWFP61](PB_SUT_WFP_H2_61_AUDIT_2026-10-27.md):attempt20261027-103040-7322e11562de4085ab3dda7583e8ec7d,нагрузка3596.985с/7200,FAILED. Все103завершённыеPROXYоперацииroutePASS,QUIC7/7closePASS(один4.203с—фикс61подтверждён). DIRECT/BLOCKповедение232/232ожидаемое,но224UNVERIFIEDпотерялисвежийcallbackиз-заWFPдедупликации(pid,ip,port,action);этоошибкаметодикилаборатории,неблокировки. НужнасвежаяCoreClearConnectionLogsэпохапередпробами,безослабленияevent/no-delivery/guardgates. Остановкаотдельная:результатpersistentTCPworkerсталUNKNOWN;исходноеRPCисключениепотеряно,причина/винадрайверанеустановлены. ПоследнийliveTCP7111/7111,UDP17776/17776,финальнойсверкинeт. Итоговаяcleanuptrue,устройствоdisabled/службаStopped. ПередновымH2исправитьcallbackметодикуисохранениеRPCпричин,проверитькоротко. Кодпоканеизменён. 9fileSHA/raw/journal/captureисummary0diffподтверждены.

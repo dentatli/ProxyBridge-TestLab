@@ -33,7 +33,7 @@ def check(job):
     before_origin=origin_metrics(job)
     if set(before_origin.get('policy_receivers',{}))!={'42541','42542','42543','42544'}:
         raise ValueError('TRAFFIC_POLICY_RECEIVERS_UNAVAILABLE')
-    before=session.command('POLICY_SNAP')
+    before=session.command('POLICY_BEGIN')
     probes=[]
     for name,port,task in POLICIES:
         if cancelled(job):return {'cancelled':True,'checks':[]}

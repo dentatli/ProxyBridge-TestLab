@@ -222,6 +222,10 @@ int wmain(int argc, wchar_t **argv) {
         } else if (!strcmp(fields[2], "POLICY_DIRECT_OFF") && n == 3 && started && policy_rules[4]) {
             ok = disable_rule(policy_rules[0]); if (!disable_rule(policy_rules[1])) ok = FALSE;
             policy_ack(id, ok); if (!ok) break; continue;
+        } else if (!strcmp(fields[2], "POLICY_BEGIN") && n == 3 && started && policy_rules[4]) {
+            // WFP deduplicates GUI/history callbacks by PID/destination/action.
+            // Start a fresh observation epoch without touching rules or traffic.
+            clear_logs(); policy_ack(id, TRUE); continue;
         } else if (!strcmp(fields[2], "POLICY_SNAP") && n == 3 && started && policy_rules[4]) {
             policy_ack(id, TRUE); continue;
         } else if (!strcmp(fields[2], "DISABLE") && n == 3 && started) {

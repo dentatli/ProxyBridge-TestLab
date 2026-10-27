@@ -145,7 +145,11 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
                 state['state']='FAILED' if key in sticky else 'SUCCESSFUL'
                 state['last_error']=check['error']
             return
-        if result.get('worker_results_available') is False:raise ValueError('TRAFFIC_ENDURANCE_WORKER_RESULT_UNKNOWN:'+name+':'+','.join(result.get('errors',[])))
+        if result.get('worker_results_available') is False:
+            report.setdefault('failure_detail',{'code':'TRAFFIC_ENDURANCE_WORKER_RESULT_UNKNOWN','channel':name,
+                                                'worker':result.get('failure_context'),
+                                                'retained_control_result':result.get('retained_control_result')})
+            raise ValueError('TRAFFIC_ENDURANCE_WORKER_RESULT_UNKNOWN:'+name+':'+','.join(result.get('errors',[])))
         if j.get('endurance') and result['complete'] and time.monotonic()<deadline-2:
             result={**result,'complete':False,'errors':result.get('errors',[])+['TRAFFIC_ENDURANCE_EARLY_CLOSE']}
         origin=isolated(j)

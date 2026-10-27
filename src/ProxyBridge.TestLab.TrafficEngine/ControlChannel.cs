@@ -11,6 +11,9 @@ internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, Tr
 {
     private readonly ConcurrentDictionary<long, Task> pending = [];
     private readonly ConcurrentDictionary<string,Task<JsonObject>> ownedJobs = new();
+    private readonly HashSet<string> acknowledged = [];
+    private readonly Queue<string> acknowledgementOrder = [];
+    private readonly Lock acknowledgementLock = new();
     private readonly HashSet<string> seen = [];
     private readonly Queue<string> replay = [];
     private readonly Lock replayLock = new();
@@ -62,9 +65,12 @@ internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, Tr
                     if(request["operation"]!.GetValue<string>()=="worker-start")
                     {
                         var id=Wire.Id(job,"run_id");
-                        if(ownedJobs.Count>=8 || ownedJobs.ContainsKey(id)) throw new InvalidDataException("TRAFFIC_ASYNC_JOB_LIMIT");
-                        var work=RunOwned(job,seconds,stopping);
-                        if(!ownedJobs.TryAdd(id,work)) throw new InvalidDataException("TRAFFIC_ASYNC_JOB_EXISTS");
+                        lock(acknowledgementLock)
+                        {
+                            if(acknowledged.Contains(id) || ownedJobs.ContainsKey(id)) throw new InvalidDataException("TRAFFIC_ASYNC_JOB_EXISTS");
+                            if(ownedJobs.Count>=8) throw new InvalidDataException("TRAFFIC_ASYNC_JOB_LIMIT");
+                            ownedJobs[id]=RunOwned(job,seconds,stopping);
+                        }
                         response=new() { ["accepted"]=true };
                     }
                     else
@@ -95,12 +101,32 @@ internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, Tr
     private JsonObject Observe(JsonObject request)
     {
         var operation = request["operation"]?.GetValue<string>(); var run = Wire.Id(request, "run_id");
+        if(operation=="worker-ack")
+        {
+            lock(acknowledgementLock)
+            {
+                if(!acknowledged.Contains(run))
+                {
+                    if(!ownedJobs.TryGetValue(run,out var pendingJob) || !pendingJob.IsCompleted)
+                        throw new InvalidDataException("TRAFFIC_ASYNC_JOB_ACK_INVALID");
+                    ownedJobs.TryRemove(run,out _); acknowledged.Add(run); acknowledgementOrder.Enqueue(run);
+                    if(acknowledgementOrder.Count>64) acknowledged.Remove(acknowledgementOrder.Dequeue());
+                }
+            }
+            return new() { ["acknowledged"]=true,["engine_pid"]=Environment.ProcessId,["run_id"]=run };
+        }
         if(operation=="worker-result")
         {
-            if(!ownedJobs.TryGetValue(run,out var work)) throw new InvalidDataException("TRAFFIC_ASYNC_JOB_UNKNOWN");
+            if(!ownedJobs.TryGetValue(run,out var work)) return new() { ["state"]="FAILED",["error"]=new JsonObject { ["code"]="TRAFFIC_ASYNC_JOB_UNKNOWN" } };
             if(!work.IsCompleted) return new() { ["state"]="RUNNING" };
-            var value=work.GetAwaiter().GetResult();ownedJobs.TryRemove(run,out _);
-            return new() { ["state"]="FINISHED",["result"]=value };
+            try { return new() { ["state"]="FINISHED",["result"]=work.GetAwaiter().GetResult().DeepClone() }; }
+            catch(Exception error)
+            {
+                var detail=new JsonObject { ["code"]="TRAFFIC_ASYNC_JOB_FAILED",["exception_type"]=error.GetType().Name,["hresult"]=error.HResult };
+                if(error is InvalidDataException && System.Text.RegularExpressions.Regex.IsMatch(error.Message,"^TRAFFIC_[A-Z0-9_]{1,120}$")) detail["code"]=error.Message;
+                if(error is SocketException socketError) detail["socket_errno"]=socketError.NativeErrorCode;
+                return new() { ["state"]="FAILED",["error"]=detail };
+            }
         }
         if(operation=="session-retain") { sessions.Retain(run); return new() { ["complete"]=true }; }
         if (operation == "kernel-start") return kernel.Start(request["driver"]!.GetValue<string>(), request["driver_sha256"]!.GetValue<string>());

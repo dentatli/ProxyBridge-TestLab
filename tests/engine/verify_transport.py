@@ -21,11 +21,12 @@ import tempfile
 import threading
 import time
 import uuid
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / 'src'))
 from trafficlab.native_engine import request
-from trafficlab.native_engine import worker_state
+from trafficlab.native_engine import worker_state, execute_worker
 from trafficlab.protocol import json_bytes, mac, pattern
 from trafficlab.routes import stage_route
 from trafficlab.worker import connect, execute, read_result
@@ -150,6 +151,50 @@ def negative_worker(directory, worker, secret, checks):
             assert not thread.is_alive()
 
 
+def retained_worker_results(worker, native, native_pid, secret, origin_port, checks):
+    value = job(secret, origin_port, 'echo', connections=1)
+    value.update(runtime_mode='local', native_worker_port=worker, native_worker_pid=native_pid, _endurance_async=True)
+    counts = {}; lost = set(); finished = []
+    def interrupted(port, key, payload, timeout=10):
+        operation = payload['operation']; counts[operation] = counts.get(operation, 0) + 1
+        response = request(port, key, payload, timeout)
+        if operation == 'worker-result' and response.get('state') == 'FINISHED':
+            finished.append(json.loads(json.dumps(response)))
+        if operation not in lost and (operation == 'worker-ack' or
+                operation == 'worker-result' and response.get('state') == 'FINISHED'):
+            lost.add(operation)
+            raise EOFError('TRAFFIC_ENGINE_RESPONSE_UNAVAILABLE')  # Server already sent the response.
+        return response
+    with patch('trafficlab.native_engine.request', side_effect=interrupted):
+        result = execute_worker(value)
+    assert result['complete'] and counts['worker-start'] == 1 and lost == {'worker-result', 'worker-ack'}, result
+    assert len(finished) == 2 and finished[0] == finished[1]
+    assert result['control_recovery']['recovered'] and result['control_recovery']['transport_failures'] == 2
+    reconcile(value, result, request(native, secret, {'operation':'snapshot', 'run_id':value['run_id']}), False)
+    assert request(worker, secret, {'operation':'worker-result', 'run_id':value['run_id']})['error']['code'] == 'TRAFFIC_ASYNC_JOB_UNKNOWN'
+    checks.append({'lost_finished_and_ack_response':True, 'single_submission':True, 'retained_identical_result':True})
+    value = {**value, 'run_id':value['run_id']+'.failed', 'task':'unsupported-task'}
+    result = execute_worker(value)
+    assert result['worker_results_available'] is False and result['failure_context']['remote_error']['exception_type'], result
+    assert request(worker, secret, {'operation':'worker-result', 'run_id':value['run_id']})['error']['code'] == 'TRAFFIC_ASYNC_JOB_UNKNOWN'
+    checks.append({'signed_task_failure_preserved_and_acknowledged':True})
+    counts = {}
+    def unavailable(port, key, payload, timeout=10):
+        operation = payload['operation']; counts[operation] = counts.get(operation, 0) + 1
+        if operation == 'snapshot': return {'engine':'csharp-transport-v1', 'native_pid':native_pid, 'worker_jobs_active':0}
+        if operation == 'worker-start': return {'accepted':True}
+        raise OSError(10054, 'private OS message must not enter report')
+    with patch('trafficlab.native_engine.request', side_effect=unavailable):
+        result = execute_worker(value)
+    detail = result['failure_context']
+    assert counts['worker-start'] == 1 and counts['worker-result'] == 3 and detail['first_error']['errno'] == 10054, result
+    assert result['worker_results_available'] is False and 'private OS message' not in json.dumps(result)
+    with patch('trafficlab.native_engine.request', side_effect=ValueError('TRAFFIC_MAC_INVALID')) as rejected:
+        result = execute_worker(value)
+    assert rejected.call_count == 1 and result['failure_context']['first_error']['code'] == 'TRAFFIC_MAC_INVALID'
+    checks.append({'bounded_read_retry_no_resubmission':True, 'primary_errno_preserved':True, 'authentication_not_retried':True})
+
+
 def main():
     if os.name != 'nt':
         raise RuntimeError('This gate targets the local Windows engine')
@@ -234,6 +279,7 @@ def main():
             assert raw(envelope) and raw(envelope) == b''
             checks.append({'invalid_control_mac_rejected':True, 'recent_nonce_replay_rejected':True})
             negative_worker(directory, worker, secret, checks)
+            retained_worker_results(worker, native, native_pid, secret, origin_port, checks)
     assert hashes == {name:hashlib.sha256((ROOT / name).read_bytes()).hexdigest() for name in hashes}, 'Sources changed during gate'
     (evidence / 'result.json').write_text(json.dumps({'complete':True, 'scope':'standalone-loopback-component-contract; no product',
         'source_hashes':hashes, 'engine_dll_sha256':binary, 'checks':checks}, indent=2), encoding='utf-8')

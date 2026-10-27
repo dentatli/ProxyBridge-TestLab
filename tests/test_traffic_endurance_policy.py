@@ -27,7 +27,9 @@ class PolicyEvidenceTests(unittest.TestCase):
              patch('trafficlab.endurance_policy.origin_metrics', side_effect=[before_origin, empty, empty, empty, empty, after_origin]), \
              patch('trafficlab.endurance_policy.cancelled', return_value=False), \
              patch('trafficlab.endurance_policy.time.sleep'):
-            return check(job)
+            result = check(job)
+            self.assertEqual([call.args[0] for call in session.command.call_args_list], ['POLICY_BEGIN', 'POLICY_SNAP'])
+            return result
 
     def test_block_requires_event_and_zero_delivery(self):
         self.assertTrue(all(row['complete'] for row in self.exercise()['checks']))

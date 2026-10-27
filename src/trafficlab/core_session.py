@@ -59,7 +59,7 @@ class CoreSession(Product):
             except queue.Empty as error:
                 raise ValueError('TRAFFIC_SESSION_ACK_TIMEOUT') from error
             native = bool(self.binding.get('native_worker_executable'))
-            if operation in ('POLICY', 'POLICY_SNAP', 'POLICY_DIRECT_OFF'):
+            if operation in ('POLICY', 'POLICY_BEGIN', 'POLICY_SNAP', 'POLICY_DIRECT_OFF'):
                 if len(row)!=20 or row[0]!='PB_POLICY_ACK' or row[1]!=str(self.sequence) or row[2]!='1':
                     raise ValueError('TRAFFIC_POLICY_ACK_INVALID')
                 ids=tuple(map(int,row[3:8]));counts=list(map(int,row[8:]))
