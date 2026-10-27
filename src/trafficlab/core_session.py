@@ -39,7 +39,7 @@ class CoreSession(Product):
                     raise ValueError('TRAFFIC_SESSION_FRAME_INVALID')
                 # Reuse full-stream hash and bounded durable capture; protocol has no credentials.
                 super().capture(io.BytesIO(block), identity_stream)
-                if not identity_stream and block.startswith(b'PB_ACK\t'):
+                if not identity_stream and block.startswith((b'PB_ACK\t', b'PB_POLICY_ACK\t')):
                     self.responses.put(block.decode('ascii').strip().split('\t'))
         except (OSError, ValueError):
             self.read_errors += 1
@@ -59,6 +59,21 @@ class CoreSession(Product):
             except queue.Empty as error:
                 raise ValueError('TRAFFIC_SESSION_ACK_TIMEOUT') from error
             native = bool(self.binding.get('native_worker_executable'))
+            if operation in ('POLICY', 'POLICY_SNAP', 'POLICY_DIRECT_OFF'):
+                if len(row)!=20 or row[0]!='PB_POLICY_ACK' or row[1]!=str(self.sequence) or row[2]!='1':
+                    raise ValueError('TRAFFIC_POLICY_ACK_INVALID')
+                ids=tuple(map(int,row[3:8]));counts=list(map(int,row[8:]))
+                if len(set(ids))!=5 or min(ids)<1 or min(counts)<0 or set(ids)&set((self.configuration or ())[1:]):
+                    raise ValueError('TRAFFIC_POLICY_ACK_INVALID')
+                if getattr(self,'policy_identity',ids)!=ids:
+                    raise ValueError('TRAFFIC_POLICY_IDENTITY_CHANGED')
+                self.policy_identity=ids
+                sample=process_sample(self.pid,self.binding['core_host'])
+                if not sample['available'] or sample['identity_start']!=self.evidence['identity_start']:
+                    raise ValueError('TRAFFIC_SESSION_IDENTITY_CHANGED')
+                return {'rule_ids':list(ids[:4]),'fallback_block_rule_id':ids[4],'ports':[42541,42542,42543,42544],
+                        'events':{str(42541+i):dict(zip(('DIRECT','PROXY','BLOCKED'),counts[i*3:i*3+3])) for i in range(4)},
+                        'pid':self.pid,'ack_verified':True}
             if len(row) != (10 if native else 9) or row[1] != str(self.sequence) or row[2] != '1':
                 raise ValueError('TRAFFIC_SESSION_ACK_INVALID')
             config, rule, enabled, direct, proxy, blocked = map(int, row[3:9])

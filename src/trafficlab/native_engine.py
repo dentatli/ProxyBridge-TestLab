@@ -75,7 +75,7 @@ def worker_state(job):
 def execute_worker(job):
     started = time.monotonic()
     allowed = ('host','port','secret','run_id','task','seconds','connections','message_bytes','warmup_count',
-               'endurance','rate_bytes_per_second','rate_packets_per_second','rate_flows_per_second','rate_exchanges_per_second','udp_connected','test_proxy','cancellation_path')
+               'endurance','connect_timeout_seconds','rate_bytes_per_second','rate_packets_per_second','rate_flows_per_second','rate_exchanges_per_second','udp_connected','test_proxy','cancellation_path')
     try:
         if job.get('runtime_mode') != 'local' or type(job.get('native_worker_pid')) is not int:
             raise ValueError('TRAFFIC_NATIVE_ENGINE_LOCAL_ONLY')
@@ -148,6 +148,7 @@ class OriginAdapter:
         if run_id.endswith((".persistent.tcp", ".persistent.udp")):
             self._observe({"operation":"session-retain", "run_id":run_id})
         native = self.snapshot(run_id)
+        result['policy_receivers'] = native.get('policy_receivers', {})
         for key in ('accepted','completed','active','errors','rx_bytes','tx_bytes','udp_received','udp_reply_errors','udp_unique_flows'):
             if type(native.get(key)) is not int or native[key] < 0:
                 raise ValueError('TRAFFIC_ENGINE_COUNTER_INVALID')

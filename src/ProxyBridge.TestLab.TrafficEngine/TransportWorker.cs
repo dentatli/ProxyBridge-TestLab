@@ -106,7 +106,9 @@ internal static partial class TransportWorker
         await Task.Yield();
         var result = new JsonObject { ["flow_id"] = flow, ["task"] = task, ["complete"] = false, ["tx_bytes"] = 0L, ["rx_bytes"] = 0L, ["errors"] = new JsonArray() };
         var histogram = new Histogram(); var phase = "connect-and-authentication"; Socket? socket = null;
-        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(stopping); deadline.CancelAfter(TimeSpan.FromSeconds(10));
+        var connectTimeout = job["connect_timeout_seconds"]?.GetValue<double>() ?? 10;
+        if (!double.IsFinite(connectTimeout) || connectTimeout is < .1 or > 10) throw new InvalidDataException("TRAFFIC_CONNECT_TIMEOUT_INVALID");
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(stopping); deadline.CancelAfter(TimeSpan.FromSeconds(connectTimeout));
         try
         {
             var connected = Stopwatch.GetTimestamp(); var connection = await Connect(job, task, flow, deadline.Token); socket = connection.Socket; using var stream = connection.Stream;

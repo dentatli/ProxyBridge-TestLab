@@ -14,7 +14,7 @@ import time
 from pathlib import Path
 
 HOURS = {'H2':2, 'H24':24, 'H48':48, 'H72':72, 'SHORT':24, 'NORMAL':48, 'LONG':72}
-METHOD = 'endurance-fixed-cycle-v1'
+METHOD = 'endurance-fixed-cycle-v2-policies'
 APPLICATIONS = ('http','https','http2','sftp','dns-tcp','quic')
 
 
@@ -53,6 +53,8 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
     from trafficlab.protocol import json_bytes
     if job.get('runtime_mode')!='local' or not job.get('native_worker_port'):
         raise ValueError('TRAFFIC_ENDURANCE_LOCAL_NATIVE_REQUIRED')
+    if job.get('_policy_session') is None or not job.get('native_origin_port'):
+        raise ValueError('TRAFFIC_ENDURANCE_POLICY_SESSION_REQUIRED')
     seconds=HOURS[job['duration']]*3600 if _duration_seconds is None else float(_duration_seconds)
     if not 0.1<=seconds<=259200: raise ValueError('TRAFFIC_ENDURANCE_DURATION_INVALID')
     started=time.monotonic(); deadline=started+seconds; observer_stop=threading.Event()
@@ -62,6 +64,8 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
           'development_time_scale':_duration_seconds is not None,'planned_walltime_completed':False,
           'verified_tcp_tx_bytes':0,'verified_tcp_rx_bytes':0,'verified_application_transactions':0,'channels':channels,'completed_jobs':0,'minute_samples':0,'cpu_saturated':False,'maximum_reply_gap_seconds':{},
           'profile':{'normal_minutes':10,'burst_minutes':5,'churn_minutes':5,'quiet_minutes':5,'recovery_minutes':5,'tcp_mib_per_second_per_direction':[6,10,2,0,1],'tcp_probe_per_second':2,'udp_packets_per_second':5,'message_bytes':512,'churn_sessions_per_second':3,'application_transactions_per_second':3,'quic_transactions_per_second':1},
+          'policy_checks':{'interval_seconds':60,'actions':['PROXY','DIRECT','BLOCK'],'protocols':['TCP','UDP'],
+                           'direct_overrides_fallback_block':True,'block_requires':['core_event','zero_arrivals','healthy_receiver']},
           'persistent_connections':'one TCP echo connection and one UDP association throughout the run'}
     report={'schema_version':1,'method':'controlled-traffic-v1','case_id':'soak','run_id':job['run_id'],
         'duration':job['duration'],'load':'FIXED','complete':False,'cancelled':False,'compact_stages':True,
@@ -131,6 +135,16 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
             time.sleep(.05)
     def accept(name,j,result,journal):
         nonlocal route_ok
+        if name=='policies':
+            record=json_bytes({'kind':'policy-observation','elapsed_seconds':time.monotonic()-started,**result})+b'\n'
+            journal.write(record);digest.update(record);report['stage_journal_records']+=1
+            for check in result['checks']:
+                key=check['channel'];state=channels.setdefault(key,{'runs':0,'failures':0,'state':'RUNNING'})
+                state['runs']+=1
+                if not check['complete']:state['failures']+=1;sticky.add(key);route_ok=False
+                state['state']='FAILED' if key in sticky else 'SUCCESSFUL'
+                state['last_error']=check['error']
+            return
         if result.get('worker_results_available') is False:raise ValueError('TRAFFIC_ENDURANCE_WORKER_RESULT_UNKNOWN:'+name+':'+','.join(result.get('errors',[])))
         if j.get('endurance') and result['complete'] and time.monotonic()<deadline-2:
             result={**result,'complete':False,'errors':result.get('errors',[])+['TRAFFIC_ENDURANCE_EARLY_CLOSE']}
@@ -197,6 +211,8 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
             if span<.05:
                 time.sleep(max(0,span));continue
             wave={}
+            if span>=5:
+                wave['policies']=make('window'+str(index)+'.policies','echo',span)
             if phase!='quiet':
                 rate={'normal':6,'burst':10,'churn':2,'recovery':1}[phase]*1048576
                 if 'bulk' not in sticky:wave['bulk']=make('window'+str(index)+'.bulk','duplex',span,rate_bytes_per_second=rate)
@@ -204,6 +220,10 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
                 app=apps[app_index%len(apps)];app_index+=1
                 if 'app-'+app not in sticky:wave['app-'+app]=make('window'+str(index)+'.app', 'udp' if app=='quic' else 'echo',span,application=app,rate_packets_per_second=3 if app!='quic' else 1)
             for name,j in wave.items():
+                if name=='policies':
+                    from trafficlab.endurance_policy import check
+                    pending[pool.submit(check,j)]=(name,j)
+                    continue
                 evidence=origin_metrics(j)
                 if j.get('application'):j.update(_endurance_bounded=True,_worker_directory=str(Path(output).parent),_worker_process={},_isolated_origin_evidence=evidence)
                 pending[pool.submit(execute_bounded if j.get('application') else execute,j)]=(name,j)
@@ -234,7 +254,9 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
         if sticky:report['errors'].append('TRAFFIC_ENDURANCE_CHANNEL_FAILURE')
         report['cancelled']=cancelled(job)
         report['product_route_confirmed']=route_ok
-        report['complete']=info['planned_walltime_completed'] and not sticky and not fatal and route_ok
+        policy_covered=all(channels.get(key,{}).get('runs',0)>0 for key in ('direct.tcp','direct.udp','block.tcp','block.udp'))
+        if not policy_covered and not report['cancelled']:report['errors'].append('TRAFFIC_ENDURANCE_POLICY_COVERAGE_INCOMPLETE')
+        report['complete']=info['planned_walltime_completed'] and not sticky and not fatal and route_ok and policy_covered
     except Exception as error:
         report['errors'].extend(fatal)
         report['errors'].append(type(error).__name__+':TRAFFIC_ENDURANCE_FAILED')

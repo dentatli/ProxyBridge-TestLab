@@ -6,7 +6,7 @@ namespace ProxyBridge.TestLab.Ui.Services;
 
 public sealed partial class TrafficRuntimeService
 {
-    private async Task<JsonElement> WithLocalRuntimeAsync(string directory, Func<Payload, CancellationToken, Task<JsonElement>> execute)
+    private async Task<JsonElement> WithLocalRuntimeAsync(string directory, Func<Payload, CancellationToken, Task<JsonElement>> execute, bool policyChecks = false)
     {
         var python = LocalPythonRuntime.Resolve(app.RepositoryRoot);
         if (!File.Exists(python)) throw new InvalidOperationException("TRAFFIC_PYTHON_311_REQUIRED");
@@ -55,7 +55,7 @@ public sealed partial class TrafficRuntimeService
             if (query.ExitCode != 0 || text.Length > 8192) throw new InvalidOperationException("TRAFFIC_LOCAL_PREPARATION_FAILED");
             applicationPorts = JsonSerializer.Deserialize<Dictionary<string, int>>(text) ?? throw new InvalidOperationException("TRAFFIC_LOCAL_PREPARATION_FAILED");
         }
-        await using var nativeOrigin = await NativeHost.StartAsync(app.RepositoryRoot, directory, secret, false, applicationPorts, Token);
+        await using var nativeOrigin = await NativeHost.StartAsync(app.RepositoryRoot, directory, secret, false, applicationPorts, Token, policyChecks);
         await using var nativeWorker = await NativeHost.StartAsync(app.RepositoryRoot, directory, secret, true, applicationPorts, Token);
         foreach (var file in new[] { nativeOrigin.Configuration, nativeWorker.Configuration }) sources[file] = Hash(File.ReadAllBytes(file));
         try
@@ -94,7 +94,7 @@ public sealed partial class TrafficRuntimeService
             if (ready != "TRAFFIC_AGENT_READY origin=42501 proxy=42502 control=42503" || origin.HasExited)
                 throw new InvalidOperationException("TRAFFIC_LOCAL_ORIGIN_NOT_READY_OR_PORT_BUSY");
             var payload = new Payload(prepared.GetProperty("bundle_sha256").GetString()!,new(),new(),"","",secret,"local",
-                nativeWorker.Binding, sources);
+                nativeWorker.Binding, sources, nativeOrigin.Binding);
             return await execute(payload,Token);
         }
         finally

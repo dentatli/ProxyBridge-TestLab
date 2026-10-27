@@ -35,6 +35,7 @@ try
     var portMap = configuration["application_ports"] is JsonObject ports ? ports.ToDictionary(pair => pair.Key, pair => pair.Value!.GetValue<int>()) : new Dictionary<string, int>();
     if (portMap.Values.Any(value => value is < 1024 or > 65535)) throw new InvalidDataException("ENGINE_CONFIG_INVALID");
     var proxyPort = configuration["proxy_port"]?.GetValue<int>() ?? 0;
+    var policyChecks = configuration["policy_checks"]?.GetValue<bool>() ?? false;
     if (proxyPort != 0 && (proxyPort is < 1024 or > 65535 || proxyPort == port)) throw new InvalidDataException("ENGINE_CONFIG_INVALID");
     var relay = !workerOnly && proxyPort != 0 ? new SocksRelay(secret, registry, port, portMap) : null;
     var pending = new ConcurrentDictionary<long, Task>(); long sequence = 0;
@@ -69,6 +70,13 @@ try
         if (!workerOnly)
         {
             var udp = origin.BindUdp(bind, port); datagrams.Add(udp); tasks.Add(origin.Udp(udp, stopping.Token)); Listen(port, origin.Tcp);
+            if (policyChecks)
+            {
+                foreach (var number in new[] { 42541, 42543 })
+                    Listen(number, (socket, token) => origin.PolicyTcp(number, socket, token));
+                foreach (var number in new[] { 42542, 42544 })
+                { var policyUdp = origin.BindUdp(bind, number); datagrams.Add(policyUdp); tasks.Add(origin.Udp(policyUdp, stopping.Token)); }
+            }
             if (relay is not null)
             {
                 Listen(proxyPort, relay.Tcp);

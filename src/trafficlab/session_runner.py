@@ -181,7 +181,9 @@ def execute(binding_path: str, directory: Path) -> int:
                 'product_route_confirmed': False, 'measurements': [], 'controls': [control_row], 'errors': [], 'conditions': dict(base_conditions)}
             results.append(row)
             row['conditions']['case_position_in_queue'] = len(results)
-            if case['case_id']=='soak':row['conditions'].update(comparison_method='endurance-fixed-cycle-v1',endurance_load='FIXED',kernel_measurement_policy='disabled-for-endurance')
+            if case['case_id']=='soak':
+                from trafficlab.endurance import METHOD
+                row['conditions'].update(comparison_method=METHOD,endurance_load='FIXED',kernel_measurement_policy='disabled-for-endurance')
             job = {**job_for(binding, case), **{key: base_conditions[key] for key in ('application_tls_sha256', 'application_ssh_sha256') if key in base_conditions},
                    '_origin_metrics_channel': channel, 'resource_processes': {'product_cli': {'pid': session.pid, 'path': binding['core_host']}}}
             specification = next(value for value in catalog['cases'] if value['id'] == case['case_id'])
@@ -216,6 +218,9 @@ def execute(binding_path: str, directory: Path) -> int:
                         raw = directory / (case['case_id'] + '.' + mode + '.raw.json')
                         measured_job = {**job, 'run_id': job['run_id'] + '.' + mode, 'expected_proxy': mode == 'SOCKS5',
                                         'case_id': 'tcp-rtt' if case['case_id'] == 'three-modes' else case['case_id']}
+                        if case['case_id']=='soak':
+                            state['policies']=session.command('POLICY')
+                            measured_job['_policy_session']=session
                         measured = run(measured_job, catalog, str(raw), progress)
                         life = session.snapshot(before)
                         item = measurement(measured, raw, mode, life, specification)

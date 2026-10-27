@@ -112,6 +112,7 @@ internal sealed class ControlChannel(byte[] secret, SessionRegistry sessions, Tr
         {
             var session = sessions.Get(run); var result = session.Snapshot(); result["proxy"] = session.Proxy.Snapshot();
             result["origin_udp_receive_buffer"] = new JsonObject { ["requested_bytes"] = TransportOrigin.DatagramBuffer, ["effective_bytes"] = origin.EffectiveReceiveBuffer };
+            result["policy_receivers"] = origin.PolicySnapshot();
             result["native_origin_connections"] = origin.Active; result["proxy_connections"] = relay?.Active ?? 0;
             result["worker_jobs_active"] = Volatile.Read(ref activeJobs); result["endurance_jobs"] = EnduranceObservation.Snapshot(); result["kernel_session_active"] = kernel.Active;
             result["proxy_udp_associations"] = relay?.Associations ?? 0; result["proxy_tcp_connections"] = (relay?.Active ?? 0) - (relay?.Associations ?? 0);

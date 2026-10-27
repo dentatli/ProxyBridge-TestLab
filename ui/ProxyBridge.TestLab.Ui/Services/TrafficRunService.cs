@@ -323,7 +323,7 @@ public sealed partial class TrafficRuntimeService
         {
             if (request.Mode == "local")
             {
-                final = await WithLocalRuntimeAsync(directory, (payload, token) => ExecutePreparedRunAsync(request, selection, directory, id, "127.0.0.1", payload, token, plan));
+                final = await WithLocalRuntimeAsync(directory, (payload, token) => ExecutePreparedRunAsync(request, selection, directory, id, "127.0.0.1", payload, token, plan), request.Cases.Any(row => row.Id == "soak"));
                 var value = System.Text.Json.Nodes.JsonNode.Parse(final.Value.GetRawText())!.AsObject();
                 value["local_origin_cleanup_verified"] = true;
                 value["native_engine_cleanup_verified"] = true;
@@ -430,6 +430,8 @@ public sealed partial class TrafficRuntimeService
                     transport_engine = payload.NativeWorker is null ? "python-transport-v1" : "csharp-transport-v1",
                     native_worker_port = payload.NativeWorker?.Port, native_worker_pid = payload.NativeWorker?.Pid,
                     native_worker_executable = payload.NativeWorker?.Executable,
+                    native_origin_port = payload.NativeOrigin?.Port, native_origin_pid = payload.NativeOrigin?.Pid,
+                    native_origin_executable = payload.NativeOrigin?.Executable,
                     cancellation_path = Path.Combine(directory, "cancel.requested"),
                     continue_after_failure = request.ContinueAfterFailure,
                     cases = request.Cases.Select(row => new { case_id = row.Id, duration = row.Duration, load = row.Load }).ToArray() };

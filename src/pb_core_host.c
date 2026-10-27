@@ -25,6 +25,8 @@ static DWORD worker_pid;
 static DWORD native_worker_pid;
 static HANDLE native_worker_handle;
 static UINT64 direct_count, proxy_count, blocked_count;
+static UINT32 policy_rules[5];
+static UINT64 policy_counts[4][3];
 // Isolated SSH/SFTP workers are direct children of the queue's Python worker.
 // Check live parent, executable and creation times; never accept an arbitrary PID/name.
 static BOOL owned_worker(DWORD pid) {
@@ -69,6 +71,12 @@ static void connection(const char *process, DWORD pid, const char *ip, UINT16 po
     (void)process; (void)ip; (void)port;
     if (!owned_worker(pid)) return;
     EnterCriticalSection(&output_lock);
+    if (pid == native_worker_pid && port >= 42541 && port <= 42544) {
+        unsigned action = (strstr(route, "Proxy") || strstr(route, "SOCKS") || strstr(route, "proxy")) ? 1 :
+            (strstr(route, "Block") || strstr(route, "BLOCK")) ? 2 :
+            (strstr(route, "Direct") || strstr(route, "DIRECT")) ? 0 : 3;
+        if (action < 3) policy_counts[port - 42541][action]++;
+    }
     if (strstr(route, "Proxy") || strstr(route, "SOCKS") || strstr(route, "proxy")) proxy_count++;
     else if (strstr(route, "Direct") || strstr(route, "DIRECT")) direct_count++;
     else if (strstr(route, "Block") || strstr(route, "BLOCK")) blocked_count++;
@@ -86,6 +94,19 @@ static void ack(unsigned id, BOOL ok, UINT32 config, UINT32 rule, UINT32 rule2, 
 static BOOL disable_all(RULE_OP disable, UINT32 rule, UINT32 rule2) {
     BOOL first = disable(rule), second = rule2 ? disable(rule2) : TRUE;
     return first && second;
+}
+static BOOL disable_policies(RULE_OP disable) {
+    unsigned i; BOOL ok = TRUE;
+    for (i=0; i<5; i++) if (policy_rules[i] && !disable(policy_rules[i])) ok = FALSE;
+    return ok;
+}
+static void policy_ack(unsigned id, BOOL ok) {
+    unsigned i,j;
+    EnterCriticalSection(&output_lock);
+    fprintf(stdout, "PB_POLICY_ACK\t%u\t%d", id, !!ok);
+    for (i=0; i<5; i++) fprintf(stdout, "\t%u", policy_rules[i]);
+    for (i=0; i<4; i++) for (j=0; j<3; j++) fprintf(stdout, "\t%llu", (unsigned long long)policy_counts[i][j]);
+    fputc('\n', stdout); fflush(stdout); LeaveCriticalSection(&output_lock);
 }
 static BOOL number(const char *s, unsigned *out) {
     char *end; unsigned long value;
@@ -181,15 +202,39 @@ int wmain(int argc, wchar_t **argv) {
             if (ok && rule2) ok = wfp ? ((EDIT_RULE_WFP)edit_rule)(rule2, process2, host, fields[3], "", 2, 0, config) :
                 ((EDIT_RULE)edit_rule)(rule2, process2, host, fields[3], "", 2, 0, config, TRUE);
             if (ok) { ok = enable_rule(rule); if (ok && rule2) ok = enable_rule(rule2); enabled = ok; }
+        } else if (!strcmp(fields[2], "POLICY") && n == 3 && started && rule2 && !policy_rules[0]) {
+            unsigned i;
+            ok = TRUE;
+            for (i=0; i<4 && ok; i++) {
+                char policy_port[8]; sprintf_s(policy_port, sizeof(policy_port), "%u", 42541+i);
+                policy_rules[i] = wfp ? ((ADD_RULE_WFP)add_rule)(process2, host, policy_port, "", i%2, i<2 ? 1 : 2, config) :
+                    ((ADD_RULE)add_rule)(process2, host, policy_port, "", i%2, i<2 ? 1 : 2, config, TRUE);
+                ok = policy_rules[i] && enable_rule(policy_rules[i]);
+            }
+            // Appended lower-priority BLOCK: DIRECT must override a real rule,
+            // rather than accidentally passing via the default direct path.
+            if (ok) {
+                policy_rules[4] = wfp ? ((ADD_RULE_WFP)add_rule)(process2, host, "42541,42542", "", 2, 2, config) :
+                    ((ADD_RULE)add_rule)(process2, host, "42541,42542", "", 2, 2, config, TRUE);
+                ok = policy_rules[4] && enable_rule(policy_rules[4]);
+            }
+            policy_ack(id, ok); if (!ok) break; continue;
+        } else if (!strcmp(fields[2], "POLICY_DIRECT_OFF") && n == 3 && started && policy_rules[4]) {
+            ok = disable_rule(policy_rules[0]); if (!disable_rule(policy_rules[1])) ok = FALSE;
+            policy_ack(id, ok); if (!ok) break; continue;
+        } else if (!strcmp(fields[2], "POLICY_SNAP") && n == 3 && started && policy_rules[4]) {
+            policy_ack(id, TRUE); continue;
         } else if (!strcmp(fields[2], "DISABLE") && n == 3 && started) {
-            ok = disable_all(disable_rule, rule, rule2); if (ok) enabled = FALSE;
+            ok = disable_all(disable_rule, rule, rule2);
+            if (!disable_policies(disable_rule)) ok = FALSE;
+            if (ok) enabled = FALSE;
         } else if (!strcmp(fields[2], "SNAP") && n == 3 && started) ok = TRUE;
         if (ok && (!strcmp(fields[2], "RULE") || !strcmp(fields[2], "DISABLE"))) clear_logs();
         ack(id, ok, config, rule, rule2, enabled);
         if (!ok) break;
     }
 finish:
-    if (started) { ok = disable_all(disable_rule, rule, rule2); enabled = FALSE; if (stop() && ok) exit_code = 0; }
+    if (started) { ok = disable_all(disable_rule, rule, rule2); if (!disable_policies(disable_rule)) ok = FALSE; enabled = FALSE; if (stop() && ok) exit_code = 0; }
     if (native_worker_handle) CloseHandle(native_worker_handle);
     // Keep the module and callback code mapped through process exit. No FreeLibrary race.
     return exit_code;

@@ -33,14 +33,15 @@ public sealed partial class TrafficRuntimeService
         public string Configuration { get; } = configuration;
 
         public static async Task<NativeHost> StartAsync(string root, string directory, string secret, bool worker,
-            IReadOnlyDictionary<string, int> applicationPorts, CancellationToken token)
+            IReadOnlyDictionary<string, int> applicationPorts, CancellationToken token, bool policyChecks = false)
         {
             var role = worker ? "worker" : "origin";
             var executable = Path.Combine(NativeFolder(root), $"pb_testlab_{role}.exe");
             var config = Path.Combine(directory, $"native-{role}-private.json");
             var stop = Path.Combine(directory, $"native-{role}.stop");
             await File.WriteAllTextAsync(config, JsonSerializer.Serialize(new { secret, bind = "127.0.0.1", port = 42501,
-                proxy_port = worker ? 0 : 42502, stop_path = stop, worker_only = worker, application_ports = applicationPorts }), token);
+                proxy_port = worker ? 0 : 42502, stop_path = stop, worker_only = worker, application_ports = applicationPorts,
+                policy_checks = !worker && policyChecks }), token);
             var start = new ProcessStartInfo(executable) { UseShellExecute = false, CreateNoWindow = true,
                 WorkingDirectory = NativeFolder(root), RedirectStandardOutput = true, RedirectStandardError = true,
                 RedirectStandardInput = true };

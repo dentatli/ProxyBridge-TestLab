@@ -195,5 +195,5 @@ public sealed partial class TrafficRuntimeService(AppPaths app, AppStoragePaths 
     private static string Hash(byte[] bytes) => Convert.ToHexString(SHA256.HashData(bytes)).ToLowerInvariant();
     private sealed record Payload(string Bundle, SortedDictionary<string,string> Hashes, SortedDictionary<string,string> Sources,
         string Configuration, string ConfigHash, string Secret, string Action, NativeBinding? NativeWorker = null,
-        Dictionary<string, string>? NativeSources = null);
+        Dictionary<string, string>? NativeSources = null, NativeBinding? NativeOrigin = null);
 }

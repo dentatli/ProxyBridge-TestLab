@@ -13,6 +13,11 @@ internal sealed class TransportOrigin(byte[] secret, SessionRegistry registry, i
     private int active;
     internal int Active => Volatile.Read(ref active);
     internal int EffectiveReceiveBuffer { get; private set; }
+    private readonly long[] policyReceived = new long[4];
+    internal JsonObject PolicySnapshot() => new(Enumerable.Range(0, 4).Select(index =>
+        new KeyValuePair<string, JsonNode?>((42541 + index).ToString(), JsonValue.Create(Interlocked.Read(ref policyReceived[index])))));
+    internal Task PolicyTcp(int port, Socket socket, CancellationToken token)
+    { Interlocked.Increment(ref policyReceived[port - 42541]); return Tcp(socket, token); }
 
     internal async Task Tcp(Socket socket, CancellationToken stopping)
     {
@@ -145,6 +150,8 @@ internal sealed class TransportOrigin(byte[] secret, SessionRegistry registry, i
             catch (OperationCanceledException) when (token.IsCancellationRequested) { break; }
             try
             {
+                var localPort = ((IPEndPoint)socket.LocalEndPoint!).Port;
+                if (localPort is 42542 or 42544) Interlocked.Increment(ref policyReceived[localPort - 42541]);
                 var packet = Reply(buffer.AsSpan(0, received.ReceivedBytes), (IPEndPoint)received.RemoteEndPoint, out var session, out var payloadBytes);
                 try { await socket.SendToAsync(packet, SocketFlags.None, received.RemoteEndPoint, token); lock (session.Sync) session.Tx += payloadBytes; }
                 catch (SocketException) { lock (session.Sync) session.UdpReplyErrors++; }
