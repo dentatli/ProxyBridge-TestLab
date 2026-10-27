@@ -26,6 +26,7 @@ def summary_report(report):
     return {'stages':report['stages'], 'resources':resources, 'workload_resources':resources,
         'overall':report['overall'], 'endurance':report['endurance'],
         'kernel_resources':report.get('kernel_resources'), 'schedule_errors':report['errors'],
+        'failure_context':report.get('failure_detail'),
         'comparison_quality':{'method':METHOD, 'exchange_state':'PASS' if ok else 'FAIL',
             'windows_complete':report['endurance']['planned_walltime_completed'],
             'route_accounting':'COMPLETE' if report['product_route_confirmed'] else 'UNVERIFIED',
@@ -79,11 +80,19 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
     def observe():
         nonlocal live
         previous_observation=time.monotonic()
+        next_origin_poll=previous_observation
         while not observer_stop.is_set():
             try:
                 current_observation=time.monotonic()
                 gap=current_observation-previous_observation;previous_observation=current_observation
                 if gap>10:raise ValueError('TRAFFIC_ENDURANCE_OBSERVATION_GAP')
+                # The preconnected metrics socket expires after 30 idle seconds.
+                # Keep using that authenticated, serialized channel during long
+                # workload/quiet windows; never reconnect through the product.
+                if job.get('_origin_metrics_channel') is not None and current_observation>=next_origin_poll:
+                    origin_metrics(job)
+                    info['origin_heartbeat_count']=info.get('origin_heartbeat_count',0)+1
+                    next_origin_poll=time.monotonic()+5
                 now=time.monotonic()-started
                 samples={'windows_system':system_sample()}
                 for role,p in job.get('resource_processes',{}).items():samples[role]=process_sample(int(p['pid']),p.get('path'))
@@ -99,6 +108,7 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
                 atomic(progress,{'run_id':job['run_id'],'state':'RUNNING','stage':'endurance', 'operation':'RUNNING_WORKLOAD',
                     'elapsed_seconds':now,'remaining_seconds':max(0,deadline-time.monotonic()),'channels':{k:{a:v for a,v in s.items() if a!='latency'} for k,s in live.items()}})
             except Exception as e:
+                report.setdefault('failure_detail',{'code':str(e)[:200],'source':'observer'})
                 fatal.append(type(e).__name__+':ENDURANCE_OBSERVER_FAILED');return
             observer_stop.wait(min(1,_window_seconds/2))
     def make(name,task,span,**kw):
@@ -225,8 +235,9 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
         report['product_route_confirmed']=route_ok
         report['complete']=info['planned_walltime_completed'] and not sticky and not fatal and route_ok
     except Exception as error:
+        report['errors'].extend(fatal)
         report['errors'].append(type(error).__name__+':TRAFFIC_ENDURANCE_FAILED')
-        report['failure_detail']={'code':str(error)[:200]}
+        report.setdefault('failure_detail',{'code':str(error)[:200]})
     finally:
         report['cancelled']=cancelled(job)
         if report['cancelled']:report['complete']=False
