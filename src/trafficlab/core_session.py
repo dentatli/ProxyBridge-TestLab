@@ -15,6 +15,7 @@ from typing import Any
 from trafficlab.product import Product
 from trafficlab.protocol import mac
 from trafficlab.resources import process_sample
+from trafficlab.rule_scope import port_filter
 
 
 class CoreSession(Product):
@@ -144,10 +145,12 @@ class CoreSession(Product):
             raise ValueError('TRAFFIC_SESSION_RULE_DISABLE_FAILED')
         return state
 
-    def enable(self, port: int) -> dict[str, Any]:
-        state = self.command('RULE', self.hex(port), '1')
+    def enable(self, port: int | tuple[int, ...]) -> dict[str, Any]:
+        ports = port_filter(port)
+        state = self.command('RULE', self.hex(ports), '1')
         if not state['rule_enabled']:
             raise ValueError('TRAFFIC_SESSION_RULE_ENABLE_FAILED')
+        state['target_ports'] = ports
         return state
 
     def snapshot(self, before: dict[str, int]) -> dict[str, Any]:

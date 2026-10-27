@@ -16,6 +16,7 @@ from trafficlab.metrics import summary
 from trafficlab.routes import stage_route
 from trafficlab.schedule import OriginMetricsChannel, atomic, run
 from trafficlab.worker import cancelled
+from trafficlab.rule_scope import case_ports, port_filter
 
 
 def idle(binding_path: str, binding: dict[str, Any], restore_owned: bool = False) -> dict[str, Any]:
@@ -51,7 +52,7 @@ def validate_route(report: dict[str, Any], proxied: bool) -> bool:
     return all(stage_route(stage, proxied) for stage in report["stages"])
 
 
-def profile(binding: dict[str, Any], run_id: str, mode: str, target_port: int | None = None) -> dict[str, Any]:
+def profile(binding: dict[str, Any], run_id: str, mode: str, target_port: int | tuple[int, ...] | None = None) -> dict[str, Any]:
     processes = [Path(binding['python']).name]
     if binding.get('native_worker_executable'):
         worker = Path(binding['native_worker_executable']).name
@@ -64,7 +65,7 @@ def profile(binding: dict[str, Any], run_id: str, mode: str, target_port: int | 
         "ProxyConfigs": [{"Id": 1, "Name": "TestLab traffic", "Type": "SOCKS5", "Host": binding["host"], "Port": str(binding["proxy_port"]),
             "Username": run_id, "Password": mac(bytes.fromhex(binding["secret"]), b"socks:", run_id.encode()), "SendDomainToProxy": False}],
         "ProxyRules": [{"Name": "Controlled traffic: " + process, "ProcessName": process,
-            "TargetHosts": binding["host"], "TargetPorts": str(target_port or binding["port"]), "TargetDomains": "", "Protocol": "BOTH", "Action": "PROXY", "ProxyConfigId": 1, "IsEnabled": True, **({"LocalhostViaProxy": True} if binding.get("adapter_id") == "windivert-4.1-cli-v1" else {})} for process in processes]}
+            "TargetHosts": binding["host"], "TargetPorts": port_filter(binding["port"] if target_port is None else target_port), "TargetDomains": "", "Protocol": "BOTH", "Action": "PROXY", "ProxyConfigId": 1, "IsEnabled": True, **({"LocalhostViaProxy": True} if binding.get("adapter_id") == "windivert-4.1-cli-v1" else {})} for process in processes]}
 
 
 def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], output: str, progress: str) -> dict[str, Any]:
@@ -130,8 +131,7 @@ def attempt(binding_path: str, binding: dict[str, Any], case: dict[str, Any], ou
             return result
         modes = ("OFF", "UNRULED", "SOCKS5") if case["case_id"] == "three-modes" else ("SOCKS5",)
         specification = next(row for row in catalog["cases"] if row["id"] == case["case_id"])
-        from trafficlab.application_wire import APPLICATION_PORTS
-        target_port = APPLICATION_PORTS[specification["application"]] if specification.get("application") else binding["port"]
+        target_port = case_ports(specification, binding['port'])
         for mode in modes:
             raw = directory / (case["case_id"] + "." + mode + ".raw.json")
             idle(binding_path, binding)

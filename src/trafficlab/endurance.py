@@ -15,6 +15,7 @@ from pathlib import Path
 
 HOURS = {'H2':2, 'H24':24, 'H48':48, 'H72':72, 'SHORT':24, 'NORMAL':48, 'LONG':72}
 METHOD = 'endurance-fixed-cycle-v1'
+APPLICATIONS = ('http','https','http2','sftp','dns-tcp','quic')
 
 
 def summary_report(report):
@@ -188,7 +189,7 @@ def run(job, catalog, output, progress, *, _duration_seconds=None, _cycle_second
             pending[pool.submit(execute,j)]=('persistent.'+name,j)
             report['workload_started_stage_count']+=1
         observer.start();persist();index=0;app_index=0
-        apps=['http','https','http2','sftp','dns-tcp','quic']
+        apps=APPLICATIONS
         while time.monotonic()<deadline and not cancelled(job) and not fatal:
             position=(time.monotonic()-started)%_cycle_seconds/_cycle_seconds
             phase='normal' if position<1/3 else 'burst' if position<.5 else 'churn' if position<2/3 else 'quiet' if position<5/6 else 'recovery'

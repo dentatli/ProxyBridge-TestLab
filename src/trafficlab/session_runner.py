@@ -18,6 +18,7 @@ from trafficlab.schedule import OriginMetricsChannel, atomic, origin_metrics, ru
 from trafficlab.worker import cancelled
 from trafficlab.wfp_device import device
 from trafficlab.udp_capacity import CAPACITY_ERROR, capacity_candidate, run_capacity_control
+from trafficlab.rule_scope import case_ports
 
 MODEL = 'persistent-core-session-v1'
 
@@ -202,8 +203,7 @@ def execute(binding_path: str, directory: Path) -> int:
                     publish_queue('TESTING', client_ready=True)
                     if case['case_id'] == 'three-modes':
                         row['measurements'].append(baseline['three-modes'])
-                    from trafficlab.application_wire import APPLICATION_PORTS
-                    port = APPLICATION_PORTS[specification['application']] if specification.get('application') else binding['port']
+                    port = case_ports(specification, binding['port'])
                     modes = ('UNRULED', 'SOCKS5') if case['case_id'] == 'three-modes' else ('SOCKS5',)
                     for mode in modes:
                         if cancelled(binding):
