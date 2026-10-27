@@ -1,5 +1,8 @@
 # «На этом ПК» — checkpoint, 27 октября 2026
 
+## Последний H2 WinDivert, 27 октября
+
+[АудитH2preview58](PB_SUT_WINDIVERT_H2_58_AUDIT_2026-10-27.md):7200свыполнены,heartbeatисправлениеработает,cleanuptrue. TCPpersistent/bulk/churnиUDP36 000/36 000успешнысrouteproof. Но6appканаловвыполнилиобменывобходrelay:правилоsoakвsession_runnerвключаеттолько42501,аAPPLICATION_PORTSнеучтены. ИтогFAILEDпоroute,этодефектлаборатории,не6ошибокпродукта. Appsпослепервогоокнакарантин,поэтомуприкладной2чохватнеполный. 9fileSHA/raw/journal/captureSHAисummaryrecompute0diff. Журналы5.97МиБ,всяпапка7.33МиБ,ZIP772КиБ. **ПередновымH2/WFPисправитьточныйнаборпортоввобоихправилахипроверитьреальныйrulepathкоротко;покакоднеисправлен.** Неавтозапускатьмногочасовые. Подробностииevidenceпосcылке.
 ## Актуальная версия и последний запрос
 
 **preview.58**, source `cbc8e8460386400ad0693854c4d72f2e75f3048c`, установлена и запущена admin/idle на VM localhost5178 и PB-SUT (его localhost5178). По1702packageSHA verified. VM2сборки/10элементовистории, PB-SUT2сборки/11элементов, unreadable0. Stores разные, не смешивать отчёты. НаSUT сохранены прежние сборки/история, задача Comparison переключена на58, WinRMclientcleanup без ошибок. Продуктовые DLL/SYS/driver/trust/BCD не менялись.
@@ -29,3 +32,4 @@ UDPWinDivert — отдельныйчат `01a17935-ca69-7152-8f03-9c9bb8600e7c`
 ## Рабочие границы
 
 Worktree `C:/Users/LabAdmin/.codex/worktrees/testlab-development/ProxyBridge-TestLab`, branch codex/development-functional-completion; базаd5b51f3сохранена. Main C:/src/ProxyBridge-TestLab checkpoint-20261007:чужойhandoff/KernelReadCapture.csнетрогать/нечитать. Неавтозапускатьfull/HIGH/soak;trust/BCD/driverнеизменятькакroutineappstep;frozenkits/captures/archivesсохранить. No force/PR/privateartifacts,неделегировать. Проверятьлимиты,<=5%remainingcheckpoint/стоп. Последниелимитыprimary8%used/weekly39%used.
+
