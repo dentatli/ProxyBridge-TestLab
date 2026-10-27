@@ -13,3 +13,7 @@
 Evidenceignored: artifacts/endurance-check/check61-close-confirmed.log/.exit иprobe-1793096052249287900 (quic/http3/overlimit-close61.json). Первая harness-попытка имела неправильный run_id вне разрешённого queue prefix, relay правильно отклонил обмен; после исправления только harness-ID подтверждения выше прошли. Исходные отчёты/SUTистория не исправлялись.
 
 Код не доказывает, что исторический QUICFAIL60 был вызван именно3PTO>2с: его таймер не записан. Исправлена подтверждённая методическая ошибка; новый H2/24ч после исправления ещё не выполнялся. Действия PROXY/DIRECT/BLOCK и прежний профиль60 сохранены.
+
+## Развёртывание
+
+Preview61 source d1da6ff13daf50c803da96e0c2256e67f1cf1154 установлена/запущена на VM и PB-SUT(payload/lab61). 1704SHAнакаждойкопиисовпали;admintrue/activefalse/busyfalse;2сборки,историяVM10/SUT13,unreadable0. Storesсохранены,Comparisontaskобновлена,старыепакетыоставлены,clientcleanupбезошибок. Многочасовойтестне запускался. Evidence ignored: package61-verified.json/sut-upgrade61-r1 и VM artifacts/endurance61-vm-ready.json.
