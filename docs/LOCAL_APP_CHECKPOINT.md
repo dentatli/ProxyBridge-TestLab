@@ -2,7 +2,7 @@
 
 ## Удалённый узел временно скрыт
 
-По запросу пользователя из lab-mode удалён remote option. Старый browser choice остаётся на local; сохранённые/импортированные remote-наборы применяют доступный local без перезаписи исходной записи. Backend remote/history не удалены. Node syntax и одноразовая проверка настоящих restore/apply функций с local-only options PASS; новых постоянных автотестов, сетевых нагрузок и сборок не было. README EN/RU уточнены. Изменение пока в исходниках; установленные preview.61/62 не подменялись, войдёт в следующий пакет.
+По запросу пользователя из lab-mode удалён remote option. Старый browser choice остаётся на local; сохранённые/импортированные remote-наборы применяют доступный local без перезаписи исходной записи. Backend remote/history не удалены. Node syntax и одноразовая проверка настоящих restore/apply функций с local-only options PASS; новых постоянных автотестов, сетевых нагрузок и сборок не было. README EN/RU уточнены. Изменение установлено только на VM в preview.63; PB-SUT оставлен на preview.62.
 
 ## Документация к выпуску
 
@@ -10,9 +10,9 @@
 
 ## Сейчас
 
-PB-SUT: **preview.62**, source `2f6f0bb8684db5a2615f8cf3f0e860fafefbf1e1`, `C:/PB-TestLab-20261026-r1/payload/lab62`, localhost5178. Comparison task обновлена, app admin/idle. При обновлении сохранены 2 сборки и 14 прежних отчётов, unreadable0; после него появился новый H2. Все1704 SHA проверены после установки и после короткого прогона. Предыдущие пакеты/task-before62.clixml оставлены для отката.
+**PB-SUT не трогать:** пользователь сообщил, что там выполняется проверка. В запросе обновить VM запрещено обращаться к PB-SUT; WinRM/SSH/перезапуск/новый прогон не выполнялись. Последняя подтверждённая установка — preview.62, source `2f6f0bb8684db5a2615f8cf3f0e860fafefbf1e1`, `C:/PB-TestLab-20261026-r1/payload/lab62`, localhost5178. Текущий прогон ждать до сообщения пользователя, результаты не читать автоматически.
 
-VM: **preview.61**, `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.61-win-x64`. Автоматическая проверка отклонила команду подготовки обновления VM («blocked by policy»); её не перезапускали. На VM обнаружен уже загруженный WinDivert64.sys; чужой драйвер не выгружать и WFP safety gate не обходить.
+**VM обновлена до preview.63**, source `ae312ecfa3840c18dfdf4144c7fec660941b7199`: `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.63-win-x64`, localhost5178. App admin/idle, обе сборки и14 отчётов сохранены/unreadable0. Все1704 SHA проверены до переключения; HTTP подтверждает новый root, отсутствие remote option и local fallback для наборов. Старый preview.61 сохранён для отката. Продукт/его драйвер/системные настройки не меняли, тесты не запускали. Evidence ignored: artifacts/endurance-check/publish63.log/.exit, update-vm63.ps1, vm63-ready.json, vm63-app.log/.err. Предыдущее отклонение подготовки VM62 не обходилось: новое обновление63 выполнено по отдельному прямому запросу пользователя.
 
 ## Исправление и проверка62
 
