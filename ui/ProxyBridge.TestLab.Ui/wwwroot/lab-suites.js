@@ -69,7 +69,8 @@ function applySavedSuite() {
 }
 
 function applySuiteChoices(entry) {
-  lab("lab-mode").value = entry.mode;
+  // Keep saved/imported suites usable while remote selection is unavailable.
+  lab("lab-mode").value = [...lab("lab-mode").options].some(option => option.value === entry.mode) ? entry.mode : "local";
 
     const legacy = {tcp_rtt:["tcp-rtt"],tcp_transfer:["tcp-upload","tcp-download"],tcp_rtt_three_modes:["three-modes"],tcp_connections:["tcp-connections"]};
     trafficChoice = {};

@@ -4,7 +4,7 @@
 
 A laboratory for testing [ProxyBridge](https://github.com/InterceptSuite/ProxyBridge) and comparing builds using **WFP** and **WinDivert**. The application generates controlled network traffic, verifies data exchange and rule enforcement, collects measurements, and saves reports.
 
-The primary workflow is **On this PC**, accessed through a local web interface. The traffic generator, receiver, and SOCKS5 relay run on the machine under test. This mode requires no separate server. The interface supports English and Russian.
+The primary workflow is **On this PC**, accessed through a local web interface. The traffic generator, receiver, and SOCKS5 relay run on the machine under test. This mode requires no separate server. Remote host selection is temporarily disabled in the interface. The interface supports English and Russian.
 
 ## Features
 
