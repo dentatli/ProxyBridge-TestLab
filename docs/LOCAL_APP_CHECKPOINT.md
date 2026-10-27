@@ -1,35 +1,31 @@
 # «На этом ПК» — checkpoint, 27 октября 2026
 
-## Последний H2 WinDivert, 27 октября
+## Актуальная версия
 
-[АудитH2preview58](PB_SUT_WINDIVERT_H2_58_AUDIT_2026-10-27.md):7200свыполнены,heartbeatисправлениеработает,cleanuptrue. TCPpersistent/bulk/churnиUDP36 000/36 000успешнысrouteproof. Но6appканаловвыполнилиобменывобходrelay:правилоsoakвsession_runnerвключаеттолько42501,аAPPLICATION_PORTSнеучтены. ИтогFAILEDпоroute,этодефектлаборатории,не6ошибокпродукта. Appsпослепервогоокнакарантин,поэтомуприкладной2чохватнеполный. 9fileSHA/raw/journal/captureSHAисummaryrecompute0diff. Журналы5.97МиБ,всяпапка7.33МиБ,ZIP772КиБ. **ПередновымH2/WFPисправитьточныйнаборпортоввобоихправилахипроверитьреальныйrulepathкоротко;покакоднеисправлен.** Неавтозапускатьмногочасовые. Подробностииevidenceпосcылке.
-## Актуальная версия и последний запрос
+**preview.59**, source `b379160804fd7447a2a90acd17313ea575fb663e`, установлена/запущена admin/idle на VM localhost5178 и физическом PB-SUT (его localhost5178). 1703 package SHA256 на каждой копии совпали. По2сборки; история VM10/SUT12 элементов, unreadable0. Stores отдельные, результаты разных машин не смешивать. DLL/SYS, установка WFP, BCD/trust не менялись.
 
-**preview.58**, source `cbc8e8460386400ad0693854c4d72f2e75f3048c`, установлена и запущена admin/idle на VM localhost5178 и PB-SUT (его localhost5178). По1702packageSHA verified. VM2сборки/10элементовистории, PB-SUT2сборки/11элементов, unreadable0. Stores разные, не смешивать отчёты. НаSUT сохранены прежние сборки/история, задача Comparison переключена на58, WinRMclientcleanup без ошибок. Продуктовые DLL/SYS/driver/trust/BCD не менялись.
+VM: `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.59-win-x64`. SUT: `C:/PB-TestLab-20261026-r1/payload/lab59`; существующая задача Comparison обновлена, ярлык прежний. Пакеты58/57 оставлены для отката; task-before59.clixml наSUT. Evidence ignored: artifacts/endurance-check/package59-verified.json, sut-upgrade59-r1; VM artifacts/endurance59-vm-ready.json. WinRMclientcleanup без ошибок.
 
-Пути: VM `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.58-win-x64`; SUT `C:/PB-TestLab-20261026-r1/payload/lab58`. Старые пакеты оставлены, task-before58.clixml наSUT. Evidence ignored: artifacts/endurance-check/package58-verified.json, sut-upgrade58-r1; VM artifacts/endurance58-vm-ready.json.
+## Последнее исправление
 
-## Исправление длительного режима
+[Порты endurance59](ENDURANCE59_RULE_PORTS_FIX_2026-10-27.md): общий выбор точного набора42501,42511,42513,42515,42517,42518,42520 для обоих worker-правил (API/CLI, WFP/WinDivert). Набор приложений общий с endurance. Control/proxy/посторонние порты исключены; process/ownedPID/route/payload scope не ослаблен. rule_change содержит target_ports. Обычные сценарии сохраняют один свой порт.
 
-[Причина57](ENDURANCE57_EARLY_STOP_2026-10-27.md): попытка WinDivert/H2 `20261026-170949-580b7f74b7204c918f288d5369fe1f1a` наSUT остановилась после61.891с нагрузки. Это дефект лаборатории: serveridle30с, окно60с, observer опрашивал только nativeworker. Raw HEADER_INVALID → вторичный CHANNEL_CLOSED, cleanuptrue; UDP-дефектом этот отказ не является.
+Проверки:3целевых regression PASS; **настоящий WinDivert4.3.0 Core наVM**, безexplicittest_proxy, короткий50сцикл: elapsed51.437с,15/15операций routeCOMPLETE,все6appканалов SUCCESSFUL,постоянныеTCP/UDP/bulk/churnуспешны. ACK обоих правил, nativePID/path подтверждены. Cleanuptrue/forcedstopfalse,nativejobs0,послевыходаownedпроцессов/WinDivertслужбнет. Временная загрузка официальногоWinDivert в ранее разрешённом scope, состояние восстановлено. Evidence artifacts/endurance-check/check59-product.log/.exit, probe-1793082505832651500. WFPпроверен на общем rulegeneration/serialization, нового реального WFPпрогона не было.
 
-[Исправление58/проверки](ENDURANCE58_HEARTBEAT_FIX_2026-10-27.md): каждые5с аутентифицированный originmetrics запрос по прежнему сериализованному preconnected socket, включая quiet; скрытого reconnect нет. Первая observerпричина не затирается последующим отказомизоляции, передаётсявsummary.failure_context. Серверные лимиты/маршрут/payloadgates не ослаблены.
+## Что показал предыдущий H2
 
-Проверено безProxyBridge наVM: настоящий PythonAgent/OriginMetricsChannel +C#origin/relay/worker+HTTPadapter,100.609с, окно60с иquiet>30с,19heartbeats, исходныйsocketсохранён,complete=true,nativejobs0. Fault закрытияканала: complete=false,первичнаяпричинасохранена,nativejobs0. Summaryprojection/g diffcheck PASS. Пакет58собран, обеустановкипроверены. Evidence artifacts/endurance-check/check58.log, probe-1793073656988624100. Новых trackedавтотестов нет.
+[WinDivert H2preview58](PB_SUT_WINDIVERT_H2_58_AUDIT_2026-10-27.md): attempt20261027-041036-80501e557e9645ba8890e0f863afe413,7200свыполнены,cleanuptrue. UDP36000/36000,invalid0/loss0;TCPpersistent/bulk/churnсrouteproof. Но6appканалов выполняли обмены внеProxyBridge из-за правила42501; после первого окна карантин, итогFAILED, прикладной2чохватнеподтверждён. Это исправлено59; старый отчёт не переписывался. Журналы5.97МиБ,всяпапка7.33МиБ,ZIP772КиБ. 9fileSHA/raw/journal/captureSHA и summaryrecompute0diff.
+
+[Heartbeat58](ENDURANCE58_HEARTBEAT_FIX_2026-10-27.md) исправил [раннюю остановку57](ENDURANCE57_EARLY_STOP_2026-10-27.md): originidle30с против окна60с. Подтверждено100снапрежнемsocket+quiet>30с+failurecleanup. В H2preview58 сработал1267раз, controltimeoutнеповторился. Не чинить это повторно.
 
 ## Следующий шаг
 
-Пользователь самостоятельно повторяет **2ч** длительной стабильности наPB-SUT. Послеисправления2/24/48/72ч сProxyBridge ещёнепроверены; неавтозапускать. Новый режим один/эксклюзивный, фиксированный30минцикл, безloadselector, H2default/H24/H48/H72, legacyдлительностисовместимы. Подробности [режим57](ENDURANCE_PREVIEW57_2026-10-26.md). ETWkernelвsoakвыключен, полногоkernelCPU/RAMнеобещаем.
+Пользователь самостоятельно запускает H2 на59; новый многочасовой запуск ни одной сборки после исправления портов не выполнялся. Для честного прикладного сравнения нужны результаты одной59; прежний58H2частичный. Неавтозапускатьfull/HIGH/H2/24ч. Длительный режим отдельный/эксклюзивный,фиксированныйцикл,H2default/H24/H48/H72,безloadselector,legacyдлительностисовместимы. [Устройство57](ENDURANCE_PREVIEW57_2026-10-26.md); ETWkernelвsoakотключён, полногоkernelCPU/RAM не обещать.
 
-UDPWinDivert — отдельныйчат `01a17935-ca69-7152-8f03-9c9bb8600e7c`, [VM-onlyпередача](WINDIVERT_UDP_VM_HANDOFF_2026-10-26.md). Его запретPB-SUTсохраняется; чтение/обновлениеSUTздесь выполнены только по новым пользовательским запросам о длительномрежиме. Отдельныйчат уже добавил93eeb6eofflineUDPвыводы; неотменять/неповторятьегоработу. Далее [финальныйREADME](FINALIZATION_AND_NEXT_SCOPE_2026-10-26.md), послефинальнойпроверки и UDP, безуниверсальногопобедителя.
+UDPWinDivert — отдельный чат `01a17935-ca69-7152-8f03-9c9bb8600e7c`, [VM-onlyhandoff](WINDIVERT_UDP_VM_HANDOFF_2026-10-26.md). Его запретPB-SUT сохраняется; здесь SUT читался/обновлялся по новым запросам пользователя о длительном режиме. UDPownership не исправлен этим портовым фиксом; singleUDPflow не проверяет коллизию нескольких сокетов с одним назначением. После финальных проверок — [итоговый README](FINALIZATION_AND_NEXT_SCOPE_2026-10-26.md), без универсального победителя и полного kernelCPU рейтинга.
 
-## Подтверждённые исторические результаты
+## Ссылки и ограничения
 
-- [SUTповторы56](PB_SUT_REPEAT56_AUDIT_2026-10-26.md):16PASS,условияравны,rawSHA/recompute/cleanupподтверждены. WFPkernelCPU0–2samples=unknown,не0.
-- [SUTfull56](PB_SUT_NORMAL56_AUDIT_2026-10-26.md):WFP43PASS/1UNVERIFIEDUDP128,Win33PASS/11UDP-relatedFAIL. Не смешивать с controltimeout57.
-- [ПодготовкаSUT](PB_SUT_COMPARISON_PREPARATION_2026-10-26.md),[VMповторы](REPEAT_RUNS_VM56_2026-10-26.md),[kernel56](KERNEL_COLLECTION_PREVIEW56_2026-10-26.md),[профилинагрузки](USER_LOAD_PROFILES_2026-10-26.md).
+История: [SUTповторы56](PB_SUT_REPEAT56_AUDIT_2026-10-26.md), [SUTfull56](PB_SUT_NORMAL56_AUDIT_2026-10-26.md), [подготовкаSUT](PB_SUT_COMPARISON_PREPARATION_2026-10-26.md), [VMповторы](REPEAT_RUNS_VM56_2026-10-26.md), [kernel56](KERNEL_COLLECTION_PREVIEW56_2026-10-26.md). Использовать подтверждённые результаты без повторного полного аудита.
 
-## Рабочие границы
-
-Worktree `C:/Users/LabAdmin/.codex/worktrees/testlab-development/ProxyBridge-TestLab`, branch codex/development-functional-completion; базаd5b51f3сохранена. Main C:/src/ProxyBridge-TestLab checkpoint-20261007:чужойhandoff/KernelReadCapture.csнетрогать/нечитать. Неавтозапускатьfull/HIGH/soak;trust/BCD/driverнеизменятькакroutineappstep;frozenkits/captures/archivesсохранить. No force/PR/privateartifacts,неделегировать. Проверятьлимиты,<=5%remainingcheckpoint/стоп. Последниелимитыprimary8%used/weekly39%used.
-
+Worktree `C:/Users/LabAdmin/.codex/worktrees/testlab-development/ProxyBridge-TestLab`, branch codex/development-functional-completion; база d5b51f3 сохранена. Main C:/src/ProxyBridge-TestLab checkpoint-20261007: чужой handoff/KernelReadCapture.cs не трогать/не читать. Trust/BCD/driver не менять как routineappstep, frozenkits/captures/archives сохранить. No force/PR/privateartifacts,не делегировать. При<=5%remaining checkpoint/стоп; последний usage primary23%used/weekly41%used.

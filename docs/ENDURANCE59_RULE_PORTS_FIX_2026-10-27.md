@@ -13,3 +13,7 @@
 Evidenceignored: artifacts/endurance-check/check59-product.py/.log/.exit, probe-1793082505832651500/actual-windivert59.json иjournal/core-lifecycle. ВAPIнетtimescaleoverride:короткийциклвызваннапрямуюизdevharness. WFPпровереннауровнеобщеговыбора/сериализацииправил;новогореальногоWFPпрогонавэтомизменениинебыло. 2ч/24чпослеисправленияещёнезапускались.
 
 Preview59содержитисправление;передновымпользовательскимH2обновитьприложениеисохранитьотдельныеstoresVM/SUT. ОшибкуWinDivertUDPownershipэтотфикснеисправляетинескрывает:постоянныйsingleflowнеравеннесколькимсокетамсоднимназначением.
+
+## Развёртывание
+
+Preview59 source b379160804fd7447a2a90acd17313ea575fb663e установлена/перезапущена на VM и PB-SUT(payload/lab59),1703SHAнакаждойкопиисовпали. Оба приложения admin/idle; по2сборки,историяVM10/SUT12,unreadable0,отдельныеstoresсохранены. TaskComparisonобновлена;предыдущий58оставлен. ClientWinRMcleanupбезошибок. НовыеH2/WFPнагрузкине запускались. Evidence ignored: package59-verified.json/sut-upgrade59-r1 и VM artifacts/endurance59-vm-ready.json.
