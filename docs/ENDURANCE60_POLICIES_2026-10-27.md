@@ -23,3 +23,7 @@ Policy-ответы Core содержат ACK пяти ruleID и counters по �
 Evidence ignored: artifacts/endurance-check/check60-guarded-product.log, probe-1793083989127074400; check60-cancel.log, probe-1793084214223596400; contracts60.log, engine-contract-1793084129640700200; ui60.log; tests/test_traffic_endurance_policy.py. Ранее снятый admission до добавления нижестоящего guard — отдельная промежуточная проверка, не доказательство финального guard.
 
 2/24/48/72ч с новым профилем ещё не запускались. Эта проверка расширяет покрытие действий правил и их приоритета; она не заменяет отдельные проверки доменных правил, IPv6 и всех вариантов многопоточности/UDPownership. Продуктовые DLL/SYS не менялись; нет BCD/trust/установки WFP. Тесты используют ранее разрешённую временную загрузку официальногоWinDivert, состояние очищено.
+
+## Развёртывание
+
+Preview60 source df1a002dd635ad6be339933ce7be1661825d5dd5 установлена/запущена на VM и PB-SUT(payload/lab60). 1704SHAнакаждойкопиисовпали;admintrue/activefalse/busyfalse;2сборки,историяVM10/SUT12,unreadable0. Storesсохранены,Comparisontaskобновлена,старыепакетыоставлены,clientcleanupбезошибок. Многочасовойтестне запускался. Evidence ignored: package60-verified.json/sut-upgrade60-r1 и VM artifacts/endurance60-vm-ready.json.
