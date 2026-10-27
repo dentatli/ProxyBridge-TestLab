@@ -5,9 +5,41 @@ from trafficlab.protocol import MAX_LINE
 from trafficlab.quic_wire import append_body, h3_headers
 from trafficlab.routes import stage_route
 from trafficlab.proxy import SocksProxy, fingerprint
+from trafficlab.quic_client import finish_close, CLOSE_WAIT_LIMIT
 
 
 class QuicSafetyTests(unittest.TestCase):
+    def close_fixture(self, duration, terminate=True, cancel=False):
+        state = {'now': 100., 'closing': False, 'closed': False}
+        conn = SimpleNamespace(close=lambda: state.update(closing=True),
+                               get_timer=lambda: 100.+duration)
+        def pump(delay):
+            state['now'] += delay
+            if terminate and state['now'] >= 100.+duration:
+                state['closed'] = True
+        result = {}
+        return conn, pump, lambda: state['closed'], lambda: cancel and state['now']>=101., result, lambda: state['now']
+
+    def test_close_follows_library_timer_beyond_two_seconds(self):
+        for duration in (0., .1, 3.3):
+            with self.subTest(duration=duration):
+                conn,pump,closed,cancelled,result,clock = self.close_fixture(duration)
+                finish_close(conn,pump,closed,cancelled,result,clock=clock)
+                self.assertTrue(result['close_verified'])
+                self.assertGreaterEqual(result['close_wait_elapsed_seconds']+1e-9,duration)
+                self.assertLess(result['close_wait_elapsed_seconds'],duration+.25)
+
+    def test_close_failure_and_cancellation_never_become_success(self):
+        for duration,terminate,cancel,code in ((30.,True,False,'BUDGET_EXCEEDED'),
+                                              (3.,False,False,'TIMER_EXCEEDED'),
+                                              (3.,True,True,'TRAFFIC_CANCELLED')):
+            with self.subTest(code=code):
+                conn,pump,closed,cancelled,result,clock = self.close_fixture(duration,terminate,cancel)
+                with self.assertRaisesRegex(ValueError,code):
+                    finish_close(conn,pump,closed,cancelled,result,clock=clock)
+                self.assertFalse(result['close_verified'])
+                self.assertLessEqual(result['close_wait_elapsed_seconds'],CLOSE_WAIT_LIMIT+.001)
+
     def test_shared_association_binds_counters_only_to_authenticated_connections(self):
         rows = {}
         agent = SimpleNamespace(max_connections=4, metrics=lambda run: rows.setdefault(run, {}))

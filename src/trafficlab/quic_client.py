@@ -3,6 +3,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import json
+import math
 import select
 import socket
 import time
@@ -11,6 +12,45 @@ from trafficlab.application_wire import APPLICATION_PORTS, SERVER_NAME, request,
 from trafficlab.protocol import Histogram, json_bytes
 from trafficlab.quic_wire import append_body, h3_headers, MULTIPLEX_PROFILE, MULTIPLEX_WIDTH
 from trafficlab.diagnostics import require_datagram_source
+
+# Within the isolated worker's 15 s grace, leaving room for its 5 s handshake
+# and process startup. A library timer beyond this limit remains unverified.
+CLOSE_WAIT_LIMIT = 8.0
+CLOSE_TIMER_GRACE = .25
+
+
+def finish_close(conn, pump, is_closed, is_cancelled, result, *, clock=None):
+    clock = clock or time.monotonic
+    started = clock()
+    result.update(closing=True, close_verified=False, close_wait_limit_seconds=CLOSE_WAIT_LIMIT)
+    try:
+        conn.close()
+        # datagrams_to_send starts aioquic's closing period; its timer is not
+        # available until the first CONNECTION_CLOSE has been emitted.
+        pump(0)
+        while not is_closed():
+            if is_cancelled():
+                raise ValueError('TRAFFIC_CANCELLED')
+            timer = conn.get_timer()
+            if not isinstance(timer, (int, float)) or not math.isfinite(timer):
+                raise ValueError('APPLICATION_QUIC_CLOSE_TIMER_UNAVAILABLE')
+            result['close_timer_seconds'] = max(0, timer-started)
+            deadline = min(started+CLOSE_WAIT_LIMIT, timer+CLOSE_TIMER_GRACE)
+            result['close_wait_budget_seconds'] = max(0, deadline-started)
+            remaining = deadline-clock()
+            if remaining <= 0:
+                # Scheduling can resume just after the library timer. Process
+                # its due event once without waiting, within the outer limit.
+                if clock() < started+CLOSE_WAIT_LIMIT:
+                    pump(0)
+                    if is_closed():
+                        break
+                raise ValueError('APPLICATION_QUIC_CLOSE_BUDGET_EXCEEDED' if timer+CLOSE_TIMER_GRACE >= started+CLOSE_WAIT_LIMIT
+                                 else 'APPLICATION_QUIC_CLOSE_TIMER_EXCEEDED')
+            pump(min(.05, remaining))
+        result['close_verified'] = True
+    finally:
+        result['close_wait_elapsed_seconds'] = clock()-started
 
 
 def quic_flow(job, flow_id):
@@ -184,17 +224,12 @@ def quic_flow(job, flow_id):
             next_send += width/job.get('rate_packets_per_second',100)
             while time.perf_counter() < min(deadline,next_send) and not cancelled(job):
                 pump(min(.05, max(0,min(deadline,next_send)-time.perf_counter())))
-        result['closing'] = True
-        conn.close()
-        close_deadline = time.perf_counter() + 2
-        while not closed and time.perf_counter() < close_deadline:
-            pump()
-        result['close_verified'] = closed
         result['close_scope'] = 'local-QUIC-close-timer; remote-idle-verified-by-signed-stage-metrics'
+        finish_close(conn, pump, lambda: closed, lambda: cancelled(job), result)
         verify()
         result['complete'] = closed and result['received'] > 0 and not cancelled(job)
     except Exception as error:
-        code = str(error) if isinstance(error,ValueError) and str(error).startswith(('APPLICATION_','TRAFFIC_DEPENDENCY_')) else 'APPLICATION_QUIC_TRANSPORT_FAILED'
+        code = str(error) if isinstance(error,ValueError) and str(error).startswith(('APPLICATION_','TRAFFIC_DEPENDENCY_','TRAFFIC_CANCELLED')) else 'APPLICATION_QUIC_TRANSPORT_FAILED'
         result['errors'].append(type(error).__name__ + ':' + code)
         if isinstance(error,OSError):
             result.update(socket_errno=error.errno,socket_winerror=getattr(error,'winerror',None))
