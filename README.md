@@ -1,223 +1,52 @@
-# ProxyBridge-TestLab
+# ProxyBridge TestLab
 
-Current application: bilingual **Builds → Testing → Run → Results**, selected
-tests with individual presets, saved named suites and validated launch history.
-See [UI guide](ui/README.md), [functional inventory](docs/DEVELOPMENT_FUNCTIONAL_STATUS.md)
-and [development handoff](docs/CHAT_HANDOFF_DEVELOPMENT.md). TCP failure diagnosis
-continues separately; its working copy and frozen kits are not development inputs.
+Лаборатория для проверки [ProxyBridge](https://github.com/InterceptSuite/ProxyBridge) и сравнения сборок с подходами **WFP** и **WinDivert**. Приложение создаёт управляемый сетевой трафик, проверяет обмен и применение правил, собирает измерения и сохраняет отчёты.
 
-Independent deterministic test and evidence-collection framework for
-[ProxyBridge](https://github.com/InterceptSuite/ProxyBridge).
+Основной сценарий — проверка **«На этом ПК»** через локальный веб-интерфейс. Генератор, получатель и SOCKS5-реле запускаются на проверяемой машине. Отдельный сервер для этого режима не нужен. Интерфейс доступен на русском и английском языках.
 
-ProxyBridge-TestLab validates Windows WFP routing behavior, TCP and UDP policy
-enforcement, connection lifecycle handling, rule evaluation, SOCKS5 proxying,
-known regressions, and externally verifiable route evidence.
+## Возможности
 
-This repository does not contain or modify ProxyBridge product code.
+- Десять групп проверок: TCP, UDP, HTTP/WebSocket/gRPC, TLS/QUIC, DNS, SSH/SFTP, почта, сообщения, стабильность и длительная проверка.
+- Выбор этапов, полноты, длительности и нагрузки; сохранение, импорт и экспорт наборов.
+- Проверка правил PROXY, DIRECT и BLOCK в предусмотренных сценариях.
+- Ход выполнения с раскрываемыми группами и этапами, сохранение частичных результатов и проверка очистки после остановки.
+- Отчёты с подробностями и логами, скачивание итогов JSON, таблица сравнения до четырёх прогонов.
+- Отдельная длительная проверка на 2/24/48/72 часа с фиксированным циклом нагрузки. Она выбирается отдельно от остальных проверок.
 
-## Historical harness results
+Лаборатория проверяет определённые сценарии и условия. Успешный прогон не подтверждает совместимость со всеми приложениями, видами трафика и сетевыми конфигурациями.
 
-The framework has completed real IPv4 execution against ProxyBridge
-4.1.0-Beta WFP in an isolated Windows VM.
+## Требования
 
-Latest full diagnostic sweep:
+- Windows 11 x64 — проверенная платформа текущего локального пакета.
+- Права администратора для сетевых проверок.
+- Отдельно установленный или подготовленный комплект ProxyBridge с подходящим драйвером.
+- Свободный локальный порт 5178 и браузер.
 
-```text
-135 catalog entries
-25 implemented IPv4 scenarios executed
-17 PASS
-7 EXPECTED_FAIL (known defects reproduced)
-1 FAIL_PRODUCT (additional isolated routing failure under investigation)
-0 harness/infrastructure/contamination failures
-```
+Для **WinDivert поддержка заявлена только для ProxyBridge 4.3.0**. Другие версии не заявлены как поддерживаемые. Для WFP выбирается конкретный комплект сборки; проверка его файлов сама по себе не подтверждает работоспособность.
 
-See [Current test results](docs/test-results.md) for the concise sanitized
-summary and limitations.
+Готовый локальный пакет содержит .NET, Python 3.11 и зависимости. Отдельно устанавливать Python, .NET Runtime, Ubuntu или настраивать SSH для режима «На этом ПК» не требуется. ProxyBridge и его продуктовый драйвер в пакет не входят. Требования к установке и подписи драйвера определяются выбранной сборкой ProxyBridge.
 
-## Included components
+## Установка и запуск
 
-- a 135-ID scenario catalog with explicit `EXECUTABLE`, `DECLARATIVE_ONLY`, and
-  `UNSUPPORTED_PRODUCT_SCOPE` boundaries;
-- PowerShell orchestration, profile generation, process lifecycle control,
-  environment preparation, assertions, evidence correlation, reporting, and
-  redaction;
-- source for the deterministic Windows client: `src/pb_net_client.c`;
-- source for the deterministic Linux TCP/UDP endpoint:
-  `src/pb_net_endpoint.py`;
-- an x64 Windows client build script;
-- a systemd service example for the endpoint;
-- dry-run, mock, real-smoke, and real diagnostic suite configurations;
-- dependency-free Windows PowerShell fixture tests;
-- known-defect signature matching so unrelated product failures are not hidden.
+Публичные готовые архивы в [GitHub Releases](https://github.com/dentatli/ProxyBridge-TestLab/releases) пока не опубликованы. Следующие действия относятся к подготовленному пакету `ProxyBridge-TestLab-…-win-x64`.
 
-The repository intentionally does not include:
+1. Распакуйте весь пакет в отдельную папку. Сохраните его структуру каталогов.
+2. Запустите `Start.cmd` и подтвердите запрос Windows на права администратора.
+3. Откроется браузер с лабораторией. Если вкладка не появилась, откройте [localhost:5178](http://127.0.0.1:5178/lab.html).
+4. В разделе **«Сборки»** найдите установленный ProxyBridge или укажите папку вручную. Выберите тип WFP/WinDivert, проверьте файлы и сохраните комплект.
+5. В разделе **«Машина и настройка»** выберите **«На этом ПК»**.
+6. В **«Выборе проверок»** задайте нужные проверки и параметры. Для знакомства подойдёт TCP → Базовая → Быстро → Низкая.
+7. Откройте **«Запуск»**, проверьте состав и оценку времени, запустите очередь.
+8. После завершения откройте **«Результаты»**: отчёт, подробности этапов, логи и сравнение прогонов.
 
-- ProxyBridge binaries or driver packages;
-- compiled `pb_net_client.exe` binaries;
-- proxy credentials;
-- SSH private keys;
-- machine-specific `.env` files;
-- raw runtime evidence.
+При остановке используйте кнопку приложения и дождитесь подтверждения очистки. Перед заменой пакета завершите активную проверку и закройте прежний экземпляр. Настройки, сборки и история хранятся отдельно от пакета в профиле пользователя Windows; запускайте лабораторию под тем же пользователем.
 
-## Quick start
+Для подготовки пакета из исходников предназначен [Publish-LocalApp.ps1](scripts/Publish-LocalApp.ps1). Сборочной машине нужны .NET 10 SDK, MSVC x64, Python 3.11 и подготовленные runtime-зависимости и вспомогательные исполняемые файлы. Это инструменты сборки, не дополнительные требования к готовому пакету.
 
-### Local web UI
+## Результаты сравнения
 
-The default page is the RU/EN laboratory. Add named builds, select tests and their
-individual settings, save reusable suites, explicitly prepare/start a queue and
-inspect Comparison/History. The retired technical dashboard is no longer shipped.
-Source builds do not establish product correctness; runtime evidence gates remain.
+Измерения, параметры стенда, подтверждённые выводы и ограничения опубликованы отдельно: **[сравнение WFP и WinDivert](docs/COMPARISON_RESULTS.md)**.
 
-```powershell
-& 'C:\Program Files\dotnet\dotnet.exe' run `
-    --project '.\ui\ProxyBridge.TestLab.Ui\ProxyBridge.TestLab.Ui.csproj'
-```
+## Лицензия
 
-Open `http://127.0.0.1:5178/`. See [Local web UI](ui/README.md). The Ubuntu wizard
-and 51 traffic scenarios grouped into 10 checks are implemented; see [traffic workloads,
-evidence and acceptance limits](docs/TRAFFIC_LAB.md). Real product checks require
-an administrator UI (`scripts/Start-TestLabUi.ps1 -Administrator`, after building).
-Driver file identity and owned cleanup remain mandatory. Product types are Driver WFP
-and WinDivert. Support is declared only for WinDivert 4.3.0; support for other
-versions is not claimed. Existing version adapters and saved builds are retained.
-Official 4.3.0 passed a short local TCP RTT check on 2026-10-23; this does not
-establish acceptance of all scenarios or arbitrary product bundles. See the
-[current local checkpoint](docs/LOCAL_APP_CHECKPOINT.md).
-
-The standalone harness and its technical backend are retained below. They are
-separate from the laboratory workflow; their historical verification is not proof
-of the current checkout. Ordinary development does not require running a full
-diagnostic suite.
-
-### 1. Clone
-
-```powershell
-git clone https://github.com/dentatli/ProxyBridge-TestLab.git
-Set-Location '.\ProxyBridge-TestLab'
-```
-
-### 2. Build the Windows client
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass `
-    -File '.\scripts\Build-Harness.ps1'
-```
-
-Output:
-
-```text
-bin\pb_net_client.exe
-```
-
-### 3. Configure the current laboratory
-
-Use Builds, Testing and Run as described in [the operator guide](docs/OPERATOR_GUIDE.md).
-The previous Environment Setup screen has been removed. Shared settings and SSH
-backend services remain for development and existing probes. Testing → remote
-contains its own Ubuntu wizard and traffic runtime; it does not remove evidence
-gates or grant readiness to the older remote launch adapter.
-
-### 4. Configure the tester
-
-The laboratory stores choices in the per-user application directory and protects
-build paths with DPAPI. Templates do not store credentials or runtime readiness.
-The retained technical runner uses its own guarded configuration adapter; do not
-manually alter old `.env` files or diagnostic preparations as a development step.
-
-### 5. Validate TestLab itself
-
-```powershell
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\tests\Run-All.ps1'
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Invoke-DryRun.ps1' -FixtureMode
-powershell.exe -NoProfile -ExecutionPolicy Bypass -File '.\scripts\Invoke-MockMatrix.ps1' -FixtureMode
-```
-
-### 6. Real execution status
-
-The safe job orchestrator and real runner adapter are present. Real execution
-still requires a dedicated signed immutable-preflight receipt for the exact
-selection; Server Setup readiness alone is insufficient and there is no UI
-bypass.
-
-## Repository layout
-
-```text
-src/          Windows client and Linux endpoint source
-modules/      PowerShell runner modules
-scripts/      build, dry-run, mock and gated real-smoke entrypoints
-deploy/       service examples
-config/       capabilities, runtime policy, suites and known defects
-scenarios/    declarative scenario catalogs
-schemas/      profile, scenario, suite and result contracts
-tests/        dependency-free unit, schema and fixture tests
-docs/         setup, evidence, safety, coverage and current results
-```
-
-## Result statuses
-
-Real-runtime classifications include:
-
-```text
-PASS
-FAIL_PRODUCT
-EXPECTED_FAIL
-HOLD_AMBIGUOUS
-BLOCKED_BY_KNOWN_DEFECT
-SKIPPED_CAPABILITY
-SKIPPED_SELECTION
-NOT_IMPLEMENTED
-UNSUPPORTED_PRODUCT_SCOPE
-FAIL_HARNESS
-FAIL_INFRASTRUCTURE
-CONTAMINATED
-```
-
-Important distinctions:
-
-- `EXPECTED_FAIL` means a known defect was reproduced with its declared
-  signature; it is not a product pass;
-- `NOT_IMPLEMENTED` means the catalog declares the coverage but no executable
-  client contract exists yet;
-- mock evidence validates TestLab, not ProxyBridge;
-- `RUN_COMPLETE` means reports were written; read `summary.json` and
-  `summary.csv` for execution completeness and the product verdict.
-
-## IPv6
-
-IPv6 scenarios are present, but setting `ipv6.enabled=true` only selects them.
-A valid host/VM route, public server listener, firewall rules, UI-configured
-addresses, and proxy support are all required. The published WFP results did not evaluate
-IPv6 because the test environment lacked native public IPv6 connectivity.
-
-## Security
-
-The endpoint is an unauthenticated echo service. Restrict it by firewall to the
-expected DIRECT and proxy egress addresses, and remove temporary rules after
-use.
-
-Do not commit:
-
-- `.env`;
-- generated `.pbprofile` files;
-- credentials or SSH keys;
-- private certificates;
-- raw packet captures or crash dumps;
-- unredacted runtime evidence.
-
-See [SECURITY.md](SECURITY.md) and [Runtime safety](docs/runtime-safety.md).
-
-## Documentation
-
-- [End-to-end environment setup](docs/environment-setup.md)
-- [Current test results](docs/test-results.md)
-- [Orchestrator specification](docs/ORCHESTRATOR_SPEC.md)
-- [Coverage model](docs/COVERAGE_MODEL.json)
-- [Coverage explanation](docs/coverage-model.md)
-- [Adding scenarios](docs/adding-scenarios.md)
-- [Evidence format](docs/evidence-format.md)
-- [Runtime safety](docs/runtime-safety.md)
-- [Known defects](docs/known-defects.md)
-
-## License
-
-MIT. See [LICENSE](LICENSE).
+[MIT](LICENSE).
