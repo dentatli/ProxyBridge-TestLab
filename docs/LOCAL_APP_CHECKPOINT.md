@@ -2,7 +2,7 @@
 
 ## Сейчас
 
-PB-SUT: **preview.62**, source `2f6f0bb8684db5a2615f8cf3f0e860fafefbf1e1`, `C:/PB-TestLab-20261026-r1/payload/lab62`, localhost5178. Comparison task обновлена, app admin/idle. Сохранены 2 сборки и 14 отчётов, unreadable0. Все1704 SHA проверены после установки и после короткого прогона. Предыдущие пакеты/task-before62.clixml оставлены для отката.
+PB-SUT: **preview.62**, source `2f6f0bb8684db5a2615f8cf3f0e860fafefbf1e1`, `C:/PB-TestLab-20261026-r1/payload/lab62`, localhost5178. Comparison task обновлена, app admin/idle. При обновлении сохранены 2 сборки и 14 прежних отчётов, unreadable0; после него появился новый H2. Все1704 SHA проверены после установки и после короткого прогона. Предыдущие пакеты/task-before62.clixml оставлены для отката.
 
 VM: **preview.61**, `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.61-win-x64`. Автоматическая проверка отклонила команду подготовки обновления VM («blocked by policy»); её не перезапускали. На VM обнаружен уже загруженный WinDivert64.sys; чужой драйвер не выгружать и WFP safety gate не обходить.
 
@@ -14,7 +14,9 @@ C#/C build, Python compilation, 2 policy guards и 3 необходимых RPC 
 
 **Реальная WFP приёмка PB-SUT PASS:** сокращённый70с цикл (72.313с с завершением), все6 apps, persistent TCP/UDP, bulk/churn, 9×4 policy checks; ещё3×4 свежих policy checks после цикла; отрицательный DIRECT/fallback BLOCK guard PASS. Отмена3.125с, cancelled=true/complete=false, оба native hosts idle. Core cleanup=true/forced_stop=false. Итог: ProxyBridgeDrv Stopped, устройство отключено/problem22, core_hosts0. SHA/41 записей журнала сверены. Продуктовые DLL/SYS, BCD/trust/установка не менялись. WinRM/TrustedHosts восстановлены. Evidence: ignored artifacts/endurance-check/sut-functional62-read-r1/target-files, package62-verified.json, ack62.log.
 
-**Следующий шаг:** пользователь повторяет WFP H2 на PB-SUT. Самостоятельно H2/24ч не запускать. Если RPC снова откажет, читать первую failure_context и retained_control_result, не считать вторичную ORIGIN_NOT_IDLE первопричиной. Исторический часовой отказ пока не объяснён.
+## Последний пользовательский H2 — принят
+
+[WFP62 аудит](PB_SUT_WFP_H2_62_AUDIT_2026-10-27.md): attempt20261027-131017-401aef43458d48109dc0710697f2a05b, COMPLETE. 7200с нагрузки (7204.422с с завершением),212/212 работ обмен/маршрутPASS,464/464 DIRECT/BLOCK независимо пересчитаны. TCP14400 обменов,UDP36000/36000 без потерь;6 apps×16окон,QUIC close16/16. PID/ruleIDs стабильны,CoreStart/Stop1/1,все cleanup true/device disabled/службаStopped. Старые callback FAIL и часовая остановка не повторились. Control recovery не требовалось; причина исторического RPC отказа остаётся неизвестной. SHA9файлов/journal444записи/console prefix и summary0diff подтверждены. Полный console ограничен prefix4MiB, stage journal полный. Никаких новых запусков/перезапусков/изменений продукта не выполнялось. Следующий шаг — по запросу пользователя; автоматически H2/24ч не запускать. Ресурсы ядра WFP этим не измерены.
 
 ## Последние длительные результаты
 
@@ -24,6 +26,6 @@ C#/C build, Python compilation, 2 policy guards и 3 необходимых RPC 
 
 ## Ограничения и продолжение
 
-Worktree `C:/Users/LabAdmin/.codex/worktrees/testlab-development/ProxyBridge-TestLab`, branch `codex/development-functional-completion`, базаd5b51f3 сохранена. Main `C:/src/ProxyBridge-TestLab`: чужие handoff/KernelReadCapture.cs не трогать/не читать. Не менять frozen kits/captures/archives. Не диагностировать продукт без отдельного запроса. Без subagents/PR/force-push/private artifacts. Usage: последние primary43%used/weekly53%used, проверять и останавливаться при<=5%remaining.
+Worktree `C:/Users/LabAdmin/.codex/worktrees/testlab-development/ProxyBridge-TestLab`, branch `codex/development-functional-completion`, базаd5b51f3 сохранена. Main `C:/src/ProxyBridge-TestLab`: чужие handoff/KernelReadCapture.cs не трогать/не читать. Не менять frozen kits/captures/archives. Не диагностировать продукт без отдельного запроса. Без subagents/PR/force-push/private artifacts. Usage: последние primary0%used/weekly54%used, проверять и останавливаться при<=5%remaining.
 
 UDP WinDivert — отдельный чат `01a17935-ca69-7152-8f03-9c9bb8600e7c`, [VM-only handoff](WINDIVERT_UDP_VM_HANDOFF_2026-10-26.md). Его запрет PB-SUT относится к той диагностике; здесь SUT обновляется по запросам пользователя о длительном режиме. После приёмки — [итоговый README и границы сравнения](FINALIZATION_AND_NEXT_SCOPE_2026-10-26.md).
