@@ -1,5 +1,13 @@
 # Локальная лаборатория — checkpoint, 28 октября 2026
 
+## Общесистемная очистка VM — 28 октября
+
+По уточнению пользователя проверен весь диск C: Windows/ProgramFiles/ProgramData/всеUsers/Downloads/Desktop/прочие проекты. Просмотрено≈595тыс.файлов,21 защищённая область недоступна прямому чтению; системное хранилище дополнительно проверено штатной DISM. Рекурсивный отчёт каталогов приблизителен: не суммировать Windows hardlink-пути как независимые размеры.
+
+Дополнительно освобождено≈7.1ГиБ относительно начала второго прохода; сейчас65.56ГиБ свободно (изначально первого прохода29.39ГиБ). StartComponentCleanup/NoRestart успешно(exit0), безResetBase/отключенияfeatures: store поDISM10.18→6.69GB, reclaimable8→2. ПоследнийAnalyzeтакжеexit0; остаточные2пакета не удалялись вручную. Delete-DeliveryOptimizationCache успешно, pinnedне включались. Удалено13 cache/CodeCache/GPUCache папокEdge≈432МиБ; history/cookies/login/profileне трогались. Temp3.23→0.37ГиБ: после первого прохода VSinstaller заново создалxbgdog1h(21:16–21:19), после завершения installer и15мин покоя проверенные extractionкопии удалены. Последняя обвязкаtemp не записалаresultJSON; результат отдельно проверен по отсутствиюxbg/папок и остаточномуразмеру, скрипт не повторяли. RebootPending/WURebootRequired=false.
+
+VisualStudio≈10.8ГиБ, WindowsSDK≈4.7ГиБ, WindowsApps≈5.2ГиБ по исходному inventory — установленное ПО, не автоматически мусор. MSI/VS repaircache, активныеCodex runtimes, историяCodex, личныефайлы, исходники/драйверы/фрозенkit не удалялись. Программы не деинсталлировались, services/power/BCD/trust не менялись, PB-SUTне подключали. Evidenceignored: artifacts/system-cleanup-20261028/{inventory.json,dism-analyze.log,dism-cleanup.log,dism-after.log,delivery-cache-result.json,browser-cache-result.json,summary.json}. Новые запускиTestLab/продуктовых тестов не делались.
+
 ## Очистка диска VM — 28 октября
 
 По запросу пользователя очищена только VM, PB-SUT не подключали. Было29.39ГиБ свободно, стало60.76ГиБ; освобождено≈31.41ГиБ. Удалены66 старых локальных app-пакетов и31 папка временных файлов VisualStudioInstaller (≈18.79ГиБ). Сохранены preview56/62/63; все1698/1704/1704 packageSHA совпали. MANIFEST/SHA256SUMS удалённых пакетов сохранены отдельно. Старые61/60 и остальные previewпакеты удалены, не ссылаться на них как на доступный rollback. Baseline56 и rollback62 сохранены.
