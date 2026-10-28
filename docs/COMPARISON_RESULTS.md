@@ -2,7 +2,7 @@
 
 **English** | [Русский](COMPARISON_RESULTS.ru.md)
 
-Verified observations as of October 27, 2026. These results describe specific builds and scenarios, not a universal ranking of the architectures. See the [README](../README.md) for the project description and installation instructions. The supporting audit notes linked below are currently in Russian.
+Verified observations as of October 28, 2026. These results describe specific builds and scenarios, not a universal ranking of the architectures. See the [README](../README.md) for the project description and installation instructions. The supporting audit notes linked below are currently in Russian.
 
 ## Test machine and methodology
 
@@ -55,8 +55,9 @@ The fixed profile cycles through ordinary activity, bursts, connection creation,
 |---|---|---|
 | WinDivert 4.3.0 | preview.60 | Completed 7,200 seconds of load; one QUIC close failure despite verified data exchange. Overall result failed. |
 | WFP 4da324e | preview.62 | Completed all 7,200 seconds of load, COMPLETE; exchange and routing verified for all 212 completed jobs. |
+| WinDivert 4.3.0 | preview.62 | Completed all 7,200 seconds of load, COMPLETE; exchange and routing verified for all 211 completed jobs. |
 
-After the WinDivert run, the laboratory's fixed QUIC close wait was revised: preview.61 follows the library timer within a bounded budget. The exact timer for the historical failure was not recorded, so its specific cause remains unproven. The change was checked in short runs, but this dataset does not yet include a full WinDivert H2 run on preview.62. The old report has not been reclassified as successful.
+After the WinDivert run, the laboratory's fixed QUIC close wait was revised: preview.61 follows the library timer within a bounded budget. The exact timer for the historical failure was not recorded, so its specific cause remains unproven. The change was checked in short runs and then in a full WinDivert H2 run on preview.62: all 16 QUIC windows, including closure, passed; the longest close wait was 2.422 seconds. The old report has not been reclassified as successful.
 
 The WFP run on preview.62 recorded:
 
@@ -66,9 +67,11 @@ The WFP run on preview.62 recorded:
 - DIRECT/BLOCK: 464/464 successful checks, with stable rules and Core process.
 - Verified cleanup, with the device disabled afterward. The previous false callback failures and roughly one-hour stop did not recur; the cause of the historical RPC failure remains unknown.
 
+The WinDivert preview.62 run also verified 14,400 persistent TCP exchanges, 36,000/36,000 UDP replies without loss or invalid packets, 16 windows of each application protocol, all 464 DIRECT/BLOCK checks, and cleanup. Both approaches have now passed H2 on the same laboratory runtime. The difference between 211 and 212 completed jobs is not a performance ranking: this profile is time bounded, and window completion affects scheduling. Success in this profile does not invalidate the ordinary UDP failures above.
+
 Runs of 24, 48, or 72 hours are not verified here. One successful H2 run does not establish the absence of all leaks or coverage of all network traffic on the PC.
 
-Sources: [WinDivert H2](PB_SUT_WINDIVERT_H2_60_AUDIT_2026-10-27.md), [QUIC close fix](QUIC_CLOSE_TIMER_PREVIEW61_2026-10-27.md), [WFP H2](PB_SUT_WFP_H2_62_AUDIT_2026-10-27.md).
+Sources: [WinDivert H2 on preview.62](PB_SUT_WINDIVERT_H2_62_AUDIT_2026-10-28.md), [historical WinDivert H2](PB_SUT_WINDIVERT_H2_60_AUDIT_2026-10-27.md), [QUIC close fix](QUIC_CLOSE_TIMER_PREVIEW61_2026-10-27.md), [WFP H2](PB_SUT_WFP_H2_62_AUDIT_2026-10-27.md).
 
 ## Interpreting resource measurements
 
