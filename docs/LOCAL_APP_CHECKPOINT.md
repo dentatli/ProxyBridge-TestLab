@@ -1,5 +1,13 @@
 # Локальная лаборатория — checkpoint, 28 октября 2026
 
+## Очистка диска VM — 28 октября
+
+По запросу пользователя очищена только VM, PB-SUT не подключали. Было29.39ГиБ свободно, стало60.76ГиБ; освобождено≈31.41ГиБ. Удалены66 старых локальных app-пакетов и31 папка временных файлов VisualStudioInstaller (≈18.79ГиБ). Сохранены preview56/62/63; все1698/1704/1704 packageSHA совпали. MANIFEST/SHA256SUMS удалённых пакетов сохранены отдельно. Старые61/60 и остальные previewпакеты удалены, не ссылаться на них как на доступный rollback. Baseline56 и rollback62 сохранены.
+
+177 крупных неактивных ETL/XML/JSON/JSONL/log-файлов в artifacts/diagnostics иlocal-route сжаты штатной NTFScompression (≈12.63ГиБ). SHA256до/после каждого файла совпали; bytes/paths сохранены, evidence/frozenkits не удалялись/не refreeze. Private logs/results/captures, исходники/worktrees, установленныйSDK/драйверы, MSI/VS repaircache исистемные настройки не трогали. Приложение/тесты не запускали; UI перед очисткой не отвечал, активных UI/installerпроцессов/ссылокscheduledtasks настарые пакеты не обнаружено.
+
+Ignored evidence: artifacts/disk-cleanup-20261028/{inventory.json,details.json,deletion-plan.json,deletion-result.json,retired-package-manifests,compression-plan.json,compression-result.json,compact-pilot-result.json,summary.json}. Последующие замеры учитывать: NTFScompressed logicalsize не равно занятому месту. Для полного отката сжатия есть NTFSdecompression; она потребует свободного места. Пакеты/программы за пределами подтверждённых старых app/tempдиректорий не удалялись.
+
 ## Перенос в main завершён — 28 октября
 
 По запросу пользователя main продвинута fast-forward с a85a370 на20d25f5 (222коммита), удалённая SHA подтверждена. codex/development-functional-completion сохранена, история не переписывалась, продуктовый ProxyBridge не менялся. Предварительно: Gitclean,mainancestor,467изменённыхфайлов; нет найденных private capture/key/DPAPI/archive paths, private-key material/token patterns или conflict markers. Единственное замечание diff--check — старая пустая строка в EOF KernelResources.cs, не функциональный дефект. Повторные тесты/развёртывание не выполнялись: используются подтверждённые H2 WFP/WinDivert62 и VM63 UI/startup/SHA. Эта запись фиксируется в обеих ветках. GitHub Release/тег/бинарный архив не публиковались; установленные VM63 иSUT62 не менялись. Следующие действия — по запросу пользователя.
@@ -20,7 +28,7 @@
 
 **PB-SUT:** после нового запроса «Посмотри последний прогон» выполнен только read-only аудит завершённого WinDivert H2. Прежний запрет вмешиваться во время проверки соблюдён. Последняя установка preview.62 сохранена, новые нагрузки/перезапуски не разрешать автоматически. WebAPI при аудите не ответил; runtime не запускали. Следующий шаг — по запросу пользователя.
 
-**VM обновлена до preview.63**, source `ae312ecfa3840c18dfdf4144c7fec660941b7199`: `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.63-win-x64`, localhost5178. App admin/idle, обе сборки и14 отчётов сохранены/unreadable0. Все1704 SHA проверены до переключения; HTTP подтверждает новый root, отсутствие remote option и local fallback для наборов. Старый preview.61 сохранён для отката. Продукт/его драйвер/системные настройки не меняли, тесты не запускали. Evidence ignored: artifacts/endurance-check/publish63.log/.exit, update-vm63.ps1, vm63-ready.json, vm63-app.log/.err. Предыдущее отклонение подготовки VM62 не обходилось: новое обновление63 выполнено по отдельному прямому запросу пользователя.
+**VM обновлена до preview.63**, source `ae312ecfa3840c18dfdf4144c7fec660941b7199`: `C:/src/ProxyBridge-TestLab/artifacts/releases/ProxyBridge-TestLab-0.3.0-local-preview.63-win-x64`, localhost5178. App admin/idle, обе сборки и14 отчётов сохранены/unreadable0. Все1704 SHA проверены до переключения; HTTP подтверждает новый root, отсутствие remote option и local fallback для наборов. После очистки диска старый preview.61 удалён; rollback — preview.62. Продукт/его драйвер/системные настройки не меняли, тесты не запускали. Evidence ignored: artifacts/endurance-check/publish63.log/.exit, update-vm63.ps1, vm63-ready.json, vm63-app.log/.err. Предыдущее отклонение подготовки VM62 не обходилось: новое обновление63 выполнено по отдельному прямому запросу пользователя.
 
 ## Исправление и проверка62
 
